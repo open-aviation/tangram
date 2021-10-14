@@ -1,4 +1,4 @@
-import time
+import pickle
 import pyModeS as pms
 from queue import Queue
 from collections import defaultdict
@@ -60,6 +60,8 @@ def calculate_results(resultats: list) -> dict:
 def nb_vol(client: ADSBClient) -> dict:
     q = client.get_queue()
     data_cache = list(q.queue)
+    # with open('data.pickle', 'wb') as f:
+    #     pickle.dump(data_cache,f)
     return calculate_results(data_cache)
 
 
