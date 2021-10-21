@@ -1,0 +1,39 @@
+<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+<script src="https://code.jquery.com/jquery-3.5.0.js"></script>
+
+</div>
+<div id="map" style="height: 100%">
+  <script type="text/javascript">
+
+    // The first parameter are the coordinates of the center of the map
+    // The second parameter is the zoom level
+    var map = L.map("map").setView([43.57155, 1.47165], 7);
+
+    function onEachFeature(feature, layer) {
+      var popupContent = "<p>ICAO: " +
+        feature.properties + "<br>Longitude: " + feature.geometry.coordinates[0] + " Latitude: " + feature.geometry.coordinates[1] + "</p>";
+
+      // if (feature.properties && feature.properties.popupContent) {
+      //   popupContent += feature.properties.popupContent;
+      // }
+
+      layer.bindPopup(popupContent);
+    }
+    $.getJSON("results.geojson", function (data) {
+      L.geoJson(data, {
+        onEachFeature: onEachFeature
+      }).addTo(map);
+    });
+
+    var layer = L.tileLayer(
+      "http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+      {
+        attribution:
+          '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+      }
+    );
+
+    map.addLayer(layer);
+  </script>
+</div>
