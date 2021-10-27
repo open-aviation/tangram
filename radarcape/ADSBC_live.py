@@ -1,74 +1,115 @@
-import pyModeS as pms
-from queue import Queue
-from collections import defaultdict
-from pyModeS.extra.tcpclient import TcpClient
+from datetime import timedelta, timezone
+import numpy as np
+import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
+from traffic.core.traffic import Traffic
+from traffic.data import ModeS_Decoder
+import time
 
 
-class ADSBClient(TcpClient):
-    def __init__(self, host, port, rawtype):
-        super(ADSBClient, self).__init__(host, port, rawtype)
-        self.queue = Queue()
-        self.df_raw = {}
-
-    def handle_messages(self, messages):
-        for msg, ts in messages:
-            icao = pms.adsb.icao(msg)
-            tc = pms.adsb.typecode(msg)
-            self.queue.put({"ts": ts, "icao": icao, "msg": msg, "tc": tc})
-            if self.queue.qsize() > 30000:
-                self.queue.get()
-
-    def get_queue(self):
-        return self.queue
+def crit(df):
+    return (
+        df.vertical_rate_barometric_std - df.vertical_rate_inertial_std
+    ).abs()
 
 
-def calculate_results(resultats: list) -> dict:
-    data = defaultdict(lambda: [])
-    for mesure in resultats:
-        id = mesure["icao"]
-        if id is None:
-            id = "None"
-        data[id].append(
-            {"ts": mesure["ts"], "msg": mesure["msg"], "tc": mesure["tc"]}
-        )
+def thrushold(df):
+    return np.mean(df.criterion) + 1.2 * np.std(df.criterion)
 
-    dict_min = {}
-    tester = defaultdict(lambda: [])
-    for id in data.keys():
-        data_icao = [x for x in data[id]]
-        for mesure in data_icao:
-            msg = mesure["msg"]
-            if (
-                5 <= mesure["tc"] <= 8
-                or 9 <= mesure["tc"] <= 18
-                or 20 <= mesure["tc"] <= 22
-            ):
-                position = pms.adsb.position_with_ref(
-                    msg, lon_ref=1.47165, lat_ref=43.57155
+
+def turbulence(df):
+    return df.criterion > df.thrushold
+
+
+class ADSBClient:
+    def __init__(self, host: str, port: int, reference: str) -> None:
+        self.host = host
+        self.port = port
+        self.reference = reference
+        self.terminate = False
+        self.decoder = None
+        self._pro_data: Traffic = None  #: Dict[pd.Timestamp, Traffic] = {}
+
+    def clean_decoder(self):
+        while not self.terminate:
+            for icao in list(self.decoder.acs.keys()):
+                condition = True
+                with self.decoder.acs[icao].lock:
+                    if len(self.decoder.acs[icao].cumul) > 0:
+                        condition = False
+                        if pd.Timestamp(
+                            "now", tzinfo=timezone.utc
+                        ) - self.decoder.acs[icao].cumul[-1][
+                            "timestamp"
+                        ] >= timedelta(
+                            hours=1
+                        ):
+                            del self.decoder.acs[icao]
+                if condition and self.decoder.acs[icao].flight is not None:
+                    if pd.Timestamp(
+                        "now", tzinfo=timezone.utc
+                    ) - self.decoder.acs[icao].flight.stop >= timedelta(
+                        hours=1
+                    ):
+                        with self.decoder.acs[icao].lock:
+                            del self.decoder.acs[icao]
+
+    def calculate_turbulence(self):
+
+        while not self.terminate:
+
+            t = self.decoder.traffic
+
+            if t is not None:
+                # self._pro_data[pd.Timestamp("now", tzinfo=timezone.utc)]
+                self._pro_data = (
+                    t.longer_than("1T")
+                    .last("30T")
+                    .resample("1s")
+                    .filter(  # median filters for abnormal points
+                        vertical_rate_barometric=3,
+                        vertical_rate_inertial=3,  # kernel sizes
+                        strategy=None,  # invalid data becomes NaN
+                    )
+                    .agg_time(
+                        # aggregate data over intervals of one minute
+                        "1 min",
+                        # compute the std of the data
+                        vertical_rate_inertial="std",
+                        vertical_rate_barometric="std",
+                        # reduce one minute to one point
+                        latitude="mean",
+                        longitude="mean",
+                    )
+                    .assign(
+                        # we define a criterion based on the
+                        # difference between two standard deviations
+                        # on windows of one minute
+                        criterion=crit
+                    )
+                    .assign(
+                        # we define a thushold based on the
+                        # mean criterion + 1.2 * standar deviation criterion
+                        thrushold=thrushold
+                    )
+                    .assign(turbulence=turbulence)
+                    .eval(max_workers=4)
                 )
-                mesure["ps"] = {"lat": position[0], "lon": position[1]}
-                tester[id].append(mesure)
-                # on peut mettre tester[id][0]
-                tester[id] = [min(tester[id], key=lambda item: item["ts"])]
+            time.sleep(5)
 
-        dict_min[id] = min(data_icao, key=lambda item: item["ts"])
+    @property
+    def pro_data(self):
+        # last entry
+        return self._pro_data
 
-    print(len(dict_min))
-    print(len(tester))
-    return tester
+    def start(self):
+        self.decoder = ModeS_Decoder.from_address(
+            self.host, self.port, self.reference
+        )
+        executor = ThreadPoolExecutor(max_workers=4)
+        executor.submit(self.calculate_turbulence)
+        executor.submit(self.clean_decoder)
 
-
-def nb_vol(client: ADSBClient) -> dict:
-    q = client.get_queue()
-    data_cache = list(q.queue)
-    return calculate_results(data_cache)
-
-
-def run_client(client: ADSBClient):
-    client.run()
-
-
-def main(client: ADSBClient):
-    executor = ThreadPoolExecutor(max_workers=2)
-    executor.submit(run_client, client)
+    def stop(self):
+        self.decoder.stop()
+        self.terminate = True
