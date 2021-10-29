@@ -1,6 +1,6 @@
-import time
 import numpy as np
 from traffic.core.flight import Position
+
 from .converter import geojson_trajectoire, write_Json_to_Geojson
 from flask import Blueprint, current_app, jsonify, render_template
 from flask.wrappers import Response
@@ -12,11 +12,11 @@ def calcul_list_vols() -> dict:
     resultats: dict[str, Position] = dict()
     for flight in current_app.client.pro_data:
         if flight.shape is not None:
-            p = flight.at(flight.start)
-            if not (np.isnan(p.latitude_mean) and np.isnan(p.longitude_mean)):
+            p = flight.at(flight.stop)
+            if not (np.isnan(p.latitude) and np.isnan(p.longitude)):
                 resultats[flight.icao24] = (
-                    p.latitude_mean,
-                    p.longitude_mean,
+                    p.latitude,
+                    p.longitude,
                 )
     return resultats
 
@@ -32,17 +32,14 @@ def create_map() -> str:
     return render_template("map.html")
 
 
-@bp.route("/radarcape/trajectory", methods=["GET"])
-def traj() -> str:
-    return render_template("maptraj.html")
-
-
 @bp.route("/radarcape/traj.geojson", methods=["GET"])
 def draw_trajectoire():
     liste = []
-    for flight in current_app.client.pro_data.query("turbulence"):
-        if flight.shape is not None:
-            liste.append(flight)
+    turb = current_app.client.pro_data.query("turbulence")
+    if turb is not None:
+        for flight in turb:
+            if flight.shape is not None:
+                liste.append(flight)
     resultats = geojson_trajectoire(liste)
     return resultats
 
@@ -51,3 +48,10 @@ def draw_trajectoire():
 def fetch_results_Geojson() -> dict:
     res = calcul_list_vols()
     return write_Json_to_Geojson(res)
+
+
+@bp.route("/radarcape/sigmet.geojson", methods=["GET"])
+def fetch_sigmets() -> dict:
+    res = current_app.sigmet.sigmets(fir="^(L|E)")
+    res = res._to_geo()
+    return res
