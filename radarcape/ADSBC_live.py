@@ -1,10 +1,12 @@
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta, timezone
+
 import numpy as np
 import pandas as pd
-from concurrent.futures import ThreadPoolExecutor
 from traffic.core.traffic import Traffic
 from traffic.data import ModeS_Decoder
-import time
 
 
 def crit(df):
@@ -29,6 +31,10 @@ class ADSBClient:
         self.terminate = False
         self.decoder = None
         self._pro_data: Traffic = None  #: Dict[pd.Timestamp, Traffic] = {}
+        self.lock_prodata = threading.Lock()
+
+    def __exit__(self):
+        self.stop()
 
     def clean_decoder(self):
         while not self.terminate:
@@ -62,45 +68,47 @@ class ADSBClient:
 
             if t is not None:
                 # self._pro_data[pd.Timestamp("now", tzinfo=timezone.utc)]
-                self._pro_data = (
-                    t.longer_than("1T")
-                    .last("30T")
-                    .resample("1s")
-                    .filter(  # median filters for abnormal points
-                        vertical_rate_barometric=3,
-                        vertical_rate_inertial=3,  # kernel sizes
-                        strategy=None,  # invalid data becomes NaN
+                with self.lock_prodata:
+                    self._pro_data = (
+                        t.longer_than("1T")
+                        .last("30T")
+                        .resample("1s")
+                        .filter(  # median filters for abnormal points
+                            vertical_rate_barometric=3,
+                            vertical_rate_inertial=3,  # kernel sizes
+                            strategy=None,  # invalid data becomes NaN
+                        )
+                        .agg_time(
+                            # aggregate data over intervals of one minute
+                            "1 min",
+                            # compute the std of the data
+                            vertical_rate_inertial="std",
+                            vertical_rate_barometric="std",
+                            # reduce one minute to one point
+                            latitude="mean",
+                            longitude="mean",
+                        )
+                        .assign(
+                            # we define a criterion based on the
+                            # difference between two standard deviations
+                            # on windows of one minute
+                            criterion=crit
+                        )
+                        .assign(
+                            # we define a thushold based on the
+                            # mean criterion + 1.2 * standar deviation criterion
+                            thrushold=thrushold
+                        )
+                        .assign(turbulence=turbulence)
+                        .eval(max_workers=4)
                     )
-                    .agg_time(
-                        # aggregate data over intervals of one minute
-                        "1 min",
-                        # compute the std of the data
-                        vertical_rate_inertial="std",
-                        vertical_rate_barometric="std",
-                        # reduce one minute to one point
-                        latitude="mean",
-                        longitude="mean",
-                    )
-                    .assign(
-                        # we define a criterion based on the
-                        # difference between two standard deviations
-                        # on windows of one minute
-                        criterion=crit
-                    )
-                    .assign(
-                        # we define a thushold based on the
-                        # mean criterion + 1.2 * standar deviation criterion
-                        thrushold=thrushold
-                    )
-                    .assign(turbulence=turbulence)
-                    .eval(max_workers=4)
-                )
-            time.sleep(5)
+            time.sleep(1)
 
     @property
     def pro_data(self):
         # last entry
-        return self._pro_data
+        with self.lock_prodata:
+            return self._pro_data
 
     def start(self):
         self.decoder = ModeS_Decoder.from_address(
