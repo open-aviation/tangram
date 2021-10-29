@@ -1,6 +1,9 @@
-from flask import Flask
-from .ADSBC_live import ADSBClient
 from atmlab.weather import Weather
+from flask import Flask
+from flask_assets import Environment
+
+from .ADSBC_live import ADSBClient
+from .util import assets
 
 
 def create_app(test_config=None):
@@ -20,4 +23,6 @@ def create_app(test_config=None):
     # print(pro_data)
     # app.client.stop()
     app.register_blueprint(views.bp)
+    asset = Environment(app)
+    asset.register(assets.bundles)
     return app
