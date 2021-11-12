@@ -67,7 +67,6 @@ class ADSBClient:
             t = self.decoder.traffic
 
             if t is not None:
-                # self._pro_data[pd.Timestamp("now", tzinfo=timezone.utc)]
                 with self.lock_prodata:
                     self._pro_data = (
                         t.longer_than("1T")
