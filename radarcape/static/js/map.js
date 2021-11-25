@@ -3,7 +3,7 @@ var turbulences = L.layerGroup();
 var sigmets = L.layerGroup();
 
 function onEachFeature(feature, layer) {
-  var popupContent = "<p>ICAO: " + feature.properties + "</p>";
+  var popupContent = "<p>ICAO: " + feature.properties.icao + "</p>";
   layer.bindPopup(popupContent);
 }
 
@@ -22,12 +22,31 @@ var overlays = {
   Turbulences: turbulences,
   Sigmets: sigmets,
 };
+function createCustomIcon (feature, latlng) {
+  let myIcon = L.icon({
+    iconUrl: 'plane.png',
+    iconSize:     [30, 30], // width and height of the image in pixels
+    iconAnchor:   [12, 12], // point of the icon which will correspond to marker's location
+    popupAnchor:  [0, 0] // point from which the popup should open relative to the iconAnchor
+  })
+  return L.marker(latlng, { icon: myIcon,rotationAngle: feature.properties.dir })
+}
+let myLayerOptions = {
+  onEachFeature: onEachFeature,
+  pointToLayer: createCustomIcon
+}
+
 setInterval(function () {
+
+  // $.getJSON("results.geojson", function (data) {
+  //   planes.clearLayers();
+  //   L.geoJson(data, {
+  //     onEachFeature: onEachFeature,
+  //   }).addTo(planes);
+  // });
   $.getJSON("results.geojson", function (data) {
     planes.clearLayers();
-    L.geoJson(data, {
-      onEachFeature: onEachFeature,
-    }).addTo(planes);
+    L.geoJson(data,myLayerOptions).addTo(planes);
   });
   $.getJSON("turb.geojson", function (data) {
     turbulences.clearLayers();

@@ -2,7 +2,8 @@
 from flask_assets import Bundle
 
 bundles = {
-    "admin_js": Bundle("js/map.js"),
+    "map_js": Bundle("js/map.js"),
+    "rotatedmarker_library.js": Bundle("leaflet-rotatedmarker/leaflet.rotatedMarker.js")
     # "admin_css": Bundle(
     #     "css/lib/reset.css",
     #     "css/common.css",

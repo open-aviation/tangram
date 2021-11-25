@@ -15,7 +15,10 @@ def write_Json_to_Geojson(data: dict) -> dict:
                         data[d][0],
                     ],
                 },
-                "properties": d,
+                "properties": { 
+                    "icao": d,
+                    "dir": data[d][2]
+                },
             }
             for d in data
         ],

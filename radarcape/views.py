@@ -1,7 +1,10 @@
+import os
+
 import numpy as np
-from flask import Blueprint, current_app, jsonify, render_template
-from flask.wrappers import Response
 import pandas as pd
+from flask import (Blueprint, app, current_app, jsonify, render_template,
+                   send_from_directory)
+from flask.wrappers import Response
 from traffic.core.flight import Position
 
 from .converter import geojson_trajectoire, write_Json_to_Geojson
@@ -17,7 +20,7 @@ def calcul_list_vols() -> dict:
             if flight.shape is not None:
                 p = flight.at(flight.stop)
                 if not (np.isnan(p.latitude) and np.isnan(p.longitude)):
-                    resultats[flight.icao24] = (p.latitude, p.longitude)
+                    resultats[flight.icao24] = [p.latitude, p.longitude, p.track]
     return resultats
 
 
@@ -55,6 +58,13 @@ def fetch_results_Geojson() -> dict:
 @bp.route("/radarcape/sigmet.geojson", methods=["GET"])
 def fetch_sigmets() -> dict:
     utc_now = pd.Timestamp("now", tz="utc")
-    res = current_app.sigmet.sigmets(fir="^(L|E)").query("validTimeTo>@utc_now")
+    res = current_app.sigmet.sigmets(
+        fir="^(L|E)").query("validTimeTo>@utc_now")
     res = res._to_geo()
     return res
+
+
+@bp.route('/radarcape/plane.png')
+def favicon():
+    return send_from_directory('./static',
+                               'plane.png')

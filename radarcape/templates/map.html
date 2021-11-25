@@ -5,12 +5,15 @@
   <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
   <script src="https://code.jquery.com/jquery-3.5.0.js"></script>
   <script src="https://www.grendelman.net/leaflet/leaflet-liveupdate/leaflet-liveupdate.js"></script>
+  {% assets "rotatedmarker_library.js" %}
+  <script src="{{ ASSET_URL }}"></script>
+  {% endassets %}
 
 </head>
 
 <body>
   <div id="map" style="height: 100%">
-    {% assets "admin_js" %}
+    {% assets "map_js" %}
     <script type="text/javascript" src="{{ ASSET_URL }}"></script>
     {% endassets %}
   </div>
