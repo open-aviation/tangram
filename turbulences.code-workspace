@@ -7,7 +7,7 @@
   "settings": {
     "python.linting.pylintEnabled": false,
     "python.linting.flake8Enabled": true,
-    "python.linting.mypyEnabled": true,
+    "python.linting.mypyEnabled": false,
     "python.linting.enabled": true,
     "python.linting.flake8Args": [
       "--extend-ignore=E203",

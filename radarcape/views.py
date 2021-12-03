@@ -1,33 +1,19 @@
-import os
-
-import numpy as np
 import pandas as pd
-from flask import (Blueprint, app, current_app, jsonify, render_template,
-                   send_from_directory)
-from flask.wrappers import Response
-from traffic.core.flight import Position
+from flask import (
+    Blueprint,
+    current_app,
+    render_template,
+    send_from_directory,
+)
+from traffic.data import session
+from .converter import (
+    geojson_trajectoire,
+    geojson_airep,
+    geojson_plane,
+)
 
-from .converter import geojson_trajectoire, write_Json_to_Geojson
 
 bp = Blueprint("liste_vols", __name__)
-
-
-def calcul_list_vols() -> dict:
-    resultats: dict[str, Position] = dict()
-    pro_data = current_app.client.pro_data
-    if pro_data is not None:
-        for flight in pro_data:
-            if flight.shape is not None:
-                p = flight.at(flight.stop)
-                if not (np.isnan(p.latitude) and np.isnan(p.longitude)):
-                    resultats[flight.icao24] = [p.latitude, p.longitude, p.track]
-    return resultats
-
-
-@bp.route("/radarcape/", methods=["GET"])
-def list_vols() -> Response:
-    resultats = calcul_list_vols()
-    return jsonify(resultats)
 
 
 @bp.route("/radarcape/map", methods=["GET"])
@@ -49,22 +35,43 @@ def draw_trajectoire():
     return resultats
 
 
-@bp.route("/radarcape/results.geojson", methods=["GET"])
-def fetch_results_Geojson() -> dict:
-    res = calcul_list_vols()
-    return write_Json_to_Geojson(res)
+@bp.route("/radarcape/planes.geojson", methods=["GET"])
+def fetch_planes_Geojson() -> dict:
+    data = current_app.client.traffic
+    return geojson_plane(data)
 
 
 @bp.route("/radarcape/sigmet.geojson", methods=["GET"])
 def fetch_sigmets() -> dict:
     utc_now = pd.Timestamp("now", tz="utc")
-    res = current_app.sigmet.sigmets(
-        fir="^(L|E)").query("validTimeTo>@utc_now")
+    res = current_app.sigmet.sigmets(fir="^(L|E)").query("validTimeTo>@utc_now")
     res = res._to_geo()
     return res
 
 
-@bp.route('/radarcape/plane.png')
+@bp.route("/radarcape/plane.png")
 def favicon():
-    return send_from_directory('./static',
-                               'plane.png')
+    return send_from_directory("./static", "plane.png")
+
+
+@bp.route("/radarcape/airep.json")
+def validation_airep():
+    utc_now = pd.Timestamp("now", tz="utc")
+    c = session.get(
+        "https://api.airep.info/aireps?wef=" + utc_now.strftime("%Y-%m-%d"),
+        headers={"Authorization": f"Bearer {current_app.airep_token}"},
+    )
+    c.raise_for_status()
+
+    return c.json()
+
+
+@bp.route("/radarcape/airep.geojson")
+def convert_airep_geojson():
+    utc_now = pd.Timestamp("now", tz="utc")
+    data = validation_airep()
+    result = []
+    for d in data:
+        if pd.Timestamp(d["expire"]) > utc_now:
+            result.append(d)
+    return geojson_airep(result)

@@ -24,16 +24,16 @@ def turbulence(df):
 
 
 class ADSBClient:
-    def __init__(self, host: str, port: int, reference: str) -> None:
-        self.host = host
-        self.port = port
-        self.reference = reference
-        self.terminate = False
-        self.decoder = None
-        self._pro_data: Traffic = None  #: Dict[pd.Timestamp, Traffic] = {}
-        self._traffic: Traffic = None
-        self.lock_prodata = threading.Lock()
-        self.lock_traffic = threading.Lock()
+    # def __init__(self, host: str, port: int, reference: str) -> None:
+    #     self.host = host
+    #     self.port = port
+    #     self.reference = reference
+    #     self.terminate = False
+    #     self.decoder = None
+    #     self._pro_data: Traffic = None  #: Dict[pd.Timestamp, Traffic] = {}
+    #     self._traffic: Traffic = None
+    #     self.lock_prodata = threading.Lock()
+    #     self.lock_traffic = threading.Lock()
 
     def __init__(self) -> None:
         self.terminate: bool = False
@@ -46,38 +46,36 @@ class ADSBClient:
     @property
     def pro_data(self):
         # last entry
-        with self.lock_prodata:
-            return self._pro_data
+        return self._pro_data
 
     @property
     def traffic(self):
         # last entry
-        with self.lock_traffic:
-            return self._traffic
+        return self._traffic
 
     def calculate_traffic(self):
         with self.lock_traffic:
             try:
                 self._traffic = (
                     self.decoder.traffic.longer_than("1T")
-                    .last("30T")
-                    .resample("1s")
-                    .eval(max_workers=4)
+                    # .last("30T")
+                    .resample("1s").eval(max_workers=8)
                 )
             except Exception as e:
                 print(e)
 
-    def turbulence(self):
-        self.calculate_traffic()
+    def turbulence(self, condition_decoder: bool):
+        if condition_decoder:
+            self.calculate_traffic()
         if self._traffic is not None:
-            with self.lock_prodata:
+            with self.lock_traffic:
                 try:
                     self._pro_data = (
-                        self._traffic
-                        .filter(  # median filters for abnormal points
+                        self._traffic.resample("1s")  # .last("30T")
+                        .filter(
+                            # median filters for abnormal points
                             vertical_rate_barometric=3,
                             vertical_rate_inertial=3,  # kernel sizes
-                            strategy=None,  # invalid data becomes NaN
                         )
                         .agg_time(
                             # aggregate data over intervals of one minute
@@ -101,28 +99,31 @@ class ADSBClient:
                             thrushold=thrushold
                         )
                         .assign(turbulence=turbulence)
-                        .eval(max_workers=4)
+                        .eval(max_workers=8)
                     )
                 except Exception as e:
                     print(e)
 
     def calculate_live_turbulence(self):
         while not self.terminate:
-            self.turbulence()
+            self.turbulence(True)
             time.sleep(1)
 
     def start_live(self, host: str, port: int, reference: str):
-        self.decoder = ModeS_Decoder.from_address(
-            host, port, reference
-        )
-        executor = ThreadPoolExecutor(max_workers=4)
+        self.decoder = ModeS_Decoder.from_address(host, port, reference)
+        executor = ThreadPoolExecutor(max_workers=8)
         executor.submit(self.calculate_live_turbulence)
         executor.submit(self.clean_decoder)
 
     def start_from_file(self, file: str, reference: str):
-        self.decoder = ModeS_Decoder.from_file(
-            file, template="time,df,icao,shortmsg", reference=reference)
-        self.turbulence()
+        if file.endswith(".csv"):
+            self.decoder = ModeS_Decoder.from_file(
+                file, template="time,df,icao,shortmsg", reference=reference
+            )
+            self.turbulence(True)
+        elif file.endswith(".pkl"):
+            self._traffic = Traffic.from_file(file)
+            self.turbulence(False)
 
     def __exit__(self):
         self.stop()

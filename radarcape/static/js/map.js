@@ -1,9 +1,35 @@
+var map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
+
 var planes = L.layerGroup();
 var turbulences = L.layerGroup();
 var sigmets = L.layerGroup();
+var airep = L.layerGroup();
 
-function onEachFeature(feature, layer) {
+var overlays = {
+  Planes: planes,
+  Turbulences: turbulences,
+  Sigmets: sigmets,
+  Airep: airep,
+};
+
+function onEachPlane(feature, layer) {
   var popupContent = "<p>ICAO: " + feature.properties.icao + "</p>";
+  layer.bindPopup(popupContent);
+}
+
+function onEachAirep(feature, layer) {
+  var popupContent =
+    "<p>Callsign: " +
+    feature.properties.aircraft_callsign +
+    "<br>ICAO: " +
+    feature.properties.aircraft_icao24 +
+    "<br>From: " +
+    feature.properties.created +
+    "<br>To: " +
+    feature.properties.expire +
+    "<br>Phenomenon: " +
+    feature.properties.phenomenon +
+    "</p>";
   layer.bindPopup(popupContent);
 }
 
@@ -11,47 +37,44 @@ function onEachSigmet(feature, layer) {
   var popupContent =
     "<p>id Sigmet: " +
     feature.properties.idSigmet +
-    "<br>" +
+    "<br>Hazard: " +
     feature.properties.hazard +
+    "<br>From: " +
+    feature.properties.validTimeFrom +
+    "<br>To: " +
+    feature.properties.validTimeTo +
     "</p>";
   layer.bindPopup(popupContent);
 }
-var map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
-var overlays = {
-  Planes: planes,
-  Turbulences: turbulences,
-  Sigmets: sigmets,
-};
-function createCustomIcon (feature, latlng) {
+
+function createCustomIcon(feature, latlng) {
   let myIcon = L.icon({
-    iconUrl: 'plane.png',
-    iconSize:     [30, 30], // width and height of the image in pixels
-    iconAnchor:   [12, 12], // point of the icon which will correspond to marker's location
-    popupAnchor:  [0, 0] // point from which the popup should open relative to the iconAnchor
-  })
-  return L.marker(latlng, { icon: myIcon,rotationAngle: feature.properties.dir })
+    iconUrl: "plane.png",
+    iconSize: [30, 30], // width and height of the image in pixels
+    iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
+    popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
+  });
+  return L.marker(latlng, {
+    icon: myIcon,
+    rotationAngle: feature.properties.dir,
+  });
 }
+
 let myLayerOptions = {
-  onEachFeature: onEachFeature,
-  pointToLayer: createCustomIcon
-}
+  onEachFeature: onEachPlane,
+  pointToLayer: createCustomIcon,
+};
 
 setInterval(function () {
-
-  // $.getJSON("results.geojson", function (data) {
-  //   planes.clearLayers();
-  //   L.geoJson(data, {
-  //     onEachFeature: onEachFeature,
-  //   }).addTo(planes);
-  // });
-  $.getJSON("results.geojson", function (data) {
+  $.getJSON("planes.geojson", function (data) {
     planes.clearLayers();
-    L.geoJson(data,myLayerOptions).addTo(planes);
+    L.geoJson(data, myLayerOptions).addTo(planes);
   });
+
   $.getJSON("turb.geojson", function (data) {
     turbulences.clearLayers();
     L.geoJson(data, {
-      onEachFeature: onEachFeature,
+      onEachFeature: onEachPlane,
     }).addTo(turbulences);
   });
   map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
@@ -75,7 +98,13 @@ $.getJSON("sigmet.geojson", function (data) {
   }).addTo(sigmets);
 });
 
-var layer = L.tileLayer(
+$.getJSON("airep.geojson", function (data) {
+  L.geoJson(data, {
+    onEachFeature: onEachAirep,
+  }).addTo(airep);
+});
+
+var baselayer = L.tileLayer(
   "http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
   {
     attribution:
@@ -103,4 +132,4 @@ var layer = L.tileLayer(
 
 L.control.scale().addTo(map);
 L.control.layers(null, overlays).addTo(map);
-map.addLayer(layer);
+map.addLayer(baselayer);
