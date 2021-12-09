@@ -24,8 +24,8 @@ mongo_password = config.get("mongo", "password", fallback="")
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.client = ADSBClient()
-    # app.client.start_live(host="134.212.189.239", port=10005, reference="LFBO")
-    app.client.start_from_file(file="2021-11-08_traffic.pkl", reference="LFBO")
+    app.client.start_live(host="134.212.189.239", port=10005, reference="LFBO")
+    # app.client.start_from_file(file="2021-11-08_pro-data.pkl", reference="LFBO")
     app.sigmet = Weather(username=mongo_username, password=mongo_password)
     app.sigmet.session.proxies.update(
         {

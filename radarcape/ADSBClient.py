@@ -24,23 +24,11 @@ def turbulence(df):
 
 
 class ADSBClient:
-    # def __init__(self, host: str, port: int, reference: str) -> None:
-    #     self.host = host
-    #     self.port = port
-    #     self.reference = reference
-    #     self.terminate = False
-    #     self.decoder = None
-    #     self._pro_data: Traffic = None  #: Dict[pd.Timestamp, Traffic] = {}
-    #     self._traffic: Traffic = None
-    #     self.lock_prodata = threading.Lock()
-    #     self.lock_traffic = threading.Lock()
-
     def __init__(self) -> None:
         self.terminate: bool = False
         self.decoder: ModeS_Decoder = None
         self._pro_data: Traffic = None  #: Dict[pd.Timestamp, Traffic] = {}
         self._traffic: Traffic = None
-        self.lock_prodata = threading.Lock()
         self.lock_traffic = threading.Lock()
 
     @property
@@ -99,7 +87,7 @@ class ADSBClient:
                             thrushold=thrushold
                         )
                         .assign(turbulence=turbulence)
-                        .eval(max_workers=8)
+                        .eval(max_workers=4)
                     )
                 except Exception as e:
                     print(e)
@@ -131,6 +119,11 @@ class ADSBClient:
     def stop(self):
         self.decoder.stop()
         self.terminate = True
+
+    def clear(self):
+        with self.lock_traffic:
+            self._traffic = None
+            self._pro_data = None
 
     def clean_decoder(self):
         while not self.terminate:

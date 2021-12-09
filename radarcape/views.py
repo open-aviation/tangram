@@ -1,17 +1,17 @@
+import os
+
 import pandas as pd
 from flask import (
     Blueprint,
+    abort,
     current_app,
     render_template,
     send_from_directory,
 )
 from traffic.data import session
-from .converter import (
-    geojson_trajectoire,
-    geojson_airep,
-    geojson_plane,
-)
+from werkzeug.utils import redirect
 
+from .converter import geojson_airep, geojson_plane, geojson_trajectoire
 
 bp = Blueprint("liste_vols", __name__)
 
@@ -58,7 +58,8 @@ def favicon():
 def validation_airep():
     utc_now = pd.Timestamp("now", tz="utc")
     c = session.get(
-        "https://api.airep.info/aireps?wef=" + utc_now.strftime("%Y-%m-%d"),
+        # "https://api.airep.info/aireps?wef=" + utc_now.strftime("%Y-%m-%d"),
+        "https://api.airep.info/aireps?wef=2021-11-06",
         headers={"Authorization": f"Bearer {current_app.airep_token}"},
     )
     c.raise_for_status()
@@ -75,3 +76,27 @@ def convert_airep_geojson():
         if pd.Timestamp(d["expire"]) > utc_now:
             result.append(d)
     return geojson_airep(result)
+
+
+@bp.route("/data", defaults={"req_path": ""})
+@bp.route("/data/<path:req_path>")
+def dir_listing(req_path):
+    BASE_DIR = os.path.join(current_app.root_path, "data")
+
+    # Joining the base and the requested path
+    abs_path = os.path.join(BASE_DIR, req_path)
+
+    # Return 404 if path doesn't exist
+    if not os.path.exists(abs_path):
+        return abort(404)
+
+    # Check if path is a file and redirect
+    if os.path.isfile(abs_path):
+        current_app.client.stop()
+        current_app.client.clear()
+        current_app.client.start_from_file(file=abs_path, reference="LFBO")
+        return redirect("/radarcape/map")
+
+    # Show directory contents
+    files = os.listdir(abs_path)
+    return render_template("files.html", files=files)
