@@ -87,7 +87,7 @@ class ADSBClient:
                             thrushold=thrushold
                         )
                         .assign(turbulence=turbulence)
-                        .eval(max_workers=4)
+                        .eval(max_workers=8)
                     )
                 except Exception as e:
                     print(e)

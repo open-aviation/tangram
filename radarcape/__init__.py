@@ -1,3 +1,5 @@
+import configparser
+
 from atmlab.weather import Weather
 from flask import Flask
 from flask_assets import Environment
@@ -5,13 +7,6 @@ from traffic.data import session
 
 from .ADSBClient import ADSBClient
 from .util import assets
-
-import configparser
-from pathlib import Path
-
-# import logging
-# log = logging.getLogger('werkzeug')
-# log.setLevel(logging.ERROR)
 
 config_file = "./config.conf"
 config = configparser.ConfigParser()
@@ -44,9 +39,6 @@ def create_app(test_config=None):
 
     from . import views
 
-    # pro_data = app.client.pro_data
-    # print(pro_data)
-    # app.client.stop()
     app.register_blueprint(views.bp)
     asset = Environment(app)
     asset.register(assets.bundles)

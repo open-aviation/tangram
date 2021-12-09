@@ -13,7 +13,7 @@ from werkzeug.utils import redirect
 
 from .converter import geojson_airep, geojson_plane, geojson_trajectoire
 
-bp = Blueprint("liste_vols", __name__)
+bp = Blueprint("radarcape", __name__)
 
 
 @bp.route("/radarcape/map", methods=["GET"])
@@ -58,8 +58,7 @@ def favicon():
 def validation_airep():
     utc_now = pd.Timestamp("now", tz="utc")
     c = session.get(
-        # "https://api.airep.info/aireps?wef=" + utc_now.strftime("%Y-%m-%d"),
-        "https://api.airep.info/aireps?wef=2021-11-06",
+        "https://api.airep.info/aireps?wef=" + utc_now.strftime("%Y-%m-%d"),
         headers={"Authorization": f"Bearer {current_app.airep_token}"},
     )
     c.raise_for_status()
