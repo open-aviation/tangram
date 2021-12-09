@@ -11,10 +11,24 @@ var overlays = {
   Sigmets: sigmets,
   Airep: airep,
 };
-
+function whenClicked(e, feature) {
+  var $layer = e.target;
+  var highlightStyle = {
+    color: "red",
+    opacity: 10,
+    weight: 50,
+  };
+  $("#mymodal").modal("show");
+  $("#textmodal").text(String(e.target.feature.properties.icao));
+  $layer.bringToFront();
+  $layer.setStyle(highlightStyle);
+}
 function onEachPlane(feature, layer) {
   var popupContent = "<p>ICAO: " + feature.properties.icao + "</p>";
   layer.bindPopup(popupContent);
+  layer.on({
+    click: whenClicked,
+  });
 }
 
 function onEachAirep(feature, layer) {
@@ -78,7 +92,7 @@ setInterval(function () {
     }).addTo(turbulences);
   });
   map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
-}, 3000);
+}, 30000);
 
 $.getJSON("sigmet.geojson", function (data) {
   L.geoJson(data, {
