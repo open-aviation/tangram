@@ -13,10 +13,9 @@ from pathlib import Path
 # log = logging.getLogger('werkzeug')
 # log.setLevel(logging.ERROR)
 
-config_dir = Path("/home/mkhalaf/api_radarcape")
-config_file = config_dir / "config.conf"
+config_file = "./config.conf"
 config = configparser.ConfigParser()
-config.read(config_file.as_posix())
+config.read(config_file)
 mongo_username = config.get("mongo", "username", fallback="")
 mongo_password = config.get("mongo", "password", fallback="")
 
