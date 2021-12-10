@@ -103,15 +103,15 @@ class ADSBClient:
         executor.submit(self.calculate_live_turbulence)
         executor.submit(self.clean_decoder)
 
-    def start_from_file(self, file: str, reference: str):
-        if file.endswith(".csv"):
-            self.decoder = ModeS_Decoder.from_file(
-                file, template="time,df,icao,shortmsg", reference=reference
-            )
-            self.turbulence(True)
-        elif file.endswith(".pkl"):
-            self._traffic = Traffic.from_file(file)
-            self.turbulence(False)
+    # def start_from_file(self, file: str, reference: str):
+    #     if file.endswith(".csv"):
+    #         self.decoder = ModeS_Decoder.from_file(
+    #             file, template="time,df,icao,shortmsg", reference=reference
+    #         )
+    #         self.turbulence(True)
+    #     elif file.endswith(".pkl"):
+    #         self._traffic = Traffic.from_file(file)
+    #         self.turbulence(False)
 
     def __exit__(self):
         self.stop()

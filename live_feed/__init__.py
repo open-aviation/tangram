@@ -18,8 +18,12 @@ mongo_password = config.get("mongo", "password", fallback="")
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.client = ADSBClient()
-    app.client.start_live(host="134.212.189.239", port=10005, reference="LFBO")
-    # app.client.start_from_file(file="2021-11-08_pro-data.pkl", reference="LFBO")
+
+    host = config.get("radarcape", "host", fallback="")
+    port = int(config.get("radarcape", "port", fallback=""))
+    reference = config.get("radarcape", "reference", fallback="")
+    app.client.start_live(host=host, port=port, reference=reference)
+
     app.sigmet = Weather(username=mongo_username, password=mongo_password)
     app.sigmet.session.proxies.update(
         {
@@ -27,6 +31,7 @@ def create_app(test_config=None):
             "https": config.get("proxy", "proxy_https", fallback=""),
         }
     )
+
     c = session.post(
         "https://api.airep.info/login",
         data={
