@@ -52,15 +52,13 @@ class ADSBClient:
             except Exception as e:
                 print(e)
 
-    def turbulence(self, condition_decoder: bool):
-        if condition_decoder:
-            self.calculate_traffic()
+    def turbulence(self):
+        self.calculate_traffic()
         if self._traffic is not None:
             with self.lock_traffic:
                 try:
                     self._pro_data = (
-                        self._traffic.resample("1s")  # .last("30T")
-                        .filter(
+                        self._traffic.filter(  # .last("30T")
                             # median filters for abnormal points
                             vertical_rate_barometric=3,
                             vertical_rate_inertial=3,  # kernel sizes
@@ -94,7 +92,7 @@ class ADSBClient:
 
     def calculate_live_turbulence(self):
         while not self.terminate:
-            self.turbulence(True)
+            self.turbulence()
             time.sleep(1)
 
     def start_live(self, host: str, port: int, reference: str):
