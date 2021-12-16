@@ -1,65 +1,33 @@
+from functools import lru_cache
 import numpy as np
-from traffic.core.flight import Flight
 from traffic.core.traffic import Traffic
 
 
+@lru_cache()
 def geojson_plane(data: Traffic) -> dict:
     features = []
     if data is not None:
         for flight in data:
             if flight.shape is not None:
-                p = flight.at(flight.stop)
-                if not (np.isnan(p.latitude) and np.isnan(p.longitude)):
+                data = flight.data
+                latitude = data.latitude.iloc[-1]
+                longitude = data.longitude.iloc[-1]
+                track = data.track.iloc[-1]
+                if not (np.isnan(latitude) and np.isnan(longitude)):
                     x = {
                         "type": "Feature",
                         "geometry": {
                             "type": "Point",
                             "coordinates": [
-                                p.longitude,
-                                p.latitude,
+                                longitude,
+                                latitude,
                             ],
                         },
-                        "properties": {"icao": flight.icao24, "dir": p.track},
+                        "properties": {"icao": flight.icao24, "dir": track},
                     }
                     features.append(x)
     geojson = {
         "type": "FeatureCollection",
         "features": features,
-    }
-    return geojson
-
-
-def geojson_trajectoire(data: list[Flight]) -> dict:
-    features = []
-    for d in data:
-        for segment in d.split("1T"):
-            if segment.shape is not None:
-                x = segment.geojson()
-                x.update({"properties": {"icao": d.icao24}})
-                features.append(x)
-    geojson = {
-        "type": "FeatureCollection",
-        "features": features,
-    }
-    return geojson
-
-
-def geojson_airep(data: dict) -> dict:
-    geojson = {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "geometry": {
-                    "type": d["location"]["type"],
-                    "coordinates": [
-                        d["location"]["coordinates"][0],
-                        d["location"]["coordinates"][1],
-                    ],
-                },
-                "properties": d,
-            }
-            for d in data
-        ],
     }
     return geojson

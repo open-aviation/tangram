@@ -1,13 +1,7 @@
 import pandas as pd
-from flask import (
-    Blueprint,
-    current_app,
-    render_template,
-    send_from_directory,
-)
-from traffic.data import session
+from flask import Blueprint, current_app, render_template, send_from_directory
 
-from .converter import geojson_airep, geojson_plane, geojson_trajectoire
+from .converter import geojson_plane
 
 bp = Blueprint("radarcape", __name__)
 
@@ -18,17 +12,23 @@ def create_map() -> str:
 
 
 @bp.route("/radarcape/turb.geojson", methods=["GET"])
-def draw_trajectoire():
-    liste = []
+def turbulence():
+    features = []
     pro_data = current_app.client.pro_data
     if pro_data is not None:
         turb = pro_data.query("turbulence")
         if turb is not None:
             for flight in turb:
                 if flight.shape is not None:
-                    liste.append(flight)
-    resultats = geojson_trajectoire(liste)
-    return resultats
+                    for segment in flight.split("1T"):
+                        x = segment.geojson()
+                        x.update({"properties": {"icao": flight.icao24}})
+                        features.append(x)
+    geojson = {
+        "type": "FeatureCollection",
+        "features": features,
+    }
+    return geojson
 
 
 @bp.route("/radarcape/planes.geojson", methods=["GET"])
@@ -50,48 +50,22 @@ def favicon():
     return send_from_directory("./static", "plane.png")
 
 
-@bp.route("/radarcape/airep.json")
-def validation_airep():
-    utc_now = pd.Timestamp("now", tz="utc")
-    c = session.get(
-        "https://api.airep.info/aireps?wef=" + utc_now.strftime("%Y-%m-%d"),
-        headers={"Authorization": f"Bearer {current_app.airep_token}"},
-    )
-    c.raise_for_status()
-
-    return c.json()
-
-
 @bp.route("/radarcape/airep.geojson")
-def convert_airep_geojson():
+def airep_geojson():
     utc_now = pd.Timestamp("now", tz="utc")
-    data = validation_airep()
-    result = []
-    for d in data:
-        if pd.Timestamp(d["expire"]) > utc_now:
-            result.append(d)
-    return geojson_airep(result)
+    data = current_app.airep.aireps()
+    if data is not None:
+        result = data.query("expire>@utc_now")._to_geo()
+    else:
+        result = {}
+    return result
 
 
-# @bp.route("/data", defaults={"req_path": ""})
-# @bp.route("/data/<path:req_path>")
-# def dir_listing(req_path):
-#     BASE_DIR = os.path.join(current_app.root_path, "data")
-
-#     # Joining the base and the requested path
-#     abs_path = os.path.join(BASE_DIR, req_path)
-
-#     # Return 404 if path doesn't exist
-#     if not os.path.exists(abs_path):
-#         return abort(404)
-
-#     # Check if path is a file and redirect
-#     if os.path.isfile(abs_path):
-#         current_app.client.stop()
-#         current_app.client.clear()
-#         current_app.client.start_from_file(file=abs_path, reference="LFBO")
-#         return redirect("/radarcape/map")
-
-#     # Show directory contents
-#     files = os.listdir(abs_path)
-#     return render_template("files.html", files=files)
+@bp.route("/radarcape/cat.geojson")
+def clear_air_turbulence():
+    utc_now = pd.Timestamp("now", tz="utc")
+    res = current_app.cat.metsafe(
+        "metgate:cat_mf_arpege01_europe",
+        bounds="France métropolitaine",
+    ).query("endValidity>@utc_now")
+    return res._to_geo()
