@@ -65,6 +65,22 @@ function onEachSigmet(feature, layer) {
   layer.bindPopup(popupContent);
 }
 
+function onEachCat(feature, layer) {
+  var popupContent =
+    "<p>id Cat: " +
+    feature.properties.identifier +
+    "<br>Start: " +
+    feature.properties.startValidity +
+    "<br>End: " +
+    feature.properties.endValidity +
+    "<br>Intensity: " +
+    feature.properties.intensity +
+    "<br>Intensity value: " +
+    feature.properties.intensityValue +
+    "</p>";
+  layer.bindPopup(popupContent);
+}
+
 function createCustomIcon(feature, latlng) {
   let myIcon = L.icon({
     iconUrl: "plane.png",
@@ -123,7 +139,17 @@ $.getJSON("airep.geojson", function (data) {
 });
 
 $.getJSON("cat.geojson", function (data) {
-  L.geoJson(data).addTo(cat);
+  L.geoJson(data, {
+    style: function (feature) {
+      var d = feature.properties.intensityValue;
+      return d == 1
+        ? { color: "blue" }
+        : d == 2
+        ? { color: "red" }
+        : { color: "black" };
+    },
+    onEachFeature: onEachCat,
+  }).addTo(cat);
 });
 
 var baselayer = L.tileLayer(

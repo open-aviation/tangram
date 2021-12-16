@@ -64,8 +64,12 @@ def airep_geojson():
 @bp.route("/radarcape/cat.geojson")
 def clear_air_turbulence():
     utc_now = pd.Timestamp("now", tz="utc")
-    res = current_app.cat.metsafe(
-        "metgate:cat_mf_arpege01_europe",
-        bounds="France métropolitaine",
-    ).query("endValidity>@utc_now")
+    res = (
+        current_app.cat.metsafe(
+            "metgate:cat_mf_arpege01_europe",
+            bounds="France métropolitaine",
+        )
+        .query("endValidity>@utc_now")
+        .query("startValidity<=@utc_now")
+    )
     return res._to_geo()
