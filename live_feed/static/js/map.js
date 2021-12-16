@@ -4,12 +4,14 @@ var planes = L.layerGroup();
 var turbulences = L.layerGroup();
 var sigmets = L.layerGroup();
 var airep = L.layerGroup();
+var cat = L.layerGroup();
 
 var overlays = {
   Planes: planes,
   Turbulences: turbulences,
   Sigmets: sigmets,
   Airep: airep,
+  Cat: cat,
 };
 function whenClicked(e, feature) {
   var $layer = e.target;
@@ -34,9 +36,11 @@ function onEachPlane(feature, layer) {
 function onEachAirep(feature, layer) {
   var popupContent =
     "<p>Callsign: " +
-    feature.properties.aircraft_callsign +
+    feature.properties.callsign +
     "<br>ICAO: " +
-    feature.properties.aircraft_icao24 +
+    feature.properties.icao24 +
+    "<br>Typecode: " +
+    feature.properties.typecode +
     "<br>From: " +
     feature.properties.created +
     "<br>To: " +
@@ -92,7 +96,7 @@ setInterval(function () {
     }).addTo(turbulences);
   });
   map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
-}, 1000);
+}, 3000);
 
 $.getJSON("sigmet.geojson", function (data) {
   L.geoJson(data, {
@@ -116,6 +120,10 @@ $.getJSON("airep.geojson", function (data) {
   L.geoJson(data, {
     onEachFeature: onEachAirep,
   }).addTo(airep);
+});
+
+$.getJSON("cat.geojson", function (data) {
+  L.geoJson(data).addTo(cat);
 });
 
 var baselayer = L.tileLayer(
