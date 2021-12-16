@@ -23,7 +23,10 @@ def geojson_plane(data: Traffic) -> dict:
                                 latitude,
                             ],
                         },
-                        "properties": {"icao": flight.icao24, "dir": track},
+                        "properties": {
+                            "icao": flight.icao24,
+                            "dir": 0 if np.isnan(track) else track,
+                        },
                     }
                     features.append(x)
     geojson = {
