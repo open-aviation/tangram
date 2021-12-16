@@ -1,18 +1,20 @@
 import configparser
+from pathlib import Path
 
+from appdirs import user_config_dir
+from atmlab.airep import AIREP
 from atmlab.weather import Weather
+from atmlab.metsafe import Metsafe
 from flask import Flask
 from flask_assets import Environment
-from traffic.data import session
 
 from .ADSBClient import ADSBClient
 from .util import assets
 
-config_file = "./config.conf"
+config_dir = Path(user_config_dir("atmlab"))
+config_file = config_dir / "atmlab.conf"
 config = configparser.ConfigParser()
-config.read(config_file)
-mongo_username = config.get("mongo", "username", fallback="")
-mongo_password = config.get("mongo", "password", fallback="")
+config.read(config_file.as_posix())
 
 
 def create_app(test_config=None):
@@ -24,23 +26,9 @@ def create_app(test_config=None):
     reference = config.get("radarcape", "reference", fallback="")
     app.client.start_live(host=host, port=port, reference=reference)
 
-    app.sigmet = Weather(username=mongo_username, password=mongo_password)
-    app.sigmet.session.proxies.update(
-        {
-            "http": config.get("proxy", "proxy_http", fallback=""),
-            "https": config.get("proxy", "proxy_https", fallback=""),
-        }
-    )
-
-    c = session.post(
-        "https://api.airep.info/login",
-        data={
-            "username": config.get("airep", "username", fallback=""),
-            "password": config.get("airep", "password", fallback=""),
-        },
-    )
-    c.raise_for_status()
-    app.airep_token = c.text
+    app.sigmet = Weather()
+    app.airep = AIREP()
+    app.cat = Metsafe()
 
     from . import views
 
