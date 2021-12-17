@@ -25,7 +25,7 @@ def main():
     asset = Environment(app)
     asset.register(assets.bundles)
 
-    serve(app, host="0.0.0.0", port=5000)
+    serve(app, host="0.0.0.0", port=5000, threads=6)
 
 
 if __name__ == "__main__":

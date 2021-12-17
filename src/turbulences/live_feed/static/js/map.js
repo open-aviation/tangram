@@ -13,17 +13,9 @@ var overlays = {
   Airep: airep,
   Cat: cat,
 };
-function whenClicked(e, feature) {
-  var $layer = e.target;
-  var highlightStyle = {
-    color: "red",
-    opacity: 10,
-    weight: 50,
-  };
+function whenClicked(e) {
   $("#mymodal").modal("show");
   $("#textmodal").text(String(e.target.feature.properties.icao));
-  $layer.bringToFront();
-  $layer.setStyle(highlightStyle);
 }
 function onEachPlane(feature, layer) {
   var popupContent = "<p>ICAO: " + feature.properties.icao + "</p>";
