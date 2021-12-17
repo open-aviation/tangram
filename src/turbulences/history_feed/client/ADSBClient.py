@@ -89,11 +89,8 @@ class ADSBClient:
             )
             self.turbulence(True)
         elif file.endswith(".pkl"):
-            print("oui")
             self._traffic = Traffic.from_file(file)
-            print(self._traffic)
             self.turbulence(False)
-            print(self._pro_data)
 
     def clear(self):
         self._traffic = None

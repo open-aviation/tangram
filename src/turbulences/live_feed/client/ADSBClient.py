@@ -43,14 +43,14 @@ class ADSBClient:
 
     def calculate_traffic(self):
         with self.lock_traffic:
-            try:
-                self._traffic = (
-                    self.decoder.traffic.longer_than("1T")
-                    # .last("30T")
-                    .resample("1s").eval(max_workers=8)
-                )
-            except Exception as e:
-                print(e)
+            if self.decoder.traffic is None:
+                return
+            self._traffic = (
+                self.decoder.traffic.longer_than("1T")
+                .last("30T")
+                .resample("1s")
+                .eval(max_workers=4)
+            )
 
     def turbulence(self):
         self.calculate_traffic()
@@ -85,7 +85,7 @@ class ADSBClient:
                             thrushold=thrushold
                         )
                         .assign(turbulence=turbulence)
-                        .eval(max_workers=8)
+                        .eval(max_workers=4)
                     )
                 except Exception as e:
                     print(e)
@@ -97,7 +97,7 @@ class ADSBClient:
 
     def start_live(self, host: str, port: int, reference: str):
         self.decoder = ModeS_Decoder.from_address(host, port, reference)
-        executor = ThreadPoolExecutor(max_workers=8)
+        executor = ThreadPoolExecutor(max_workers=4)
         executor.submit(self.calculate_live_turbulence)
         executor.submit(self.clean_decoder)
 
