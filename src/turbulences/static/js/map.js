@@ -75,7 +75,7 @@ function onEachCat(feature, layer) {
 
 function createCustomIcon(feature, latlng) {
   let myIcon = L.icon({
-    iconUrl: "plane.png",
+    iconUrl: "/plane.png",
     iconSize: [30, 30], // width and height of the image in pixels
     iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
     popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
@@ -90,14 +90,14 @@ let myLayerOptions = {
   onEachFeature: onEachPlane,
   pointToLayer: createCustomIcon,
 };
-
+// Adapter pour history
 setInterval(function () {
-  $.getJSON("planes.geojson", function (data) {
+  $.getJSON("/planes.geojson", function (data) {
     planes.clearLayers();
     L.geoJson(data, myLayerOptions).addTo(planes);
   });
 
-  $.getJSON("turb.geojson", function (data) {
+  $.getJSON("/turb.geojson", function (data) {
     turbulences.clearLayers();
     L.geoJson(data, {
       onEachFeature: onEachPlane,
@@ -105,8 +105,8 @@ setInterval(function () {
   });
   map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
 }, 1000);
-
-$.getJSON("sigmet.geojson", function (data) {
+//
+$.getJSON("/sigmet.geojson", function (data) {
   L.geoJson(data, {
     style: function (feature) {
       var d = feature.properties.hazard;
@@ -124,13 +124,13 @@ $.getJSON("sigmet.geojson", function (data) {
   }).addTo(sigmets);
 });
 
-$.getJSON("airep.geojson", function (data) {
+$.getJSON("/airep.geojson", function (data) {
   L.geoJson(data, {
     onEachFeature: onEachAirep,
   }).addTo(airep);
 });
 
-$.getJSON("cat.geojson", function (data) {
+$.getJSON("/cat.geojson", function (data) {
   L.geoJson(data, {
     style: function (feature) {
       var d = feature.properties.intensityValue;

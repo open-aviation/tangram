@@ -47,13 +47,14 @@ class ADSBClient:
                 return
             self._traffic = (
                 self.decoder.traffic.longer_than("1T")
-                .last("30T")
+                .last("30T")  # historique ne peut pas avoir ca
                 .resample("1s")
                 .eval(max_workers=4)
             )
 
-    def turbulence(self):
-        self.calculate_traffic()
+    def turbulence(self, condition: bool):
+        if condition:
+            self.calculate_traffic()
         if self._traffic is not None:
             with self.lock_traffic:
                 try:
@@ -92,7 +93,7 @@ class ADSBClient:
 
     def calculate_live_turbulence(self):
         while not self.terminate:
-            self.turbulence()
+            self.turbulence(True)
             time.sleep(1)
 
     def start_live(self, host: str, port: int, reference: str):
@@ -101,15 +102,15 @@ class ADSBClient:
         executor.submit(self.calculate_live_turbulence)
         executor.submit(self.clean_decoder)
 
-    # def start_from_file(self, file: str, reference: str):
-    #     if file.endswith(".csv"):
-    #         self.decoder = ModeS_Decoder.from_file(
-    #             file, template="time,df,icao,shortmsg", reference=reference
-    #         )
-    #         self.turbulence(True)
-    #     elif file.endswith(".pkl"):
-    #         self._traffic = Traffic.from_file(file)
-    #         self.turbulence(False)
+    def start_from_file(self, file: str, reference: str):
+        if file.endswith(".csv"):
+            self.decoder = ModeS_Decoder.from_file(
+                file, template="time,df,icao,shortmsg", reference=reference
+            )
+            self.turbulence(True)
+        elif file.endswith(".pkl"):
+            self._traffic = Traffic.from_file(file)
+            self.turbulence(False)
 
     def __exit__(self):
         self.stop()
