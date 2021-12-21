@@ -1,3 +1,5 @@
+import json
+
 from flask import Blueprint, current_app, send_from_directory
 
 from .converter import geojson_plane
@@ -23,6 +25,35 @@ def turbulence():
         "features": features,
     }
     return geojson
+
+
+@base_bp.route("/chart.data/<path:icao>")
+def chart_data(icao):
+    pro_data = current_app.client.pro_data
+    resultats = pro_data[icao].data
+    resultats_turb = resultats.query("turbulence")
+    turb = zip(
+        resultats_turb.to_dict()["timestamp"].values(),
+        resultats_turb.to_dict()["turbulence"].values(),
+    )
+    vsi_std = zip(
+        resultats.to_dict()["timestamp"].values(),
+        resultats.to_dict()["vertical_rate_inertial_std"].values(),
+    )
+    vsb_std = zip(
+        resultats.to_dict()["timestamp"].values(),
+        resultats.to_dict()["vertical_rate_barometric_std"].values(),
+    )
+    data_turb = list(
+        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in turb
+    )
+    data_vsi_std = list(
+        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in vsi_std
+    )
+    data_vsb_std = list(
+        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in vsb_std
+    )
+    return json.dumps([data_turb, data_vsi_std, data_vsb_std])
 
 
 @base_bp.route("/planes.geojson")

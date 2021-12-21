@@ -1,4 +1,3 @@
-import json
 import os
 
 from flask import Blueprint, abort, current_app, render_template
@@ -9,34 +8,7 @@ history_bp = Blueprint("history", __name__)
 
 @history_bp.route("/history/map")
 def create_map() -> str:
-    return render_template("map.html")
-
-
-@history_bp.route("/test")
-def test() -> str:
-    BASE_DIR = os.path.join(current_app.data_path)
-    abs_path = os.path.join(BASE_DIR, "test.pkl")
-    current_app.client.start_from_file(file=abs_path, reference="LFBO")
-    return render_template("test.html")
-
-
-@history_bp.route("/test/prodata.json")
-def get_prodata():
-    liste = []
-    pro_data = current_app.client.pro_data
-    if pro_data is not None:
-        turb = pro_data
-        if turb is not None:
-            for flight in turb:
-                if flight.shape is not None:
-                    liste = [flight]
-    resultats = liste[0].data
-    x = zip(
-        {value for value in resultats.to_dict()["timestamp"].values()},
-        resultats.to_dict()["turbulence"].values(),
-    )
-    data = list({"x": timestamp.timestamp(), "y": t} for timestamp, t in x)
-    return json.dumps(data)
+    return render_template("map.html", history=True)
 
 
 @history_bp.route("/data", defaults={"req_path": ""})

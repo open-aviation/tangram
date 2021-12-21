@@ -93,22 +93,19 @@ let myLayerOptions = {
   onEachFeature: onEachPlane,
   pointToLayer: createCustomIcon,
 };
-// Adapter pour history
-setInterval(function () {
-  $.getJSON("/planes.geojson", function (data) {
-    planes.clearLayers();
-    L.geoJson(data, myLayerOptions).addTo(planes);
-  });
 
-  $.getJSON("/turb.geojson", function (data) {
-    turbulences.clearLayers();
-    L.geoJson(data, {
-      onEachFeature: onEachTurb,
-    }).addTo(turbulences);
-  });
-  map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
-}, 1000);
-//
+$.getJSON("/planes.geojson", function (data) {
+  planes.clearLayers();
+  L.geoJson(data, myLayerOptions).addTo(planes);
+});
+
+$.getJSON("/turb.geojson", function (data) {
+  turbulences.clearLayers();
+  L.geoJson(data, {
+    onEachFeature: onEachTurb,
+  }).addTo(turbulences);
+});
+
 $.getJSON("/sigmet.geojson", function (data) {
   L.geoJson(data, {
     style: function (feature) {
@@ -154,24 +151,6 @@ var baselayer = L.tileLayer(
       '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
   }
 );
-
-// The first parameter are the coordinates of the center of the map
-// The second parameter is the zoom level
-
-// L.control
-//   .liveupdate({
-//     update_map: function () {
-//       planes.clearLayers();
-//       $.getJSON("results.geojson", function (data) {
-//         L.geoJson(data, {
-//           onEachFeature: onEachFeature,
-//         }).addTo(planes);
-//       });
-//     },
-//     interval: 5000,
-//   })
-//   .addTo(map)
-//   .startUpdating();
 
 L.control.scale().addTo(map);
 L.control.layers(null, overlays).addTo(map);
