@@ -6,13 +6,15 @@ from atmlab.metsafe import Metsafe
 from atmlab.weather import Weather
 from flask import Flask
 from flask_assets import Environment
-from waitress import serve
 
 from turbulences import config
 
-from client.ADSBClient import ADSBClient
-from util import assets
-from views import base_views, live_views, history_views
+from .client.ADSBClient import ADSBClient
+from .util import assets
+from .views import base_views, history_views, live_views
+
+# from waitress import serve
+
 
 logger = logging.getLogger("waitress")
 logger.setLevel(logging.INFO)
@@ -42,8 +44,8 @@ def main(live: str):
 
     asset = Environment(app)
     asset.register(assets.bundles)
-
-    serve(app, host="0.0.0.0", port=5000, threads=8)
+    app.run(host="0.0.0.0", port=5000)
+    # serve(app, host="0.0.0.0", port=5000, threads=8)
 
 
 if __name__ == "__main__":

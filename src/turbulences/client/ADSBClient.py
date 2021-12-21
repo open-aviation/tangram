@@ -15,12 +15,12 @@ def crit(df):
     ).abs()
 
 
-def thrushold(df):
+def threshold(df):
     return np.mean(df.criterion) + 1.2 * np.std(df.criterion)
 
 
 def turbulence(df):
-    return df.criterion > df.thrushold
+    return df.criterion > df.threshold
 
 
 class ADSBClient:
@@ -59,10 +59,13 @@ class ADSBClient:
             with self.lock_traffic:
                 try:
                     self._pro_data = (
-                        self._traffic.filter(  # .last("30T")
+                        self._traffic.longer_than("1T")
+                        .resample("1s")
+                        .filter(  # .last("30T")
                             # median filters for abnormal points
                             vertical_rate_barometric=3,
                             vertical_rate_inertial=3,  # kernel sizes
+                            strategy=None,
                         )
                         .agg_time(
                             # aggregate data over intervals of one minute
@@ -83,7 +86,7 @@ class ADSBClient:
                         .assign(
                             # we define a thushold based on the
                             # mean criterion + 1.2 * standar deviation criterion
-                            thrushold=thrushold
+                            threshold=threshold
                         )
                         .assign(turbulence=turbulence)
                         .eval(max_workers=4)
