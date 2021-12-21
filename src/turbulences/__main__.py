@@ -12,6 +12,7 @@ from turbulences import config
 
 from client.ADSBClient import ADSBClient
 from util import assets
+from views import base_views, live_views, history_views
 
 logger = logging.getLogger("waitress")
 logger.setLevel(logging.INFO)
@@ -24,20 +25,20 @@ app = Flask(__name__, instance_relative_config=True)
 def main(live: str):
     app.client = ADSBClient()
     if live.strip() == "live":
-        print(1)
         host = config.get("radarcape", "host", fallback="")
         port = int(config.get("radarcape", "port", fallback=""))
         reference = config.get("radarcape", "reference", fallback="")
         app.client.start_live(host=host, port=port, reference=reference)
+        app.register_blueprint(live_views.live_bp)
+    else:
+        app.data_path = config.get("history", "path_data", fallback="")
+        app.register_blueprint(history_views.history_bp)
+
+    app.register_blueprint(base_views.base_bp)
+
     app.sigmet = Weather()
     app.airep = AIREP()
     app.cat = Metsafe()
-
-    from views import base_views, live_views, history_views
-
-    app.register_blueprint(base_views.base_bp)
-    app.register_blueprint(live_views.live_bp)
-    app.register_blueprint(history_views.history_bp)
 
     asset = Environment(app)
     asset.register(assets.bundles)

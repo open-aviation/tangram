@@ -14,7 +14,7 @@ def create_map() -> str:
 
 @history_bp.route("/test")
 def test() -> str:
-    BASE_DIR = os.path.join(current_app.root_path, "data/dump_toulouse")
+    BASE_DIR = os.path.join(current_app.data_path)
     abs_path = os.path.join(BASE_DIR, "test.pkl")
     current_app.client.start_from_file(file=abs_path, reference="LFBO")
     return render_template("test.html")
@@ -42,7 +42,7 @@ def get_prodata():
 @history_bp.route("/data", defaults={"req_path": ""})
 @history_bp.route("/data/<path:req_path>")
 def dir_listing(req_path):
-    BASE_DIR = os.path.join(current_app.root_path, "data")
+    BASE_DIR = os.path.join(current_app.data_path)
 
     # Joining the base and the requested path
     abs_path = os.path.join(BASE_DIR, req_path)
