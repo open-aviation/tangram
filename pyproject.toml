@@ -8,7 +8,6 @@ license = "MIT"
 [tool.poetry.scripts]
 turb = 'turbulences.__main__:main'
 
-
 [tool.poetry.dependencies]
 python = ">=3.7.1,<3.10"
 traffic = "^2.6.6"

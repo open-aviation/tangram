@@ -7,6 +7,11 @@ from .converter import geojson_plane
 base_bp = Blueprint("base", __name__)
 
 
+@base_bp.app_template_filter("format_time")
+def format_datetime(value, format="medium"):
+    return f"{value:%Y-%m-%d %H:%M:%S}"
+
+
 @base_bp.route("/turb.geojson")
 def turbulence():
     features = []
