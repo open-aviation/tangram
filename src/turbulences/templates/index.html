@@ -1,0 +1,73 @@
+{% extends "layout.html" %} {% block body %}
+
+<!-- TODO tidy that a bunch -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0-rc.1/Chart.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+
+{% assets "chart_js" %}
+<script type="text/javascript" src="{{ ASSET_URL }}"></script>
+{% endassets %}
+
+<div class="stats">
+  Uptime: 15 days<br /><br />
+  Number of aircraft: 12<br />
+  First seen aircraft: 72 minutes ago<br />
+  Last seen aircraft: 1s ago<br /><br />
+
+  SIGMET (LF): 14<br />
+  CAT (LF): 2<br />
+  AIREP (LF): 5<br />
+  <br />
+  Current situation: green
+</div>
+<div id="map">
+  {% if history == true %} {% assets "map_history" %}
+  <script type="text/javascript" src="{{ ASSET_URL }}"></script>
+  {% endassets %} {% else %} {% assets "map_live" %}
+  <script type="text/javascript" src="{{ ASSET_URL }}"></script>
+  {% endassets %} {% endif %}
+</div>
+
+<table class="table table-bordered table-hover table-condensed smaller">
+  <thead>
+    <tr>
+      <th>callsign</th>
+      <th>icao24</th>
+      <th>typecode</th>
+      <th>phenomenon</th>
+      <th>altitude</th>
+      <th>center</th>
+      <th>created</th>
+      <th>expire</th>
+      <th>reported</th>
+      <th>updated</th>
+    </tr>
+  </thead>
+  {% for res in results %}
+  <tr>
+    <td>
+      <span class="monospace">{{res['callsign']}}</span>
+    </td>
+    <td><span class="monospace"> {{res['icao24']}}</span></td>
+    <td><span class="monospace">{{res['typecode']}}</span></td>
+    <td><span class="monospace">{{res['phenomenon']}}</span></td>
+    <td>{{res['altitude']}}</td>
+    <td><span class="monospace">{{res['center']}}</span></td>
+    <td>{{res['created'] | format_time}}</td>
+    <td>{{res['expire'] | format_time}}</td>
+    <td>{{res['reported_time'] | format_time}}</td>
+    <td>{{res['updated'] | format_time}}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<div>
+  <canvas
+    id="myChart"
+    max-width="100"
+    max-height="100"
+    style="display: none"
+  ></canvas>
+</div>
+
+{% endblock %}

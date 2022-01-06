@@ -1,0 +1,88 @@
+@import url("https://fonts.googleapis.com/css?family=Ubuntu:400,700,400italic");
+@import url("https://fonts.googleapis.com/css?family=B612+Mono:400,700,400italic");
+
+div#map {
+  max-width: 800px;
+  height: 400px;
+  margin: 10px;
+}
+
+div.stats {
+  float: right;
+  width: 300px;
+  border: 1px solid #bab0ac;
+  padding: 10px;
+}
+
+body {
+  font-family: "Ubuntu";
+}
+
+span.monospace {
+  font-family: "B612 Mono";
+  font-size: 85%;
+}
+
+.smaller td {
+  font-size: 95%;
+}
+
+table a:not(.btn),
+.table a:not(.btn) {
+  text-decoration: none;
+}
+
+a.flag {
+  position: relative;
+  cursor: pointer;
+  color: #2c3e50;
+}
+
+a.flag:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 1.7em;
+  left: 0.5em;
+  border: 1px #18bc9c solid;
+  border-radius: 5px;
+  padding: 4px;
+  color: whitesmoke;
+  background-color: #18bc9c;
+  text-align: center;
+  font-size: 90%;
+  width: max-content;
+  z-index: 1;
+}
+
+.w20pc {
+  width: 20%;
+}
+
+.center {
+  margin-top: 20px;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1000px;
+}
+
+.copyright_label {
+  display: inline;
+  padding: 0.2em 0.6em 0.3em;
+  font-size: 75%;
+  font-weight: 400;
+  line-height: 1;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.25em;
+  position: absolute;
+  bottom: 0;
+  z-index: 1;
+}
+
+.aircraft_img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}

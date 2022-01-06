@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+
+<head>
+  <title>Mode S based turbulence detection</title>
+  <link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='bootstrap.min.css') }}"
+  />
+  <link rel="stylesheet" href="{{ url_for('static', filename='user.css') }}" />
+  <script src="{{ url_for('static', filename='jquery.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='bootstrap.min.js') }}"></script>
+  <!-- dump copy paste -->
+  <link
+    rel="stylesheet"
+    href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css"
+  />
+  <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+  <script src="https://www.grendelman.net/leaflet/leaflet-liveupdate/leaflet-liveupdate.js"></script>
+  {% assets "rotatedmarker_library.js" %}
+  <script src="{{ ASSET_URL }}"></script>
+  {% endassets %}
+</head>
+
+<body>
+  <div class="container">
+    <h1>
+      Mode S based turbulence detection
+      <div class="pull-right">
+        <a class="btn btn-sm btn-primary" href="{{url_for('live.home_page')}}">
+          <span class="glyphicon glyphicon-send"></span>&nbsp; Home</a
+        >
+        <a class="btn btn-sm btn-success" href="{{url_for('live.home_page')}}">
+          <span class="glyphicon glyphicon-refresh"></span>&nbsp; Live</a
+        >
+        <a class="btn btn-sm btn-success" href="{{url_for('live.home_page')}}">
+          <span class="glyphicon glyphicon-leaf"></span>&nbsp; History</a
+        >
+        <a class="btn btn-sm btn-info" href="{{url_for('live.home_page')}}">
+          <span class="glyphicon glyphicon-globe"></span>&nbsp; AIREP</a
+        >
+        <a class="btn btn-sm btn-info" href="{{url_for('live.home_page')}}">
+          <span class="glyphicon glyphicon-flag"></span>&nbsp; SIGMET</a
+        >
+        <a class="btn btn-sm btn-info" href="{{url_for('live.home_page')}}">
+          <span class="glyphicon glyphicon-flag"></span>&nbsp; CAT</a
+        >
+      </div>
+    </h1>
+    <hr />
+    {% block body %} {% endblock %}
+  </div>
+</body>
