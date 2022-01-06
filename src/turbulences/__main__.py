@@ -1,6 +1,5 @@
 import logging
 
-import click
 from atmlab.airep import AIREP
 from atmlab.metsafe import Metsafe
 from atmlab.weather import Weather
@@ -11,7 +10,7 @@ from turbulences import config
 
 from .client.ADSBClient import ADSBClient
 from .util import assets
-from .views import base_views, history_views, live_views
+from .views import base_views, history_views
 
 # from waitress import serve
 
@@ -22,20 +21,14 @@ logger.setLevel(logging.INFO)
 app = Flask(__name__, instance_relative_config=True)
 
 
-@click.command()
-@click.argument("live")
-def main(live: str):
+def main():
     app.client = ADSBClient()
-    if live.strip() == "live":
-        host = config.get("radarcape", "host", fallback="")
-        port = int(config.get("radarcape", "port", fallback=""))
-        reference = config.get("radarcape", "reference", fallback="")
-        app.client.start_live(host=host, port=port, reference=reference)
-        app.register_blueprint(live_views.live_bp)
-    else:
-        app.data_path = config.get("history", "path_data", fallback="")
-        app.register_blueprint(history_views.history_bp)
+    app.client_host = config.get("radarcape", "host", fallback="")
+    app.client_port = int(config.get("radarcape", "port", fallback=""))
+    app.client_reference = config.get("radarcape", "reference", fallback="")
+    app.data_path = config.get("history", "path_data", fallback="")
 
+    app.register_blueprint(history_views.history_bp)
     app.register_blueprint(base_views.base_bp)
 
     app.sigmet = Weather()

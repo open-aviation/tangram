@@ -107,7 +107,7 @@ setInterval(function () {
     }).addTo(turbulences);
   });
   map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
-}, 1000);
+}, 4000);
 //
 $.getJSON("/sigmet.geojson", function (data) {
   L.geoJson(data, {

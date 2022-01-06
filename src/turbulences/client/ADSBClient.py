@@ -65,7 +65,6 @@ class ADSBClient:
                             # median filters for abnormal points
                             vertical_rate_barometric=3,
                             vertical_rate_inertial=3,  # kernel sizes
-                            strategy=None,
                         )
                         .agg_time(
                             # aggregate data over intervals of one minute
@@ -119,7 +118,8 @@ class ADSBClient:
         self.stop()
 
     def stop(self):
-        self.decoder.stop()
+        if self.decoder is not None:
+            self.decoder.stop()
         self.terminate = True
 
     def clear(self):

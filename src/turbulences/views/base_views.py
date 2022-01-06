@@ -1,6 +1,6 @@
 import json
 
-from flask import Blueprint, current_app, send_from_directory
+from flask import Blueprint, current_app, render_template, send_from_directory
 
 from .converter import geojson_plane
 
@@ -101,3 +101,29 @@ def clear_air_turbulence(wef, und):
         bounds="France métropolitaine",
     )
     return res._to_geo()
+
+
+@base_bp.route("/fonts/<path:filename>")
+def serve_static(filename):
+    return send_from_directory("fonts/", filename)
+
+
+def launch_client():
+    current_app.client.start_live(
+        host=current_app.client_host,
+        port=current_app.client_port,
+        reference=current_app.client_reference,
+    )
+
+
+@base_bp.route("/", defaults={"history": False})
+@base_bp.route("/<history>")
+def home_page(history) -> str:
+    if not history:
+        launch_client()
+    data = current_app.airep.aireps()
+    if data is not None:
+        results = [x["properties"] for x in data._to_geo()["features"]]
+    else:
+        results = []
+    return render_template("index.html", results=results, history=history)

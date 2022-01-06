@@ -6,11 +6,6 @@ from werkzeug.utils import redirect
 history_bp = Blueprint("history", __name__)
 
 
-@history_bp.route("/history/map")
-def create_map() -> str:
-    return render_template("map.html", history=True)
-
-
 @history_bp.route("/data", defaults={"req_path": ""})
 @history_bp.route("/data/<path:req_path>")
 def dir_listing(req_path):
@@ -25,9 +20,10 @@ def dir_listing(req_path):
 
     # Check if path is a file and redirect
     if os.path.isfile(abs_path):
+        current_app.client.stop()
         current_app.client.clear()
         current_app.client.start_from_file(file=abs_path, reference="LFBO")
-        return redirect("/history/map")
+        return redirect("/True")
 
     # Show directory contents
     files = os.listdir(abs_path)
