@@ -6,5 +6,6 @@ bundles = {
     "rotatedmarker_library.js": Bundle(
         "js/leaflet-rotatedmarker/leaflet.rotatedMarker.js"
     ),
+    "map_functions": Bundle("js/map_functions.js"),
     "chart_js": Bundle("js/graph.js"),
 }
