@@ -72,13 +72,19 @@ def fetch_planes_Geojson() -> dict:
 @base_bp.route("/sigmet.geojson")
 @base_bp.route("/sigmet.geojson/<path:wef>")
 @base_bp.route("/sigmet.geojson/<path:wef>,<path:und>")
-def fetch_sigmets(wef=None, und=pd.Timestamp("now", tz="utc")) -> dict:
+def fetch_sigmets(wef=None, und=None) -> dict:
+    t = pd.Timestamp("now", tz="utc")
     if wef is not None:
-        wef = pd.to_datetime(int(wef), unit="ms")
-    res = current_app.sigmet.sigmets(wef, fir="^(L|E)").query(
-        "validTimeTo>@und"
-    )
-    res = res._to_geo()
+        wef = int(wef) / 1000
+        wef = pd.Timestamp(wef, unit="s", tz="utc")
+    if und is not None:
+        und = int(und) / 1000
+        t = pd.Timestamp(und, unit="s", tz="utc")
+    res = current_app.sigmet.sigmets(wef, und, fir="^(L|E)")
+    if res is not None:
+        res = res.query("validTimeTo>@t")._to_geo()
+    else:
+        res = {}
     return res
 
 
@@ -88,11 +94,19 @@ def favicon():
 
 
 @base_bp.route("/airep.geojson")
+@base_bp.route("/airep.geojson/<path:wef>")
 @base_bp.route("/airep.geojson/<path:wef>,<path:und>")
-def airep_geojson(wef=None, und=pd.Timestamp("now", tz="utc")):
-    data = current_app.airep.aireps(wef)
+def airep_geojson(wef=None, und=None):
+    t = pd.Timestamp("now", tz="utc")
+    if wef is not None:
+        wef = int(wef) / 1000
+        wef = pd.Timestamp(wef, unit="s", tz="utc")
+    if und is not None:
+        und = int(und) / 1000
+        t = pd.Timestamp(und, unit="s", tz="utc")
+    data = current_app.airep.aireps(wef, und)
     if data is not None:
-        result = data.query("expire>@und")._to_geo()
+        result = data.query("expire>@t")._to_geo()
     else:
         result = {}
     return result

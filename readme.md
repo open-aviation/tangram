@@ -15,5 +15,5 @@ A Python API to detect turbulence
 You need to run the following commands:
 
 ```sh
-turb live
+turb
 ```
