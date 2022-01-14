@@ -12,14 +12,8 @@ A Python API to detect turbulence
 
 ## Usage
 
-For real-time detection you need to run the following commands:
+You need to run the following commands:
 
 ```sh
 turb live
-```
-
-For loading data from a history file you need to run the following commands:
-
-```sh
-turb history
 ```
