@@ -16,7 +16,11 @@ def crit(df):
 
 
 def threshold(df):
-    return np.mean(df.criterion) + 1.2 * np.std(df.criterion)
+    t = np.mean(df.criterion) + 1.2 * np.std(df.criterion)
+    if t > 150:
+        return t
+    else:
+        return 150
 
 
 def turbulence(df):
@@ -25,7 +29,8 @@ def turbulence(df):
 
 class ADSBClient:
     def __init__(self) -> None:
-        self.terminate: bool = False
+        self.running: bool = False
+        self.history: bool = False
         self.decoder: ModeS_Decoder = None
         self._pro_data: Traffic = None  #: Dict[pd.Timestamp, Traffic] = {}
         self._traffic: Traffic = None
@@ -47,9 +52,8 @@ class ADSBClient:
                 return
             self._traffic = (
                 self.decoder.traffic.longer_than("1T")
-                .last("30T")  # historique ne peut pas avoir ca
-                .resample("1s")
-                .eval(max_workers=4)
+                # .last("30T")  # historique ne peut pas avoir ca
+                .resample("1s").eval(max_workers=4)
             )
 
     def turbulence(self, condition: bool):
@@ -94,17 +98,24 @@ class ADSBClient:
                     print(e)
 
     def calculate_live_turbulence(self):
-        while not self.terminate:
+        while self.running:
             self.turbulence(True)
             time.sleep(1)
 
     def start_live(self, host: str, port: int, reference: str):
+        if self.history:
+            self.clear()
+            self.history = False
+        self.running = True
         self.decoder = ModeS_Decoder.from_address(host, port, reference)
         executor = ThreadPoolExecutor(max_workers=4)
         executor.submit(self.calculate_live_turbulence)
         executor.submit(self.clean_decoder)
 
     def start_from_file(self, file: str, reference: str):
+        self.history = True
+        self.stop()
+        self.clear()
         if file.endswith(".csv"):
             self.decoder = ModeS_Decoder.from_file(
                 file, template="time,df,icao,shortmsg", reference=reference
@@ -120,7 +131,7 @@ class ADSBClient:
     def stop(self):
         if self.decoder is not None:
             self.decoder.stop()
-        self.terminate = True
+        self.running = False
 
     def clear(self):
         with self.lock_traffic:
@@ -128,7 +139,7 @@ class ADSBClient:
             self._pro_data = None
 
     def clean_decoder(self):
-        while not self.terminate:
+        while self.running:
             for icao in list(self.decoder.acs.keys()):
                 condition = True
                 with self.decoder.acs[icao].lock:

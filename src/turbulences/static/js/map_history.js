@@ -1,4 +1,14 @@
-var map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
+var map = L.map("map", {
+  layers: [],
+  zoom: 7,
+  center: [43.57155, 1.47165],
+  timeDimension: true,
+  timeDimensionOptions: {
+    timeInterval: "2021-12-09/2021-12-10",
+    period: "PT1H",
+  },
+  timeDimensionControl: true,
+});
 
 var planes = L.layerGroup();
 var turbulences = L.layerGroup();
@@ -151,7 +161,14 @@ var baselayer = L.tileLayer(
       '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
   }
 );
-
+var timeLayer = L.timeDimension.layer.geoJson(turbulences, {
+  updateTimeDimension: true,
+  duration: "PT2M",
+  updateTimeDimensionMode: "replace",
+  addlastPoint: true,
+});
+document.getElementById("airep_count").innerHTML = timelayer;
+timelayer.addTo(map);
 L.control.scale().addTo(map);
 L.control.layers(null, overlays).addTo(map);
 map.addLayer(baselayer);

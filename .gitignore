@@ -1,6 +1,7 @@
 ### Archive ###
 archive/
 *.ipynb
+.git-old
 
 ### Data ###
 data/

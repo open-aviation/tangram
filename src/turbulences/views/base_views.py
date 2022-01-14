@@ -2,6 +2,8 @@ import json
 
 from flask import Blueprint, current_app, render_template, send_from_directory
 
+import pandas as pd
+
 from .converter import geojson_plane
 
 base_bp = Blueprint("base", __name__)
@@ -67,10 +69,15 @@ def fetch_planes_Geojson() -> dict:
     return geojson_plane(data)
 
 
-@base_bp.route("/sigmet.geojson", defaults={"wef": None, "und": None})
+@base_bp.route("/sigmet.geojson")
+@base_bp.route("/sigmet.geojson/<path:wef>")
 @base_bp.route("/sigmet.geojson/<path:wef>,<path:und>")
-def fetch_sigmets(wef, und) -> dict:
-    res = current_app.sigmet.sigmets(wef, und, fir="^(L|E)")
+def fetch_sigmets(wef=None, und=pd.Timestamp("now", tz="utc")) -> dict:
+    if wef is not None:
+        wef = pd.to_datetime(int(wef), unit="ms")
+    res = current_app.sigmet.sigmets(wef, fir="^(L|E)").query(
+        "validTimeTo>@und"
+    )
     res = res._to_geo()
     return res
 
@@ -80,25 +87,28 @@ def favicon():
     return send_from_directory("./static", "plane.png")
 
 
-@base_bp.route("/airep.geojson", defaults={"wef": None, "und": None})
+@base_bp.route("/airep.geojson")
 @base_bp.route("/airep.geojson/<path:wef>,<path:und>")
-def airep_geojson(wef, und):
-    data = current_app.airep.aireps(wef, und)
+def airep_geojson(wef=None, und=pd.Timestamp("now", tz="utc")):
+    data = current_app.airep.aireps(wef)
     if data is not None:
-        result = data._to_geo()
+        result = data.query("expire>@und")._to_geo()
     else:
         result = {}
     return result
 
 
-@base_bp.route("/cat.geojson", defaults={"wef": None, "und": None})
+@base_bp.route("/cat.geojson")
 @base_bp.route("/cat.geojson/<path:wef>,<path:und>")
-def clear_air_turbulence(wef, und):
-    res = current_app.cat.metsafe(
-        "metgate:cat_mf_arpege01_europe",
-        wef=wef,
-        und=und,
-        bounds="France métropolitaine",
+def clear_air_turbulence(wef=None, und=pd.Timestamp("now", tz="utc")):
+    res = (
+        current_app.cat.metsafe(
+            "metgate:cat_mf_arpege01_europe",
+            wef=wef,
+            bounds="France métropolitaine",
+        )
+        .query("endValidity>@und")
+        .query("startValidity<=@und")
     )
     return res._to_geo()
 
@@ -119,11 +129,22 @@ def launch_client():
 @base_bp.route("/", defaults={"history": False})
 @base_bp.route("/<history>")
 def home_page(history) -> str:
-    if not history:
+    if not history and not current_app.client.running:
         launch_client()
-    data = current_app.airep.aireps()
-    if data is not None:
-        results = [x["properties"] for x in data._to_geo()["features"]]
+    airep = airep_geojson()
+    sigmet = fetch_sigmets()
+    if len(airep) > 0:
+        airep = [x["properties"] for x in airep["features"]]
     else:
-        results = []
-    return render_template("index.html", results=results, history=history)
+        airep = []
+    if sigmet is not None:
+        sigmet = [x["properties"] for x in sigmet["features"]]
+    else:
+        sigmet = []
+
+    return render_template(
+        "index.html",
+        airepgeo=(airep, len(airep)),
+        sigmet=(sigmet, len(sigmet)),
+        history=history,
+    )

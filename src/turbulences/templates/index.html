@@ -9,14 +9,13 @@
 {% endassets %}
 
 <div class="stats">
-  Uptime: 15 days<br /><br />
-  Number of aircraft: 12<br />
-  First seen aircraft: 72 minutes ago<br />
-  Last seen aircraft: 1s ago<br /><br />
+  Uptime: <br /><br />
+  Number of aircraft: <p style="display:inline" id="plane_count"></p><br />
+  First seen aircraft: <p style="display:inline" id="first_seen"></p><br />
+  Last seen aircraft: <p style="display:inline" id="last_seen"></p><br /><br />
 
-  SIGMET (LF): 14<br />
-  CAT (LF): 2<br />
-  AIREP (LF): 5<br />
+  SIGMET (LF): <p style="display:inline" id="sigmet_count"></p><br />
+  AIREP (LF): <p style="display:inline" id="airep_count"></p><br />
   <br />
   Current situation: green
 </div>
@@ -28,38 +27,71 @@
   {% endassets %} {% endif %}
 </div>
 
-<table class="table table-bordered table-hover table-condensed smaller">
-  <thead>
-    <tr>
-      <th>callsign</th>
-      <th>icao24</th>
-      <th>typecode</th>
-      <th>phenomenon</th>
-      <th>altitude</th>
-      <th>center</th>
-      <th>created</th>
-      <th>expire</th>
-      <th>reported</th>
-      <th>updated</th>
-    </tr>
-  </thead>
-  {% for res in results %}
-  <tr>
-    <td>
-      <span class="monospace">{{res['callsign']}}</span>
-    </td>
-    <td><span class="monospace"> {{res['icao24']}}</span></td>
-    <td><span class="monospace">{{res['typecode']}}</span></td>
-    <td><span class="monospace">{{res['phenomenon']}}</span></td>
-    <td>{{res['altitude']}}</td>
-    <td><span class="monospace">{{res['center']}}</span></td>
-    <td>{{res['created'] | format_time}}</td>
-    <td>{{res['expire'] | format_time}}</td>
-    <td>{{res['reported_time'] | format_time}}</td>
-    <td>{{res['updated'] | format_time}}</td>
-  </tr>
-  {% endfor %}
-</table>
+<div>
+  <a class="btn btn-sm btn-info" id="air">
+    <span class="glyphicon glyphicon-globe"></span>&nbsp; AIREP</a>
+  <a class="btn btn-sm btn-info" id="sigmet">
+    <span class="glyphicon glyphicon-flag"></span>&nbsp; SIGMET</a>
+  <a class="btn btn-sm btn-info" id="cat">
+    <span class="glyphicon glyphicon-flag"></span>&nbsp; CAT</a>
+</div>
+<div>
+  <table class="table table-bordered table-hover table-condensed smaller" id="table_airep" style="display: hidden;">
+    <thead>
+      <tr>
+        <th>callsign</th>
+        <th>icao24</th>
+        <th>typecode</th>
+        <th>phenomenon</th>
+        <th>altitude</th>
+        <th>center</th>
+        <th>created</th>
+        <th>expire</th>
+        <th>reported</th>
+        <th>updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>There are no items to list...</td>
+      </tr>
+    </tbody>
+  </table>
+  <table class="table table-bordered table-hover table-condensed smaller" id="table_sigmet" style="display: hidden;">
+    <thead>
+      <tr>
+        <th>id sigmet</th>
+        <th>hazard</th>
+        <th>from</th>
+        <th>to</th>
+        <th>fir name</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td colspan="3" style="text-align:center">There are no items to list...</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<script>
+  var airep = document.getElementById('air');
+  airep.addEventListener('click', myfunction);
+  airep.name = "table_airep"
+
+
+  var sigmet = document.getElementById('sigmet');
+  sigmet.addEventListener('click', myfunction);
+  sigmet.name = "table_sigmet"
+
+  function myfunction(evt) {
+    var tablewrap = document.getElementById(evt.currentTarget.name);
+    tablewrap.classList.toggle('hidden')
+  };
+</script>
+
 
 <div>
   <canvas id="myChart" max-width="100" max-height="100" style="display: none"></canvas>

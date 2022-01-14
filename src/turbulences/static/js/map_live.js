@@ -3,16 +3,17 @@ var map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
 var planes = L.layerGroup();
 var turbulences = L.layerGroup();
 var sigmets = L.layerGroup();
-var airep = L.layerGroup();
+var aireps = L.layerGroup();
 var cat = L.layerGroup();
 
 var overlays = {
   Planes: planes,
   Turbulences: turbulences,
   Sigmets: sigmets,
-  Airep: airep,
+  Airep: aireps,
   Cat: cat,
 };
+
 function whenClicked(e) {
   draw_chart(e.target.feature.properties.icao);
 }
@@ -93,45 +94,76 @@ let myLayerOptions = {
   onEachFeature: onEachPlane,
   pointToLayer: createCustomIcon,
 };
-// Adapter pour history
+
+function loadTable(tableId, fields, data) {
+  var rows = "";
+  $.each(data, function (index, item) {
+    var row = "<tr>";
+    $.each(fields, function (index, field) {
+      row += "<td>" + item["properties"][field + ""] + "</td>";
+    });
+    rows += row + "<tr>";
+  });
+  $("#" + tableId + " tbody").html(rows);
+}
 setInterval(function () {
-  $.getJSON("/planes.geojson", function (data) {
-    planes.clearLayers();
-    L.geoJson(data, myLayerOptions).addTo(planes);
-  });
+  $.getJSON("/sigmet.geojson", function (data) {
+    loadTable(
+      "table_sigmet",
+      ["idSigmet", "hazard", "validTimeFrom", "validTimeTo", "firName"],
+      data["features"]
+    );
 
-  $.getJSON("/turb.geojson", function (data) {
-    turbulences.clearLayers();
+    document.getElementById("sigmet_count").innerHTML = Object.keys(
+      data.features
+    ).length;
+    sigmets.clearLayers();
     L.geoJson(data, {
-      onEachFeature: onEachTurb,
-    }).addTo(turbulences);
+      style: function (feature) {
+        var d = feature.properties.hazard;
+        return d == "TS"
+          ? { color: "red" }
+          : d == "TURB"
+          ? { color: "blue" }
+          : d == "MTW"
+          ? { color: "yellow" }
+          : d == "ICE"
+          ? { color: "gray" }
+          : { color: "black" };
+      },
+      onEachFeature: onEachSigmet,
+    }).addTo(sigmets);
   });
-  map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
-}, 4000);
-//
-$.getJSON("/sigmet.geojson", function (data) {
-  L.geoJson(data, {
-    style: function (feature) {
-      var d = feature.properties.hazard;
-      return d == "TS"
-        ? { color: "red" }
-        : d == "TURB"
-        ? { color: "blue" }
-        : d == "MTW"
-        ? { color: "yellow" }
-        : d == "ICE"
-        ? { color: "gray" }
-        : { color: "black" };
-    },
-    onEachFeature: onEachSigmet,
-  }).addTo(sigmets);
-});
 
-$.getJSON("/airep.geojson", function (data) {
-  L.geoJson(data, {
-    onEachFeature: onEachAirep,
-  }).addTo(airep);
-});
+  $.getJSON("/airep.geojson", function (data) {
+    loadTable(
+      "table_airep",
+      [
+        "callsign",
+        "icao24",
+        "typecode",
+        "phenomenon",
+        "altitude",
+        "center",
+        "created",
+        "expire",
+        "reported_time",
+        "updated",
+      ],
+      data["features"]
+    );
+
+    document.getElementById("airep_count").innerHTML = Object.keys(
+      data.features
+    ).length;
+    aireps.clearLayers();
+
+    L.geoJson(data, {
+      onEachFeature: onEachAirep,
+    }).addTo(aireps);
+  });
+}, 10000);
+//
 
 $.getJSON("/cat.geojson", function (data) {
   L.geoJson(data, {
@@ -155,23 +187,28 @@ var baselayer = L.tileLayer(
   }
 );
 
-// The first parameter are the coordinates of the center of the map
-// The second parameter is the zoom level
+L.control
+  .liveupdate({
+    update_map: function () {
+      $.getJSON("/planes.geojson", function (data) {
+        var avion = document.getElementById("plane_count");
+        avion.innerHTML = Object.keys(data.features).length;
 
-// L.control
-//   .liveupdate({
-//     update_map: function () {
-//       planes.clearLayers();
-//       $.getJSON("results.geojson", function (data) {
-//         L.geoJson(data, {
-//           onEachFeature: onEachFeature,
-//         }).addTo(planes);
-//       });
-//     },
-//     interval: 5000,
-//   })
-//   .addTo(map)
-//   .startUpdating();
+        planes.clearLayers();
+        L.geoJson(data, myLayerOptions).addTo(planes);
+      });
+
+      $.getJSON("/turb.geojson", function (data) {
+        turbulences.clearLayers();
+        L.geoJson(data, {
+          onEachFeature: onEachTurb,
+        }).addTo(turbulences);
+      });
+    },
+    interval: 4000,
+  })
+  .addTo(map)
+  .startUpdating();
 
 L.control.scale().addTo(map);
 L.control.layers(null, overlays).addTo(map);

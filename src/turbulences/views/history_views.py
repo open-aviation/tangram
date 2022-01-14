@@ -20,8 +20,6 @@ def dir_listing(req_path):
 
     # Check if path is a file and redirect
     if os.path.isfile(abs_path):
-        current_app.client.stop()
-        current_app.client.clear()
         current_app.client.start_from_file(file=abs_path, reference="LFBO")
         return redirect("/True")
 
