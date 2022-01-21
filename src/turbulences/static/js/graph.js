@@ -16,15 +16,31 @@ async function draw_chart(icao) {
       },
       {
         type: "line",
-        label: "vsi_std",
+        label: "vsi",
         data: result[1],
+        fill: false,
         borderColor: "rgb(0, 192, 0)",
       },
       {
         type: "line",
-        label: "vsb_std",
+        label: "vsb",
         data: result[2],
+        fill: false,
         borderColor: "rgb(0, 0, 192)",
+      },
+      {
+        type: "line",
+        label: "criterion",
+        data: result[3],
+        fill: false,
+        borderColor: "rgb(0, 100, 100)",
+      },
+      {
+        type: "line",
+        label: "threshold",
+        data: result[4],
+        fill: false,
+        borderColor: "rgb(100, 100, 0)",
       },
     ],
   };

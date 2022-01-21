@@ -43,24 +43,40 @@ def chart_data(icao):
         resultats_turb.to_dict()["timestamp"].values(),
         resultats_turb.to_dict()["turbulence"].values(),
     )
-    vsi_std = zip(
+    vsi = zip(
         resultats.to_dict()["timestamp"].values(),
-        resultats.to_dict()["vertical_rate_inertial_std"].values(),
+        resultats.to_dict()["vertical_rate_inertial"].values(),
     )
-    vsb_std = zip(
+    vsb = zip(
         resultats.to_dict()["timestamp"].values(),
-        resultats.to_dict()["vertical_rate_barometric_std"].values(),
+        resultats.to_dict()["vertical_rate_barometric"].values(),
+    )
+    cri = zip(
+        resultats.to_dict()["timestamp"].values(),
+        resultats.to_dict()["criterion"].values(),
+    )
+    thr = zip(
+        resultats.to_dict()["timestamp"].values(),
+        resultats.to_dict()["threshold"].values(),
     )
     data_turb = list(
         {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in turb
     )
     data_vsi_std = list(
-        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in vsi_std
+        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in vsi
     )
     data_vsb_std = list(
-        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in vsb_std
+        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in vsb
     )
-    return json.dumps([data_turb, data_vsi_std, data_vsb_std])
+    data_criterion = list(
+        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in cri
+    )
+    data_threshold = list(
+        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in thr
+    )
+    return json.dumps(
+        [data_turb, data_vsi_std, data_vsb_std, data_criterion, data_threshold]
+    )
 
 
 @base_bp.route("/planes.geojson")
