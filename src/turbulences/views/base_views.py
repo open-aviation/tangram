@@ -1,6 +1,12 @@
 import json
 
-from flask import Blueprint, current_app, render_template, send_from_directory
+from flask import (
+    Blueprint,
+    current_app,
+    render_template,
+    request,
+    send_from_directory,
+)
 
 import pandas as pd
 
@@ -15,10 +21,15 @@ def format_datetime(value, format="medium"):
 
 
 @base_bp.route("/turb.geojson")
-def turbulence():
+@base_bp.route("/turb.geojson/<path:und>")
+def turbulence(und=None):
     features = []
     pro_data = current_app.client.pro_data
     if pro_data is not None:
+        if und is not None:
+            und = int(und) / 1000
+            t = pd.Timestamp(und, unit="s", tz="utc")
+            pro_data = pro_data.query(f"timestamp<'{str(t)}'")
         turb = pro_data.query("turbulence")
         if turb is not None:
             for flight in turb:
@@ -80,8 +91,13 @@ def chart_data(icao):
 
 
 @base_bp.route("/planes.geojson")
-def fetch_planes_Geojson() -> dict:
+@base_bp.route("/planes.geojson/<path:und>")
+def fetch_planes_Geojson(und=None) -> dict:
     data = current_app.client.traffic
+    if und is not None:
+        und = int(und) / 1000
+        t = pd.Timestamp(und, unit="s", tz="utc")
+        data = data.query(f"timestamp<'{str(t)}'")
     return geojson_plane(data)
 
 
@@ -156,10 +172,11 @@ def launch_client():
     )
 
 
-@base_bp.route("/", defaults={"history": False})
-@base_bp.route("/<history>")
-def home_page(history) -> str:
-    if not history and not current_app.client.running:
+@base_bp.route("/")
+def home_page() -> str:
+    min_date = request.args.get("min", default=False)
+    max_date = request.args.get("max", default=False)
+    if (not min_date and not max_date) and not current_app.client.running:
         launch_client()
     airep = airep_geojson()
     sigmet = fetch_sigmets()
@@ -171,10 +188,16 @@ def home_page(history) -> str:
         sigmet = [x["properties"] for x in sigmet["features"]]
     else:
         sigmet = []
-
+    if min_date != False and max_date != False:
+        return render_template(
+            "index.html",
+            airepgeo=(airep, len(airep)),
+            sigmet=(sigmet, len(sigmet)),
+            history="True",
+        )
     return render_template(
         "index.html",
         airepgeo=(airep, len(airep)),
         sigmet=(sigmet, len(sigmet)),
-        history=history,
+        history="False",
     )

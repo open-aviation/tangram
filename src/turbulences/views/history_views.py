@@ -1,9 +1,17 @@
 import os
 
-from flask import Blueprint, abort, current_app, render_template
+
+from flask import Blueprint, abort, current_app, render_template, url_for
 from werkzeug.utils import redirect
 
 history_bp = Blueprint("history", __name__)
+
+
+def get_date_file():
+    return (
+        current_app.client.pro_data.start_time,
+        current_app.client.pro_data.end_time,
+    )
 
 
 @history_bp.route("/data", defaults={"req_path": ""})
@@ -21,7 +29,8 @@ def dir_listing(req_path):
     # Check if path is a file and redirect
     if os.path.isfile(abs_path):
         current_app.client.start_from_file(file=abs_path, reference="LFBO")
-        return redirect("/True")
+        date = get_date_file()
+        return redirect(url_for("base.home_page", min=date[0], max=date[1]))
 
     # Show directory contents
     files = os.listdir(abs_path)

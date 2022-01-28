@@ -17,28 +17,24 @@ let myLayerOptions = {
   onEachFeature: onEachPlane,
   pointToLayer: createCustomIcon,
 };
-// function getPlanes() {
-//   $.getJSON("/planes.geojson", function (data) {
-//     var avion = document.getElementById("plane_count");
-//     avion.innerHTML = Object.keys(data.features).length;
 
-//     planes.clearLayers();
-//     L.geoJson(data, myLayerOptions).addTo(planes);
-//   });
-// }
-getPlanes();
-// function getTurbulence() {
-//   $.getJSON("/turb.geojson", function (data) {
-//     turbulences.clearLayers();
-//     L.geoJson(data, {
-//       onEachFeature: onEachTurb,
-//     }).addTo(turbulences);
-//   });
-// }
-getTurbulence();
-getSigmet();
-getAirep();
-getCat();
+// Date 
+const urlSearchParams = new URLSearchParams(window.location.search);
+var min_date = urlSearchParams.get('min');
+var max_date = urlSearchParams.get('max');
+
+var firstseen = document.getElementById("first_seen");
+firstseen.innerHTML = new Date(min_date);
+var lastseen = document.getElementById("last_seen");
+lastseen.innerHTML = new Date(max_date);
+
+// Requests
+getPlanes(Date.parse(min_date));
+getTurbulence(Date.parse(min_date));
+getSigmet(Date.parse(min_date), Date.parse(max_date));
+getAirep(Date.parse(min_date), Date.parse(max_date));
+getCat(Date.parse(min_date), Date.parse(max_date));
+
 // partie slider
 function createTemporalLegend(startTimestamp) {
   var temporalLegend = L.control({ position: "bottomleft" });
@@ -62,21 +58,23 @@ function createSliderUI() {
     });
     $(slider).attr({
       type: "range",
-      max: Date.parse("2022-01-15T00:00:00"),
-      min: Date.parse("2022-01-14T00:00:00"),
-      value: new Date("2022-01-14T00:00:00"),
+      max: Date.parse(max_date),
+      min: Date.parse(min_date),
+      value: new Date(min_date),
       step: 1,
     });
     $(slider).on("input change", function () {
       getSigmet($(this).attr("min"), $(this).val().toString());
       getAirep($(this).attr("min"), $(this).val().toString());
+      getPlanes($(this).val().toString());
+      getTurbulence($(this).val().toString());
       $(".temporal-legend").text(new Date($(this).val() * 1));
     });
     return slider;
   };
 
   sliderControl.addTo(map);
-  createTemporalLegend(new Date());
+  createTemporalLegend(new Date(min_date));
 }
 createSliderUI();
 

@@ -107,12 +107,12 @@ function getSigmet(wef = null, und = null) {
         return d == "TS"
           ? { color: "red" }
           : d == "TURB"
-          ? { color: "blue" }
-          : d == "MTW"
-          ? { color: "yellow" }
-          : d == "ICE"
-          ? { color: "gray" }
-          : { color: "black" };
+            ? { color: "blue" }
+            : d == "MTW"
+              ? { color: "yellow" }
+              : d == "ICE"
+                ? { color: "gray" }
+                : { color: "black" };
       },
       onEachFeature: onEachSigmet,
     }).addTo(sigmets);
@@ -150,23 +150,31 @@ function getAirep(wef = null, und = null) {
     }).addTo(aireps);
   });
 }
-function getCat() {
-  $.getJSON("/cat.geojson", function (data) {
+function getCat(wef = null, und = null) {
+  url = "/cat.geojson";
+  if ((wef !== null) & (und !== null)) {
+    url = url + "/" + wef + "," + und;
+  }
+  $.getJSON(url, function (data) {
     L.geoJson(data, {
       style: function (feature) {
         var d = feature.properties.intensityValue;
         return d == 1
           ? { color: "blue" }
           : d == 2
-          ? { color: "red" }
-          : { color: "black" };
+            ? { color: "red" }
+            : { color: "black" };
       },
       onEachFeature: onEachCat,
     }).addTo(cat);
   });
 }
-function getPlanes() {
-  $.getJSON("/planes.geojson", function (data) {
+function getPlanes(und = null) {
+  url = "/planes.geojson"
+  if (und !== null) {
+    url = url + "/" + und
+  }
+  $.getJSON(url, function (data) {
     var avion = document.getElementById("plane_count");
     avion.innerHTML = Object.keys(data.features).length;
 
@@ -174,8 +182,12 @@ function getPlanes() {
     L.geoJson(data, myLayerOptions).addTo(planes);
   });
 }
-function getTurbulence() {
-  $.getJSON("/turb.geojson", function (data) {
+function getTurbulence(und = null) {
+  url = "/turb.geojson"
+  if (und !== null) {
+    url = url + "/" + und
+  }
+  $.getJSON(url, function (data) {
     turbulences.clearLayers();
     L.geoJson(data, {
       onEachFeature: onEachTurb,
