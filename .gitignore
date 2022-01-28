@@ -2,6 +2,7 @@
 archive/
 *.ipynb
 .git-old
+.vscode/
 
 ### Data ###
 data/
