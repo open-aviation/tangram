@@ -1,9 +1,7 @@
-from functools import lru_cache
 import numpy as np
 from traffic.core.traffic import Traffic
 
 
-@lru_cache()
 def geojson_plane(data: Traffic) -> dict:
     features = []
     if data is not None:

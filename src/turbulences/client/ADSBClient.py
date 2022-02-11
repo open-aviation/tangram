@@ -49,6 +49,7 @@ class ADSBClient:
     def calculate_traffic(self):
         with self.lock_traffic:
             if self.decoder.traffic is None:
+                self._traffic = None
                 return
             self._traffic = (
                 self.decoder.traffic.longer_than("1T")
@@ -66,6 +67,7 @@ class ADSBClient:
                         self._traffic.longer_than("1T")
                         .resample("1s")
                         .filter(  # .last("30T")
+                            strategy=None,
                             # median filters for abnormal points
                             vertical_rate_barometric=3,
                             vertical_rate_inertial=3,  # kernel sizes
@@ -96,6 +98,8 @@ class ADSBClient:
                     )
                 except Exception as e:
                     print(e)
+        else:
+            self._pro_data = None
 
     def calculate_live_turbulence(self):
         while self.running:
@@ -139,10 +143,11 @@ class ADSBClient:
             self._pro_data = None
 
     def clean_decoder(self):
-        while self.running:
+        while self.running or len(self.decoder.acs.keys()) != 0:
+            time.sleep(60)
             for icao in list(self.decoder.acs.keys()):
                 condition = True
-                with self.decoder.acs[icao].lock:
+                with self.lock_traffic:
                     if len(self.decoder.acs[icao].cumul) > 0:
                         condition = False
                         if pd.Timestamp(
@@ -150,14 +155,15 @@ class ADSBClient:
                         ) - self.decoder.acs[icao].cumul[-1][
                             "timestamp"
                         ] >= timedelta(
-                            hours=1
+                            minutes=30
                         ):
                             del self.decoder.acs[icao]
-                if condition and self.decoder.acs[icao].flight is not None:
-                    if pd.Timestamp(
-                        "now", tzinfo=timezone.utc
-                    ) - self.decoder.acs[icao].flight.stop >= timedelta(
-                        hours=1
-                    ):
-                        with self.decoder.acs[icao].lock:
-                            del self.decoder.acs[icao]
+                if condition:
+                    if self.decoder.acs[icao].flight is not None:
+                        if pd.Timestamp(
+                            "now", tzinfo=timezone.utc
+                        ) - self.decoder.acs[icao].flight.stop >= timedelta(
+                            minutes=30
+                        ):
+                            with self.lock_traffic:
+                                del self.decoder.acs[icao]
