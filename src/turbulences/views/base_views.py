@@ -15,6 +15,12 @@ from .converter import geojson_plane
 base_bp = Blueprint("base", __name__)
 
 
+@base_bp.route("/stop")
+def stop_client():
+    current_app.client.stop()
+    return {}
+
+
 @base_bp.app_template_filter("format_time")
 def format_datetime(value, format="medium"):
     return f"{value:%Y-%m-%d %H:%M:%S}"
@@ -29,7 +35,7 @@ def turbulence(und=None):
         if und is not None:
             und = int(und) / 1000
             t = pd.Timestamp(und, unit="s", tz="utc")
-            pro_data = pro_data.query(f"timestamp<'{str(t)}'")
+            pro_data = pro_data.query(f"timestamp<='{str(t)}'")
         turb = pro_data.query("turbulence")
         if turb is not None:
             for flight in turb:
@@ -74,13 +80,13 @@ def chart_data(icao):
         {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in turb
     )
     data_vsi_std = list(
-        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in vsi
+        {"t": timestamp.timestamp() * 1000, "y": str(t)} for timestamp, t in vsi
     )
     data_vsb_std = list(
-        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in vsb
+        {"t": timestamp.timestamp() * 1000, "y": str(t)} for timestamp, t in vsb
     )
     data_criterion = list(
-        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in cri
+        {"t": timestamp.timestamp() * 1000, "y": str(t)} for timestamp, t in cri
     )
     data_threshold = list(
         {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in thr
@@ -97,7 +103,7 @@ def fetch_planes_Geojson(und=None) -> dict:
     if und is not None:
         und = int(und) / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")
-        data = data.query(f"timestamp<'{str(t)}'")
+        data = data.query(f"timestamp<='{str(t)}'")
     return geojson_plane(data)
 
 
@@ -146,15 +152,22 @@ def airep_geojson(wef=None, und=None):
 
 @base_bp.route("/cat.geojson")
 @base_bp.route("/cat.geojson/<path:wef>,<path:und>")
-def clear_air_turbulence(wef=None, und=pd.Timestamp("now", tz="utc")):
+def clear_air_turbulence(wef=None, und=None):
+    t = pd.Timestamp("now", tz="utc")
+    if wef is not None:
+        wef = int(wef) / 1000
+        # wef = pd.Timestamp(wef, unit="s", tz="utc")
+    if und is not None:
+        und = int(und) / 1000
+        t = pd.Timestamp(und, unit="s", tz="utc")
     res = (
         current_app.cat.metsafe(
             "metgate:cat_mf_arpege01_europe",
             wef=wef,
             bounds="France métropolitaine",
         )
-        .query("endValidity>@und")
-        .query("startValidity<=@und")
+        .query("endValidity>@t")
+        .query("startValidity<=@t")
     )
     return res._to_geo()
 
