@@ -20,6 +20,7 @@ async function draw_chart(icao) {
         data: result[1],
         fill: false,
         borderColor: "rgb(0, 192, 0)",
+        pointRadius: 1,
       },
       {
         type: "line",
@@ -27,6 +28,7 @@ async function draw_chart(icao) {
         data: result[2],
         fill: false,
         borderColor: "rgb(0, 0, 192)",
+        pointRadius: 1,
       },
       {
         type: "line",
@@ -34,6 +36,7 @@ async function draw_chart(icao) {
         data: result[3],
         fill: false,
         borderColor: "rgb(0, 100, 100)",
+        pointRadius: 1,
       },
       {
         type: "line",
@@ -41,13 +44,18 @@ async function draw_chart(icao) {
         data: result[4],
         fill: false,
         borderColor: "rgb(100, 100, 0)",
+        pointRadius: 1,
       },
     ],
+  };
+  var dragOptions = {
+    animationDuration: 1000
   };
   var config = {
     type: "line",
     data: data,
     options: {
+      responsive: true,
       scales: {
         xAxes: [
           {
@@ -56,11 +64,30 @@ async function draw_chart(icao) {
         ],
       },
     },
+    spanGaps: false,
     plugins: {
       title: {
         display: true,
         text: JSON.stringify(icao),
       },
+      zoom: {
+        zoom: {
+          enabled: true,
+          drag: false,
+          mode: 'x',
+          speed: 0.05
+        }
+      }
+      // zoom: {
+      //   pan: {
+      //     enabled: true,
+      //     mode: 'xy'
+      //   },
+      //   zoom: {
+      //     enabled: true,
+      //     mode: 'xy'
+      //   }
+      // }
     },
   };
   if (myChart != undefined || myChart != null) {
