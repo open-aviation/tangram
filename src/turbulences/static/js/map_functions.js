@@ -1,5 +1,19 @@
 function whenClicked(e) {
+  // var match = planes.eachLayer(function (layer) {
+  //   if (layer.feature.properties.icao == "a4b827") {
+  //     return layer.feature.properties.icao
+  //   }
+  // })
+  // document.getElementById("airep_count").innerHTML = match;
   draw_chart(e.target.feature.properties.icao);
+  // var $layer = e.target;
+  // var highlightStyle = {
+  //   color: "red",
+  //   opacity: 10,
+  //   weight: 50,
+  // };
+  // $layer.bringToFront();
+  // $layer.setStyle(highlightStyle);
 }
 function onEachPlane(feature, layer) {
   var popupContent = "<p>ICAO: " + feature.properties.icao + "</p>";
@@ -11,6 +25,9 @@ function onEachPlane(feature, layer) {
 function onEachTurb(feature, layer) {
   var popupContent = "<p>ICAO: " + feature.properties.icao + "</p>";
   layer.bindPopup(popupContent);
+  layer.on({
+    click: whenClicked,
+  });
 }
 
 function onEachAirep(feature, layer) {

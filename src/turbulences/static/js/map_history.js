@@ -61,7 +61,7 @@ function createSliderUI() {
       max: Date.parse(max_date),
       min: Date.parse(min_date),
       value: new Date(min_date),
-      step: 1,
+      step: 100,
     });
     $(slider).on("input change", function () {
       getSigmet($(this).attr("min"), $(this).val().toString());
