@@ -48,11 +48,18 @@ class ADSBClient:
 
     def calculate_traffic(self):
         with self.lock_traffic:
-            if self.decoder.traffic is None:
+            erreur = True
+            while erreur:
+                try:
+                    traffic = self.decoder.traffic
+                    erreur = False
+                except:
+                    pass
+            if traffic is None:
                 self._traffic = None
                 return
             self._traffic = (
-                self.decoder.traffic.longer_than("1T")
+                traffic.longer_than("1T")
                 # .last("30T")  # historique ne peut pas avoir ca
                 .resample("1s").eval(max_workers=4)
             )
