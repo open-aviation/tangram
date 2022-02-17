@@ -21,6 +21,11 @@ def stop_client():
     return {}
 
 
+@base_bp.route("/flight/<path:icao>")
+def get_info_flight(icao):
+    return current_app.network.icao24(icao)
+
+
 @base_bp.app_template_filter("format_time")
 def format_datetime(value, format="medium"):
     return f"{value:%Y-%m-%d %H:%M:%S}"
@@ -41,9 +46,10 @@ def turbulence(und=None):
             for flight in turb:
                 if flight.shape is not None:
                     for segment in flight.split("1T"):
-                        x = segment.geojson()
-                        x.update({"properties": {"icao": flight.icao24}})
-                        features.append(x)
+                        if segment is not None:
+                            x = segment.geojson()
+                            x.update({"properties": {"icao": flight.icao24}})
+                            features.append(x)
     geojson = {
         "type": "FeatureCollection",
         "features": features,

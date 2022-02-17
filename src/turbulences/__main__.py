@@ -3,6 +3,7 @@ import logging
 from atmlab.airep import AIREP
 from atmlab.metsafe import Metsafe
 from atmlab.weather import Weather
+from atmlab.network import Network
 from flask import Flask
 from flask_assets import Environment
 
@@ -34,6 +35,7 @@ def main():
     app.sigmet = Weather()
     app.airep = AIREP()
     app.cat = Metsafe()
+    app.network = Network()
 
     asset = Environment(app)
     asset.register(assets.bundles)
