@@ -1,3 +1,15 @@
+function getFlight_data(icao) {
+  document.getElementById("icao").innerHTML = icao;
+  url = "/flight/" + icao
+  $.getJSON(url, function (data) {
+    document.getElementById("flight_id").innerHTML = (data.flightId.id != undefined) ? (data.flightId.id) : ("");
+    document.getElementById("departure").innerHTML = (data.flightId.keys.aerodromeOfDeparture != undefined) ? (data.flightId.keys.aerodromeOfDeparture) : ("");
+    document.getElementById("destination").innerHTML = (data.flightId.keys.aerodromeOfDestination != undefined) ? (data.flightId.keys.aerodromeOfDestination) : ("");
+    document.getElementById("aircraft_id").innerHTML = (data.flightId.keys.aircraftId != undefined) ? (data.flightId.keys.aircraftId) : ("");
+  });
+  document.getElementById("flight").hidden = false;
+}
+
 function whenClicked(e) {
   // var match = planes.eachLayer(function (layer) {
   //   if (layer.feature.properties.icao == "a4b827") {
@@ -6,6 +18,7 @@ function whenClicked(e) {
   // })
   // document.getElementById("airep_count").innerHTML = match;
   draw_chart(e.target.feature.properties.icao);
+  getFlight_data(e.target.feature.properties.icao);
   // var $layer = e.target;
   // var highlightStyle = {
   //   color: "red",
@@ -107,7 +120,7 @@ function getSigmet(wef = null, und = null) {
   if ((wef !== null) & (und !== null)) {
     url = url + "/" + wef + "," + und;
   }
-  sigmets.clearLayers();
+
   $.getJSON(url, function (data) {
     loadTable(
       "table_sigmet",
@@ -117,7 +130,7 @@ function getSigmet(wef = null, und = null) {
     document.getElementById("sigmet_count").innerHTML = Object.keys(
       data.features
     ).length;
-
+    sigmets.clearLayers();
     L.geoJson(data, {
       style: function (feature) {
         var d = feature.properties.hazard;
@@ -140,7 +153,6 @@ function getAirep(wef = null, und = null) {
   if ((wef !== null) & (und !== null)) {
     url = url + "/" + wef + "," + und;
   }
-  aireps.clearLayers();
   $.getJSON(url, function (data) {
     loadTable(
       "table_airep",
@@ -161,7 +173,7 @@ function getAirep(wef = null, und = null) {
     document.getElementById("airep_count").innerHTML = Object.keys(
       data.features
     ).length;
-
+    aireps.clearLayers();
     L.geoJson(data, {
       onEachFeature: onEachAirep,
     }).addTo(aireps);
