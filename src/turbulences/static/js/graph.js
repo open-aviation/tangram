@@ -46,6 +46,14 @@ async function draw_chart(icao) {
         borderColor: "rgb(100, 100, 0)",
         pointRadius: 1,
       },
+      {
+        type: "line",
+        label: "altitude",
+        data: result[5],
+        fill: false,
+        borderColor: "rgb(211, 149, 237)",
+        pointRadius: 1,
+      },
     ],
   };
   var dragOptions = {

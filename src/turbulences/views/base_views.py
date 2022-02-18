@@ -23,7 +23,11 @@ def stop_client():
 
 @base_bp.route("/flight/<path:icao>")
 def get_info_flight(icao):
-    return current_app.network.icao24(icao)
+    try:
+        data = current_app.network.icao24(icao)
+    except Exception:
+        data = {}
+    return data
 
 
 @base_bp.app_template_filter("format_time")
@@ -82,6 +86,10 @@ def chart_data(icao):
         resultats.to_dict()["timestamp"].values(),
         resultats.to_dict()["threshold"].values(),
     )
+    altitude = zip(
+        resultats.to_dict()["timestamp"].values(),
+        resultats.to_dict()["altitude"].values(),
+    )
     data_turb = list(
         {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in turb
     )
@@ -97,8 +105,19 @@ def chart_data(icao):
     data_threshold = list(
         {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in thr
     )
+    data_altitude = list(
+        {"t": timestamp.timestamp() * 1000, "y": str(t)}
+        for timestamp, t in altitude
+    )
     return json.dumps(
-        [data_turb, data_vsi_std, data_vsb_std, data_criterion, data_threshold]
+        [
+            data_turb,
+            data_vsi_std,
+            data_vsb_std,
+            data_criterion,
+            data_threshold,
+            data_altitude,
+        ]
     )
 
 
