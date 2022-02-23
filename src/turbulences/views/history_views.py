@@ -35,3 +35,16 @@ def dir_listing(req_path):
     # Show directory contents
     files = os.listdir(abs_path)
     return render_template("files.html", files=files)
+
+
+@history_bp.route("/database/<path:wef>,<path:und>")
+def database_request(wef, und):
+    data = mongo.db.track.find(
+        {
+            "stop": {"$gte": "2022-02-19 14:45:00"},
+            "start": {"$lte": "2022-02-19 16:00:00"},
+        }
+    )
+    current_app.client.start_from_database(data)
+    date = get_date_file()
+    return redirect(url_for("base.home_page", min=date[0], max=date[1]))

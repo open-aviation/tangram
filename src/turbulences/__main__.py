@@ -2,10 +2,11 @@ import logging
 
 from atmlab.airep import AIREP
 from atmlab.metsafe import Metsafe
-from atmlab.weather import Weather
 from atmlab.network import Network
+from atmlab.weather import Weather
 from flask import Flask
 from flask_assets import Environment
+from flask_pymongo import PyMongo
 
 from turbulences import config
 
@@ -28,6 +29,9 @@ def main():
     app.client_port = int(config.get("radarcape", "port", fallback=""))
     app.client_reference = config.get("radarcape", "reference", fallback="")
     app.data_path = config.get("history", "path_data", fallback="")
+    app.config["MONGO_URI"] = config.get("history", "database_uri", fallback="")
+
+    mongo = PyMongo(app)
 
     app.register_blueprint(history_views.history_bp)
     app.register_blueprint(base_views.base_bp)

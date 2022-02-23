@@ -136,6 +136,26 @@ class ADSBClient:
             self._traffic = Traffic.from_file(file)
             self.turbulence(False)
 
+    def start_from_database(self, data):
+        self.history = True
+        self.stop()
+        self.clear()
+        df = pd.concat(
+            [
+                pd.DataFrame.from_records(f["traj"]).assign(
+                    callsign=f["callsign"]
+                )
+                for f in data
+            ]
+        )
+        t = Traffic(df)
+        self._traffic = (
+            t.longer_than("1T")
+            # .last("30T")  # historique ne peut pas avoir ca
+            .resample("1s").eval(max_workers=4)
+        )
+        self.turbulence(False)
+
     def __exit__(self):
         self.stop()
 
