@@ -21,7 +21,11 @@ def clean_callsign(cumul):
             else:
                 callsigns.add(callsign)
         i += 1
-    return cumul
+    if len(callsigns) == 0:
+        callsign = None
+    else:
+        callsign = callsigns.pop()
+    return cumul, callsign
 
 
 class TestClient(ModeS_Decoder):
@@ -35,7 +39,7 @@ class TestClient(ModeS_Decoder):
         client = MongoClient()
         self.network = Network()
 
-        self.db = client.get_database(name="turbulence")
+        self.db = client.get_database(name="adsb")
         executor = ThreadPoolExecutor(max_workers=4)
         executor.submit(self.clean_decoder)
 
@@ -47,15 +51,17 @@ class TestClient(ModeS_Decoder):
 
         try:
             flight_data = self.network.icao24(icao)["flightId"]
-            callsign = flight_data["keys"]["aircraftId"]
+            callsign1 = flight_data["keys"]["aircraftId"]
         except Exception as e:
             flight_data = {}
-            callsign = None
+            callsign1 = None
 
         if stop - start < timedelta(minutes=1) and len(flight_data) == 0:
             return
 
-        cumul = clean_callsign(cumul)
+        cumul, callsign2 = clean_callsign(cumul)
+
+        callsign = callsign1 if callsign2 is None else callsign2
 
         dum = {
             "icao": icao,
