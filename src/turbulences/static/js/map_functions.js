@@ -2,29 +2,31 @@ function getFlight_data(icao) {
   document.getElementById("icao").innerHTML = icao;
   url = "/flight/" + icao
   $.getJSON(url, function (data) {
-    document.getElementById("flight_id").innerHTML = (data.flightId.id != undefined) ? (data.flightId.id) : ("");
-    document.getElementById("departure").innerHTML = (data.flightId.keys.aerodromeOfDeparture != undefined) ? (data.flightId.keys.aerodromeOfDeparture) : ("");
-    document.getElementById("destination").innerHTML = (data.flightId.keys.aerodromeOfDestination != undefined) ? (data.flightId.keys.aerodromeOfDestination) : ("");
-    document.getElementById("aircraft_id").innerHTML = (data.flightId.keys.aircraftId != undefined) ? (data.flightId.keys.aircraftId) : ("");
+    document.getElementById("flight_id").innerHTML = (data.flightId.id !== undefined) ? data.flightId.id : "null";
+    document.getElementById("departure").innerHTML = (data.flightId.keys.aerodromeOfDeparture !== undefined) ? data.flightId.keys.aerodromeOfDeparture : "null";
+    document.getElementById("destination").innerHTML = (data.flightId.keys.aerodromeOfDestination !== undefined) ? data.flightId.keys.aerodromeOfDestination : "null";
+    document.getElementById("aircraft_id").innerHTML = (data.flightId.keys.aircraftId !== undefined) ? data.flightId.keys.aircraftId : "null";
   });
   document.getElementById("flight").hidden = false;
 }
 
 function whenClicked(e) {
-  // var match = planes.eachLayer(function (layer) {
-  //   if (layer.feature.properties.icao == "a4b827") {
-  //     return layer.feature.properties.icao
+  // var match = planes.eachfeature(function (layer) {
+  //   if (layerfeature.properties.icao == e.target.feature.properties.icao) {
+  //     var highlightStyle = {
+  //       color: "red",
+  //       opacity: 10,
+  //       weight: 50,
+  //     };
+  //     layer.setStyle(highlightStyle);
   //   }
   // })
   // document.getElementById("airep_count").innerHTML = match;
-  draw_chart(e.target.feature.properties.icao);
-  getFlight_data(e.target.feature.properties.icao);
-  // var $layer = e.target;
-  // var highlightStyle = {
-  //   color: "red",
-  //   opacity: 10,
-  //   weight: 50,
-  // };
+  var icao = (e.target.feature.properties.icao === undefined) ? (e.target.feature.geometry.properties.icao) : e.target.feature.properties.icao
+  draw_chart(icao);
+  getFlight_data(icao);
+  // var $layer = match;
+  // 
   // $layer.bringToFront();
   // $layer.setStyle(highlightStyle);
 }
