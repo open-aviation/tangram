@@ -148,6 +148,7 @@ class ADSBClient:
                 for f in data
             ]
         )
+        df["timestamp"] = pd.to_datetime(df.timestamp, utc=True)
         t = Traffic(df)
         self._traffic = (
             t.longer_than("1T")

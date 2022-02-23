@@ -31,7 +31,7 @@ def main():
     app.data_path = config.get("history", "path_data", fallback="")
     app.config["MONGO_URI"] = config.get("history", "database_uri", fallback="")
 
-    mongo = PyMongo(app)
+    app.mongo = PyMongo(app)
 
     app.register_blueprint(history_views.history_bp)
     app.register_blueprint(base_views.base_bp)

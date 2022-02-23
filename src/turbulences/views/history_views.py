@@ -39,10 +39,10 @@ def dir_listing(req_path):
 
 @history_bp.route("/database/<path:wef>,<path:und>")
 def database_request(wef, und):
-    data = mongo.db.track.find(
+    data = current_app.mongo.db.tracks.find(
         {
-            "stop": {"$gte": "2022-02-19 14:45:00"},
-            "start": {"$lte": "2022-02-19 16:00:00"},
+            "stop": {"$gte": wef},
+            "start": {"$lte": und},
         }
     )
     current_app.client.start_from_database(data)
