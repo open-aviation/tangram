@@ -21,6 +21,10 @@ logger = logging.getLogger("waitress")
 logger.setLevel(logging.INFO)
 
 app = Flask(__name__, instance_relative_config=True)
+import os
+
+SECRET_KEY = os.urandom(32)
+app.config["SECRET_KEY"] = SECRET_KEY
 
 
 def main():

@@ -2,10 +2,19 @@ function getFlight_data(icao) {
   document.getElementById("icao").innerHTML = icao;
   url = "/flight/" + icao
   $.getJSON(url, function (data) {
-    document.getElementById("flight_id").innerHTML = (data.flightId.id !== undefined) ? data.flightId.id : "null";
-    document.getElementById("departure").innerHTML = (data.flightId.keys.aerodromeOfDeparture !== undefined) ? data.flightId.keys.aerodromeOfDeparture : "null";
-    document.getElementById("destination").innerHTML = (data.flightId.keys.aerodromeOfDestination !== undefined) ? data.flightId.keys.aerodromeOfDestination : "null";
-    document.getElementById("aircraft_id").innerHTML = (data.flightId.keys.aircraftId !== undefined) ? data.flightId.keys.aircraftId : "null";
+    flight_id = document.getElementById('flight_id');
+    departure = document.getElementById('departure');
+    destination = document.getElementById('destination');
+    aircraft_id = document.getElementById('aircraft_id');
+
+    if (data.flightId === undefined) {
+      flight_id.innerHTML = ""; departure.innerHTML = ""; aircraft_id.innerHTML = ""; destination.innerHTML = "";
+    } else {
+      flight_id.innerHTML = data.flightId.id;
+      departure.innerHTML = data.flightId.keys.aerodromeOfDeparture;
+      destination.innerHTML = data.flightId.keys.aerodromeOfDestination;
+      aircraft_id.innerHTML = data.flightId.keys.aircraftId;
+    }
   });
   document.getElementById("flight").hidden = false;
 }
@@ -124,6 +133,9 @@ function getSigmet(wef = null, und = null) {
   }
 
   $.getJSON(url, function (data) {
+    if (data.features == undefined) {
+      data["features"] = {}
+    }
     loadTable(
       "table_sigmet",
       ["idSigmet", "hazard", "validTimeFrom", "validTimeTo", "firName"],
@@ -156,6 +168,9 @@ function getAirep(wef = null, und = null) {
     url = url + "/" + wef + "," + und;
   }
   $.getJSON(url, function (data) {
+    if (data.features == undefined) {
+      data["features"] = {}
+    }
     loadTable(
       "table_airep",
       [

@@ -3,12 +3,15 @@ import json
 from flask import (
     Blueprint,
     current_app,
+    redirect,
     render_template,
     request,
     send_from_directory,
+    url_for,
 )
 
 import pandas as pd
+from turbulences.views.forms import InfoForm
 
 from .converter import geojson_plane
 
@@ -139,7 +142,6 @@ def fetch_sigmets(wef=None, und=None) -> dict:
     t = pd.Timestamp("now", tz="utc")
     if wef is not None:
         wef = int(wef) / 1000
-        wef = pd.Timestamp(wef, unit="s", tz="utc")
     if und is not None:
         und = int(und) / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")
@@ -163,7 +165,6 @@ def airep_geojson(wef=None, und=None):
     t = pd.Timestamp("now", tz="utc")
     if wef is not None:
         wef = int(wef) / 1000
-        wef = pd.Timestamp(wef, unit="s", tz="utc")
     if und is not None:
         und = int(und) / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")
@@ -181,7 +182,6 @@ def clear_air_turbulence(wef=None, und=None):
     t = pd.Timestamp("now", tz="utc")
     if wef is not None:
         wef = int(wef) / 1000
-        # wef = pd.Timestamp(wef, unit="s", tz="utc")
     if und is not None:
         und = int(und) / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")
@@ -210,32 +210,26 @@ def launch_client():
     )
 
 
-@base_bp.route("/")
+@base_bp.route("/", methods=["GET", "POST"])
 def home_page() -> str:
     min_date = request.args.get("min", default=False)
     max_date = request.args.get("max", default=False)
+    form = InfoForm()
+    if form.validate_on_submit():
+        return redirect(
+            url_for(
+                "history.database_request",
+                min=str(form.startdate.data) + " " + str(form.starttime.data),
+                max=str(form.enddate.data) + " " + str(form.endtime.data),
+            )
+        )
     if (not min_date and not max_date) and not current_app.client.running:
         launch_client()
-    airep = airep_geojson()
-    sigmet = fetch_sigmets()
-    if len(airep) > 0:
-        airep = [x["properties"] for x in airep["features"]]
-    else:
-        airep = []
-    if sigmet is not None:
-        sigmet = [x["properties"] for x in sigmet["features"]]
-    else:
-        sigmet = []
     if min_date != False and max_date != False:
-        return render_template(
-            "index.html",
-            airepgeo=(airep, len(airep)),
-            sigmet=(sigmet, len(sigmet)),
-            history="True",
-        )
+        return render_template("index.html", history="True", form=form)
+
     return render_template(
         "index.html",
-        airepgeo=(airep, len(airep)),
-        sigmet=(sigmet, len(sigmet)),
         history="False",
+        form=form,
     )

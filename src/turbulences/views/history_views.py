@@ -1,7 +1,13 @@
 import os
 
-
-from flask import Blueprint, abort, current_app, render_template, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    render_template,
+    request,
+    url_for,
+)
 from werkzeug.utils import redirect
 
 history_bp = Blueprint("history", __name__)
@@ -37,8 +43,10 @@ def dir_listing(req_path):
     return render_template("files.html", files=files)
 
 
-@history_bp.route("/database/<path:wef>,<path:und>")
-def database_request(wef, und):
+@history_bp.route("/database", methods=["GET", "POST"])
+def database_request():
+    wef = request.args.get("min", default=False)
+    und = request.args.get("max", default=False)
     data = current_app.mongo.db.tracks.find(
         {
             "stop": {"$gte": wef},

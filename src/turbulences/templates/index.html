@@ -22,8 +22,6 @@
 
   SIGMET (LF): <p style="display:inline" id="sigmet_count"></p><br />
   AIREP (LF): <p style="display:inline" id="airep_count"></p><br />
-  <br />
-  Current situation: green
 </div>
 <div class="flight" id="flight" hidden="true">
   Icao: <p style="display:inline" id="icao"></p><br />
@@ -110,4 +108,14 @@
   <canvas id="myChart" max-width="100" max-height="100" style="display: none"></canvas>
 </div>
 
+<form action="" method='POST' name="historyform">
+  {{ form.csrt_token }}
+  {{ form.startdate.label }} {{form.startdate(class='datepicker')}} {{ form.starttime(class='timepicker')
+  }}{{form.hidden_tag()}}
+  {{ form.enddate.label }} {{form.enddate(class='datetimepicker')}} {{ form.endtime(class='timepicker')
+  }}{{form.hidden_tag()}}
+  <p>
+    {{form.submit()}}
+  </p>
+</form>
 {% endblock %}
