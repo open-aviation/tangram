@@ -24,9 +24,9 @@ var min_date = urlSearchParams.get('min');
 var max_date = urlSearchParams.get('max');
 
 var firstseen = document.getElementById("first_seen");
-firstseen.innerHTML = new Date(min_date);
+firstseen.innerHTML = new Date(min_date).toUTCString();
 var lastseen = document.getElementById("last_seen");
-lastseen.innerHTML = new Date(max_date);
+lastseen.innerHTML = new Date(max_date).toUTCString();
 
 // Requests
 getPlanes(Date.parse(min_date));
@@ -68,13 +68,13 @@ function createSliderUI() {
       getAirep($(this).attr("min"), $(this).val().toString());
       getPlanes($(this).val().toString());
       getTurbulence($(this).val().toString());
-      $(".temporal-legend").text(new Date($(this).val() * 1));
+      $(".temporal-legend").text(new Date($(this).val() * 1).toUTCString());
     });
     return slider;
   };
 
   sliderControl.addTo(map);
-  createTemporalLegend(new Date(min_date));
+  createTemporalLegend(new Date(min_date).toUTCString());
 }
 createSliderUI();
 
