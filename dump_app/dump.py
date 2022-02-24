@@ -1,12 +1,10 @@
-import time
-from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta, timezone
+from __future__ import annotations
 
-import pandas as pd
-from traffic.data import ModeS_Decoder
+from datetime import timedelta
 
-from pymongo import MongoClient
 from atmlab.network import Network
+from pymongo import MongoClient
+from traffic.data import ModeS_Decoder
 
 
 def clean_callsign(cumul):
@@ -40,8 +38,6 @@ class TestClient(ModeS_Decoder):
         self.network = Network()
 
         self.db = client.get_database(name="adsb")
-        executor = ThreadPoolExecutor(max_workers=4)
-        executor.submit(self.clean_decoder)
 
     def dump_data(self, icao):
 
@@ -76,16 +72,6 @@ class TestClient(ModeS_Decoder):
         except Exception as e:
             print(e)
 
-    def clean_decoder(self):
-        time.sleep(2)
-        while len(self.acs.keys()) != 0:
-            time.sleep(60)
-            for icao in list(self.acs.keys()):
-                if len(self.acs[icao].cumul) > 0:
-                    if pd.Timestamp("now", tzinfo=timezone.utc) - self.acs[
-                        icao
-                    ].cumul[-1]["timestamp"] >= timedelta(minutes=30):
-
-                        with self.acs[icao].lock:
-                            self.dump_data(icao)
-                            del self.acs[icao]
+    def clean_aircraft(self, icao):
+        self.dump_data(icao)
+        super().clean_aircraft(icao)

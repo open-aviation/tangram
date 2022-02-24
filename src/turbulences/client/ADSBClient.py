@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta, timezone
 
-import numpy as np
-import pandas as pd
 from traffic.core.traffic import Traffic
 from traffic.data import ModeS_Decoder
+
+import numpy as np
+import pandas as pd
 
 
 def crit(df):
@@ -121,7 +124,7 @@ class ADSBClient:
         self.decoder = ModeS_Decoder.from_address(host, port, reference)
         executor = ThreadPoolExecutor(max_workers=4)
         executor.submit(self.calculate_live_turbulence)
-        executor.submit(self.clean_decoder)
+        # executor.submit(self.clean_decoder)
 
     def start_from_file(self, file: str, reference: str):
         self.history = True
@@ -170,28 +173,24 @@ class ADSBClient:
             self._traffic = None
             self._pro_data = None
 
-    def clean_decoder(self):
-        while self.running or len(self.decoder.acs.keys()) != 0:
-            time.sleep(60)
-            for icao in list(self.decoder.acs.keys()):
-                condition = True
-                with self.lock_traffic:
-                    if len(self.decoder.acs[icao].cumul) > 0:
-                        condition = False
-                        if pd.Timestamp(
-                            "now", tzinfo=timezone.utc
-                        ) - self.decoder.acs[icao].cumul[-1][
-                            "timestamp"
-                        ] >= timedelta(
-                            minutes=30
-                        ):
-                            del self.decoder.acs[icao]
-                if condition:
-                    if self.decoder.acs[icao].flight is not None:
-                        if pd.Timestamp(
-                            "now", tzinfo=timezone.utc
-                        ) - self.decoder.acs[icao].flight.stop >= timedelta(
-                            minutes=30
-                        ):
-                            with self.lock_traffic:
-                                del self.decoder.acs[icao]
+    # def clean_decoder(
+    #     self,
+    #     threshold: str | timedelta | pd.Timedelta = "30 min",
+    # ):
+
+    #     thr = pd.Timedelta(threshold)
+    #     while self.running or len(self.decoder.acs) != 0:
+    #         time.sleep(60)
+    #         now = pd.Timestamp("now", tzinfo=timezone.utc)
+    #         for icao, ac in self.decoder.acs.items():
+    #             condition = True
+    #             with self.lock_traffic:
+    #                 if len(ac.cumul) > 0:
+    #                     condition = False
+    #                     if now - ac.cumul[-1]["timestamp"] >= thr:
+    #                         del self.decoder.acs[icao]
+    #             if condition:
+    #                 if ac.flight is not None:
+    #                     if now - ac.flight.stop >= thr:
+    #                         with self.lock_traffic:
+    #                             del self.decoder.acs[icao]
