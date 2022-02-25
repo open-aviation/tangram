@@ -23,7 +23,7 @@ async function draw_chart(icao) {
         pointRadius: 1,
       },
       {
-        type: "line",
+        type: "scatter",
         label: "vsb",
         data: result[2],
         fill: false,
