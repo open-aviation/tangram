@@ -202,17 +202,26 @@ function getCat(wef = null, und = null) {
     url = url + "/" + wef + "," + und;
   }
   $.getJSON(url, function (data) {
+    cat_sev.clearLayers();
     L.geoJson(data, {
-      style: function (feature) {
-        var d = feature.properties.intensityValue;
-        return d == 1
-          ? { color: "blue" }
-          : d == 2
-            ? { color: "red" }
-            : { color: "black" };
+      filter: function (feature) {
+        return feature.properties.intensityValue == 2
+      },
+      style: function () {
+        return { color: "red" }
       },
       onEachFeature: onEachCat,
-    }).addTo(cat);
+    }).addTo(cat_sev);
+    cat_mod.clearLayers();
+    L.geoJson(data, {
+      filter: function (feature) {
+        return feature.properties.intensityValue == 1
+      },
+      style: function () {
+        return { color: "blue" }
+      },
+      onEachFeature: onEachCat,
+    }).addTo(cat_mod);
   });
 }
 function getPlanes(und = null) {

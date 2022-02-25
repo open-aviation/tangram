@@ -4,14 +4,16 @@ var planes = L.layerGroup();
 var turbulences = L.layerGroup();
 var sigmets = L.layerGroup();
 var aireps = L.layerGroup();
-var cat = L.layerGroup();
+var cat_mod = L.layerGroup();
+var cat_sev = L.layerGroup();
 
 var overlays = {
   Planes: planes,
   Turbulences: turbulences,
   Sigmets: sigmets,
   Airep: aireps,
-  Cat: cat,
+  Cat_mod: cat_mod,
+  Cat_sev: cat_sev,
 };
 let myLayerOptions = {
   onEachFeature: onEachPlane,
