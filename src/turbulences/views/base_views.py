@@ -54,9 +54,16 @@ def turbulence(und=None):
                 if flight.shape is not None:
                     for segment in flight.split("1T"):
                         if segment is not None:
-                            x = segment.geojson()
-                            x.update({"properties": {"icao": flight.icao24}})
-                            features.append(x)
+                            try:
+                                x = segment.geojson()
+                                x.update(
+                                    {"properties": {"icao": flight.icao24}}
+                                )
+                                features.append(x)
+                            except Exception as e:
+                                print(e)
+                                print(flight.icao24)
+
     geojson = {
         "type": "FeatureCollection",
         "features": features,
@@ -233,3 +240,24 @@ def home_page() -> str:
         history="False",
         form=form,
     )
+
+
+@base_bp.route("/heatmap.data")
+@base_bp.route("/heatmap.data/<path:und>")
+def get_heatmap_data(und=None):
+    data = []
+    pro_data = current_app.client.pro_data
+    if pro_data is not None:
+        if und is not None:
+            und = int(und) / 1000
+            t = pd.Timestamp(und, unit="s", tz="utc")
+            pro_data = pro_data.query(f"timestamp<='{str(t)}'")
+        turb = pro_data.query("turbulence")
+        if turb is not None:
+            turb_agg = turb.agg_latlon(
+                resolution=dict(latitude=10, longitude=10), turbulence="count"
+            )
+            data = [
+                [latlon[0], latlon[1], c] for latlon, c in turb_agg.iteritems()
+            ]
+    return data
