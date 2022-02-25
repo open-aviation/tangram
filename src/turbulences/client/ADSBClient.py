@@ -3,7 +3,6 @@ from __future__ import annotations
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta, timezone
 
 from traffic.core.traffic import Traffic
 from traffic.data import ModeS_Decoder

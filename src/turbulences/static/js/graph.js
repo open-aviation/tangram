@@ -68,6 +68,7 @@ async function draw_chart(icao) {
         xAxes: [
           {
             type: "time",
+            timezone: 'UTC',
           },
         ],
       },
