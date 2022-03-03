@@ -18,7 +18,9 @@
   <script type="text/javascript"
     src="https://cdn.jsdelivr.net/npm/leaflet-timedimension@1.1.1/dist/leaflet.timedimension.min.js">
     </script>
-  <script src="https://opengeo.tech/maps/leaflet-search/src/leaflet-search.js"></script>
+  {% assets "leaflet-heat" %}
+  <script type="text/javascript" src="{{ ASSET_URL }}"></script>
+  {% endassets %}
 </head>
 
 <body>

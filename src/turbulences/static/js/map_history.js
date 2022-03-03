@@ -1,11 +1,12 @@
-var map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
-
 var planes = L.layerGroup();
 var turbulences = L.layerGroup();
 var sigmets = L.layerGroup();
 var aireps = L.layerGroup();
 var cat_mod = L.layerGroup();
 var cat_sev = L.layerGroup();
+var heatmapLayer = L.layerGroup();
+
+var map = L.map("map", { layers: [planes, turbulences] }).setView([43.57155, 1.47165], 7);
 
 var overlays = {
   Planes: planes,
@@ -14,6 +15,7 @@ var overlays = {
   Airep: aireps,
   Cat_mod: cat_mod,
   Cat_sev: cat_sev,
+  Heatmap: heatmapLayer,
 };
 let myLayerOptions = {
   onEachFeature: onEachPlane,
@@ -36,6 +38,7 @@ getTurbulence(Date.parse(min_date));
 getSigmet(Date.parse(min_date), Date.parse(max_date));
 getAirep(Date.parse(min_date), Date.parse(max_date));
 getCat(Date.parse(min_date), Date.parse(max_date));
+getheatmap();
 
 // partie slider
 function createTemporalLegend(startTimestamp) {
@@ -70,6 +73,7 @@ function createSliderUI() {
       getAirep($(this).attr("min"), $(this).val().toString());
       getPlanes($(this).val().toString());
       getTurbulence($(this).val().toString());
+      getheatmap(($(this).val().toString()));
       $(".temporal-legend").text(new Date($(this).val() * 1).toUTCString());
     });
     return slider;

@@ -1,11 +1,12 @@
-var map = L.map("map", { layers: [] }).setView([43.57155, 1.47165], 7);
-
 var planes = L.layerGroup();
 var turbulences = L.layerGroup();
 var sigmets = L.layerGroup();
 var aireps = L.layerGroup();
 var cat_mod = L.layerGroup();
 var cat_sev = L.layerGroup();
+var heatmapLayer = L.layerGroup();
+
+var map = L.map("map", { layers: [planes, turbulences] }).setView([43.57155, 1.47165], 7);
 
 var overlays = {
   Planes: planes,
@@ -14,6 +15,7 @@ var overlays = {
   Airep: aireps,
   Cat_mod: cat_mod,
   Cat_sev: cat_sev,
+  Heatmap: heatmapLayer,
 };
 let myLayerOptions = {
   onEachFeature: onEachPlane,
@@ -43,6 +45,7 @@ L.control
     update_map: function () {
       getPlanes();
       getTurbulence();
+      getheatmap();
     },
     interval: 4000,
   })

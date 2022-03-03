@@ -249,3 +249,14 @@ function getTurbulence(und = null) {
     }).addTo(turbulences);
   });
 }
+function getheatmap(und = null) {
+  url = "/heatmap.data"
+  if (und !== null) {
+    url = url + "/" + und
+  }
+
+  $.getJSON(url, function (data) {
+    heatmapLayer.clearLayers();
+    L.heatLayer(data.data).addTo(heatmapLayer);
+  });
+}

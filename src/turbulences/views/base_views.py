@@ -3,6 +3,7 @@ import json
 from flask import (
     Blueprint,
     current_app,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -38,6 +39,9 @@ def format_datetime(value, format="medium"):
     return f"{value:%Y-%m-%d %H:%M:%S}"
 
 
+from traffic.core import Traffic
+
+
 @base_bp.route("/turb.geojson")
 @base_bp.route("/turb.geojson/<path:und>")
 def turbulence(und=None):
@@ -48,7 +52,7 @@ def turbulence(und=None):
             und = int(und) / 1000
             t = pd.Timestamp(und, unit="s", tz="utc")
             pro_data = pro_data.query(f"timestamp<='{str(t)}'")
-        turb = pro_data.query("turbulence")
+        turb: Traffic = pro_data.query("turbulence")
         if turb is not None:
             for flight in turb:
                 if flight.shape is not None:
@@ -245,7 +249,7 @@ def home_page() -> str:
 @base_bp.route("/heatmap.data")
 @base_bp.route("/heatmap.data/<path:und>")
 def get_heatmap_data(und=None):
-    data = []
+    data = {}
     pro_data = current_app.client.pro_data
     if pro_data is not None:
         if und is not None:
@@ -255,9 +259,10 @@ def get_heatmap_data(und=None):
         turb = pro_data.query("turbulence")
         if turb is not None:
             turb_agg = turb.agg_latlon(
-                resolution=dict(latitude=10, longitude=10), turbulence="count"
+                resolution=dict(latitude=10, longitude=10), criterion="max"
             )
             data = [
-                [latlon[0], latlon[1], c] for latlon, c in turb_agg.iteritems()
+                [latlon[0], latlon[1], c]
+                for latlon, c in turb_agg.criterion.iteritems()
             ]
-    return data
+    return {"data": data}

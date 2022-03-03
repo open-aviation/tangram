@@ -8,4 +8,5 @@ bundles = {
     ),
     "map_functions": Bundle("js/map_functions.js"),
     "chart_js": Bundle("js/graph.js"),
+    "leaflet-heat": Bundle("js/leaflet-heat/leaflet-heat.js"),
 }
