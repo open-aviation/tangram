@@ -53,6 +53,7 @@ async function draw_chart(icao) {
         fill: false,
         borderColor: "rgb(211, 149, 237)",
         pointRadius: 1,
+        hidden: true,
       },
     ],
   };
