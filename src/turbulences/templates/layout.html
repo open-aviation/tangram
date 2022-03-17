@@ -34,9 +34,47 @@
           <span class="glyphicon glyphicon-refresh"></span>&nbsp; Live</a>
         <a class="btn btn-sm btn-success" href="{{url_for('history.dir_listing')}}">
           <span class="glyphicon glyphicon-leaf"></span>&nbsp; File History</a>
+        <button class="btn btn-sm btn-success" onclick="openForm()">Database History</button>
       </div>
     </h1>
     <hr />
+    <div class="form-popup" id="history">
+      <form action="" method='POST' name="historyform">
+        {{ form.csrt_token }}
+        {{ form.startdate.label }} {{form.startdate(class='datepicker')}} {{ form.starttime(class='timepicker')
+        }}{{form.hidden_tag()}}
+        {{ form.enddate.label }} {{form.enddate(class='datetimepicker')}} {{ form.endtime(class='timepicker')
+        }}{{form.hidden_tag()}}
+        <p>
+          {{form.submit()}}
+        </p>
+
+        <button type="button" class="btn cancel" onclick="closeForm()">Close</button>
+      </form>
+    </div>
+
+
+    <script>
+      function openForm() {
+        document.getElementById("history").style.display = "block";
+      }
+
+      function closeForm() {
+        document.getElementById("history").style.display = "none";
+      }
+      var input = document.getElementById("history");
+
+      // Execute a function when the user releases a key on the keyboard
+      input.addEventListener("keyup", function (event) {
+        // Number 13 is the "Enter" key on the keyboard
+        if (event.keyCode === 13) {
+          // Cancel the default action, if needed
+          event.preventDefault();
+          // Trigger the button element with a click
+          document.getElementById("submit").click();
+        }
+      }); 
+    </script>
     {% block body %} {% endblock %}
   </div>
 </body>

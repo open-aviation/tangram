@@ -257,6 +257,6 @@ function getheatmap(und = null) {
 
   $.getJSON(url, function (data) {
     heatmapLayer.clearLayers();
-    L.heatLayer(data.data).addTo(heatmapLayer);
+    L.heatLayer(data.data, { radius: 25 }).addTo(heatmapLayer);
   });
 }

@@ -105,15 +105,4 @@
 <div>
   <canvas id="myChart" max-width="100" max-height="100" style="display: none"></canvas>
 </div>
-
-<form action="" method='POST' name="historyform">
-  {{ form.csrt_token }}
-  {{ form.startdate.label }} {{form.startdate(class='datepicker')}} {{ form.starttime(class='timepicker')
-  }}{{form.hidden_tag()}}
-  {{ form.enddate.label }} {{form.enddate(class='datetimepicker')}} {{ form.endtime(class='timepicker')
-  }}{{form.hidden_tag()}}
-  <p>
-    {{form.submit()}}
-  </p>
-</form>
 {% endblock %}

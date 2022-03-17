@@ -47,12 +47,11 @@ def dir_listing(req_path):
 def database_request():
     wef = request.args.get("min", default=False)
     und = request.args.get("max", default=False)
-    data = current_app.mongo.db.tracks.find(
-        {
-            "stop": {"$gte": wef},
-            "start": {"$lte": und},
-        }
-    )
+    req = {
+        "stop": {"$gte": wef},
+        "start": {"$lte": und},
+    }
+    data = current_app.mongo.db.tracks.find(req)
     current_app.client.start_from_database(data)
     date = get_date_file()
     return redirect(url_for("base.home_page", min=date[0], max=date[1]))
