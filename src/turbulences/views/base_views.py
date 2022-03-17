@@ -3,7 +3,6 @@ import json
 from flask import (
     Blueprint,
     current_app,
-    jsonify,
     redirect,
     render_template,
     request,
@@ -256,13 +255,14 @@ def get_heatmap_data(und=None):
             und = int(und) / 1000
             t = pd.Timestamp(und, unit="s", tz="utc")
             pro_data = pro_data.query(f"timestamp<='{str(t)}'")
-        turb = pro_data.query("turbulence")
+        turb: Traffic = pro_data.query("turbulence")
         if turb is not None:
-            turb_agg = turb.agg_latlon(
-                resolution=dict(latitude=10, longitude=10), criterion="max"
-            )
+            # turb_agg = turb.agg_latlon(
+            #     resolution=dict(latitude=5, longitude=5), criterion="max"
+            # )
+            turb = turb.data[["latitude", "longitude", "turbulence"]].dropna()
             data = [
-                [latlon[0], latlon[1], c]
-                for latlon, c in turb_agg.criterion.iteritems()
+                [i.latitude, i.longitude, 1 if i.turbulence else 0]
+                for i in turb.itertuples()
             ]
     return {"data": data}
