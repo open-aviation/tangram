@@ -31,7 +31,11 @@
   Destination: <p style="display:inline" id="destination"></p><br />
 </div>
 <div id="map">
-  {% if history == "True" %} {% assets "map_history" %}
+  {% if history == "True" %}
+  {% assets "map_filter_functions" %}
+  <script type="text/javascript" src="{{ ASSET_URL }}"></script>
+  {% endassets %}
+  {% assets "map_history" %}
   <script type="text/javascript" src="{{ ASSET_URL }}"></script>
   {% endassets %} {% else %} {% assets "map_live" %}
   <script type="text/javascript" src="{{ ASSET_URL }}"></script>

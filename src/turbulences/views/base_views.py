@@ -9,6 +9,7 @@ from flask import (
     send_from_directory,
     url_for,
 )
+from traffic.core import Traffic
 
 import pandas as pd
 from turbulences.views.forms import InfoForm
@@ -38,9 +39,6 @@ def format_datetime(value, format="medium"):
     return f"{value:%Y-%m-%d %H:%M:%S}"
 
 
-from traffic.core import Traffic
-
-
 @base_bp.route("/turb.geojson")
 @base_bp.route("/turb.geojson/<path:und>")
 def turbulence(und=None):
@@ -60,7 +58,12 @@ def turbulence(und=None):
                             try:
                                 x = segment.geojson()
                                 x.update(
-                                    {"properties": {"icao": flight.icao24}}
+                                    {
+                                        "properties": {
+                                            "icao": flight.icao24,
+                                            "time": segment.start.timestamp(),
+                                        }
+                                    }
                                 )
                                 features.append(x)
                             except Exception as e:
@@ -146,7 +149,6 @@ def fetch_planes_Geojson(und=None) -> dict:
 
 
 @base_bp.route("/sigmet.geojson")
-@base_bp.route("/sigmet.geojson/<path:wef>")
 @base_bp.route("/sigmet.geojson/<path:wef>,<path:und>")
 def fetch_sigmets(wef=None, und=None) -> dict:
     t = pd.Timestamp("now", tz="utc")
@@ -169,18 +171,18 @@ def favicon():
 
 
 @base_bp.route("/airep.geojson")
-@base_bp.route("/airep.geojson/<path:wef>")
 @base_bp.route("/airep.geojson/<path:wef>,<path:und>")
 def airep_geojson(wef=None, und=None):
-    t = pd.Timestamp("now", tz="utc")
-    if wef is not None:
+    condition = wef is None and und is None
+    if not condition:
         wef = int(wef) / 1000
-    if und is not None:
         und = int(und) / 1000
-        t = pd.Timestamp(und, unit="s", tz="utc")
     data = current_app.airep.aireps(wef, und)
     if data is not None:
-        result = data.query("expire>@t")._to_geo()
+        if condition:
+            t = pd.Timestamp("now", tz="utc")
+            data = data.query("expire>@t")
+        result = data._to_geo()
     else:
         result = {}
     return result
@@ -266,3 +268,32 @@ def get_heatmap_data(und=None):
                 for i in turb.itertuples()
             ]
     return {"data": data}
+
+
+@base_bp.route("/trajectory.data")
+def get_traj():
+    data = current_app.client.traffic
+    features = []
+    if data is not None:
+        for flight in data:
+            if flight.shape is not None:
+                try:
+                    x = flight.geojson()
+                    x.update(
+                        {
+                            "properties": {
+                                "icao": flight.icao24,
+                                "time": flight.start.timestamp(),
+                            }
+                        }
+                    )
+                    features.append(x)
+                except Exception as e:
+                    print(e)
+                    print(flight.icao24)
+
+    geojson = {
+        "type": "FeatureCollection",
+        "features": features,
+    }
+    return geojson
