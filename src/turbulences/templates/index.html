@@ -31,7 +31,11 @@
   Destination: <p style="display:inline" id="destination"></p><br />
 </div>
 <div id="map">
-  {% if history == "True" %} {% assets "map_history" %}
+  {% if history == "True" %}
+  {% assets "map_filter_functions" %}
+  <script type="text/javascript" src="{{ ASSET_URL }}"></script>
+  {% endassets %}
+  {% assets "map_history" %}
   <script type="text/javascript" src="{{ ASSET_URL }}"></script>
   {% endassets %} {% else %} {% assets "map_live" %}
   <script type="text/javascript" src="{{ ASSET_URL }}"></script>
@@ -105,15 +109,4 @@
 <div>
   <canvas id="myChart" max-width="100" max-height="100" style="display: none"></canvas>
 </div>
-
-<form action="" method='POST' name="historyform">
-  {{ form.csrt_token }}
-  {{ form.startdate.label }} {{form.startdate(class='datepicker')}} {{ form.starttime(class='timepicker')
-  }}{{form.hidden_tag()}}
-  {{ form.enddate.label }} {{form.enddate(class='datetimepicker')}} {{ form.endtime(class='timepicker')
-  }}{{form.hidden_tag()}}
-  <p>
-    {{form.submit()}}
-  </p>
-</form>
 {% endblock %}

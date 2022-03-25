@@ -33,11 +33,18 @@ var lastseen = document.getElementById("last_seen");
 lastseen.innerHTML = new Date(max_date).toUTCString();
 
 // Requests
+$.ajaxSetup({
+  async: false
+});
 getPlanes(Date.parse(min_date));
-getTurbulence(Date.parse(min_date));
-getSigmet(Date.parse(min_date), Date.parse(max_date));
-getAirep(Date.parse(min_date), Date.parse(max_date));
-getCat(Date.parse(min_date), Date.parse(max_date));
+var turbu = getTurbulence();
+var sig = getSigmet(Date.parse(min_date), Date.parse(max_date));
+var air = getAirep(Date.parse(min_date), Date.parse(max_date));
+var cleanair = getCat(Date.parse(min_date), Date.parse(max_date));
+// var heatm = getheatmap();
+// getSigmet(Date.parse(min_date), Date.parse(max_date));
+// getAirep(Date.parse(min_date), Date.parse(max_date));
+// getCat(Date.parse(min_date), Date.parse(max_date));
 getheatmap();
 
 // partie slider
@@ -66,13 +73,17 @@ function createSliderUI() {
       max: Date.parse(max_date),
       min: Date.parse(min_date),
       value: new Date(min_date),
-      step: 100,
+      step: 1000,
     });
     $(slider).on("input change", function () {
-      getSigmet($(this).attr("min"), $(this).val().toString());
-      getAirep($(this).attr("min"), $(this).val().toString());
+      // getSigmet($(this).attr("min"), $(this).val().toString());
+      // getAirep($(this).attr("min"), $(this).val().toString());
+      filtersigmet(sig, $(this).val() / 1000);
+      filterairep(air, $(this).val() / 1000);
+      filtercat(cleanair, $(this).val() / 1000);
       getPlanes($(this).val().toString());
-      getTurbulence($(this).val().toString());
+      filterturb(turbu, $(this).val() / 1000);
+      // filterheatmap(heatm, $(this).val().toString());
       getheatmap(($(this).val().toString()));
       $(".temporal-legend").text(new Date($(this).val() * 1).toUTCString());
     });

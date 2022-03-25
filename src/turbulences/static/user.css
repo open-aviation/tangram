@@ -3,7 +3,7 @@
 
 div#map {
   max-width: 800px;
-  height: 400px;
+  height: 600px;
   margin: 10px;
 }
 
@@ -93,4 +93,19 @@ a.flag:hover::after {
   display: block;
   max-width: 100%;
   height: auto;
+}
+
+.form-popup {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  right: 15px;
+  border: 3px solid #f1f1f1;
+  z-index: 9;
+}
+
+.form-container {
+  max-width: 300px;
+  padding: 10px;
+  background-color: white;
 }

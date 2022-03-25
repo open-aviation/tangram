@@ -126,24 +126,28 @@ function loadTable(tableId, fields, data) {
   });
   $("#" + tableId + " tbody").html(rows);
 }
+function updateTableSigmet(data) {
+  loadTable(
+    "table_sigmet",
+    ["idSigmet", "hazard", "validTimeFrom", "validTimeTo", "firName"],
+    data["features"]
+  );
+  document.getElementById("sigmet_count").innerHTML = Object.keys(
+    data.features
+  ).length;
+}
 function getSigmet(wef = null, und = null) {
   var url = "/sigmet.geojson";
   if ((wef !== null) & (und !== null)) {
     url = url + "/" + wef + "," + und;
   }
-
+  var sigmet;
   $.getJSON(url, function (data) {
     if (data.features == undefined) {
       data["features"] = {}
     }
-    loadTable(
-      "table_sigmet",
-      ["idSigmet", "hazard", "validTimeFrom", "validTimeTo", "firName"],
-      data["features"]
-    );
-    document.getElementById("sigmet_count").innerHTML = Object.keys(
-      data.features
-    ).length;
+    sigmet = data
+    updateTableSigmet(data)
     sigmets.clearLayers();
     L.geoJson(data, {
       style: function (feature) {
@@ -161,47 +165,56 @@ function getSigmet(wef = null, und = null) {
       onEachFeature: onEachSigmet,
     }).addTo(sigmets);
   });
+  return sigmet;
+}
+function updateTableAirep(data) {
+  loadTable(
+    "table_airep",
+    [
+      "callsign",
+      "icao24",
+      "typecode",
+      "phenomenon",
+      "altitude",
+      "center",
+      "created",
+      "expire",
+      "reported_time",
+      "updated",
+    ],
+    data["features"]
+  );
+  document.getElementById("airep_count").innerHTML = Object.keys(
+    data.features
+  ).length;
 }
 function getAirep(wef = null, und = null) {
   url = "/airep.geojson";
   if ((wef !== null) & (und !== null)) {
     url = url + "/" + wef + "," + und;
   }
+  var airep;
   $.getJSON(url, function (data) {
     if (data.features == undefined) {
       data["features"] = {}
     }
-    loadTable(
-      "table_airep",
-      [
-        "callsign",
-        "icao24",
-        "typecode",
-        "phenomenon",
-        "altitude",
-        "center",
-        "created",
-        "expire",
-        "reported_time",
-        "updated",
-      ],
-      data["features"]
-    );
-    document.getElementById("airep_count").innerHTML = Object.keys(
-      data.features
-    ).length;
+    updateTableAirep(data);
+    airep = data
     aireps.clearLayers();
     L.geoJson(data, {
       onEachFeature: onEachAirep,
     }).addTo(aireps);
   });
+  return airep
 }
 function getCat(wef = null, und = null) {
   url = "/cat.geojson";
   if ((wef !== null) & (und !== null)) {
     url = url + "/" + wef + "," + und;
   }
+  var cat;
   $.getJSON(url, function (data) {
+    cat = data;
     cat_sev.clearLayers();
     L.geoJson(data, {
       filter: function (feature) {
@@ -218,11 +231,12 @@ function getCat(wef = null, und = null) {
         return feature.properties.intensityValue == 1
       },
       style: function () {
-        return { color: "blue" }
+        return { color: "blue", weight: 1 }
       },
       onEachFeature: onEachCat,
     }).addTo(cat_mod);
   });
+  return cat;
 }
 function getPlanes(und = null) {
   url = "/planes.geojson"
@@ -242,21 +256,26 @@ function getTurbulence(und = null) {
   if (und !== null) {
     url = url + "/" + und
   }
+  var turbu;
   $.getJSON(url, function (data) {
+    turbu = data
     turbulences.clearLayers();
     L.geoJson(data, {
       onEachFeature: onEachTurb,
     }).addTo(turbulences);
   });
+  return turbu;
 }
 function getheatmap(und = null) {
   url = "/heatmap.data"
   if (und !== null) {
     url = url + "/" + und
   }
-
+  var heatm;
   $.getJSON(url, function (data) {
+    heatm = data.data;
     heatmapLayer.clearLayers();
-    L.heatLayer(data.data).addTo(heatmapLayer);
+    L.heatLayer(data.data, { radius: 25 }).addTo(heatmapLayer);
   });
+  return heatm;
 }
