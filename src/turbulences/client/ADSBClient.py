@@ -76,10 +76,11 @@ class ADSBClient:
                         self._traffic.longer_than("1T")
                         .resample("1s")
                         .filter(  # .last("30T")
-                            strategy=None,
                             # median filters for abnormal points
                             vertical_rate_barometric=3,
-                            vertical_rate_inertial=3,  # kernel sizes
+                            vertical_rate_inertial=3,
+                            longitude=13,
+                            latitude=13,  # kernel sizes
                         )
                         .agg_time(
                             # aggregate data over intervals of one minute
