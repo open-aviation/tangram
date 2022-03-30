@@ -197,15 +197,21 @@ def clear_air_turbulence(wef=None, und=None):
     if und is not None:
         und = int(und) / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")
-    res = (
-        current_app.cat.metsafe(
-            "metgate:cat_mf_arpege01_europe",
+    res = current_app.cat.metsafe(
+        "metgate:cat_mf_arpege01_europe",
+        wef=wef,
+        bounds="France métropolitaine",
+    )
+    if res is None:
+        res = current_app.cat.metsafe(
+            "metgate_archive:cat_mf_arpege01_europe",
             wef=wef,
             bounds="France métropolitaine",
         )
-        .query("endValidity>@t")
-        .query("startValidity<=@t")
-    )
+    if res is not None:
+        res = res.query("endValidity>@t").query("startValidity<=@t")
+    else:
+        return {}
     return res._to_geo()
 
 
@@ -270,27 +276,26 @@ def get_heatmap_data(und=None):
     return {"data": data}
 
 
-@base_bp.route("/trajectory.data")
-def get_traj():
-    data = current_app.client.traffic
+@base_bp.route("/trajectory/<path:icao>")
+def get_traj(icao: str):
+    data = current_app.client.pro_data
     features = []
     if data is not None:
-        for flight in data:
-            if flight.shape is not None:
-                try:
-                    x = flight.geojson()
-                    x.update(
-                        {
-                            "properties": {
-                                "icao": flight.icao24,
-                                "time": flight.start.timestamp(),
-                            }
+        flight = data[icao]
+        if flight.shape is not None:
+            try:
+                x = flight.geojson()
+                x.update(
+                    {
+                        "properties": {
+                            "icao": flight.icao24,
                         }
-                    )
-                    features.append(x)
-                except Exception as e:
-                    print(e)
-                    print(flight.icao24)
+                    }
+                )
+                features.append(x)
+            except Exception as e:
+                print(e)
+                print(flight.icao24)
 
     geojson = {
         "type": "FeatureCollection",
