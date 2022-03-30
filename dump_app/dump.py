@@ -42,20 +42,21 @@ class TestClient(ModeS_Decoder):
     def dump_data(self, icao):
 
         cumul = self.acs[icao].cumul
+        if len(cumul) == 0:
+            return
         start = self.acs[icao].cumul[0]["timestamp"]
         stop = self.acs[icao].cumul[-1]["timestamp"]
 
+        if stop - start < timedelta(minutes=1):
+            return
+
+        cumul, callsign2 = clean_callsign(cumul)
         try:
             flight_data = self.network.icao24(icao)["flightId"]
             callsign1 = flight_data["keys"]["aircraftId"]
         except Exception as e:
             flight_data = {}
             callsign1 = None
-
-        if stop - start < timedelta(minutes=1) and len(flight_data) == 0:
-            return
-
-        cumul, callsign2 = clean_callsign(cumul)
 
         callsign = callsign1 if callsign2 is None else callsign2
 
