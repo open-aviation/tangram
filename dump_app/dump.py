@@ -59,7 +59,8 @@ class TestClient(ModeS_Decoder):
             callsign1 = None
 
         callsign = callsign1 if callsign2 is None else callsign2
-
+        if callsign is None:
+            return
         dum = {
             "icao": icao,
             "callsign": callsign,
