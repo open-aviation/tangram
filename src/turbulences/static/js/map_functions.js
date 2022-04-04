@@ -20,24 +20,9 @@ function getFlight_data(icao) {
 }
 
 function whenClicked(e) {
-  // var match = planes.eachfeature(function (layer) {
-  //   if (layerfeature.properties.icao == e.target.feature.properties.icao) {
-  //     var highlightStyle = {
-  //       color: "red",
-  //       opacity: 10,
-  //       weight: 50,
-  //     };
-  //     layer.setStyle(highlightStyle);
-  //   }
-  // })
-  // document.getElementById("airep_count").innerHTML = match;
   var icao = (e.target.feature.properties.icao === undefined) ? (e.target.feature.geometry.properties.icao) : e.target.feature.properties.icao
   draw_chart(icao);
   getFlight_data(icao);
-  // var $layer = match;
-  // 
-  // $layer.bringToFront();
-  // $layer.setStyle(highlightStyle);
 }
 function onEachPlane(feature, layer) {
   var popupContent = "<p>ICAO: " + feature.properties.icao + "</p>";
@@ -216,6 +201,10 @@ function getCat(wef = null, und = null) {
   $.getJSON(url, function (data) {
     cat = data;
     cat_sev.clearLayers();
+    cat_mod.clearLayers();
+    if ($.isEmptyObject(data)) {
+      return
+    }
     L.geoJson(data, {
       filter: function (feature) {
         return feature.properties.intensityValue == 2
@@ -225,7 +214,6 @@ function getCat(wef = null, und = null) {
       },
       onEachFeature: onEachCat,
     }).addTo(cat_sev);
-    cat_mod.clearLayers();
     L.geoJson(data, {
       filter: function (feature) {
         return feature.properties.intensityValue == 1
@@ -279,3 +267,36 @@ function getheatmap(und = null) {
   });
   return heatm;
 }
+
+// function highlightTrajectory(e) {
+//   var layer = e.target;
+//   layer.setStyle({
+//     weight: 4,
+//     opacity: 1,
+//     color: "#dbff4d",
+//   });
+//   layer.bringToFront();
+// }
+
+// //reset the hightlighted states on mouseout
+// function resetTrajectory(e) {
+//   geojsonStates.resetStyle(e.target);
+// }
+
+
+// //add these events to the layer object
+// function onEachTrajectory(feature, layer) {
+//   layer.on({
+//     click: highlightTrajectory,
+//     mouseout: resetTrajectory,
+//   });
+// }
+
+// function getTrajectory(icao) {
+//   $.getJSON(url, function (data) {
+//     traj.clearLayers();
+//     L.geoJson(data, {
+//       onEachFeature: onEachTrajectory,
+//     }).addTo(traj);
+//   });
+// }

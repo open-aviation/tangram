@@ -1,5 +1,8 @@
 function filterturb(data, time) {
     turbulences.clearLayers();
+    if ($.isEmptyObject(data)) {
+        return
+    }
     L.geoJson(data, {
         onEachFeature: onEachTurb,
         filter: function (feature) {
@@ -9,6 +12,9 @@ function filterturb(data, time) {
 }
 function filterairep(data, time) {
     aireps.clearLayers();
+    if ($.isEmptyObject(data)) {
+        return
+    }
     filtered = L.geoJson(data, {
         onEachFeature: onEachAirep,
         filter: function (feature) {
@@ -20,6 +26,9 @@ function filterairep(data, time) {
 }
 function filtersigmet(data, time) {
     sigmets.clearLayers();
+    if ($.isEmptyObject(data)) {
+        return
+    }
     filtered = L.geoJson(data, {
         style: function (feature) {
             var d = feature.properties.hazard;
@@ -43,6 +52,10 @@ function filtersigmet(data, time) {
 }
 function filtercat(data, time) {
     cat_sev.clearLayers();
+    cat_mod.clearLayers();
+    if ($.isEmptyObject(data)) {
+        return
+    }
     L.geoJson(data, {
         filter: function (feature) {
             return (feature.properties.intensityValue == 2) && (Date.parse(feature.properties.endValidity) / 1000 >= time) && (Date.parse(feature.properties.startValidity) / 1000 <= time);
@@ -52,7 +65,6 @@ function filtercat(data, time) {
         },
         onEachFeature: onEachCat,
     }).addTo(cat_sev);
-    cat_mod.clearLayers();
     L.geoJson(data, {
         filter: function (feature) {
             return (feature.properties.intensityValue == 1) && (Date.parse(feature.properties.endValidity) / 1000 >= time) && (Date.parse(feature.properties.startValidity) / 1000 <= time);
