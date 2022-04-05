@@ -210,7 +210,7 @@ function getCat(wef = null, und = null) {
         return feature.properties.intensityValue == 2
       },
       style: function () {
-        return { color: "red" }
+        return { color: "red", opacity: 0 }
       },
       onEachFeature: onEachCat,
     }).addTo(cat_sev);
@@ -219,7 +219,7 @@ function getCat(wef = null, und = null) {
         return feature.properties.intensityValue == 1
       },
       style: function () {
-        return { color: "blue", weight: 1 }
+        return { color: "blue", opacity: 0 }
       },
       onEachFeature: onEachCat,
     }).addTo(cat_mod);
