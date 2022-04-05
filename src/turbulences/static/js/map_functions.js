@@ -226,10 +226,14 @@ function getCat(wef = null, und = null) {
   });
   return cat;
 }
-function getPlanes(und = null) {
+function getPlanes(und = null, history = false) {
   url = "/planes.geojson"
   if (und !== null) {
     url = url + "/" + und
+  }
+  if (history) {
+    const searchParams = new URLSearchParams({ history: history });
+    url = url + '?' + searchParams
   }
   $.getJSON(url, function (data) {
     var avion = document.getElementById("plane_count");
@@ -239,10 +243,14 @@ function getPlanes(und = null) {
     L.geoJson(data, myLayerOptions).addTo(planes);
   });
 }
-function getTurbulence(und = null) {
+function getTurbulence(und = null, history = false) {
   url = "/turb.geojson"
   if (und !== null) {
     url = url + "/" + und
+  }
+  if (history) {
+    const searchParams = new URLSearchParams({ history: history });
+    url = url + '?' + searchParams
   }
   var turbu;
   $.getJSON(url, function (data) {
@@ -254,10 +262,14 @@ function getTurbulence(und = null) {
   });
   return turbu;
 }
-function getheatmap(und = null) {
+function getheatmap(und = null, history = false) {
   url = "/heatmap.data"
   if (und !== null) {
     url = url + "/" + und
+  }
+  if (history) {
+    const searchParams = new URLSearchParams({ history: history });
+    url = url + '?' + searchParams
   }
   var heatm;
   $.getJSON(url, function (data) {

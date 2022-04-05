@@ -39,8 +39,7 @@ def main():
 
     app.live_client = ADSBClient()
     app.history_client = ADSBClient()
-    app.client = app.live_client
-    app.client.start_live(
+    app.live_client.start_live(
         host=client_host,
         port=client_port,
         reference=client_reference,

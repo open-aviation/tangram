@@ -15,14 +15,14 @@ from traffic.core import Traffic
 import pandas as pd
 from turbulences.views.forms import InfoForm
 
-from .view_functions import geojson_plane, assignClient
+from .view_functions import geojson_plane
 
 base_bp = Blueprint("base", __name__)
 
 
 @base_bp.route("/stop")
 def stop_client():
-    current_app.client.stop()
+    current_app.live_client.stop()
     return {}
 
 
@@ -43,8 +43,12 @@ def format_datetime(value, format="medium"):
 @base_bp.route("/turb.geojson")
 @base_bp.route("/turb.geojson/<path:und>")
 def turbulence(und=None):
+    client = current_app.live_client
+    history = request.args.get("history", default=False)
+    if history:
+        client = current_app.history_client
     features = []
-    pro_data = current_app.client.pro_data
+    pro_data = client.pro_data
     if pro_data is not None:
         if und is not None:
             und = int(und) / 1000
@@ -80,7 +84,11 @@ def turbulence(und=None):
 
 @base_bp.route("/chart.data/<path:icao>")
 def chart_data(icao):
-    pro_data = current_app.client.pro_data
+    client = current_app.live_client
+    history = request.args.get("history", default=False)
+    if history:
+        client = current_app.history_client
+    pro_data = client.pro_data
     resultats = pro_data[icao].data
     resultats_turb = resultats.query("turbulence")
     turb = zip(
@@ -141,7 +149,11 @@ def chart_data(icao):
 @base_bp.route("/planes.geojson")
 @base_bp.route("/planes.geojson/<path:und>")
 def fetch_planes_Geojson(und=None) -> dict:
-    data = current_app.client.traffic
+    client = current_app.live_client
+    history = request.args.get("history", default=False)
+    if history:
+        client = current_app.history_client
+    data = client.traffic
     if und is not None:
         und = int(und) / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")
@@ -235,10 +247,9 @@ def home_page() -> str:
             )
         )
 
-    if min_date != False and max_date != False:
-        assignClient(live=False)
+    if min_date is not False and max_date is not False:
         return render_template("index.html", history="True", form=form)
-    assignClient(live=True)
+
     return render_template(
         "index.html",
         history="False",
@@ -250,8 +261,12 @@ def home_page() -> str:
 @base_bp.route("/heatmap.data")
 @base_bp.route("/heatmap.data/<path:und>")
 def get_heatmap_data(und=None):
+    client = current_app.live_client
+    history = request.args.get("history", default=False)
+    if history:
+        client = current_app.history_client
     data = {}
-    pro_data = current_app.client.pro_data
+    pro_data = client.pro_data
     if pro_data is not None:
         if und is not None:
             und = int(und) / 1000
@@ -272,7 +287,11 @@ def get_heatmap_data(und=None):
 
 @base_bp.route("/trajectory/<path:icao>")
 def get_traj(icao: str):
-    data = current_app.client.pro_data
+    client = current_app.live_client
+    history = request.args.get("history", default=False)
+    if history:
+        client = current_app.history_client
+    data = client.pro_data
     features = []
     if data is not None:
         flight = data[icao]

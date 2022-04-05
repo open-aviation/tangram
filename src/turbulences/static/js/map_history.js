@@ -36,8 +36,8 @@ lastseen.innerHTML = new Date(max_date).toUTCString();
 $.ajaxSetup({
   async: false
 });
-getPlanes(Date.parse(min_date));
-var turbu = getTurbulence();
+getPlanes(Date.parse(min_date), history = true);
+var turbu = getTurbulence(und = null, history = true);
 var sig = getSigmet(Date.parse(min_date), Date.parse(max_date));
 var air = getAirep(Date.parse(min_date), Date.parse(max_date));
 var cleanair = getCat(Date.parse(min_date), Date.parse(max_date));
@@ -45,8 +45,10 @@ var cleanair = getCat(Date.parse(min_date), Date.parse(max_date));
 // getSigmet(Date.parse(min_date), Date.parse(max_date));
 // getAirep(Date.parse(min_date), Date.parse(max_date));
 // getCat(Date.parse(min_date), Date.parse(max_date));
-getheatmap();
-
+getheatmap(und = null, history = true);
+$.ajaxSetup({
+  async: true
+});
 // partie slider
 function createTemporalLegend(startTimestamp) {
   var temporalLegend = L.control({ position: "bottomleft" });
@@ -81,10 +83,10 @@ function createSliderUI() {
       filtersigmet(sig, $(this).val() / 1000);
       filterairep(air, $(this).val() / 1000);
       filtercat(cleanair, $(this).val() / 1000);
-      getPlanes($(this).val().toString());
       filterturb(turbu, $(this).val() / 1000);
+      getPlanes($(this).val().toString(), history = true);
       // filterheatmap(heatm, $(this).val().toString());
-      getheatmap(($(this).val().toString()));
+      getheatmap($(this).val().toString(), history = true);
       $(".temporal-legend").text(new Date($(this).val() * 1).toUTCString());
     });
     return slider;
