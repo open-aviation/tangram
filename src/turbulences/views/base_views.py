@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 
 from flask import (
@@ -14,7 +15,7 @@ from traffic.core import Traffic
 import pandas as pd
 from turbulences.views.forms import InfoForm
 
-from .converter import geojson_plane
+from .view_functions import geojson_plane, assignClient
 
 base_bp = Blueprint("base", __name__)
 
@@ -220,14 +221,6 @@ def serve_static(filename):
     return send_from_directory("fonts/", filename)
 
 
-def launch_client():
-    current_app.client.start_live(
-        host=current_app.client_host,
-        port=current_app.client_port,
-        reference=current_app.client_reference,
-    )
-
-
 @base_bp.route("/", methods=["GET", "POST"])
 def home_page() -> str:
     min_date = request.args.get("min", default=False)
@@ -241,15 +234,16 @@ def home_page() -> str:
                 max=str(form.enddate.data) + " " + str(form.endtime.data),
             )
         )
-    if (not min_date and not max_date) and not current_app.client.running:
-        launch_client()
-    if min_date != False and max_date != False:
-        return render_template("index.html", history="True", form=form)
 
+    if min_date != False and max_date != False:
+        assignClient(live=False)
+        return render_template("index.html", history="True", form=form)
+    assignClient(live=True)
     return render_template(
         "index.html",
         history="False",
         form=form,
+        uptime=(datetime.now() - current_app.start_time).seconds,
     )
 
 

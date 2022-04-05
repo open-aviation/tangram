@@ -55,7 +55,8 @@ class ADSBClient:
                 try:
                     traffic = self.decoder.traffic
                     erreur = False
-                except:
+                except Exception as e:
+                    print(e)
                     pass
             if traffic is None:
                 self._traffic = None
@@ -172,25 +173,3 @@ class ADSBClient:
         with self.lock_traffic:
             self._traffic = None
             self._pro_data = None
-
-    # def clean_decoder(
-    #     self,
-    #     threshold: str | timedelta | pd.Timedelta = "30 min",
-    # ):
-
-    #     thr = pd.Timedelta(threshold)
-    #     while self.running or len(self.decoder.acs) != 0:
-    #         time.sleep(60)
-    #         now = pd.Timestamp("now", tzinfo=timezone.utc)
-    #         for icao, ac in self.decoder.acs.items():
-    #             condition = True
-    #             with self.lock_traffic:
-    #                 if len(ac.cumul) > 0:
-    #                     condition = False
-    #                     if now - ac.cumul[-1]["timestamp"] >= thr:
-    #                         del self.decoder.acs[icao]
-    #             if condition:
-    #                 if ac.flight is not None:
-    #                     if now - ac.flight.stop >= thr:
-    #                         with self.lock_traffic:
-    #                             del self.decoder.acs[icao]

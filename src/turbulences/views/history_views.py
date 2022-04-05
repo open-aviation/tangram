@@ -9,6 +9,7 @@ from flask import (
     url_for,
 )
 from werkzeug.utils import redirect
+from .view_functions import assignClient
 
 history_bp = Blueprint("history", __name__)
 
@@ -34,6 +35,7 @@ def dir_listing(req_path):
 
     # Check if path is a file and redirect
     if os.path.isfile(abs_path):
+        assignClient(live=False)
         current_app.client.start_from_file(file=abs_path, reference="LFBO")
         date = get_date_file()
         return redirect(url_for("base.home_page", min=date[0], max=date[1]))
@@ -52,6 +54,7 @@ def database_request():
         "start": {"$lte": und},
     }
     data = current_app.mongo.db.tracks.find(req)
+    assignClient(live=False)
     current_app.client.start_from_database(data)
     date = get_date_file()
     return redirect(url_for("base.home_page", min=date[0], max=date[1]))

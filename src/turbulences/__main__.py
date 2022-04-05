@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 
 from atmlab.airep import AIREP
@@ -28,13 +29,22 @@ app.config["SECRET_KEY"] = SECRET_KEY
 
 
 def main():
-    app.client = ADSBClient()
-    app.client_host = config.get("radarcape", "host", fallback="")
-    app.client_port = int(config.get("radarcape", "port", fallback=""))
-    app.client_reference = config.get("radarcape", "reference", fallback="")
+    app.start_time = datetime.now()
+
+    client_host = config.get("radarcape", "host", fallback="")
+    client_port = int(config.get("radarcape", "port", fallback=""))
+    client_reference = config.get("radarcape", "reference", fallback="")
     app.data_path = config.get("history", "path_data", fallback="")
     app.config["MONGO_URI"] = config.get("history", "database_uri", fallback="")
 
+    app.live_client = ADSBClient()
+    app.history_client = ADSBClient()
+    app.client = app.live_client
+    app.client.start_live(
+        host=client_host,
+        port=client_port,
+        reference=client_reference,
+    )
     app.mongo = PyMongo(app)
 
     app.register_blueprint(history_views.history_bp)

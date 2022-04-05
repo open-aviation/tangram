@@ -1,5 +1,12 @@
+from flask import current_app
 import numpy as np
 from traffic.core.traffic import Traffic
+
+
+def assignClient(live: bool = True):
+    current_app.client = (
+        current_app.live_client if live else current_app.history_client
+    )
 
 
 def geojson_plane(data: Traffic) -> dict:
