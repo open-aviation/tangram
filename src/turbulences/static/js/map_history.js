@@ -94,6 +94,45 @@ function createSliderUI() {
   createTemporalLegend(new Date(min_date).toUTCString());
 }
 createSliderUI();
+// function createAltitudeLegend(startTimestamp) {
+//   var altitudeLegend = L.control({ position: "right" });
+
+//   altitudeLegend.onAdd = function (map) {
+//     var output = L.DomUtil.create("output", "altitude-legend");
+//     $(output).text(startTimestamp);
+//     return output;
+//   };
+
+//   altitudeLegend.addTo(map);
+// }
+// function createSliderAltitude() {
+//   var sliderControl = L.control({ position: "right" });
+
+//   sliderControl.onAdd = function (map) {
+//     var slider = L.DomUtil.create("input", "range-slider");
+
+//     L.DomEvent.addListener(slider, "mousedown", function (e) {
+//       L.DomEvent.stopPropagation(e);
+//     });
+//     $(slider).attr({
+//       type: "range",
+//       max: 50000,
+//       min: 0,
+//       value: 25000,
+//       step: 1000,
+//     });
+//     $(slider).on("input change", function () {
+//       // getSigmet($(this).attr("min"), $(this).val().toString());
+//       // getAirep($(this).attr("min"), $(this).val().toString());
+
+//       $(".temporal-legend").text(new Date($(this).val() * 1).toUTCString());
+//     });
+//     return slider;
+//   };
+
+//   sliderControl.addTo(map);
+//   createTemporalLegend(new Date(min_date).toUTCString());
+// }
 
 var baselayer = L.tileLayer(
   "http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",

@@ -56,7 +56,7 @@ L.control.scale().addTo(map);
 L.control.layers(null, overlays).addTo(map);
 map.addLayer(baselayer);
 
-var UptimeSec = 0;
+var UptimeSec = document.getElementById("seconds_uptime").textContent;
 setInterval(function () {
 
   distance = UptimeSec++;
