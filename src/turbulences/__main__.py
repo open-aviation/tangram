@@ -8,6 +8,7 @@ from atmlab.weather import Weather
 from flask import Flask
 from flask_assets import Environment
 from flask_pymongo import PyMongo
+from flask_cors import CORS
 
 from turbulences import config
 
@@ -22,6 +23,7 @@ logger = logging.getLogger("waitress")
 logger.setLevel(logging.INFO)
 
 app = Flask(__name__, instance_relative_config=True)
+cors = CORS(app, resources={r"/*": {"origins": "*"}})
 import os
 
 SECRET_KEY = os.urandom(32)
@@ -31,19 +33,23 @@ app.config["SECRET_KEY"] = SECRET_KEY
 def main():
     app.start_time = datetime.now()
 
-    client_host = config.get("radarcape", "host", fallback="")
-    client_port = int(config.get("radarcape", "port", fallback=""))
-    client_reference = config.get("radarcape", "reference", fallback="")
-    app.data_path = config.get("history", "path_data", fallback="")
-    app.config["MONGO_URI"] = config.get("history", "database_uri", fallback="")
-
     app.live_client = ADSBClient()
     app.history_client = ADSBClient()
-    app.live_client.start_live(
-        host=client_host,
-        port=client_port,
-        reference=client_reference,
-    )
+
+    live_disable = config.get("radarcape", "disable", fallback=False)
+    if not live_disable:
+        client_host = config.get("radarcape", "host", fallback="")
+        client_port = int(config.get("radarcape", "port", fallback=""))
+        client_reference = config.get("radarcape", "reference", fallback="")
+
+        app.live_client.start_live(
+            host=client_host,
+            port=client_port,
+            reference=client_reference,
+        )
+
+    app.data_path = config.get("history", "path_data", fallback="")
+    app.config["MONGO_URI"] = config.get("history", "database_uri", fallback="")
     app.mongo = PyMongo(app)
 
     app.register_blueprint(history_views.history_bp)
