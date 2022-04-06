@@ -17,7 +17,7 @@ def crit(df):
     ).abs()
 
 
-def threshold(df):
+def threshold(df: pd.DataFrame):
     t = np.mean(df.criterion) + 1.2 * np.std(df.criterion)
     if t > 150:
         return t
@@ -25,8 +25,16 @@ def threshold(df):
         return 150
 
 
-def turbulence(df):
+def turbulence(df: pd.DataFrame):
     return df.criterion > df.threshold
+
+
+def anomaly(df):
+    lat_1 = df.latitude > (np.mean(df.latitude) + 3 * np.std(df.latitude))
+    lat_2 = df.latitude < (np.mean(df.latitude) - 3 * np.std(df.latitude))
+    lon_3 = df.longitude > (np.mean(df.longitude) + 3 * np.std(df.longitude))
+    lon_4 = df.longitude < (np.mean(df.longitude) - 3 * np.std(df.longitude))
+    return lat_1 | lat_2 | lon_3 | lon_4
 
 
 class ADSBClient:
@@ -39,13 +47,11 @@ class ADSBClient:
         self.lock_traffic = threading.Lock()
 
     @property
-    def pro_data(self):
-        # last entry
+    def pro_data(self) -> Traffic:
         return self._pro_data
 
     @property
-    def traffic(self):
-        # last entry
+    def traffic(self) -> Traffic:
         return self._traffic
 
     def calculate_traffic(self):
@@ -53,7 +59,7 @@ class ADSBClient:
             erreur = True
             while erreur:
                 try:
-                    traffic = self.decoder.traffic
+                    traffic: Traffic = self.decoder.traffic
                     erreur = False
                 except Exception as e:
                     print(e)
@@ -105,6 +111,8 @@ class ADSBClient:
                             threshold=threshold
                         )
                         .assign(turbulence=turbulence)
+                        .assign(anomaly=anomaly)
+                        .query("not anomaly")
                         .eval(max_workers=4)
                     )
                 except Exception as e:
@@ -136,9 +144,10 @@ class ADSBClient:
                 file, template="time,df,icao,shortmsg", reference=reference
             )
             self.turbulence(True)
-        elif file.endswith(".pkl"):
+        elif file.endswith(".pkl") or file.endswith(".parquet"):
             self._traffic = Traffic.from_file(file)
-            self.turbulence(False)
+            self._pro_data = self._traffic
+            # self.turbulence(False)
 
     def start_from_database(self, data):
         self.history = True
