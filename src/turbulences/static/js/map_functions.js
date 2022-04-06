@@ -219,7 +219,7 @@ function getCat(wef = null, und = null) {
         return feature.properties.intensityValue == 1
       },
       style: function () {
-        return { color: "blue", opacity: 0 }
+        return { color: "gray", opacity: 0 }
       },
       onEachFeature: onEachCat,
     }).addTo(cat_mod);
