@@ -1,6 +1,6 @@
 from datetime import datetime
 import json
-
+from flask_cors import CORS
 from flask import (
     Blueprint,
     current_app,
@@ -18,6 +18,7 @@ from turbulences.views.forms import InfoForm
 from .view_functions import geojson_plane
 
 base_bp = Blueprint("base", __name__)
+CORS(base_bp)
 
 
 @base_bp.route("/stop")

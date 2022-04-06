@@ -1,5 +1,5 @@
 import os
-
+from flask_cors import CORS
 from flask import (
     Blueprint,
     abort,
@@ -11,6 +11,7 @@ from flask import (
 from werkzeug.utils import redirect
 
 history_bp = Blueprint("history", __name__)
+CORS(history_bp)
 
 
 def get_date_file():
