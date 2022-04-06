@@ -19,6 +19,7 @@ waitress = "^2.0.0"
 click = "^8.0.3"
 Flask-PyMongo = "^2.3.0"
 Flask-WTF = "^1.0.0"
+Flask-Cors = "^3.0.10"
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.920"
