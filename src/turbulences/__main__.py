@@ -36,7 +36,7 @@ def main():
     app.live_client = ADSBClient()
     app.history_client = ADSBClient()
 
-    live_disable = config.get("radarcape", "disable", fallback=False)
+    live_disable = int(config.get("radarcape", "disable", fallback=0))
     if not live_disable:
         client_host = config.get("radarcape", "host", fallback="")
         client_port = int(config.get("radarcape", "port", fallback=""))
