@@ -241,7 +241,6 @@ def serve_static(filename):
 
 @base_bp.route("/", methods=["GET", "POST"])
 def home_page() -> str:
-    print(url_for("static", filename="user.css"))
     min_date = request.args.get("min", default=False)
     max_date = request.args.get("max", default=False)
     form = InfoForm()

@@ -12,9 +12,9 @@ from flask_cors import CORS
 
 from turbulences import config
 
-from .client.ADSBClient import ADSBClient
-from .util import assets
-from .views import base_views, history_views
+from client.ADSBClient import ADSBClient
+from util import assets
+from views import base_views, history_views
 
 # from waitress import serve
 
@@ -25,8 +25,8 @@ logger.setLevel(logging.INFO)
 app = Flask(
     __name__,
     instance_relative_config=True,
-    static_url_path="/turbulence/stable/static",
 )
+app.config["SCRIPT_NAME"] = "/turbulence/stable"
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 asset = Environment(app)
@@ -63,7 +63,7 @@ def main():
             "history", "database_uri", fallback=""
         )
         app.mongo = PyMongo(app)
-        app.register_blueprint(history_views.history_bp)
+    app.register_blueprint(history_views.history_bp)
 
     app.register_blueprint(base_views.base_bp)
 
