@@ -39,7 +39,7 @@ def main():
     live_disable = int(config.get("radarcape", "disable", fallback=0))
     if not live_disable:
         client_host = config.get("radarcape", "host", fallback="")
-        client_port = int(config.get("radarcape", "port", fallback=""))
+        client_port = int(config.get("radarcape", "port", fallback=10005))
         client_reference = config.get("radarcape", "reference", fallback="")
 
         app.live_client.start_live(
@@ -48,11 +48,15 @@ def main():
             reference=client_reference,
         )
 
-    app.data_path = config.get("history", "path_data", fallback="")
-    app.config["MONGO_URI"] = config.get("history", "database_uri", fallback="")
-    app.mongo = PyMongo(app)
+    history_disable = int(config.get("history", "disable", fallback=0))
+    if not history_disable:
+        app.data_path = config.get("history", "path_data", fallback="")
+        app.config["MONGO_URI"] = config.get(
+            "history", "database_uri", fallback=""
+        )
+        app.mongo = PyMongo(app)
+        app.register_blueprint(history_views.history_bp)
 
-    app.register_blueprint(history_views.history_bp)
     app.register_blueprint(base_views.base_bp)
 
     app.sigmet = Weather()
@@ -61,8 +65,13 @@ def main():
     app.network = Network()
 
     asset = Environment(app)
+    asset.url = "static"
     asset.register(assets.bundles)
-    app.run(host="0.0.0.0", port=5000)
+
+    app_host = config.get("application", "host", fallback="0.0.0.0")
+    app_port = int(config.get("application", "port", fallback=6001))
+
+    app.run(host=app_host, port=app_port)
     # serve(app, host="0.0.0.0", port=5000, threads=8)
 
 
