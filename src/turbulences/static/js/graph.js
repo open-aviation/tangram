@@ -1,6 +1,6 @@
 var myChart;
 async function get_data(icao) {
-  var a = await $.getJSON("/chart.data/" + icao);
+  var a = await $.getJSON("chart.data/" + icao);
   return a;
 }
 async function draw_chart(icao) {

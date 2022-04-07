@@ -1,5 +1,5 @@
-from datetime import datetime
 import logging
+from datetime import datetime
 
 from atmlab.airep import AIREP
 from atmlab.metsafe import Metsafe
@@ -7,8 +7,10 @@ from atmlab.network import Network
 from atmlab.weather import Weather
 from flask import Flask
 from flask_assets import Environment
-from flask_pymongo import PyMongo
 from flask_cors import CORS
+from flask_pymongo import PyMongo
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.wrappers import Response
 
 from turbulences import config
 
@@ -22,15 +24,15 @@ from .views import base_views, history_views
 logger = logging.getLogger("waitress")
 logger.setLevel(logging.INFO)
 
-app = Flask(
-    __name__,
-    instance_relative_config=True,
-)
-app.config["SCRIPT_NAME"] = "/turbulence/stable"
+app = Flask(__name__)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 asset = Environment(app)
 asset.register(assets.bundles)
+
+app.wsgi_app = DispatcherMiddleware(
+    Response("Not Found", status=404), {"/turbulence/stable": app.wsgi_app}
+)
 
 import os
 

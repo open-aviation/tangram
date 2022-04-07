@@ -1,6 +1,6 @@
 function getFlight_data(icao) {
   document.getElementById("icao").innerHTML = icao;
-  url = "/flight/" + icao
+  url = "flight/" + icao
   $.getJSON(url, function (data) {
     flight_id = document.getElementById('flight_id');
     departure = document.getElementById('departure');
@@ -89,7 +89,7 @@ function onEachCat(feature, layer) {
 
 function createCustomIcon(feature, latlng) {
   let myIcon = L.icon({
-    iconUrl: "/plane.png",
+    iconUrl: "plane.png",
     iconSize: [30, 30], // width and height of the image in pixels
     iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
     popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
@@ -122,7 +122,7 @@ function updateTableSigmet(data) {
   ).length;
 }
 function getSigmet(wef = null, und = null) {
-  var url = "/sigmet.geojson";
+  var url = "sigmet.geojson";
   if ((wef !== null) & (und !== null)) {
     url = url + "/" + wef + "," + und;
   }
@@ -174,7 +174,7 @@ function updateTableAirep(data) {
   ).length;
 }
 function getAirep(wef = null, und = null) {
-  url = "/airep.geojson";
+  url = "airep.geojson";
   if ((wef !== null) & (und !== null)) {
     url = url + "/" + wef + "," + und;
   }
@@ -193,7 +193,7 @@ function getAirep(wef = null, und = null) {
   return airep
 }
 function getCat(wef = null, und = null) {
-  url = "/cat.geojson";
+  url = "cat.geojson";
   if ((wef !== null) & (und !== null)) {
     url = url + "/" + wef + "," + und;
   }
@@ -227,7 +227,7 @@ function getCat(wef = null, und = null) {
   return cat;
 }
 function getPlanes(und = null, history = false) {
-  url = "/planes.geojson"
+  url = "planes.geojson"
   if (und !== null) {
     url = url + "/" + und
   }
@@ -244,7 +244,7 @@ function getPlanes(und = null, history = false) {
   });
 }
 function getTurbulence(und = null, history = false) {
-  url = "/turb.geojson"
+  url = "turb.geojson"
   if (und !== null) {
     url = url + "/" + und
   }
@@ -263,7 +263,7 @@ function getTurbulence(und = null, history = false) {
   return turbu;
 }
 function getheatmap(und = null, history = false) {
-  url = "/heatmap.data"
+  url = "heatmap.data"
   if (und !== null) {
     url = url + "/" + und
   }
