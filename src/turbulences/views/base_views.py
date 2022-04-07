@@ -21,6 +21,11 @@ base_bp = Blueprint("base", __name__)
 CORS(base_bp)
 
 
+@base_bp.route("/routes")
+def list_routes():
+    return {"route": ["%s" % rule for rule in current_app.url_map.iter_rules()]}
+
+
 @base_bp.route("/stop")
 def stop_client():
     current_app.live_client.stop()
@@ -236,6 +241,7 @@ def serve_static(filename):
 
 @base_bp.route("/", methods=["GET", "POST"])
 def home_page() -> str:
+    print(url_for("static", filename="user.css"))
     min_date = request.args.get("min", default=False)
     max_date = request.args.get("max", default=False)
     form = InfoForm()

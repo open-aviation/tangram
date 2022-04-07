@@ -22,8 +22,16 @@ from .views import base_views, history_views
 logger = logging.getLogger("waitress")
 logger.setLevel(logging.INFO)
 
-app = Flask(__name__, instance_relative_config=True)
+app = Flask(
+    __name__,
+    instance_relative_config=True,
+    static_url_path="/turbulence/stable/static",
+)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
+
+asset = Environment(app)
+asset.register(assets.bundles)
+
 import os
 
 SECRET_KEY = os.urandom(32)
@@ -63,15 +71,11 @@ def main():
     app.airep = AIREP()
     app.cat = Metsafe()
     app.network = Network()
-
-    asset = Environment(app)
-    asset.url = "static"
-    asset.register(assets.bundles)
-
     app_host = config.get("application", "host", fallback="0.0.0.0")
     app_port = int(config.get("application", "port", fallback=6001))
 
     app.run(host=app_host, port=app_port)
+
     # serve(app, host="0.0.0.0", port=5000, threads=8)
 
 
