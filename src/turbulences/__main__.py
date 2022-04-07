@@ -12,9 +12,9 @@ from flask_cors import CORS
 
 from turbulences import config
 
-from client.ADSBClient import ADSBClient
-from util import assets
-from views import base_views, history_views
+from .client.ADSBClient import ADSBClient
+from .util import assets
+from .views import base_views, history_views
 
 # from waitress import serve
 
