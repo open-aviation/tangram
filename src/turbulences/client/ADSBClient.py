@@ -112,8 +112,8 @@ class ADSBClient:
                         )
                         .assign(turbulence=turbulence)
                         .assign(anomaly=anomaly)
-                        .query("not anomaly")
                         .eval(max_workers=4)
+                        # .query("not anomaly")
                     )
                 except Exception as e:
                     print(e)
