@@ -230,8 +230,13 @@ def clear_air_turbulence(wef=None, und=None):
 
 
 @base_bp.route("/fonts/<path:filename>")
-def serve_static(filename):
+def serve_fonts(filename):
     return send_from_directory("fonts/", filename)
+
+
+@base_bp.route("/static/<path:filename>")
+def serve_static(filename):
+    return send_from_directory("static/", filename)
 
 
 @base_bp.route("/", methods=["GET", "POST"])
