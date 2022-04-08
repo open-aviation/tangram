@@ -5,30 +5,29 @@ from atmlab.airep import AIREP
 from atmlab.metsafe import Metsafe
 from atmlab.network import Network
 from atmlab.weather import Weather
-from flask import Flask
+from flask import Flask, url_for
 from flask_assets import Environment
 from flask_cors import CORS
 from flask_pymongo import PyMongo
 
 from turbulences import config
 
-from .client.ADSBClient import ADSBClient
-from .util import assets
-from .views import base_views, history_views
+from client.ADSBClient import ADSBClient
+from util import assets
+from views import base_views, history_views
 
-# from waitress import serve
+from waitress import serve
 
 
 logger = logging.getLogger("waitress")
 logger.setLevel(logging.INFO)
 
-app = Flask(
-    __name__,
-    instance_relative_config=True,
-    static_url_path="/turbulence/stable/static",
-)
-app.config["SERVER_NAME"] = "atmlab-ws.onera.fr"
-app.url_map.default_subdomain = "/turbulence/stable"
+app = Flask(__name__)
+
+# # a = app.wsgi_app
+# app.config["SERVER_NAME"] = "134.212.235.1:6001"
+# app.config["APPLICATION_ROOT"] = "turbulence/stable"
+# app.url_map.default_subdomain = "/turbulence/stable"
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 asset = Environment(app)
@@ -43,6 +42,8 @@ app.config["SECRET_KEY"] = SECRET_KEY
 
 @app.route("/routes")
 def list_routes():
+    # app.url_map.
+    a = url_for("base.home_page")
     return {"route": ["%s" % rule for rule in app.url_map.iter_rules()]}
 
 
@@ -82,10 +83,19 @@ def main():
     app_host = config.get("application", "host", fallback="0.0.0.0")
     app_port = int(config.get("application", "port", fallback=5000))
 
-    app.run(host=app_host, port=app_port)
-
-    # serve(app, host="0.0.0.0", port=5000, threads=8)
+    # app.run(host=app_host, port=app_port)
 
 
 if __name__ == "__main__":
     main()
+
+    class ScriptNameStripper(object):
+        def __init__(self, app):
+            self.app = app
+
+        def __call__(self, environ, start_response):
+            environ["SCRIPT_NAME"] = "turbulence/stable/"
+            return self.app(environ, start_response)
+
+    app = ScriptNameStripper(app)
+    serve(app, host="0.0.0.0", port=6001, threads=8)
