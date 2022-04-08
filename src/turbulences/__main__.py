@@ -12,9 +12,9 @@ from flask_pymongo import PyMongo
 
 from turbulences import config
 
-from .client.ADSBClient import ADSBClient
-from .util import assets
-from .views import base_views, history_views
+from client.ADSBClient import ADSBClient
+from util import assets
+from views import base_views, history_views
 
 from waitress import serve
 
@@ -47,17 +47,17 @@ def list_routes():
     return {"route": ["%s" % rule for rule in app.url_map.iter_rules()]}
 
 
-def serve_app(app):
-    class ScriptNameStripper(object):
-        def __init__(self, app):
-            self.app = app
+# def serve_app(app):
+#     class ScriptNameStripper(object):
+#         def __init__(self, app):
+#             self.app = app
 
-        def __call__(self, environ, start_response):
-            environ["SCRIPT_NAME"] = "turbulence/stable/"
-            return self.app(environ, start_response)
+#         def __call__(self, environ, start_response):
+#             environ["SCRIPT_NAME"] = "turbulence/stable/"
+#             return self.app(environ, start_response)
 
-    app = ScriptNameStripper(app)
-    serve(app, host="0.0.0.0", port=6001, threads=8)
+#     app = ScriptNameStripper(app)
+#     serve(app, host="0.0.0.0", port=6001, threads=8)
 
 
 def main():
@@ -95,9 +95,9 @@ def main():
     app.network = Network()
     app_host = config.get("application", "host", fallback="0.0.0.0")
     app_port = int(config.get("application", "port", fallback=5000))
-    serve_app(app)
+    # serve_app(app)
 
-    # app.run(host=app_host, port=app_port)
+    app.run(host=app_host, port=app_port)
 
 
 if __name__ == "__main__":
