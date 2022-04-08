@@ -1,14 +1,16 @@
 import logging
+import os
 from datetime import datetime
 
 from atmlab.airep import AIREP
 from atmlab.metsafe import Metsafe
 from atmlab.network import Network
 from atmlab.weather import Weather
-from flask import Flask
+from flask import Flask, request
 from flask_assets import Environment
 from flask_cors import CORS
 from flask_pymongo import PyMongo
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from turbulences import config
 
@@ -16,54 +18,30 @@ from .client.ADSBClient import ADSBClient
 from .util import assets
 from .views import base_views, history_views
 
-from waitress import serve
-from paste.translogger import TransLogger
-
-
 logger = logging.getLogger("waitress")
 logger.setLevel(logging.INFO)
 
-app = Flask(__name__, static_folder=None)
+app = Flask(__name__)
 
-# # a = app.wsgi_app
-# app.config["SERVER_NAME"] = "134.212.235.1:6001"
-# app.config["APPLICATION_ROOT"] = "turbulence/stable"
-# app.url_map.default_subdomain = "/turbulence/stable"
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_prefix=1)
+
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
-
 asset = Environment(app)
 asset.register(assets.bundles)
 
-
-import os
-
 SECRET_KEY = os.urandom(32)
 app.config["SECRET_KEY"] = SECRET_KEY
+
+
+@app.before_request
+def before_request():
+    print(request.headers.get("X-Forwarded-Prefix"))
 
 
 @app.route("/routes")
 def list_routes():
     # app.url_map.
     return {"route": ["%s" % rule for rule in app.url_map.iter_rules()]}
-
-
-def serve_app(app, app_host, app_port):
-    class ScriptNameStripper(object):
-        def __init__(self, app):
-            self.app = app
-
-        def __call__(self, environ, start_response):
-            environ["SCRIPT_NAME"] = "turbulence/stable/"
-            return self.app(environ, start_response)
-
-    app = ScriptNameStripper(app)
-    # app.run(host=app_host, port=app_port)
-    serve(
-        TransLogger(app, setup_console_handler=False),
-        host=app_host,
-        port=app_port,
-        threads=8,
-    )
 
 
 def main():
@@ -91,8 +69,8 @@ def main():
             "history", "database_uri", fallback=""
         )
         app.mongo = PyMongo(app)
-    app.register_blueprint(history_views.history_bp)
 
+    app.register_blueprint(history_views.history_bp)
     app.register_blueprint(base_views.base_bp)
 
     app.sigmet = Weather()
@@ -101,9 +79,9 @@ def main():
     app.network = Network()
     app_host = config.get("application", "host", fallback="0.0.0.0")
     app_port = int(config.get("application", "port", fallback=5000))
-    serve_app(app, app_host, app_port)
+    # serve_app(app, app_host, app_port)
 
-    # app.run(host=app_host, port=app_port)
+    app.run(host=app_host, port=app_port)
 
 
 if __name__ == "__main__":

@@ -165,12 +165,12 @@ def fetch_planes_Geojson(und=None) -> dict:
 @base_bp.route("/sigmet.geojson")
 @base_bp.route("/sigmet.geojson/<path:wef>,<path:und>")
 def fetch_sigmets(wef=None, und=None) -> dict:
-    t = pd.Timestamp("now", tz="utc")
+    t = pd.Timestamp("now", tz="utc")  # noqa: F841
     if wef is not None:
         wef = int(wef) / 1000
     if und is not None:
         und = int(und) / 1000
-        t = pd.Timestamp(und, unit="s", tz="utc")
+        t = pd.Timestamp(und, unit="s", tz="utc")  # noqa: F841
     res = current_app.sigmet.sigmets(wef, und, fir="^(L|E)")
     if res is not None:
         res = res.query("validTimeTo>@t")._to_geo()
@@ -194,7 +194,7 @@ def airep_geojson(wef=None, und=None):
     data = current_app.airep.aireps(wef, und)
     if data is not None:
         if condition:
-            t = pd.Timestamp("now", tz="utc")
+            t = pd.Timestamp("now", tz="utc")  # noqa: F841
             data = data.query("expire>@t")
         result = data._to_geo()
     else:
@@ -210,7 +210,7 @@ def clear_air_turbulence(wef=None, und=None):
         wef = int(wef) / 1000
     if und is not None:
         und = int(und) / 1000
-        t = pd.Timestamp(und, unit="s", tz="utc")
+        t = pd.Timestamp(und, unit="s", tz="utc")  # noqa: F841
     res = current_app.cat.metsafe(
         "metgate:cat_mf_arpege01_europe",
         wef=wef,

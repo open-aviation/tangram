@@ -6,45 +6,87 @@
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@0.7.7"></script>
 
-<script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/graph.js') }}"></script>
+<script
+  type="text/javascript"
+  src="{{ url_for('base.serve_static', filename='js/graph.js') }}"
+></script>
 
-<script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_functions.js') }}"></script>
+<script
+  type="text/javascript"
+  src="{{ url_for('base.serve_static', filename='js/map_functions.js') }}"
+></script>
 
 <var id="seconds_uptime" hidden="True">{{uptime}}</var>
 <div class="stats">
-  Uptime: <p style="display:inline" id="uptime"></p><br /><br />
-  Number of aircraft: <p style="display:inline" id="plane_count"></p><br />
-  First seen aircraft: <p style="display:inline" id="first_seen"></p><br />
-  Last seen aircraft: <p style="display:inline" id="last_seen"></p><br /><br />
+  Uptime:
+  <p style="display: inline" id="uptime"></p>
+  <br /><br />
+  Number of aircraft:
+  <p style="display: inline" id="plane_count"></p>
+  <br />
+  First seen aircraft:
+  <p style="display: inline" id="first_seen"></p>
+  <br />
+  Last seen aircraft:
+  <p style="display: inline" id="last_seen"></p>
+  <br /><br />
 
-  SIGMET (LF): <p style="display:inline" id="sigmet_count"></p><br />
-  AIREP (LF): <p style="display:inline" id="airep_count"></p><br />
+  SIGMET (LF):
+  <p style="display: inline" id="sigmet_count"></p>
+  <br />
+  AIREP (LF):
+  <p style="display: inline" id="airep_count"></p>
+  <br />
 </div>
 <div class="flight" id="flight" hidden="true">
-  Icao: <p style="display:inline" id="icao"></p><br />
-  Callsign: <p style="display:inline" id="aircraft_id"></p><br />
-  Flight Id: <p style="display:inline" id="flight_id"></p><br />
-  Departure: <p style="display:inline" id="departure"></p><br />
-  Destination: <p style="display:inline" id="destination"></p><br />
+  Icao:
+  <p style="display: inline" id="icao"></p>
+  <br />
+  Callsign:
+  <p style="display: inline" id="aircraft_id"></p>
+  <br />
+  Flight Id:
+  <p style="display: inline" id="flight_id"></p>
+  <br />
+  Departure:
+  <p style="display: inline" id="departure"></p>
+  <br />
+  Destination:
+  <p style="display: inline" id="destination"></p>
+  <br />
 </div>
 <div id="map">
   {% if history == "True" %}
-  <script type="text/javascript"
-    src="{{ url_for('base.serve_static',filename='js/map_filter_functions.js') }}"></script>
-  <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_history.js') }}"></script>{% else
-  %}
-  <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_live.js') }}"></script> {% endif
-  %}
+  <script
+    type="text/javascript"
+    src="{{ url_for('base.serve_static',filename='js/map_filter_functions.js') }}"
+  ></script>
+  <script
+    type="text/javascript"
+    src="{{ url_for('base.serve_static',filename='js/map_history.js') }}"
+  ></script>
+  {% else %}
+  <script
+    type="text/javascript"
+    src="{{ url_for('base.serve_static',filename='js/map_live.js') }}"
+  ></script>
+  {% endif %}
 </div>
 
 <div>
   <a class="btn btn-sm btn-info" id="air">
-    <span class="glyphicon glyphicon-globe"></span>&nbsp; AIREP</a>
+    <span class="glyphicon glyphicon-globe"></span>&nbsp; AIREP</a
+  >
   <a class="btn btn-sm btn-info" id="sigmet">
-    <span class="glyphicon glyphicon-flag"></span>&nbsp; SIGMET</a>
+    <span class="glyphicon glyphicon-flag"></span>&nbsp; SIGMET</a
+  >
 </div>
 <div>
-  <table class="table table-bordered table-hover table-condensed smaller" id="table_airep" style="display: hidden;">
+  <table
+    class="table table-bordered table-hover table-condensed smaller"
+    id="table_airep"
+    style="display: hidden"
+  >
     <thead>
       <tr>
         <th>callsign</th>
@@ -65,7 +107,11 @@
       </tr>
     </tbody>
   </table>
-  <table class="table table-bordered table-hover table-condensed smaller" id="table_sigmet" style="display: hidden;">
+  <table
+    class="table table-bordered table-hover table-condensed smaller"
+    id="table_sigmet"
+    style="display: hidden"
+  >
     <thead>
       <tr>
         <th>id sigmet</th>
@@ -77,31 +123,35 @@
     </thead>
     <tbody>
       <tr>
-        <td colspan="3" style="text-align:center">There are no items to list...</td>
+        <td colspan="3" style="text-align: center">
+          There are no items to list...
+        </td>
       </tr>
     </tbody>
   </table>
 </div>
 
-
 <script>
-  var airep = document.getElementById('air');
-  airep.addEventListener('click', myfunction);
-  airep.name = "table_airep"
+  var airep = document.getElementById("air");
+  airep.addEventListener("click", myfunction);
+  airep.name = "table_airep";
 
-
-  var sigmet = document.getElementById('sigmet');
-  sigmet.addEventListener('click', myfunction);
-  sigmet.name = "table_sigmet"
+  var sigmet = document.getElementById("sigmet");
+  sigmet.addEventListener("click", myfunction);
+  sigmet.name = "table_sigmet";
 
   function myfunction(evt) {
     var tablewrap = document.getElementById(evt.currentTarget.name);
-    tablewrap.classList.toggle('hidden')
-  };
+    tablewrap.classList.toggle("hidden");
+  }
 </script>
 
-
 <div>
-  <canvas id="myChart" max-width="100" max-height="100" style="display: none"></canvas>
+  <canvas
+    id="myChart"
+    max-width="100"
+    max-height="100"
+    style="display: none"
+  ></canvas>
 </div>
 {% endblock %}
