@@ -5,16 +5,16 @@ from atmlab.airep import AIREP
 from atmlab.metsafe import Metsafe
 from atmlab.network import Network
 from atmlab.weather import Weather
-from flask import Flask, url_for, request
+from flask import Flask
 from flask_assets import Environment
 from flask_cors import CORS
 from flask_pymongo import PyMongo
 
 from turbulences import config
 
-from client.ADSBClient import ADSBClient
-from util import assets
-from views import base_views, history_views
+from .client.ADSBClient import ADSBClient
+from .util import assets
+from .views import base_views, history_views
 
 from waitress import serve
 from paste.translogger import TransLogger
@@ -44,7 +44,6 @@ app.config["SECRET_KEY"] = SECRET_KEY
 @app.route("/routes")
 def list_routes():
     # app.url_map.
-    a = url_for("base.home_page")
     return {"route": ["%s" % rule for rule in app.url_map.iter_rules()]}
 
 
@@ -61,8 +60,8 @@ def serve_app(app, app_host, app_port):
     # app.run(host=app_host, port=app_port)
     serve(
         TransLogger(app, setup_console_handler=False),
-        host="0.0.0.0",
-        port=6001,
+        host=app_host,
+        port=app_port,
         threads=8,
     )
 
