@@ -61,7 +61,7 @@ function filtercat(data, time) {
             return (feature.properties.intensityValue == 2) && (Date.parse(feature.properties.endValidity) / 1000 >= time) && (Date.parse(feature.properties.startValidity) / 1000 <= time);
         },
         style: function () {
-            return { color: "red" }
+            return { color: "red", opacity: 0 }
         },
         onEachFeature: onEachCat,
     }).addTo(cat_sev);
@@ -70,7 +70,7 @@ function filtercat(data, time) {
             return (feature.properties.intensityValue == 1) && (Date.parse(feature.properties.endValidity) / 1000 >= time) && (Date.parse(feature.properties.startValidity) / 1000 <= time);
         },
         style: function () {
-            return { color: "blue", weight: 1 }
+            return { color: "gray", opacity: 0 }
         },
         onEachFeature: onEachCat,
     }).addTo(cat_mod);

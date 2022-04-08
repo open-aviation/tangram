@@ -6,13 +6,10 @@
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@0.7.7"></script>
 
-{% assets "chart_js" %}
-<script type="text/javascript" src="{{ ASSET_URL }}"></script>
-{% endassets %}
+<script type="text/javascript" src="{{ url_for('static',filename='js/graph.js') }}"></script>
 
-{% assets "map_functions" %}
-<script type="text/javascript" src="{{ ASSET_URL }}"></script>
-{% endassets %}
+<script type="text/javascript" src="{{ url_for('static',filename='js/map_functions.js') }}"></script>
+
 <var id="seconds_uptime" hidden="True">{{uptime}}</var>
 <div class="stats">
   Uptime: <p style="display:inline" id="uptime"></p><br /><br />
@@ -32,14 +29,9 @@
 </div>
 <div id="map">
   {% if history == "True" %}
-  {% assets "map_filter_functions" %}
-  <script type="text/javascript" src="{{ ASSET_URL }}"></script>
-  {% endassets %}
-  {% assets "map_history" %}
-  <script type="text/javascript" src="{{ ASSET_URL }}"></script>
-  {% endassets %} {% else %} {% assets "map_live" %}
-  <script type="text/javascript" src="{{ ASSET_URL }}"></script>
-  {% endassets %} {% endif %}
+  <script type="text/javascript" src="{{ url_for('static',filename='js/map_filter_functions.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static',filename='js/map_history.js') }}"></script>{% else %}
+  <script type="text/javascript" src="{{ url_for('static',filename='js/map_live.js') }}"></script> {% endif %}
 </div>
 
 <div>

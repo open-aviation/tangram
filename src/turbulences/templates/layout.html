@@ -15,16 +15,12 @@
     integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
     crossorigin=""></script>
   <script src="https://www.grendelman.net/leaflet/leaflet-liveupdate/leaflet-liveupdate.js"></script>
-  {% assets "rotatedmarker_library.js" %}
-  <script src="{{ ASSET_URL }}"></script>
-  {% endassets %}
+  <script src="{{ url_for('static',filename='js/leaflet-rotatedmarker/leaflet.rotatedMarker.js') }}"></script>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/iso8601-js-period@0.2.1/iso8601.min.js"></script>
   <script type="text/javascript"
     src="https://cdn.jsdelivr.net/npm/leaflet-timedimension@1.1.1/dist/leaflet.timedimension.min.js">
     </script>
-  {% assets "leaflet-heat" %}
-  <script type="text/javascript" src="{{ ASSET_URL }}"></script>
-  {% endassets %}
+  <script type="text/javascript" src="{{ url_for('static',filename='js/leaflet-heat/leaflet-heat.js') }}"></script>
 </head>
 
 <body>

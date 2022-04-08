@@ -21,11 +21,6 @@ base_bp = Blueprint("base", __name__)
 CORS(base_bp)
 
 
-@base_bp.route("/routes")
-def list_routes():
-    return {"route": ["%s" % rule for rule in current_app.url_map.iter_rules()]}
-
-
 @base_bp.route("/stop")
 def stop_client():
     current_app.live_client.stop()

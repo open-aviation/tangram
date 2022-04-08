@@ -9,8 +9,6 @@ from flask import Flask
 from flask_assets import Environment
 from flask_cors import CORS
 from flask_pymongo import PyMongo
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
-from werkzeug.wrappers import Response
 
 from turbulences import config
 
@@ -24,20 +22,28 @@ from .views import base_views, history_views
 logger = logging.getLogger("waitress")
 logger.setLevel(logging.INFO)
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    instance_relative_config=True,
+    static_url_path="/turbulence/stable/static",
+)
+app.config["SERVER_NAME"] = "atmlab-ws.onera.fr"
+app.url_map.default_subdomain = "/turbulence/stable"
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 asset = Environment(app)
 asset.register(assets.bundles)
 
-app.wsgi_app = DispatcherMiddleware(
-    Response("Not Found", status=404), {"/turbulence/stable": app.wsgi_app}
-)
 
 import os
 
 SECRET_KEY = os.urandom(32)
 app.config["SECRET_KEY"] = SECRET_KEY
+
+
+@app.route("/routes")
+def list_routes():
+    return {"route": ["%s" % rule for rule in app.url_map.iter_rules()]}
 
 
 def main():
@@ -74,7 +80,7 @@ def main():
     app.cat = Metsafe()
     app.network = Network()
     app_host = config.get("application", "host", fallback="0.0.0.0")
-    app_port = int(config.get("application", "port", fallback=6001))
+    app_port = int(config.get("application", "port", fallback=5000))
 
     app.run(host=app_host, port=app_port)
 
