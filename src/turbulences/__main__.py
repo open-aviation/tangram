@@ -18,10 +18,7 @@ from .client.ADSBClient import ADSBClient
 from .util import assets
 from .views import base_views, history_views
 
-logger = logging.getLogger("waitress")
-logger.setLevel(logging.INFO)
-
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None)
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_prefix=1)
 
@@ -79,7 +76,7 @@ def main():
     app.network = Network()
     app_host = config.get("application", "host", fallback="0.0.0.0")
     app_port = int(config.get("application", "port", fallback=5000))
-    # serve_app(app, app_host, app_port)
+    # serve(app, host=app_host, port=app_port)
 
     app.run(host=app_host, port=app_port)
 
