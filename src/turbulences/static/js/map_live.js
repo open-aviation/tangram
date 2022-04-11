@@ -6,6 +6,8 @@ var cat_mod = L.layerGroup();
 var cat_sev = L.layerGroup();
 var heatmapLayer = L.layerGroup();
 
+live = true;
+
 var map = L.map("map", { layers: [planes, turbulences] }).setView([43.57155, 1.47165], 7);
 
 var overlays = {

@@ -1,10 +1,15 @@
 var myChart;
-async function get_data(icao) {
-  var a = await $.getJSON("chart.data/" + icao);
+async function get_data(icao, live) {
+  url = "chart.data/" + icao
+  if (!live) {
+    const searchParams = new URLSearchParams({ history: !live });
+    url = url + '?' + searchParams
+  }
+  var a = await $.getJSON(url);
   return a;
 }
-async function draw_chart(icao) {
-  var result = await get_data(icao);
+async function draw_chart(icao, live = true) {
+  var result = await get_data(icao, live);
   var data = {
     datasets: [
       {
