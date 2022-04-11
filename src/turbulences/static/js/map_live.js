@@ -33,10 +33,10 @@ setInterval(function () {
 }, 1000 * 60 * 10); //10 minutes
 
 var baselayer = L.tileLayer(
-  "http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
   {
     attribution:
-      '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
   }
 );
 
