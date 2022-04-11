@@ -27,10 +27,10 @@ getCat();
 setInterval(function () {
   getSigmet();
   getAirep();
-}, 30000);
+}, 1000 * 60 * 5); //5 minutes
 setInterval(function () {
   getCat();
-}, 600000);
+}, 1000 * 60 * 10); //10 minutes
 
 var baselayer = L.tileLayer(
   "http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
@@ -47,7 +47,7 @@ L.control
       getTurbulence();
       getheatmap();
     },
-    interval: 4000,
+    interval: 1000 * 10, //10 secondes
   })
   .addTo(map)
   .startUpdating();
