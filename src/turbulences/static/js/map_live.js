@@ -38,7 +38,7 @@ var baselayer = L.tileLayer(
   "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
   {
     attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://cartodb.com/attributions">CartoDB</a>',
   }
 );
 
@@ -69,4 +69,11 @@ setInterval(function () {
   var d = days == 0 ? "" : days + "d ";
   var h = hours == 0 ? "" : hours + "h ";
   document.getElementById("uptime").innerHTML = d + h + minutes + "m " + seconds + "s ";
-}, 1000);
+}, 1000 * 1);//1 secondes
+
+setInterval(function () {
+  url = "uptime"
+  $.getJSON(url, function (data) {
+    UptimeSec = data.uptime
+  })
+}, 1000 * 60);//1 minute

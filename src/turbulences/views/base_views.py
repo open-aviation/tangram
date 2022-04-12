@@ -41,6 +41,11 @@ def format_datetime(value, format="medium"):
     return f"{value:%Y-%m-%d %H:%M:%S}"
 
 
+@base_bp.route("/uptime")
+def get_uptime():
+    return {"uptime": (datetime.now() - current_app.start_time).seconds}
+
+
 @base_bp.route("/turb.geojson")
 @base_bp.route("/turb.geojson/<path:und>")
 def turbulence(und=None):
