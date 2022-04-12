@@ -62,7 +62,7 @@ class ADSBClient:
                     traffic: Traffic = self.decoder.traffic
                     erreur = False
                 except Exception as e:
-                    print(e)
+                    print("traffic:" + e)
                     pass
             if traffic is None:
                 self._traffic = None
@@ -81,7 +81,6 @@ class ADSBClient:
                 try:
                     self._pro_data = (
                         self._traffic.longer_than("1T")
-                        .resample("1s")
                         .filter(  # .last("30T")
                             # median filters for abnormal points
                             vertical_rate_barometric=3,
@@ -116,7 +115,7 @@ class ADSBClient:
                         # .query("not anomaly")
                     )
                 except Exception as e:
-                    print(e)
+                    print("pro_data:" + e)
         else:
             self._pro_data = None
 

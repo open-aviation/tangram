@@ -30,9 +30,9 @@ SECRET_KEY = os.urandom(32)
 app.config["SECRET_KEY"] = SECRET_KEY
 
 
-@app.before_request
-def before_request():
-    print(request.headers.get("X-Forwarded-Prefix"))
+# @app.before_request
+# def before_request():
+#     print(request.headers.get("X-Forwarded-Prefix"))
 
 
 @app.route("/routes")
