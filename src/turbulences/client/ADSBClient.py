@@ -62,7 +62,7 @@ class ADSBClient:
                     traffic: Traffic = self.decoder.traffic
                     erreur = False
                 except Exception as e:
-                    print("traffic:" + e)
+                    print(e)
                     pass
             if traffic is None:
                 self._traffic = None
@@ -115,7 +115,7 @@ class ADSBClient:
                         # .query("not anomaly")
                     )
                 except Exception as e:
-                    print("pro_data:" + e)
+                    print(e)
         else:
             self._pro_data = None
 
