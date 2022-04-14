@@ -23,6 +23,7 @@ def geojson_plane(data: Traffic) -> dict:
                         },
                         "properties": {
                             "icao": flight.icao24,
+                            "callsign": flight.callsign,
                             "dir": 0 if np.isnan(track) else track,
                         },
                     }
@@ -31,7 +32,11 @@ def geojson_plane(data: Traffic) -> dict:
         "type": "FeatureCollection",
         "features": features,
     }
-    return geojson
+    encapsulated_geojson = {
+        "count": len(geojson["features"]),
+        "geojson": geojson,
+    }
+    return encapsulated_geojson
 
 
 def geojson_traj(data: Traffic) -> dict:

@@ -1,9 +1,9 @@
 function filterturb(data, time) {
     turbulences.clearLayers();
-    if ($.isEmptyObject(data)) {
+    if ($.isEmptyObject(data.geojson)) {
         return
     }
-    L.geoJson(data, {
+    L.geoJson(data.geojson, {
         onEachFeature: onEachTurb,
         filter: function (feature) {
             return (feature.properties.time <= time);

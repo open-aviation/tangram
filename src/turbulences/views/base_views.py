@@ -72,6 +72,7 @@ def turbulence(und=None):
                                     {
                                         "properties": {
                                             "icao": flight.icao24,
+                                            "callsign": flight.callsign,
                                             "time": segment.start.timestamp(),
                                         }
                                     }
@@ -85,7 +86,11 @@ def turbulence(und=None):
         "type": "FeatureCollection",
         "features": features,
     }
-    return geojson
+    encapsulated_geojson = {
+        "count": len(geojson["features"]),
+        "geojson": geojson,
+    }
+    return encapsulated_geojson
 
 
 @base_bp.route("/chart.data/<path:icao>")

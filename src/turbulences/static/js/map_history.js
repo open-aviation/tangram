@@ -42,10 +42,6 @@ var turbu = getTurbulence(und = null, history = true);
 var sig = getSigmet(Date.parse(min_date), Date.parse(max_date));
 var air = getAirep(Date.parse(min_date), Date.parse(max_date));
 var cleanair = getCat(Date.parse(min_date), Date.parse(max_date));
-// var heatm = getheatmap();
-// getSigmet(Date.parse(min_date), Date.parse(max_date));
-// getAirep(Date.parse(min_date), Date.parse(max_date));
-// getCat(Date.parse(min_date), Date.parse(max_date));
 getheatmap(und = null, history = true);
 $.ajaxSetup({
   async: true
@@ -79,8 +75,6 @@ function createSliderUI() {
       step: 1000,
     });
     $(slider).on("input change", function () {
-      // getSigmet($(this).attr("min"), $(this).val().toString());
-      // getAirep($(this).attr("min"), $(this).val().toString());
       filtersigmet(sig, $(this).val() / 1000);
       filterairep(air, $(this).val() / 1000);
       filtercat(cleanair, $(this).val() / 1000);

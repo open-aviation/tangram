@@ -26,14 +26,14 @@ function whenClicked(e) {
   getFlight_data(icao);
 }
 function onEachPlane(feature, layer) {
-  var popupContent = "<p>ICAO: " + feature.properties.icao + "</p>";
+  var popupContent = "<p>ICAO: " + feature.properties.icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
   layer.bindPopup(popupContent);
   layer.on({
     click: whenClicked,
   });
 }
 function onEachTurb(feature, layer) {
-  var popupContent = "<p>ICAO: " + feature.properties.icao + "</p>";
+  var popupContent = "<p>ICAO: " + feature.properties.icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
   layer.bindPopup(popupContent);
   layer.on({
     click: whenClicked,
@@ -238,10 +238,10 @@ function getPlanes(und = null, history = false) {
   }
   $.getJSON(url, function (data) {
     var avion = document.getElementById("plane_count");
-    avion.innerHTML = Object.keys(data.features).length;
+    avion.innerHTML = data.count;
 
     planes.clearLayers();
-    L.geoJson(data, myLayerOptions).addTo(planes);
+    L.geoJson(data.geojson, myLayerOptions).addTo(planes);
   });
 }
 function getTurbulence(und = null, history = false) {
@@ -257,7 +257,7 @@ function getTurbulence(und = null, history = false) {
   $.getJSON(url, function (data) {
     turbu = data
     turbulences.clearLayers();
-    L.geoJson(data, {
+    L.geoJson(data.geojson, {
       onEachFeature: onEachTurb,
     }).addTo(turbulences);
   });
