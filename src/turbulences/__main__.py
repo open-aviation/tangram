@@ -35,12 +35,6 @@ app.config["SECRET_KEY"] = SECRET_KEY
 #     print(request.headers.get("X-Forwarded-Prefix"))
 
 
-@app.route("/routes")
-def list_routes():
-    # app.url_map.
-    return {"route": ["%s" % rule for rule in app.url_map.iter_rules()]}
-
-
 def main():
     app.start_time = datetime.now()
 
