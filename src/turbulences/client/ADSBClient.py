@@ -70,7 +70,13 @@ class ADSBClient:
             self._traffic = (
                 traffic.longer_than("1T")
                 # .last("30T")  # historique ne peut pas avoir ca
-                .resample("1s").eval(max_workers=4)
+                .resample(
+                    "1s",
+                    how={
+                        "interpolate": set(traffic.data.columns)
+                        - {"vertical_rate_barometric", "vertical_rate_inertial"}
+                    },
+                ).eval(max_workers=4)
             )
 
     def turbulence(self, condition: bool):
