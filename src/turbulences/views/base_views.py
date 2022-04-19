@@ -1,6 +1,6 @@
-from datetime import datetime
 import json
-from flask_cors import CORS
+from datetime import datetime
+
 from flask import (
     Blueprint,
     current_app,
@@ -10,6 +10,7 @@ from flask import (
     send_from_directory,
     url_for,
 )
+from flask_cors import CORS
 from traffic.core import Traffic
 
 import pandas as pd
@@ -43,7 +44,7 @@ def format_datetime(value, format="medium"):
 
 @base_bp.route("/uptime")
 def get_uptime():
-    return {"uptime": (datetime.now() - current_app.start_time).seconds}
+    return {"uptime": (datetime.now() - current_app.start_time).total_seconds()}
 
 
 @base_bp.route("/turb.geojson")
@@ -262,6 +263,9 @@ def home_page() -> str:
                 max=str(form.enddate.data) + " " + str(form.endtime.data),
             )
         )
+    # form2 = ThresholdForm()
+    # if form2.validate_on_submit():
+    #     current_app.live_client.
 
     if min_date is not False and max_date is not False:
         return render_template("index.html", history="True", form=form)
@@ -270,6 +274,7 @@ def home_page() -> str:
         "index.html",
         history="False",
         form=form,
+        # form2=form2,
         uptime=(datetime.now() - current_app.start_time).seconds,
     )
 
