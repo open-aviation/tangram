@@ -11,7 +11,7 @@ turb = 'turbulences.__main__:main'
 [tool.poetry.dependencies]
 python = ">=3.8,<3.10"
 traffic = "^2.7.0"
-# traffic = { path = "../traffic/dist/traffic-2.6.6.tar.gz" }
+#traffic = { path = "../traffic/dist/traffic-2.7.0.tar.gz" }
 appdirs = "^1.4.4"
 Flask = "^2.0.2"
 Flask-Assets = "^2.0"
