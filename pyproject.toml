@@ -10,14 +10,14 @@ turb = 'turbulences.__main__:main'
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.10"
-traffic = "^2.6.6"
+traffic = "^2.7.0"
 # traffic = { path = "../traffic/dist/traffic-2.6.6.tar.gz" }
 appdirs = "^1.4.4"
 Flask = "^2.0.2"
 Flask-Assets = "^2.0"
 # atmlab = {git = "ssh://git@github.com/xoolive/atmlab.git"}
-atmlab = { path = "../atmlab/dist/atmlab-0.1.0.tar.gz" }
-# atmlab = ">=0.1.0"
+# atmlab = { path = "../atmlab/dist/atmlab-0.1.0.tar.gz" }
+atmlab = ">=0.1.0"
 waitress = "^2.0.0"
 click = "^8.0.3"
 Flask-PyMongo = "^2.3.0"
