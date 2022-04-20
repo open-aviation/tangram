@@ -2,45 +2,26 @@
 
 <head>
   <title>Mode S based turbulence detection</title>
-  <link
-    rel="stylesheet"
-    href="{{ url_for('base.serve_static', filename='bootstrap.min.css') }}"
-  />
-  <link
-    rel="stylesheet"
-    href="{{ url_for('base.serve_static', filename='user.css') }}"
-  />
+  <link rel="stylesheet" href="{{ url_for('base.serve_static', filename='bootstrap.min.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('base.serve_static', filename='user.css') }}" />
   <script src="{{ url_for('base.serve_static', filename='jquery.min.js') }}"></script>
   <script src="{{ url_for('base.serve_static', filename='bootstrap.min.js') }}"></script>
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
     integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
-    crossorigin=""
-  />
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/leaflet-timedimension@1.1.1/dist/leaflet.timedimension.control.min.css"
-  />
-  <script
-    src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+    crossorigin="" />
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/leaflet-timedimension@1.1.1/dist/leaflet.timedimension.control.min.css" />
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
     integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
-    crossorigin=""
-  ></script>
+    crossorigin=""></script>
   <script src="https://www.grendelman.net/leaflet/leaflet-liveupdate/leaflet-liveupdate.js"></script>
-  <script src="{{ url_for('base.serve_static',filename='js/leaflet-rotatedmarker/leaflet.rotatedMarker.js') }}"></script>
   <script
-    type="text/javascript"
-    src="https://cdn.jsdelivr.net/npm/iso8601-js-period@0.2.1/iso8601.min.js"
-  ></script>
-  <script
-    type="text/javascript"
-    src="https://cdn.jsdelivr.net/npm/leaflet-timedimension@1.1.1/dist/leaflet.timedimension.min.js"
-  ></script>
-  <script
-    type="text/javascript"
-    src="{{ url_for('base.serve_static',filename='js/leaflet-heat/leaflet-heat.js') }}"
-  ></script>
+    src="{{ url_for('base.serve_static',filename='js/leaflet-rotatedmarker/leaflet.rotatedMarker.js') }}"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/iso8601-js-period@0.2.1/iso8601.min.js"></script>
+  <script type="text/javascript"
+    src="https://cdn.jsdelivr.net/npm/leaflet-timedimension@1.1.1/dist/leaflet.timedimension.min.js"></script>
+  <script type="text/javascript"
+    src="{{ url_for('base.serve_static',filename='js/leaflet-heat/leaflet-heat.js') }}"></script>
 </head>
 
 <body>
@@ -49,62 +30,20 @@
       Mode S based turbulence detection
       <div class="pull-right">
         <a class="btn btn-sm btn-primary" href="{{url_for('base.home_page')}}">
-          <span class="glyphicon glyphicon-send"></span>&nbsp; Home</a
-        >
-        <a
-          class="btn btn-sm btn-success"
-          href="{{url_for('base.home_page',history=False)}}"
-        >
-          <span class="glyphicon glyphicon-refresh"></span>&nbsp; Live</a
-        >
-        <a
-          class="btn btn-sm btn-success"
-          href="{{url_for('history.dir_listing')}}"
-        >
-          <span class="glyphicon glyphicon-leaf"></span>&nbsp; File History</a
-        >
-        <button class="btn btn-sm btn-success" onclick="openForm()">
+          <span class="glyphicon glyphicon-send"></span>&nbsp; Home</a>
+        <a class="btn btn-sm btn-success" href="{{url_for('base.home_page',history=False)}}">
+          <span class="glyphicon glyphicon-refresh"></span>&nbsp; Live</a>
+        <a class="btn btn-sm btn-success" href="{{url_for('history.dir_listing')}}">
+          <span class="glyphicon glyphicon-leaf"></span>&nbsp; File History</a>
+        <button class="btn btn-sm btn-success" id='databasebutton'>
           Database History
+        </button>
+        <button class="btn btn-sm btn-success" id='parambutton'>
+          Set Parameters
         </button>
       </div>
     </h1>
     <hr />
-    <div class="form-popup" id="history">
-      <form action="" method="POST" name="historyform">
-        {{ form.csrt_token }} {{ form.startdate.label }}
-        {{form.startdate(class='datepicker')}} {{
-        form.starttime(class='timepicker') }}{{form.hidden_tag()}} {{
-        form.enddate.label }} {{form.enddate(class='datetimepicker')}} {{
-        form.endtime(class='timepicker') }}{{form.hidden_tag()}}
-        <p>{{form.submit()}}</p>
-
-        <button type="button" class="btn cancel" onclick="closeForm()">
-          Close
-        </button>
-      </form>
-    </div>
-
-    <script>
-      function openForm() {
-        document.getElementById("history").style.display = "block";
-      }
-
-      function closeForm() {
-        document.getElementById("history").style.display = "none";
-      }
-      var input = document.getElementById("history");
-
-      // Execute a function when the user releases a key on the keyboard
-      input.addEventListener("keyup", function (event) {
-        // Number 13 is the "Enter" key on the keyboard
-        if (event.keyCode === 13) {
-          // Cancel the default action, if needed
-          event.preventDefault();
-          // Trigger the button element with a click
-          document.getElementById("submit").click();
-        }
-      });
-    </script>
     {% block body %} {% endblock %}
   </div>
 </body>

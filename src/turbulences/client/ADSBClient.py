@@ -18,11 +18,11 @@ def crit(df):
 
 
 def threshold(df: pd.DataFrame):
-    t = np.mean(df.criterion) + 1.2 * np.std(df.criterion)
-    if t > 150:
+    t = np.mean(df.criterion) + ADSBClient.multiplier * np.std(df.criterion)
+    if t > ADSBClient.min_threshold:
         return t
     else:
-        return 150
+        return ADSBClient.min_threshold
 
 
 def turbulence(df: pd.DataFrame):
@@ -38,6 +38,9 @@ def anomaly(df):
 
 
 class ADSBClient:
+    min_threshold : float = 150
+    multiplier :  float = 1.2
+
     def __init__(self) -> None:
         self.running: bool = False
         self.history: bool = False
@@ -73,11 +76,19 @@ class ADSBClient:
                 .resample(
                     "1s",
                     how={
-                        "interpolate": set(traffic.data.columns)
+                        "interpolate": set(traffic.data.columns).union(
+                            {"track_unwrapped", "heading_unwrapped"}
+                        )
                         - {"vertical_rate_barometric", "vertical_rate_inertial"}
                     },
                 ).eval(max_workers=4)
             )
+
+    def set_min_threshold(self, value: float):
+        ADSBClient.min_threshold = value
+
+    def set_multiplier(self, value: float):
+        ADSBClient.multiplier = value
 
     def turbulence(self, condition: bool):
         if condition:
@@ -88,11 +99,10 @@ class ADSBClient:
                     self._pro_data = (
                         self._traffic.longer_than("1T")
                         .filter(  # .last("30T")
+                            strategy=None,
                             # median filters for abnormal points
                             vertical_rate_barometric=3,
-                            vertical_rate_inertial=3,
-                            longitude=13,
-                            latitude=13,  # kernel sizes
+                            vertical_rate_inertial=3,  # kernel sizes
                         )
                         .agg_time(
                             # aggregate data over intervals of one minute
@@ -118,7 +128,7 @@ class ADSBClient:
                         .assign(turbulence=turbulence)
                         .assign(anomaly=anomaly)
                         .eval(max_workers=4)
-                        # .query("not anomaly")
+                        .query("not anomaly")
                     )
                 except Exception as e:
                     print(e)

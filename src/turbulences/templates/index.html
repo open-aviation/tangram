@@ -6,15 +6,9 @@
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@0.7.7"></script>
 
-<script
-  type="text/javascript"
-  src="{{ url_for('base.serve_static', filename='js/graph.js') }}"
-></script>
+<script type="text/javascript" src="{{ url_for('base.serve_static', filename='js/graph.js') }}"></script>
 
-<script
-  type="text/javascript"
-  src="{{ url_for('base.serve_static', filename='js/map_functions.js') }}"
-></script>
+<script type="text/javascript" src="{{ url_for('base.serve_static', filename='js/map_functions.js') }}"></script>
 
 <var id="seconds_uptime" hidden="True">{{uptime}}</var>
 <div class="stats">
@@ -55,38 +49,47 @@
   <p style="display: inline" id="destination"></p>
   <br />
 </div>
+<div class="form" id="database_form" style="display: none">
+  <form action="" method="POST" name="databaseform">
+    {{ form_database.csrt_token }} {{ form_database.startdate.label }}
+    {{form_database.startdate(class='datepicker')}} {{
+    form_database.starttime(class='timepicker') }}{{form_database.hidden_tag()}} {{
+    form_database.enddate.label }} {{form_database.enddate(class='datetimepicker')}} {{
+    form_database.endtime(class='timepicker') }}{{form_database.hidden_tag()}}
+    <input type="submit" value="Submit">
+
+  </form>
+</div>
+<div class="form" id="threshold_form" style="display: none">
+  <form action="" method="POST" name="f_threshold">
+    {{ form_threshold.csrt_token }} {{ form_threshold.threshold.label }}
+    {{form_threshold.threshold()}}
+    {{form_threshold.hidden_tag()}}
+    <br>
+    {{ form_threshold.multiplier.label }}
+    {{form_threshold.multiplier()}}
+    {{form_threshold.hidden_tag()}}
+    <input type="submit" value="Submit">
+  </form>
+</div>
 <div id="map">
   {% if history == "True" %}
-  <script
-    type="text/javascript"
-    src="{{ url_for('base.serve_static',filename='js/map_filter_functions.js') }}"
-  ></script>
-  <script
-    type="text/javascript"
-    src="{{ url_for('base.serve_static',filename='js/map_history.js') }}"
-  ></script>
+  <script type="text/javascript"
+    src="{{ url_for('base.serve_static',filename='js/map_filter_functions.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_history.js') }}"></script>
   {% else %}
-  <script
-    type="text/javascript"
-    src="{{ url_for('base.serve_static',filename='js/map_live.js') }}"
-  ></script>
+  <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_live.js') }}"></script>
   {% endif %}
 </div>
 
 <div>
   <a class="btn btn-sm btn-info" id="air">
-    <span class="glyphicon glyphicon-globe"></span>&nbsp; AIREP</a
-  >
+    <span class="glyphicon glyphicon-globe"></span>&nbsp; AIREP</a>
   <a class="btn btn-sm btn-info" id="sigmet">
-    <span class="glyphicon glyphicon-flag"></span>&nbsp; SIGMET</a
-  >
+    <span class="glyphicon glyphicon-flag"></span>&nbsp; SIGMET</a>
 </div>
 <div>
-  <table
-    class="table table-bordered table-hover table-condensed smaller"
-    id="table_airep"
-    style="display: hidden"
-  >
+  <table class="table table-bordered table-hover table-condensed smaller" id="table_airep" style="display: none">
     <thead>
       <tr>
         <th>callsign</th>
@@ -107,11 +110,7 @@
       </tr>
     </tbody>
   </table>
-  <table
-    class="table table-bordered table-hover table-condensed smaller"
-    id="table_sigmet"
-    style="display: hidden"
-  >
+  <table class="table table-bordered table-hover table-condensed smaller" id="table_sigmet" style="display: none">
     <thead>
       <tr>
         <th>id sigmet</th>
@@ -140,18 +139,25 @@
   sigmet.addEventListener("click", myfunction);
   sigmet.name = "table_sigmet";
 
+  var form_database = document.getElementById("databasebutton");
+  form_database.addEventListener("click", myfunction);
+  form_database.name = "database_form";
+
+  var form_threshold = document.getElementById("parambutton");
+  form_threshold.addEventListener("click", myfunction);
+  form_threshold.name = "threshold_form";
+
   function myfunction(evt) {
-    var tablewrap = document.getElementById(evt.currentTarget.name);
-    tablewrap.classList.toggle("hidden");
+    var x = document.getElementById(evt.currentTarget.name);
+    if (x.style.display === "none") {
+      x.style.display = "block";
+    } else {
+      x.style.display = "none";
+    }
   }
 </script>
 
 <div>
-  <canvas
-    id="myChart"
-    max-width="100"
-    max-height="100"
-    style="display: none"
-  ></canvas>
+  <canvas id="myChart" max-width="100" max-height="100" style="display: none"></canvas>
 </div>
 {% endblock %}

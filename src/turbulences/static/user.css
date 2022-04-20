@@ -22,6 +22,14 @@ div.flight {
   padding: 10px;
 }
 
+div.form {
+  float: right;
+  clear: right;
+  width: 300px;
+  border: 1px solid #bab0ac;
+  padding: 10px;
+}
+
 body {
   font-family: "Ubuntu";
 }

@@ -14,7 +14,7 @@ from flask_cors import CORS
 from traffic.core import Traffic
 
 import pandas as pd
-from turbulences.views.forms import InfoForm
+from .forms import DatabaseForm, ThresholdForm
 
 from .view_functions import geojson_plane
 
@@ -101,6 +101,8 @@ def chart_data(icao):
     if history:
         client = current_app.history_client
     pro_data = client.pro_data
+    if pro_data is None:
+        return {}
     resultats = pro_data[icao].data
     resultats_turb = resultats.query("turbulence")
     turb = zip(
@@ -254,28 +256,37 @@ def serve_static(filename):
 def home_page() -> str:
     min_date = request.args.get("min", default=False)
     max_date = request.args.get("max", default=False)
-    form = InfoForm()
-    if form.validate_on_submit():
+    form_database = DatabaseForm()
+    if form_database.validate_on_submit():
         return redirect(
             url_for(
                 "history.database_request",
-                min=str(form.startdate.data) + " " + str(form.starttime.data),
-                max=str(form.enddate.data) + " " + str(form.endtime.data),
+                min=(str(form_database.startdate.data) + " " +
+                     str(form_database.starttime.data)),
+                max=(str(form_database.enddate.data) + " " +
+                     str(form_database.endtime.data)),
             )
         )
-    # form2 = ThresholdForm()
-    # if form2.validate_on_submit():
-    #     current_app.live_client.
-
+    form_threshold = ThresholdForm()
+    if form_threshold.validate_on_submit():
+        current_app.live_client.set_min_threshold(form_threshold.threshold.data)
+        current_app.live_client.set_multiplier(form_threshold.multiplier.data)
+    else:
+        form_threshold.threshold.data = current_app.live_client.min_threshold
+        form_threshold.multiplier.data = current_app.live_client.multiplier
     if min_date is not False and max_date is not False:
-        return render_template("index.html", history="True", form=form)
+        return render_template(
+            "index.html",
+            history="True",
+            form_database=form_database
+        )
 
     return render_template(
         "index.html",
         history="False",
-        form=form,
-        # form2=form2,
-        uptime=(datetime.now() - current_app.start_time).seconds,
+        form_database=form_database,
+        form_threshold=form_threshold,
+        uptime=get_uptime()['uptime'],
     )
 
 
