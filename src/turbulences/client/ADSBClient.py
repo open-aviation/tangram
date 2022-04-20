@@ -90,6 +90,12 @@ class ADSBClient:
     def set_multiplier(self, value: float):
         ADSBClient.multiplier = value
 
+    def get_min_threshold(self) -> float:
+        return ADSBClient.min_threshold
+
+    def get_multiplier(self) -> float:
+        return ADSBClient.multiplier
+
     def turbulence(self, condition: bool):
         if condition:
             self.calculate_traffic()
