@@ -51,7 +51,7 @@ def get_uptime():
 @base_bp.route("/turb.geojson/<path:und>")
 def turbulence(und=None):
     client = current_app.live_client
-    history = request.args.get("history", default=False)
+    history = request.args.get("history", default=0, type=int)
     if history:
         client = current_app.history_client
     features = []
@@ -97,7 +97,7 @@ def turbulence(und=None):
 @base_bp.route("/chart.data/<path:icao>")
 def chart_data(icao):
     client = current_app.live_client
-    history = request.args.get("history", default=False)
+    history = request.args.get("history", default=0, type=int)
     if history:
         client = current_app.history_client
     pro_data = client.pro_data
@@ -164,7 +164,7 @@ def chart_data(icao):
 @base_bp.route("/planes.geojson/<path:und>")
 def fetch_planes_Geojson(und=None) -> dict:
     client = current_app.live_client
-    history = request.args.get("history", default=False)
+    history = request.args.get("history", default=0, type=int)
     if history:
         client = current_app.history_client
     data = client.traffic
@@ -247,15 +247,18 @@ def serve_fonts(filename):
     return send_from_directory("fonts/", filename)
 
 
-@base_bp.route("/static/<path:filename>")
-def serve_static(filename):
-    return send_from_directory("static/", filename)
+# @base_bp.route("/static/<path:filename>")
+# def serve_static(filename):
+#     return send_from_directory("static/", filename)
 
 
 @base_bp.route("/", methods=["GET", "POST"])
 def home_page() -> str:
-    min_date = request.args.get("min", default=False)
-    max_date = request.args.get("max", default=False)
+    client = current_app.live_client
+    history = request.args.get("history", default=0, type=int)
+    if history:
+        client = current_app.history_client
+
     form_database = DatabaseForm()
     if form_database.validate_on_submit():
         return redirect(
@@ -267,26 +270,29 @@ def home_page() -> str:
                      str(form_database.endtime.data)),
             )
         )
+
     form_threshold = ThresholdForm()
     if form_threshold.validate_on_submit():
-        current_app.live_client.set_min_threshold(form_threshold.threshold.data)
-        current_app.live_client.set_multiplier(form_threshold.multiplier.data)
+        client.set_min_threshold(form_threshold.threshold.data)
+        client.set_multiplier(form_threshold.multiplier.data)
     else:
-        form_threshold.threshold.data = current_app.live_client.min_threshold
-        form_threshold.multiplier.data = current_app.live_client.multiplier
-    if min_date is not False and max_date is not False:
+        form_threshold.threshold.data = client.get_min_threshold()
+        form_threshold.multiplier.data = client.get_multiplier()
+
+    if history:
         return render_template(
             "index.html",
-            history="True",
-            form_database=form_database
+            history=1,
+            form_database=form_database,
+            form_threshold=form_threshold
         )
 
     return render_template(
         "index.html",
-        history="False",
+        history=0,
         form_database=form_database,
         form_threshold=form_threshold,
-        uptime=get_uptime()['uptime'],
+        uptime=get_uptime()['uptime']
     )
 
 
@@ -294,7 +300,7 @@ def home_page() -> str:
 @base_bp.route("/heatmap.data/<path:und>")
 def get_heatmap_data(und=None):
     client = current_app.live_client
-    history = request.args.get("history", default=False)
+    history = request.args.get("history", default=0, type=int)
     if history:
         client = current_app.history_client
     data = {}

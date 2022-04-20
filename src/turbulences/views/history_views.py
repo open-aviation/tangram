@@ -40,7 +40,12 @@ def dir_listing(req_path):
             file=abs_path, reference="LFBO"
         )
         date = get_date_file()
-        return redirect(url_for("base.home_page", min=date[0], max=date[1]))
+        return redirect(url_for(
+            "base.home_page",
+            min=date[0],
+            max=date[1],
+            history=1)
+        )
 
     # Show directory contents
     files = os.listdir(abs_path)
@@ -58,4 +63,9 @@ def database_request():
     data = current_app.mongo.db.tracks.find(req)
     current_app.history_client.start_from_database(data)
     date = get_date_file()
-    return redirect(url_for("base.home_page", min=date[0], max=date[1]))
+    return redirect(url_for(
+            "base.home_page",
+            min=date[0],
+            max=date[1],
+            history=1)
+    )

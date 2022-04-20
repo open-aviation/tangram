@@ -37,12 +37,12 @@ lastseen.innerHTML = new Date(max_date).toUTCString();
 $.ajaxSetup({
   async: false
 });
-getPlanes(Date.parse(min_date), history = true);
-var turbu = getTurbulence(und = null, history = true);
+getPlanes(Date.parse(min_date), history = 1);
+var turbu = getTurbulence(und = null, history = 1);
 var sig = getSigmet(Date.parse(min_date), Date.parse(max_date));
 var air = getAirep(Date.parse(min_date), Date.parse(max_date));
 var cleanair = getCat(Date.parse(min_date), Date.parse(max_date));
-getheatmap(und = null, history = true);
+getheatmap(und = null, history = 1);
 $.ajaxSetup({
   async: true
 });
@@ -79,9 +79,9 @@ function createSliderUI() {
       filterairep(air, $(this).val() / 1000);
       filtercat(cleanair, $(this).val() / 1000);
       filterturb(turbu, $(this).val() / 1000);
-      getPlanes($(this).val().toString(), history = true);
+      getPlanes($(this).val().toString(), history = 1);
       // filterheatmap(heatm, $(this).val().toString());
-      getheatmap($(this).val().toString(), history = true);
+      getheatmap($(this).val().toString(), history = 1);
       $(".temporal-legend").text(new Date($(this).val() * 1).toUTCString());
     });
     return slider;

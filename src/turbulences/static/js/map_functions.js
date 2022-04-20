@@ -200,12 +200,12 @@ function getCat(wef = null, und = null) {
   }
   var cat;
   $.getJSON(url, function (data) {
-    cat = data;
     cat_sev.clearLayers();
     cat_mod.clearLayers();
     if ($.isEmptyObject(data)) {
       return
     }
+    cat = data;
     L.geoJson(data, {
       filter: function (feature) {
         return feature.properties.intensityValue == 2
@@ -227,7 +227,7 @@ function getCat(wef = null, und = null) {
   });
   return cat;
 }
-function getPlanes(und = null, history = false) {
+function getPlanes(und = null, history = 0) {
   url = "planes.geojson"
   if (und !== null) {
     url = url + "/" + und
@@ -244,7 +244,7 @@ function getPlanes(und = null, history = false) {
     L.geoJson(data.geojson, myLayerOptions).addTo(planes);
   });
 }
-function getTurbulence(und = null, history = false) {
+function getTurbulence(und = null, history = 0) {
   url = "turb.geojson"
   if (und !== null) {
     url = url + "/" + und
@@ -263,7 +263,7 @@ function getTurbulence(und = null, history = false) {
   });
   return turbu;
 }
-function getheatmap(und = null, history = false) {
+function getheatmap(und = null, history = 0) {
   url = "heatmap.data"
   if (und !== null) {
     url = url + "/" + und
