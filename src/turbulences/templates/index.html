@@ -3,12 +3,12 @@
 <!-- TODO tidy that a bunch -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.1"></script>
-<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+<!-- <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script> -->
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@0.7.7"></script>
 
-<script type="text/javascript" src="{{ url_for('base.serve_static', filename='js/graph.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/graph.js') }}"></script>
 
-<script type="text/javascript" src="{{ url_for('base.serve_static', filename='js/map_functions.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/map_functions.js') }}"></script>
 
 <var id="seconds_uptime" hidden="True">{{uptime}}</var>
 <div class="stats">
@@ -73,12 +73,11 @@
   </form>
 </div>
 <div id="map">
-  {% if history == "True" %}
-  <script type="text/javascript"
-    src="{{ url_for('base.serve_static',filename='js/map_filter_functions.js') }}"></script>
-  <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_history.js') }}"></script>
+  {% if history == 1 %}
+  <script type="text/javascript" src="{{ url_for('static',filename='js/map_filter_functions.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static',filename='js/map_history.js') }}"></script>
   {% else %}
-  <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_live.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static',filename='js/map_live.js') }}"></script>
   {% endif %}
 </div>
 
