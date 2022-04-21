@@ -175,14 +175,20 @@ def fetch_planes_Geojson(und=None) -> dict:
     return geojson_plane(data)
 
 
-@base_bp.route("/sigmet.geojson")
-@base_bp.route("/sigmet.geojson/<path:wef>,<path:und>")
-def fetch_sigmets(wef=None, und=None) -> dict:
+@base_bp.route("/plane.png")
+def favicon():
+    return send_from_directory("./static", "plane.png")
+
+
+@base_bp.route("/context/sigmet")
+def fetch_sigmets() -> dict:
+    wef = request.args.get("wef", default=None, type=int)
+    und = request.args.get("und", default=None, type=int)
     t = pd.Timestamp("now", tz="utc")  # noqa: F841
     if wef is not None:
-        wef = int(wef) / 1000
+        wef = wef / 1000
     if und is not None:
-        und = int(und) / 1000
+        und = und / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")  # noqa: F841
     res = current_app.sigmet.sigmets(wef, und, fir="^(L|E)")
     if res is not None:
@@ -192,18 +198,14 @@ def fetch_sigmets(wef=None, und=None) -> dict:
     return res
 
 
-@base_bp.route("/plane.png")
-def favicon():
-    return send_from_directory("./static", "plane.png")
-
-
-@base_bp.route("/airep.geojson")
-@base_bp.route("/airep.geojson/<path:wef>,<path:und>")
-def airep_geojson(wef=None, und=None):
+@base_bp.route("/context/airep")
+def airep_geojson():
+    wef = request.args.get("wef", default=None, type=int)
+    und = request.args.get("und", default=None, type=int)
     condition = wef is None and und is None
     if not condition:
-        wef = int(wef) / 1000
-        und = int(und) / 1000
+        wef = wef / 1000
+        und = und / 1000
     data = current_app.airep.aireps(wef, und)
     if data is not None:
         if condition:
@@ -215,14 +217,15 @@ def airep_geojson(wef=None, und=None):
     return result
 
 
-@base_bp.route("/cat.geojson")
-@base_bp.route("/cat.geojson/<path:wef>,<path:und>")
-def clear_air_turbulence(wef=None, und=None):
+@base_bp.route("/context/cat")
+def clear_air_turbulence():
+    wef = request.args.get("wef", default=None, type=int)
+    und = request.args.get("und", default=None, type=int)
     t = pd.Timestamp("now", tz="utc")
     if wef is not None:
-        wef = int(wef) / 1000
+        wef = wef / 1000
     if und is not None:
-        und = int(und) / 1000
+        und = und / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")  # noqa: F841
     res = current_app.cat.metsafe(
         "metgate:cat_mf_arpege01_europe",

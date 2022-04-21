@@ -123,9 +123,10 @@ function updateTableSigmet(data) {
   ).length;
 }
 function getSigmet(wef = null, und = null) {
-  var url = "sigmet.geojson";
+  var url = "context/sigmet";
   if ((wef !== null) & (und !== null)) {
-    url = url + "/" + wef + "," + und;
+    const searchParams = new URLSearchParams({ wef: wef, und: und });
+    url = url + '?' + searchParams;
   }
   var sigmet;
   $.getJSON(url, function (data) {
@@ -175,9 +176,10 @@ function updateTableAirep(data) {
   ).length;
 }
 function getAirep(wef = null, und = null) {
-  url = "airep.geojson";
+  url = "context/airep";
   if ((wef !== null) & (und !== null)) {
-    url = url + "/" + wef + "," + und;
+    const searchParams = new URLSearchParams({ wef: wef, und: und });
+    url = url + '?' + searchParams;
   }
   var airep;
   $.getJSON(url, function (data) {
@@ -194,9 +196,10 @@ function getAirep(wef = null, und = null) {
   return airep
 }
 function getCat(wef = null, und = null) {
-  url = "cat.geojson";
+  url = "context/cat";
   if ((wef !== null) & (und !== null)) {
-    url = url + "/" + wef + "," + und;
+    const searchParams = new URLSearchParams({ wef: wef, und: und });
+    url = url + '?' + searchParams;
   }
   var cat;
   $.getJSON(url, function (data) {
