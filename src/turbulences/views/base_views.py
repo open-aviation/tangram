@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+import logging
 
 from flask import (
     Blueprint,
@@ -80,8 +81,9 @@ def turbulence(und=None):
                                 )
                                 features.append(x)
                             except Exception as e:
-                                print(e)
-                                print(flight.icao24)
+                                logging.exception(e)
+                                logging.warning(flight.icao24)
+                                logging.warning(flight.shape.__geo_interface__)
 
     geojson = {
         "type": "FeatureCollection",
@@ -348,8 +350,7 @@ def get_traj(icao: str):
                 )
                 features.append(x)
             except Exception as e:
-                print(e)
-                print(flight.icao24)
+                logging.exception(str(flight.icao24) + ":" + str(e))
 
     geojson = {
         "type": "FeatureCollection",
