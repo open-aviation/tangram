@@ -58,11 +58,7 @@ def main(app_host, app_port, live_disable, client_host,
     app.live_client = ADSBClient()
     app.history_client = ADSBClient()
     if not live_disable:
-        app.live_client.start_live(
-            host=client_host,
-            port=client_port,
-            reference=client_reference,
-        )
+        app.live_client.start_live()
     if not history_disable:
         app.data_path = data_path
         app.config["MONGO_URI"] = mongo_uri
