@@ -1,9 +1,13 @@
 from __future__ import annotations
+import base64
 
 import logging
+import pickle
+from re import L
 import threading
 import time
 
+from pymongo import MongoClient
 from traffic.core.traffic import Traffic
 from traffic.data import ModeS_Decoder
 
@@ -27,6 +31,18 @@ def threshold(df: pd.DataFrame):
         return ADSBClient.min_threshold
 
 
+def longitude_fill(df: pd.DataFrame):
+    return df.longitude.interpolate().bfill().ffill()
+
+
+def latitude_fill(df: pd.DataFrame):
+    return df.latitude.interpolate().bfill().ffill()
+
+
+def altitude_fill(df: pd.DataFrame):
+    return df.altitude.bfill().ffill()
+
+
 def turbulence(df: pd.DataFrame):
     return df.criterion > df.threshold
 
@@ -43,12 +59,27 @@ class ADSBClient:
     min_threshold : float = 150
     multiplier :  float = 1.2
 
-    def __init__(self) -> None:
+    def __init__(self, decoder_address="http://localhost:5050") -> None:
         self.running: bool = False
-        self.decoder: Decoder = Decoder()
+        self.decoder: Decoder = Decoder(decoder_address)
         self._pro_data: Traffic = None
         self._traffic: Traffic = None
         self.thread: threading.Thread = None
+        mongo_client: MongoClient = MongoClient()
+        self.db = mongo_client.get_database(name="adsb")
+
+    def dump_threshold(self, icao24, thres, start, stop):
+        try:
+            self.db.threshold.insert_one(
+                {
+                    "icao24": icao24,
+                    "threshold": thres,
+                    "start": str(start),
+                    "stop": str(stop)
+                }
+            )
+        except Exception as e:
+            print(e)
 
     @property
     def pro_data(self) -> Traffic:
@@ -60,14 +91,17 @@ class ADSBClient:
 
     @property
     def traffic_decoder(self) -> Traffic | None:
-        df = pd.DataFrame.from_dict(
-            self.decoder.traffic_records()["cumul"],
-            orient="columns"
-        )
-        if df.empty:
-            return None
-        df["timestamp"] = pd.to_datetime(df.timestamp, unit="ms", utc=True)
-        return Traffic(df)
+        # df = pd.DataFrame.from_dict(
+        #     self.decoder.traffic_records()["cumul"],
+        #     orient="columns"
+        # )
+        # if df.empty:
+        #     return None
+        # df["timestamp"] = pd.to_datetime(df.timestamp, unit="ms", utc=True)
+        # return Traffic(df)
+        traffic_pickled = self.decoder.traffic_records()["traffic"]
+        t = pickle.loads(base64.b64decode(traffic_pickled.encode()))
+        return t
 
     def resample_traffic(self, traffic: Traffic) -> Traffic:
         return (traffic.longer_than("1T")
@@ -110,6 +144,13 @@ class ADSBClient:
                         # median filters for abnormal points
                         vertical_rate_barometric=3,
                         vertical_rate_inertial=3,  # kernel sizes
+                        latitude=13,
+                        longitude=13
+                    )
+                    .assign(
+                        longitude=longitude_fill,
+                        latitude=latitude_fill,
+                        altitude=altitude_fill
                     )
                     .agg_time(
                         # aggregate data over intervals of one minute
@@ -146,7 +187,7 @@ class ADSBClient:
         while self.running:
             self.calculate_traffic()
             self.turbulence()
-            time.sleep(1)
+            time.sleep(10)
 
     def start_live(self):
         self.running = True

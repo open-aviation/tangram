@@ -3,11 +3,11 @@ import os
 
 from requests import Session
 
-os.environ["no_proxy"] = "127.0.0.1"
+os.environ["no_proxy"] = "localhost"
 
 
 class Decoder():
-    def __init__(self, base_url: str = "http://127.0.0.1:5050") -> None:
+    def __init__(self, base_url: str = "http://localhost:5050") -> None:
         self.session = Session()
         self.base_url = base_url
 
