@@ -29,7 +29,7 @@ def stop_client():
     return {}
 
 
-@base_bp.route("/flight/<path:icao>")
+@base_bp.route("/context/flight/<path:icao>")
 def get_info_flight(icao):
     try:
         data = current_app.network.icao24(icao)
@@ -49,16 +49,22 @@ def get_uptime():
 
 
 @base_bp.route("/turb.geojson")
-@base_bp.route("/turb.geojson/<path:und>")
-def turbulence(und=None):
+def turbulence():
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
     if history:
         client = current_app.history_client
-    features = []
+    und = request.args.get("und", default=None)
+    icao24 = request.args.get("icao24", default=None)
+    callsign = request.args.get("callsign", default=None)
     pro_data = client.pro_data
+    if icao24 not in (None, ''):
+        pro_data = pro_data.query(f"icao24=='{str(icao24)}'")
+    if callsign not in (None, ''):
+        pro_data = pro_data.query(f"callsign=='{str(callsign)}'")
+    features = []
     if pro_data is not None:
-        if und is not None:
+        if und not in (None, ''):
             und = int(und) / 1000
             t = pd.Timestamp(und, unit="s", tz="utc")
             pro_data = pro_data.query(f"timestamp<='{str(t)}'")
@@ -81,9 +87,9 @@ def turbulence(und=None):
                                 )
                                 features.append(x)
                             except Exception as e:
-                                logging.exception(e)
-                                logging.warning(flight.icao24)
-                                logging.warning(flight.shape.__geo_interface__)
+                                logging.exception(
+                                    str(flight.icao24) + ":" + str(e)
+                                )
 
     geojson = {
         "type": "FeatureCollection",
@@ -163,14 +169,23 @@ def chart_data(icao):
 
 
 @base_bp.route("/planes.geojson")
-@base_bp.route("/planes.geojson/<path:und>")
-def fetch_planes_Geojson(und=None) -> dict:
+def fetch_planes_Geojson() -> dict:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
+    und = request.args.get("und", default=None)
+    icao24 = request.args.get("icao24", default=None)
+    callsign = request.args.get("callsign", default=None)
+
     if history:
         client = current_app.history_client
     data = client.traffic
-    if und is not None:
+
+    if icao24 not in (None, ''):
+        data = data.query(f"icao24=='{str(icao24)}'")
+    if callsign not in (None, ''):
+        data = data.query(f"callsign=='{str(callsign)}'")
+
+    if und not in (None, ''):
         und = int(und) / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")
         data = data.query(f"timestamp<='{str(t)}'")

@@ -1,7 +1,7 @@
 var live;
 function getFlight_data(icao) {
   document.getElementById("icao").innerHTML = icao;
-  url = "flight/" + icao
+  url = "context/flight/" + icao
   $.getJSON(url, function (data) {
     flight_id = document.getElementById('flight_id');
     departure = document.getElementById('departure');
@@ -230,15 +230,11 @@ function getCat(wef = null, und = null) {
   });
   return cat;
 }
-function getPlanes(und = null, history = 0) {
+function getPlanes(und = "", history = 0, icao24 = "", callsign = "") {
   url = "planes.geojson"
-  if (und !== null) {
-    url = url + "/" + und
-  }
-  if (history) {
-    const searchParams = new URLSearchParams({ history: history });
-    url = url + '?' + searchParams
-  }
+  const searchParams = new URLSearchParams({ history: history, und: und, icao24: icao24, callsign: callsign });
+  url = url + '?' + searchParams
+
   $.getJSON(url, function (data) {
     var avion = document.getElementById("plane_count");
     avion.innerHTML = data.count;
@@ -247,15 +243,11 @@ function getPlanes(und = null, history = 0) {
     L.geoJson(data.geojson, myLayerOptions).addTo(planes);
   });
 }
-function getTurbulence(und = null, history = 0) {
+function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
   url = "turb.geojson"
-  if (und !== null) {
-    url = url + "/" + und
-  }
-  if (history) {
-    const searchParams = new URLSearchParams({ history: history });
-    url = url + '?' + searchParams
-  }
+  const searchParams = new URLSearchParams({ history: history, und: und, icao24: icao24, callsign: callsign });
+  url = url + '?' + searchParams
+
   var turbu;
   $.getJSON(url, function (data) {
     turbu = data
