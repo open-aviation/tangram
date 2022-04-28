@@ -33,10 +33,10 @@ class Decoder():
     def traffic_records(self):
         try:
             c = self.session.get(
-                self.base_url + "/cumul"
+                self.base_url + "/traffic"
             )
             c.raise_for_status()
         except Exception as e:
             logging.warning(e)
-            return {"cumul": []}
+            return {"traffic": None}
         return c.json()
