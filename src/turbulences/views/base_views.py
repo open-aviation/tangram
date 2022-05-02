@@ -15,6 +15,8 @@ from flask_cors import CORS
 from traffic.core import Traffic
 
 import pandas as pd
+
+from turbulences.client.ADSBClient import ADSBClient
 from .forms import DatabaseForm, ThresholdForm
 
 from .view_functions import geojson_plane
@@ -277,7 +279,7 @@ def home_page() -> str:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
     if history:
-        client = current_app.history_client
+        client: ADSBClient = current_app.history_client
 
     form_database = DatabaseForm()
     if form_database.validate_on_submit():
@@ -295,10 +297,10 @@ def home_page() -> str:
     if form_threshold.validate_on_submit():
         client.set_min_threshold(form_threshold.threshold.data)
         client.set_multiplier(form_threshold.multiplier.data)
+        client.turbulence()
     else:
         form_threshold.threshold.data = client.get_min_threshold()
         form_threshold.multiplier.data = client.get_multiplier()
-
     if history:
         return render_template(
             "index.html",
