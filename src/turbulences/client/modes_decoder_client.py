@@ -37,6 +37,6 @@ class Decoder():
             )
             c.raise_for_status()
         except Exception as e:
-            logging.warning(e)
+            logging.warning("decoder" + str(e))
             return {"traffic": None}
         return c.json()

@@ -1,9 +1,8 @@
 from __future__ import annotations
-import base64
 
+import base64
 import logging
 import pickle
-from re import L
 import threading
 import time
 
@@ -100,8 +99,9 @@ class ADSBClient:
         # df["timestamp"] = pd.to_datetime(df.timestamp, unit="ms", utc=True)
         # return Traffic(df)
         traffic_pickled = self.decoder.traffic_records()["traffic"]
-        t = pickle.loads(base64.b64decode(traffic_pickled.encode()))
-        return t
+        if traffic_pickled is None:
+            return None
+        return pickle.loads(base64.b64decode(traffic_pickled.encode()))
 
     def resample_traffic(self, traffic: Traffic) -> Traffic:
         return (traffic.longer_than("1T")
@@ -179,7 +179,7 @@ class ADSBClient:
                     .query("not anomaly")
                 )
             except Exception as e:
-                logging.warning(e)
+                logging.warning("turbulence" + str(e))
         else:
             self._pro_data = None
 
