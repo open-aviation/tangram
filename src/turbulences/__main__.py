@@ -12,7 +12,8 @@ from flask_cors import CORS
 from flask_pymongo import PyMongo
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from turbulences import config
+from turbulences import config_turb
+from traffic import config
 
 from .client.ADSBClient import ADSBClient
 from .util import assets
@@ -30,32 +31,33 @@ SECRET_KEY = os.urandom(32)
 app.config["SECRET_KEY"] = SECRET_KEY
 
 
-app_host = config.get("application", "host", fallback="0.0.0.0")
-app_port = int(config.get("application", "port", fallback=5000))
-live_disable = int(config.get("radarcape", "disable", fallback=0))
-client_host = config.get("radarcape", "host", fallback="")
-client_port = int(config.get("radarcape", "port", fallback=10005))
-client_reference = config.get("radarcape", "reference", fallback="")
-history_disable = int(config.get("history", "disable", fallback=0))
-data_path = config.get("history", "path_data", fallback="")
-mongo_uri = config.get("history", "database_uri", fallback="")
+app_host = config_turb.get("application", "host", fallback="0.0.0.0")
+app_port = int(config_turb.get("application", "port", fallback=5000))
+live_disable = int(config_turb.get("decoders", "disable", fallback=0))
+history_disable = int(config_turb.get("history", "disable", fallback=0))
+data_path = config_turb.get("history", "path_data", fallback="")
+mongo_uri = config_turb.get("history", "database_uri", fallback="")
 
 
 @click.command()
-@click.option("--app_host", default=app_host)
-@click.option("--app_port", default=app_port)
+@click.option("--source", default='toulouse')
+@click.option("--address", "decoder_address", default=None)
+@click.option("--host", "app_host", default=app_host)
+@click.option("--port", "app_port", default=app_port)
 @click.option("--live_disable", default=live_disable)
-@click.option("--client_host", default=client_host)
-@click.option("--client_port", default=client_port)
-@click.option("--client_reference", default=client_reference)
 @click.option("--history_disable", default=history_disable)
 @click.option("--data_path", default=data_path)
 @click.option("--mongo_uri", default=mongo_uri)
-def main(app_host, app_port, live_disable, client_host,
-         client_port, client_reference, history_disable,
-         data_path, mongo_uri):
+def main(app_host, app_port, live_disable, history_disable,
+         data_path, mongo_uri, source, decoder_address):
+    if decoder_address is None:
+        decoder_address = config_turb.get(
+            'decoders',
+            source,
+            fallback=""
+        )
     app.start_time = datetime.now()
-    app.live_client = ADSBClient()
+    app.live_client = ADSBClient(decoder_address=decoder_address)
     app.history_client = ADSBClient()
     if not live_disable:
         app.live_client.start_live()
