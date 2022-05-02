@@ -1,4 +1,4 @@
-var live;
+var chart_history;
 function getFlight_data(icao) {
   document.getElementById("icao").innerHTML = icao;
   url = "context/flight/" + icao
@@ -22,7 +22,7 @@ function getFlight_data(icao) {
 
 function whenClicked(e) {
   var icao = (e.target.feature.properties.icao === undefined) ? (e.target.feature.geometry.properties.icao) : e.target.feature.properties.icao
-  draw_chart(icao, live);
+  draw_chart(icao, chart_history);
   getFlight_data(icao);
 }
 function onEachPlane(feature, layer) {

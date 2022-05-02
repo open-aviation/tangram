@@ -1,15 +1,13 @@
 var myChart;
-async function get_data(icao, live) {
+async function get_data(icao, chart_history) {
   url = "chart.data/" + icao
-  if (!live) {
-    const searchParams = new URLSearchParams({ history: !live });
-    url = url + '?' + searchParams
-  }
+  const searchParams = new URLSearchParams({ history: chart_history });
+  url = url + '?' + searchParams
   var a = await $.getJSON(url);
   return a;
 }
-async function draw_chart(icao, live = true) {
-  var result = await get_data(icao, live);
+async function draw_chart(icao, chart_history = 0) {
+  var result = await get_data(icao, chart_history);
   var data = {
     datasets: [
       {

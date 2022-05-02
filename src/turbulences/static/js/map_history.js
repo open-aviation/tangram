@@ -6,7 +6,7 @@ var cat_mod = L.layerGroup();
 var cat_sev = L.layerGroup();
 var heatmapLayer = L.layerGroup();
 
-live = false;
+chart_history = 1;
 
 var map = L.map("map", { layers: [planes, turbulences] }).setView([43.57155, 1.47165], 7);
 
@@ -38,7 +38,7 @@ $.ajaxSetup({
   async: false
 });
 getPlanes(Date.parse(min_date), history = 1);
-var turbu = getTurbulence(und = null, history = 1);
+var turbu = getTurbulence(und = "", history = 1);
 var sig = getSigmet(Date.parse(min_date), Date.parse(max_date));
 var air = getAirep(Date.parse(min_date), Date.parse(max_date));
 var cleanair = getCat(Date.parse(min_date), Date.parse(max_date));
