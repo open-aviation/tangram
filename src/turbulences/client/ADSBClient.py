@@ -32,15 +32,15 @@ def threshold(df: pd.DataFrame) -> float:
         return ADSBClient.min_threshold
 
 
-def longitude_fill(df: pd.DataFrame) -> pd.Series | None:
+def longitude_fill(df: pd.DataFrame) -> pd.Series:
     return df.longitude.interpolate().bfill().ffill()
 
 
-def latitude_fill(df: pd.DataFrame) -> pd.Series | None:
+def latitude_fill(df: pd.DataFrame) -> pd.Series:
     return df.latitude.interpolate().bfill().ffill()
 
 
-def altitude_fill(df: pd.DataFrame) -> pd.Series | None:
+def altitude_fill(df: pd.DataFrame) -> pd.Series:
     return df.altitude.bfill().ffill()
 
 

@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 import logging
-from typing import Any
+from typing import Any, Union
 
 from flask import (
     Blueprint,
@@ -34,7 +34,7 @@ def stop_client():
 
 
 @base_bp.route("/context/flight/<path:icao>")
-def get_info_flight(icao) -> dict | pd.GeoDataFrame:
+def get_info_flight(icao):
     try:
         data = current_app.network.icao24(icao)
     except Exception:
@@ -107,7 +107,7 @@ def turbulence() -> dict[str, Any]:
 
 
 @base_bp.route("/chart.data/<path:icao>")
-def chart_data(icao) -> str | dict:
+def chart_data(icao) -> Union[str, dict]:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
     if history:

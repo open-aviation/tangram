@@ -29,7 +29,7 @@ def get_date_file() -> tuple[Timestamp, Timestamp]:
 
 @history_bp.route("/data", defaults={"req_path": ""})
 @history_bp.route("/data/<path:req_path>")
-def dir_listing(req_path) -> str | Response:
+def dir_listing(req_path):
     BASE_DIR = os.path.join(current_app.data_path)
 
     # Joining the base and the requested path
