@@ -7,6 +7,8 @@ import threading
 import time
 
 from pymongo import MongoClient
+from pymongo.database import Database
+from pymongo.cursor import Cursor
 from traffic.core.traffic import Traffic
 from traffic.data import ModeS_Decoder
 
@@ -16,13 +18,13 @@ import pandas as pd
 from .modes_decoder_client import Decoder
 
 
-def crit(df):
+def crit(df: pd.DataFrame) -> pd.Series:
     return (
         df.vertical_rate_barometric_std - df.vertical_rate_inertial_std
     ).abs()
 
 
-def threshold(df: pd.DataFrame):
+def threshold(df: pd.DataFrame) -> float:
     t = np.mean(df.criterion) + ADSBClient.multiplier * np.std(df.criterion)
     if t > ADSBClient.min_threshold:
         return t
@@ -30,23 +32,23 @@ def threshold(df: pd.DataFrame):
         return ADSBClient.min_threshold
 
 
-def longitude_fill(df: pd.DataFrame):
+def longitude_fill(df: pd.DataFrame) -> pd.Series | None:
     return df.longitude.interpolate().bfill().ffill()
 
 
-def latitude_fill(df: pd.DataFrame):
+def latitude_fill(df: pd.DataFrame) -> pd.Series | None:
     return df.latitude.interpolate().bfill().ffill()
 
 
-def altitude_fill(df: pd.DataFrame):
+def altitude_fill(df: pd.DataFrame) -> pd.Series | None:
     return df.altitude.bfill().ffill()
 
 
-def turbulence(df: pd.DataFrame):
+def turbulence(df: pd.DataFrame) -> pd.Series:
     return df.criterion > df.threshold
 
 
-def anomaly(df):
+def anomaly(df) -> pd.Series:
     lat_1 = df.latitude > (np.mean(df.latitude) + 3 * np.std(df.latitude))
     lat_2 = df.latitude < (np.mean(df.latitude) - 3 * np.std(df.latitude))
     lon_3 = df.longitude > (np.mean(df.longitude) + 3 * np.std(df.longitude))
@@ -58,16 +60,16 @@ class ADSBClient:
     min_threshold : float = 150
     multiplier :  float = 1.2
 
-    def __init__(self, decoder_address="http://localhost:5050") -> None:
+    def __init__(self, decoder_address: str = "http://localhost:5050") -> None:
         self.running: bool = False
         self.decoder: Decoder = Decoder(decoder_address)
         self._pro_data: Traffic = None
         self._traffic: Traffic = None
         self.thread: threading.Thread = None
         mongo_client: MongoClient = MongoClient()
-        self.db = mongo_client.get_database(name="adsb")
+        self.db: Database = mongo_client.get_database(name="adsb")
 
-    def dump_threshold(self, icao24, thres, start, stop):
+    def dump_threshold(self, icao24: str , thres: float, start, stop):
         try:
             self.db.threshold.insert_one(
                 {
@@ -78,7 +80,7 @@ class ADSBClient:
                 }
             )
         except Exception as e:
-            print(e)
+            logging.warning("dump" + str(e))
 
     @property
     def pro_data(self) -> Traffic:
@@ -90,14 +92,6 @@ class ADSBClient:
 
     @property
     def traffic_decoder(self) -> Traffic | None:
-        # df = pd.DataFrame.from_dict(
-        #     self.decoder.traffic_records()["cumul"],
-        #     orient="columns"
-        # )
-        # if df.empty:
-        #     return None
-        # df["timestamp"] = pd.to_datetime(df.timestamp, unit="ms", utc=True)
-        # return Traffic(df)
         traffic_pickled = self.decoder.traffic_records()["traffic"]
         if traffic_pickled is None:
             return None
@@ -115,17 +109,17 @@ class ADSBClient:
                     },
                 ).eval(max_workers=4))
 
-    def calculate_traffic(self):
+    def calculate_traffic(self) -> None:
         traffic: Traffic = self.traffic_decoder
         if traffic is None:
             self._traffic = None
             return
         self._traffic = self.resample_traffic(traffic)
 
-    def set_min_threshold(self, value: float):
+    def set_min_threshold(self, value: float) -> None:
         ADSBClient.min_threshold = value
 
-    def set_multiplier(self, value: float):
+    def set_multiplier(self, value: float) -> None:
         ADSBClient.multiplier = value
 
     def get_min_threshold(self) -> float:
@@ -134,7 +128,7 @@ class ADSBClient:
     def get_multiplier(self) -> float:
         return ADSBClient.multiplier
 
-    def turbulence(self):
+    def turbulence(self) -> None:
         if self._traffic is not None:
             try:
                 self._pro_data = (
@@ -183,13 +177,13 @@ class ADSBClient:
         else:
             self._pro_data = None
 
-    def calculate_live_turbulence(self):
+    def calculate_live_turbulence(self) -> None:
         while self.running:
             self.calculate_traffic()
             self.turbulence()
             time.sleep(10)
 
-    def start_live(self):
+    def start_live(self) -> None:
         self.running = True
         self.thread = threading.Thread(
             target=self.calculate_live_turbulence,
@@ -197,7 +191,7 @@ class ADSBClient:
         )
         self.thread.start()
 
-    def start_from_file(self, file: str, reference: str):
+    def start_from_file(self, file: str, reference: str) -> None:
         self.clear()
         if file.endswith(".csv"):
             file_decoder = ModeS_Decoder.from_file(
@@ -209,7 +203,7 @@ class ADSBClient:
             self._traffic = Traffic.from_file(file)
             self._pro_data = self._traffic
 
-    def start_from_database(self, data):
+    def start_from_database(self, data: Cursor) -> None:
         self.clear()
         df = pd.concat(
             [
@@ -223,10 +217,10 @@ class ADSBClient:
         self._traffic = self.resample_traffic(Traffic(df))
         self.turbulence()
 
-    def stop(self):
+    def stop(self) -> None:
         self.running = False
         self.thread.join()
 
-    def clear(self):
+    def clear(self) -> None:
         self._traffic = None
         self._pro_data = None

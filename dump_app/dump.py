@@ -59,7 +59,7 @@ class FlightDumper(ModeS_Decoder):
     def on_new_aircraft(self, icao24: str) -> None:
         logging.info(f"new aircraft {icao24}")
 
-    def dump_data(self, icao):
+    def dump_data(self, icao) -> None:
 
         cumul = self.acs[icao].cumul
         if len(cumul) == 0:

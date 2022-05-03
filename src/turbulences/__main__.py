@@ -13,7 +13,6 @@ from flask_pymongo import PyMongo
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from turbulences import config_turb
-from traffic import config
 
 from .client.ADSBClient import ADSBClient
 from .util import assets

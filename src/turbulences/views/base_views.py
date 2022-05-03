@@ -1,9 +1,11 @@
 import json
 from datetime import datetime
 import logging
+from typing import Any
 
 from flask import (
     Blueprint,
+    Response,
     current_app,
     redirect,
     render_template,
@@ -32,7 +34,7 @@ def stop_client():
 
 
 @base_bp.route("/context/flight/<path:icao>")
-def get_info_flight(icao):
+def get_info_flight(icao) -> dict | pd.GeoDataFrame:
     try:
         data = current_app.network.icao24(icao)
     except Exception:
@@ -46,12 +48,12 @@ def format_datetime(value, format="medium"):
 
 
 @base_bp.route("/uptime")
-def get_uptime():
+def get_uptime() -> dict[str, Any]:
     return {"uptime": (datetime.now() - current_app.start_time).total_seconds()}
 
 
 @base_bp.route("/turb.geojson")
-def turbulence():
+def turbulence() -> dict[str, Any]:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
     if history:
@@ -105,7 +107,7 @@ def turbulence():
 
 
 @base_bp.route("/chart.data/<path:icao>")
-def chart_data(icao):
+def chart_data(icao) -> str | dict:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
     if history:
@@ -195,7 +197,7 @@ def fetch_planes_Geojson() -> dict:
 
 
 @base_bp.route("/plane.png")
-def favicon():
+def favicon() -> Response:
     return send_from_directory("./static", "plane.png")
 
 
@@ -218,7 +220,7 @@ def fetch_sigmets() -> dict:
 
 
 @base_bp.route("/context/airep")
-def airep_geojson():
+def airep_geojson() -> dict:
     wef = request.args.get("wef", default=None, type=int)
     und = request.args.get("und", default=None, type=int)
     condition = wef is None and und is None
@@ -237,7 +239,7 @@ def airep_geojson():
 
 
 @base_bp.route("/context/cat")
-def clear_air_turbulence():
+def clear_air_turbulence() -> dict:
     wef = request.args.get("wef", default=None, type=int)
     und = request.args.get("und", default=None, type=int)
     t = pd.Timestamp("now", tz="utc")
@@ -265,7 +267,7 @@ def clear_air_turbulence():
 
 
 @base_bp.route("/fonts/<path:filename>")
-def serve_fonts(filename):
+def serve_fonts(filename) -> Response:
     return send_from_directory("fonts/", filename)
 
 
