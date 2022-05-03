@@ -1,12 +1,16 @@
 from __future__ import annotations
+import base64
 
 import logging
 from datetime import timedelta
 from pathlib import Path
+import pickle
+import threading
 from typing import TYPE_CHECKING
 
 import click
 from atmlab.network import Network
+from flask import Flask, current_app
 from pymongo import MongoClient
 from traffic import config
 from traffic.data import ModeS_Decoder
@@ -36,7 +40,7 @@ def clean_callsign(cumul):
     return cumul, callsign
 
 
-class FlightDumper(ModeS_Decoder):
+class TrafficDecoder(ModeS_Decoder):
     def __init__(
         self,
         reference: None | str | Airport | tuple[float, float] = None,
@@ -104,12 +108,44 @@ class FlightDumper(ModeS_Decoder):
     show_default=True,
     help="Filename pattern describing where to dump raw data",
 )
+@click.command()
+@click.argument("source")
+@click.option(
+    "-r",
+    "--reference",
+    "initial_reference",
+    help="Reference position (airport code)",
+)
+@click.option(
+    "-f",
+    "--filename",
+    default="~/ADSB_EHS_RAW_%Y%m%d.csv",
+    show_default=True,
+    help="Filename pattern describing where to dump raw data",
+)
+@click.option(
+    "--host",
+    "serve_host",
+    show_default=True,
+    default="127.0.0.1",
+    help="host address where to serve decoded information",
+)
+@click.option(
+    "--port",
+    "serve_port",
+    show_default=True,
+    default=5050,
+    type=int,
+    help="port to serve decoded information",
+)
 @click.option("-v", "--verbose", count=True, help="Verbosity level")
 def main(
     source: str,
     filename: str | Path = "~/ADSB_EHS_RAW_%Y%m%d_tcp.csv",
     decode_uncertainty: bool = False,
     verbose: int = 0,
+    serve_host: str | None = "127.0.0.1",
+    serve_port: int | None = 5050,
 ) -> None:
 
     logger = logging.getLogger()
@@ -119,19 +155,44 @@ def main(
         logger.setLevel(logging.DEBUG)
 
     dump_file = Path(filename).with_suffix(".csv").as_posix()
-
     address = config.get("decoders", source)
     host_port, reference = address.split("/")
     host, port = host_port.split(":")
-    decoder = FlightDumper.from_address(
+    app.decoder = TrafficDecoder.from_address(
         host=host,
         port=int(port),
         reference=reference,
         file_pattern=dump_file,
         uncertainty=decode_uncertainty,
     )
-    decoder.decode_thread.join()
-    decoder.timer_thread.join()
+    flask_thread = threading.Thread(
+        target=app.run,
+        daemon=True,
+        kwargs=dict(
+            host=serve_host,
+            port=serve_port,
+            threaded=True,
+            debug=False,
+            use_reloader=False,
+        ),
+    )
+    flask_thread.start()
+
+
+app = Flask(__name__)
+
+
+@app.route("/")
+def home() -> dict[str, int]:
+    d = dict(current_app.decoder.acs)
+    return dict((key, len(aircraft.cumul)) for (key, aircraft) in d.items())
+
+
+@app.route("/traffic")
+def get_all() -> dict[str, str]:
+    t = current_app.decoder.traffic
+    pickled_traffic = base64.b64encode(pickle.dumps(t)).decode('utf-8')
+    return {"traffic": pickled_traffic}
 
 
 if __name__ == "__main__":
