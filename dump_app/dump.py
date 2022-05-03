@@ -1,10 +1,20 @@
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
+from pathlib import Path
+from typing import TYPE_CHECKING
 
+import click
 from atmlab.network import Network
 from pymongo import MongoClient
+from traffic import config
 from traffic.data import ModeS_Decoder
+
+import pandas as pd
+
+if TYPE_CHECKING:
+    from traffic.core.structure import Airport
 
 
 def clean_callsign(cumul):
@@ -26,18 +36,28 @@ def clean_callsign(cumul):
     return cumul, callsign
 
 
-class TestClient(ModeS_Decoder):
-    @classmethod
-    def start_live(cls, host: str, port: int, reference: str):
-        decoder = cls.from_address(host, port, reference)
-        decoder.launch_te()
-        return decoder
-
-    def launch_te(self):
+class FlightDumper(ModeS_Decoder):
+    def __init__(
+        self,
+        reference: None | str | Airport | tuple[float, float] = None,
+        database_name: str = "adsb"
+    ) -> None:
+        super().__init__(
+            reference,
+            expire_frequency=pd.Timedelta("1 minute"),
+            expire_threshold=pd.Timedelta("10 minutes"),
+        )
         client = MongoClient()
         self.network = Network()
+        self.db = client.get_database(name=database_name)
 
-        self.db = client.get_database(name="adsb")
+    def on_expire_aircraft(self, icao: str) -> None:
+        logging.info(f"expire aircraft {icao}")
+        self.dump_data(icao)
+        return super().on_expire_aircraft(icao)
+
+    def on_new_aircraft(self, icao24: str) -> None:
+        logging.info(f"new aircraft {icao24}")
 
     def dump_data(self, icao):
 
@@ -54,7 +74,7 @@ class TestClient(ModeS_Decoder):
         try:
             flight_data = self.network.icao24(icao)["flightId"]
             callsign1 = flight_data["keys"]["aircraftId"]
-        except Exception as e:
+        except Exception:
             flight_data = {}
             callsign1 = None
 
@@ -72,8 +92,47 @@ class TestClient(ModeS_Decoder):
         try:
             self.db.tracks.insert_one(dum)
         except Exception as e:
-            print(e)
+            logging.warning(e)
 
-    def clean_aircraft(self, icao):
-        self.dump_data(icao)
-        super().clean_aircraft(icao)
+
+@click.command()
+@click.argument("source")
+@click.option(
+    "-f",
+    "--filename",
+    default="~/ADSB_EHS_RAW_%Y%m%d.csv",
+    show_default=True,
+    help="Filename pattern describing where to dump raw data",
+)
+@click.option("-v", "--verbose", count=True, help="Verbosity level")
+def main(
+    source: str,
+    filename: str | Path = "~/ADSB_EHS_RAW_%Y%m%d_tcp.csv",
+    decode_uncertainty: bool = False,
+    verbose: int = 0,
+) -> None:
+
+    logger = logging.getLogger()
+    if verbose == 1:
+        logger.setLevel(logging.INFO)
+    elif verbose > 1:
+        logger.setLevel(logging.DEBUG)
+
+    dump_file = Path(filename).with_suffix(".csv").as_posix()
+
+    address = config.get("decoders", source)
+    host_port, reference = address.split("/")
+    host, port = host_port.split(":")
+    decoder = FlightDumper.from_address(
+        host=host,
+        port=int(port),
+        reference=reference,
+        file_pattern=dump_file,
+        uncertainty=decode_uncertainty,
+    )
+    decoder.decode_thread.join()
+    decoder.timer_thread.join()
+
+
+if __name__ == "__main__":
+    main()
