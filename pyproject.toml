@@ -7,6 +7,7 @@ license = "MIT"
 
 [tool.poetry.scripts]
 turb = 'turbulences.__main__:main'
+decode = 'turbulences.decoder_app.modes_decoder:main'
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.10"
