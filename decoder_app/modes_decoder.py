@@ -108,21 +108,6 @@ class TrafficDecoder(ModeS_Decoder):
     show_default=True,
     help="Filename pattern describing where to dump raw data",
 )
-@click.command()
-@click.argument("source")
-@click.option(
-    "-r",
-    "--reference",
-    "initial_reference",
-    help="Reference position (airport code)",
-)
-@click.option(
-    "-f",
-    "--filename",
-    default="~/ADSB_EHS_RAW_%Y%m%d.csv",
-    show_default=True,
-    help="Filename pattern describing where to dump raw data",
-)
 @click.option(
     "--host",
     "serve_host",
