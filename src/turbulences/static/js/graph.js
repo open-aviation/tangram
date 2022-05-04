@@ -26,7 +26,7 @@ async function draw_chart(icao, chart_history = 0) {
         pointRadius: 1,
       },
       {
-        type: "scatter",
+        type: "line",
         label: "vsb",
         data: result[2],
         fill: false,
@@ -58,6 +58,24 @@ async function draw_chart(icao, chart_history = 0) {
         pointRadius: 1,
         hidden: true,
       },
+      {
+        type: "line",
+        label: "vsi_std",
+        data: result[6],
+        fill: false,
+        borderColor: "rgb(255, 204, 229)",
+        pointRadius: 1,
+        hidden: true,
+      },
+      {
+        type: "line",
+        label: "vsb_std",
+        data: result[7],
+        fill: false,
+        borderColor: "rgb(153, 255, 255)",
+        pointRadius: 1,
+        hidden: true,
+      }
     ],
   };
   var dragOptions = {

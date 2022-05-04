@@ -141,13 +141,21 @@ def chart_data(icao) -> Union[str, dict]:
         resultats.to_dict()["timestamp"].values(),
         resultats.to_dict()["altitude"].values(),
     )
+    vsi_std = zip(
+        resultats.to_dict()["timestamp"].values(),
+        resultats.to_dict()["vertical_rate_inertial_std"].values(),
+    )
+    vsb_std = zip(
+        resultats.to_dict()["timestamp"].values(),
+        resultats.to_dict()["vertical_rate_barometric_std"].values(),
+    )
     data_turb = list(
         {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in turb
     )
-    data_vsi_std = list(
+    data_vsi = list(
         {"t": timestamp.timestamp() * 1000, "y": str(t)} for timestamp, t in vsi
     )
-    data_vsb_std = list(
+    data_vsb = list(
         {"t": timestamp.timestamp() * 1000, "y": str(t)} for timestamp, t in vsb
     )
     data_criterion = list(
@@ -160,14 +168,24 @@ def chart_data(icao) -> Union[str, dict]:
         {"t": timestamp.timestamp() * 1000, "y": str(t)}
         for timestamp, t in altitude
     )
+    data_vsi_std = list(
+        {"t": timestamp.timestamp() * 1000, "y": str(t)}
+        for timestamp, t in vsi_std
+    )
+    data_vsb_std = list(
+        {"t": timestamp.timestamp() * 1000, "y": str(t)}
+        for timestamp, t in vsb_std
+    )
     return json.dumps(
         [
             data_turb,
-            data_vsi_std,
-            data_vsb_std,
+            data_vsi,
+            data_vsb,
             data_criterion,
             data_threshold,
             data_altitude,
+            data_vsi_std,
+            data_vsb_std
         ]
     )
 
