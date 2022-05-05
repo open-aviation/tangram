@@ -21,7 +21,7 @@ from .modes_decoder_client import Decoder
 def crit(df: pd.DataFrame) -> pd.Series:
     return (
         df.vertical_rate_barometric_std - df.vertical_rate_inertial_std
-    ).abs()
+    ).abs().where(df.vertical_rate_barometric_count > 15, None)
 
 
 def threshold(df: pd.DataFrame) -> float:
@@ -46,6 +46,10 @@ def altitude_fill(df: pd.DataFrame) -> pd.Series:
 
 def turbulence(df: pd.DataFrame) -> pd.Series:
     return df.criterion > df.threshold
+
+
+def expire_turb(df: pd.DataFrame) -> pd.Series:
+    return (df.timestamp + pd.Timedelta("15T")).where(df.turbulence, None)
 
 
 def anomaly(df) -> pd.Series:
@@ -163,7 +167,6 @@ class ADSBClient:
                         latitude="mean",
                         longitude="mean",
                     )
-                    .query("vertical_rate_barometric_count > 15")
                     .assign(
                         # we define a criterion based on the
                         # difference between two standard deviations
