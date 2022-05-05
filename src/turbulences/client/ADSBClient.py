@@ -57,8 +57,8 @@ def anomaly(df) -> pd.Series:
 
 
 class ADSBClient:
-    min_threshold : float = 150
-    multiplier :  float = 1.2
+    min_threshold: float = 150
+    multiplier: float = 1.2
 
     def __init__(self, decoder_address: str = "http://localhost:5050") -> None:
         self.running: bool = False
@@ -69,14 +69,14 @@ class ADSBClient:
         mongo_client: MongoClient = MongoClient()
         self.db: Database = mongo_client.get_database(name="adsb")
 
-    def dump_threshold(self, icao24: str , thres: float, start, stop):
+    def dump_threshold(self, icao24: str, thres: float, start, stop):
         try:
             self.db.threshold.insert_one(
                 {
                     "icao24": icao24,
                     "threshold": thres,
                     "start": str(start),
-                    "stop": str(stop)
+                    "stop": str(stop),
                 }
             )
         except Exception as e:
@@ -98,16 +98,19 @@ class ADSBClient:
         return pickle.loads(base64.b64decode(traffic_pickled.encode()))
 
     def resample_traffic(self, traffic: Traffic) -> Traffic:
-        return (traffic.longer_than("1T")
-                .resample(
-                    "1s",
-                    how={
-                        "interpolate": set(traffic.data.columns).union(
-                            {"track_unwrapped", "heading_unwrapped"}
-                        )
-                        - {"vertical_rate_barometric", "vertical_rate_inertial"}
-                    },
-                ).eval(max_workers=4))
+        return (
+            traffic.longer_than("1T")
+            .resample(
+                "1s",
+                how={
+                    "interpolate": set(traffic.data.columns).union(
+                        {"track_unwrapped", "heading_unwrapped"}
+                    )
+                    - {"vertical_rate_barometric", "vertical_rate_inertial"}
+                },
+            )
+            .eval(max_workers=4)
+        )
 
     def calculate_traffic(self) -> None:
         traffic: Traffic = self.traffic_decoder
@@ -139,23 +142,24 @@ class ADSBClient:
                         vertical_rate_barometric=3,
                         vertical_rate_inertial=3,  # kernel sizes
                         latitude=13,
-                        longitude=13
+                        longitude=13,
                     )
                     .assign(
                         longitude=longitude_fill,
                         latitude=latitude_fill,
-                        altitude=altitude_fill
+                        altitude=altitude_fill,
                     )
                     .agg_time(
                         # aggregate data over intervals of one minute
                         "1 min",
                         # compute the std of the data
                         vertical_rate_inertial="std",
-                        vertical_rate_barometric="std",
+                        vertical_rate_barometric=["std", "count"],
                         # reduce one minute to one point
                         latitude="mean",
                         longitude="mean",
                     )
+                    .query("vertical_rate_barometric_count > 15")
                     .assign(
                         # we define a criterion based on the
                         # difference between two standard deviations
