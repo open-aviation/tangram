@@ -18,7 +18,7 @@ from .client.ADSBClient import ADSBClient
 from .util import assets
 from .views import base_views, history_views
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None)
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_prefix=1)
 

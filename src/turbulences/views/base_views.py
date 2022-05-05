@@ -289,9 +289,11 @@ def serve_fonts(filename) -> Response:
     return send_from_directory("fonts/", filename)
 
 
-# @base_bp.route("/static/<path:filename>")
-# def serve_static(filename):
-#     return send_from_directory("static/", filename)
+@base_bp.route("/static/<path:filename>")
+def serve_static(filename):
+    response = send_from_directory("static/", filename)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 
 @base_bp.route("/", methods=["GET", "POST"])
