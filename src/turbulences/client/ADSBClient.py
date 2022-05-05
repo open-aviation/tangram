@@ -113,7 +113,11 @@ class ADSBClient:
         )
 
     def calculate_traffic(self) -> None:
-        traffic: Traffic = self.traffic_decoder
+        try:
+            traffic: Traffic = self.traffic_decoder
+        except Exception as e:
+            logging.warnning(e)
+            traffic = None
         if traffic is None:
             self._traffic = None
             return
