@@ -1,59 +1,65 @@
 from __future__ import annotations
-import base64
 
+import base64
 import logging
-from datetime import timedelta
-from pathlib import Path
 import pickle
 import threading
+from datetime import timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
 from atmlab.network import Network
 from flask import Flask, current_app
 from pymongo import MongoClient
-from traffic import config
+from traffic.core import Flight
 from traffic.data import ModeS_Decoder
 
 import pandas as pd
+from turbulences import config_decoder
 
 if TYPE_CHECKING:
     from traffic.core.structure import Airport
 
+mongo_uri = config_decoder.get(
+    "database",
+    "database_uri",
+    fallback="mongodb://localhost:27017/adsb"
+)
+expire_frequency = pd.Timedelta(
+    config_decoder.get("parameters", "expire_frequency", fallback="1 minute")
+)
+expire_threshold = pd.Timedelta(
+    config_decoder.get("parameters", "expire_threshold", fallback="1 minute")
+)
+
 
 def clean_callsign(cumul):
-    callsigns = set()
     i = 0
     while i < len(cumul):
-        if "callsign" in cumul[i]:
-            callsign = cumul[i]["callsign"]
-            if callsign in callsigns:
-                del cumul[i]
-                i -= 1
-            else:
-                callsigns.add(callsign)
+        if cumul[i].keys() == {'timestamp', 'icao24', 'callsign'}:
+            del cumul[i]
+            i -= 1
         i += 1
-    if len(callsigns) == 0:
-        callsign = None
-    else:
-        callsign = callsigns.pop()
-    return cumul, callsign
+    return cumul
 
 
 class TrafficDecoder(ModeS_Decoder):
     def __init__(
         self,
         reference: None | str | Airport | tuple[float, float] = None,
-        database_name: str = "adsb"
+        database_uri: str = mongo_uri,
+        expire_frequency: pd.Timedelta = expire_frequency,
+        expire_threshold: pd.Timedelta = expire_threshold,
     ) -> None:
         super().__init__(
             reference,
-            expire_frequency=pd.Timedelta("1 minute"),
-            expire_threshold=pd.Timedelta("10 minutes"),
+            expire_frequency=expire_frequency,
+            expire_threshold=expire_threshold,
         )
-        client = MongoClient()
+        client = MongoClient(host=database_uri)
         self.network = Network()
-        self.db = client.get_database(name=database_name)
+        self.db = client.get_database()
 
     def on_expire_aircraft(self, icao: str) -> None:
         logging.info(f"expire aircraft {icao}")
@@ -64,32 +70,37 @@ class TrafficDecoder(ModeS_Decoder):
         logging.info(f"new aircraft {icao24}")
 
     def dump_data(self, icao) -> None:
-
-        cumul = self.acs[icao].cumul
-        if len(cumul) == 0:
+        flight: Flight = self[icao]
+        if flight is None:
             return
-        start = self.acs[icao].cumul[0]["timestamp"]
-        stop = self.acs[icao].cumul[-1]["timestamp"]
+        start = flight.start
+        stop = flight.stop
 
         if stop - start < timedelta(minutes=1):
             return
 
-        cumul, callsign2 = clean_callsign(cumul)
-        try:
-            flight_data = self.network.icao24(icao)["flightId"]
-            callsign1 = flight_data["keys"]["aircraftId"]
-        except Exception:
-            flight_data = {}
-            callsign1 = None
-
-        callsign = callsign1 if callsign2 is None else callsign2
+        callsign = flight.callsign
         if callsign is None:
             return
+
+        try:
+            flight_data = self.network.icao24(icao)["flightId"]
+        except Exception:
+            flight_data = {}
+
+        data = flight.data
+        cumul = [
+            row.dropna().to_dict()
+            for index, row in data.iterrows()
+        ]
+        cumul = clean_callsign(cumul)
+        count = len(cumul)
         dum = {
             "icao": icao,
             "callsign": callsign,
             "start": str(start),
             "stop": str(stop),
+            "count": count,
             "traj": cumul,
             "flight_data": flight_data,
         }
@@ -99,12 +110,21 @@ class TrafficDecoder(ModeS_Decoder):
             logging.warning(e)
 
 
+app_host = config_decoder.get("application", "host", fallback="127.0.0.1")
+app_port = int(config_decoder.get("application", "port", fallback=5050))
+data_path = config_decoder.get(
+    "file",
+    "path_data",
+    fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
+)
+
+
 @click.command()
 @click.argument("source")
 @click.option(
     "-f",
     "--filename",
-    default="~/ADSB_EHS_RAW_%Y%m%d.csv",
+    default=data_path,
     show_default=True,
     help="Filename pattern describing where to dump raw data",
 )
@@ -112,20 +132,20 @@ class TrafficDecoder(ModeS_Decoder):
     "--host",
     "serve_host",
     show_default=True,
-    default="127.0.0.1",
+    default=app_host,
     help="host address where to serve decoded information",
 )
 @click.option(
     "--port",
     "serve_port",
     show_default=True,
-    default=5050,
+    default=app_port,
     type=int,
     help="port to serve decoded information",
 )
 @click.option("-v", "--verbose", count=True, help="Verbosity level")
 def main(
-    source: str,
+    source: str = 'toulouse',
     filename: str | Path = "~/ADSB_EHS_RAW_%Y%m%d_tcp.csv",
     decode_uncertainty: bool = False,
     verbose: int = 0,
@@ -140,7 +160,7 @@ def main(
         logger.setLevel(logging.DEBUG)
 
     dump_file = Path(filename).with_suffix(".csv").as_posix()
-    address = config.get("decoders", source)
+    address = config_decoder.get("decoders", source)
     host_port, reference = address.split("/")
     host, port = host_port.split(":")
     app.decoder = TrafficDecoder.from_address(
