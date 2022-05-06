@@ -82,7 +82,10 @@ class TrafficDecoder(ModeS_Decoder):
         callsign = flight.callsign
         if callsign is None:
             return
-
+        if isinstance(callsign, set):
+            callsign = list(flight.callsign)[
+                flight.data["callsign"].value_counts().argmax()
+            ]
         try:
             flight_data = self.network.icao24(icao)["flightId"]
         except Exception:

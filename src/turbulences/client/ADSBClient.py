@@ -49,7 +49,7 @@ def turbulence(df: pd.DataFrame) -> pd.Series:
 
 
 def expire_turb(df: pd.DataFrame) -> pd.Series:
-    return (df.timestamp + pd.Timedelta("15T")).where(df.turbulence, None)
+    return (df.timestamp + pd.Timedelta("30T")).where(df.turbulence, None)
 
 
 def anomaly(df) -> pd.Series:
@@ -99,7 +99,12 @@ class ADSBClient:
         traffic_pickled = self.decoder.traffic_records()["traffic"]
         if traffic_pickled is None:
             return None
-        return pickle.loads(base64.b64decode(traffic_pickled.encode()))
+        try:
+            traffic = pickle.loads(base64.b64decode(traffic_pickled.encode()))
+        except Exception as e:
+            logging.warning("pickle: " + str(e))
+            traffic = None
+        return traffic
 
     def resample_traffic(self, traffic: Traffic) -> Traffic:
         return (
@@ -179,6 +184,7 @@ class ADSBClient:
                         threshold=threshold
                     )
                     .assign(turbulence=turbulence)
+                    .assign(expire_turb=expire_turb)
                     .assign(anomaly=anomaly)
                     .eval(max_workers=4)
                     .query("not anomaly")
