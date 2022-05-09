@@ -125,7 +125,7 @@ class ADSBClient:
         try:
             traffic: Traffic = self.traffic_decoder
         except Exception as e:
-            logging.warnning(e)
+            logging.warning(e)
             traffic = None
         if traffic is None:
             self._traffic = None
