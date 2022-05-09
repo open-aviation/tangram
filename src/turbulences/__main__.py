@@ -14,7 +14,7 @@ from flask_cors import CORS
 from flask_pymongo import PyMongo
 from waitress import serve
 from werkzeug.middleware.proxy_fix import ProxyFix
-# from paste.translogger import TransLogger
+from paste.translogger import TransLogger
 
 from turbulences import config_turb
 
