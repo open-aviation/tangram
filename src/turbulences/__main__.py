@@ -73,20 +73,20 @@ def main(app_host, app_port, live_disable, history_disable,
     app.airep = AIREP()
     app.cat = Metsafe()
     app.network = Network()
-    # serve(app, host=app_host, port=app_port)
-    # flask_thread = threading.Thread(
-    #     target=app.run,
-    #     daemon=True,
-    #     kwargs=dict(
-    #         host=app_host,
-    #         port=app_port,
-    #         threaded=True,
-    #         debug=False,
-    #         use_reloader=False,
-    #     ),
-    # )
-    # flask_thread.start()
-    app.run(host=app_host, port=app_port)
+    flask_thread = threading.Thread(
+        target=app.run,
+        daemon=True,
+        kwargs=dict(
+            host=app_host,
+            port=app_port,
+            threaded=True,
+            debug=False,
+            use_reloader=False,
+        ),
+    )
+    flask_thread.start()
+    flask_thread.join()
+    # app.run(host=app_host, port=app_port)
 
 
 if __name__ == "__main__":
