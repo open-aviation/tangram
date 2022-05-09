@@ -1,4 +1,5 @@
 import os
+import threading
 from datetime import datetime
 
 import click
@@ -73,7 +74,19 @@ def main(app_host, app_port, live_disable, history_disable,
     app.cat = Metsafe()
     app.network = Network()
     # serve(app, host=app_host, port=app_port)
-    app.run(host=app_host, port=app_port)
+    flask_thread = threading.Thread(
+        target=app.run,
+        daemon=True,
+        kwargs=dict(
+            app=app,
+            host=app_host,
+            port=app_port,
+            threaded=True,
+            debug=False,
+            use_reloader=False,
+        ),
+    )
+    flask_thread.start()
 
 
 if __name__ == "__main__":
