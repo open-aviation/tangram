@@ -14,7 +14,6 @@ from flask_cors import CORS
 from flask_pymongo import PyMongo
 from waitress import serve
 from werkzeug.middleware.proxy_fix import ProxyFix
-from paste.translogger import TransLogger
 
 from turbulences import config_turb
 
@@ -23,8 +22,8 @@ from .util import assets
 from .views import base_views, history_views
 
 app = Flask(__name__, static_folder=None)
-# logger = logging.getLogger()
-# logger.setLevel(logging.INFO)
+logger = logging.getLogger('waitress')
+logger.setLevel(logging.INFO)
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_prefix=1)
 
@@ -82,7 +81,7 @@ def main(app_host, app_port, live_disable, history_disable,
         target=serve,
         daemon=True,
         kwargs=dict(
-            app=TransLogger(app, setup_console_handler=False),
+            app=app,
             host=app_host,
             port=app_port,
             threads=8
