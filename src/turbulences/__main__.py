@@ -78,7 +78,6 @@ def main(app_host, app_port, live_disable, history_disable,
         target=app.run,
         daemon=True,
         kwargs=dict(
-            app=app,
             host=app_host,
             port=app_port,
             threaded=True,
