@@ -24,6 +24,7 @@ def geojson_plane(data: Traffic) -> dict:
                         "properties": {
                             "icao": flight.icao24,
                             "callsign": flight.callsign,
+                            "typecode": flight.typecode,
                             "dir": 0 if np.isnan(track) else track,
                         },
                     }

@@ -39,6 +39,9 @@
   Callsign:
   <p style="display: inline" id="aircraft_id"></p>
   <br />
+  Typecode:
+  <p style="display: inline" id="typecode"></p>
+  <br />
   Flight Id:
   <p style="display: inline" id="flight_id"></p>
   <br />
@@ -74,7 +77,8 @@
 </div>
 <div id="map">
   {% if history == 1 %}
-  <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_filter_functions.js') }}"></script>
+  <script type="text/javascript"
+    src="{{ url_for('base.serve_static',filename='js/map_filter_functions.js') }}"></script>
   <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_history.js') }}"></script>
   {% else %}
   <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_live.js') }}"></script>

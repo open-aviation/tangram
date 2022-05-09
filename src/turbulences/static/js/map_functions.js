@@ -1,15 +1,18 @@
 var chart_history;
-function getFlight_data(icao) {
+function getFlight_data(icao, callsign, typecode) {
   document.getElementById("icao").innerHTML = icao;
+  document.getElementById('typecode').innerHTML = typecode;
+  var aircraft_id = document.getElementById('aircraft_id');
+  aircraft_id.innerHTML = callsign;
+
   url = "context/flight/" + icao
   $.getJSON(url, function (data) {
     flight_id = document.getElementById('flight_id');
     departure = document.getElementById('departure');
     destination = document.getElementById('destination');
-    aircraft_id = document.getElementById('aircraft_id');
 
     if (data.flightId === undefined) {
-      flight_id.innerHTML = ""; departure.innerHTML = ""; aircraft_id.innerHTML = ""; destination.innerHTML = "";
+      flight_id.innerHTML = ""; departure.innerHTML = ""; destination.innerHTML = "";
     } else {
       flight_id.innerHTML = data.flightId.id;
       departure.innerHTML = data.flightId.keys.aerodromeOfDeparture;
@@ -23,7 +26,7 @@ function getFlight_data(icao) {
 function whenClicked(e) {
   var icao = (e.target.feature.properties.icao === undefined) ? (e.target.feature.geometry.properties.icao) : e.target.feature.properties.icao
   draw_chart(icao, chart_history);
-  getFlight_data(icao);
+  getFlight_data(icao, e.target.feature.properties.callsign, e.target.feature.properties.typecode);
 }
 function onEachPlane(feature, layer) {
   var popupContent = "<p>ICAO: " + feature.properties.icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
