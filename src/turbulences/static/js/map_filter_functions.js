@@ -6,7 +6,7 @@ function filterturb(data, time) {
     L.geoJson(data.geojson, {
         onEachFeature: onEachTurb,
         filter: function (feature) {
-            return (feature.properties.time <= time);
+            return (feature.properties.start <= time);
         },
     }).addTo(turbulences);
 }

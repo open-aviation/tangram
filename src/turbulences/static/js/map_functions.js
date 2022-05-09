@@ -25,8 +25,10 @@ function getFlight_data(icao, callsign, typecode) {
 
 function whenClicked(e) {
   var icao = (e.target.feature.properties.icao === undefined) ? (e.target.feature.geometry.properties.icao) : e.target.feature.properties.icao
+  var callsign = (e.target.feature.properties.callsign === undefined) ? (e.target.feature.geometry.properties.callsign) : e.target.feature.properties.callsign
+  var typecode = (e.target.feature.properties.typecode === undefined) ? (e.target.feature.geometry.properties.typecode) : e.target.feature.properties.typecode
   draw_chart(icao, chart_history);
-  getFlight_data(icao, e.target.feature.properties.callsign, e.target.feature.properties.typecode);
+  getFlight_data(icao, callsign, typecode);
 }
 function onEachPlane(feature, layer) {
   var popupContent = "<p>ICAO: " + feature.properties.icao + "<br>Callsign: " + feature.properties.callsign + "</p>";

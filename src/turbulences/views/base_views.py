@@ -85,7 +85,9 @@ def turbulence() -> dict[str, Any]:
                                         "properties": {
                                             "icao": flight.icao24,
                                             "callsign": flight.callsign,
-                                            "time": segment.start.timestamp(),
+                                            "typecode": flight.typecode,
+                                            "start": segment.start.timestamp(),
+                                            "validity": segment.data["expire_turb"].iloc[0]
                                         }
                                     }
                                 )
