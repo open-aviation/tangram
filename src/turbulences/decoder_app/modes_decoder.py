@@ -100,6 +100,8 @@ class TrafficDecoder(ModeS_Decoder):
         ]
         cumul = clean_callsign(cumul)
         count = len(cumul)
+        if count == 0:
+            return
         dum = {
             "icao": icao,
             "callsign": callsign,
