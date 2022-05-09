@@ -184,13 +184,16 @@ class ADSBClient:
                         threshold=threshold
                     )
                     .assign(turbulence=turbulence)
-                    .assign(expire_turb=expire_turb)
-                    .assign(anomaly=anomaly)
+                    .assign(
+                        expire_turb=expire_turb,
+                        anomaly=anomaly
+                    )
                     .eval(max_workers=4)
                     .query("not anomaly")
                 )
             except Exception as e:
                 logging.warning("turbulence" + str(e))
+                raise e
         else:
             self._pro_data = None
 
@@ -204,7 +207,7 @@ class ADSBClient:
         self.running = True
         self.thread = threading.Thread(
             target=self.calculate_live_turbulence,
-            daemon=True,
+            daemon=False,
         )
         self.thread.start()
 
