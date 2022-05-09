@@ -51,6 +51,7 @@ class TrafficDecoder(ModeS_Decoder):
         database_uri: str = mongo_uri,
         expire_frequency: pd.Timedelta = expire_frequency,
         expire_threshold: pd.Timedelta = expire_threshold,
+        name: str = 'toulouse'
     ) -> None:
         super().__init__(
             reference,
@@ -60,6 +61,7 @@ class TrafficDecoder(ModeS_Decoder):
         client = MongoClient(host=database_uri)
         self.network = Network()
         self.db = client.get_database()
+        self.name = name
 
     def on_expire_aircraft(self, icao: str) -> None:
         logging.info(f"expire aircraft {icao}")
@@ -106,6 +108,7 @@ class TrafficDecoder(ModeS_Decoder):
             "count": count,
             "traj": cumul,
             "flight_data": flight_data,
+            "antenna": self.name
         }
         try:
             self.db.tracks.insert_one(dum)
