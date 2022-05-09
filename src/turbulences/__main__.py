@@ -1,3 +1,4 @@
+import logging
 import os
 import threading
 from datetime import datetime
@@ -11,7 +12,9 @@ from flask import Flask
 from flask_assets import Environment
 from flask_cors import CORS
 from flask_pymongo import PyMongo
+from waitress import serve
 from werkzeug.middleware.proxy_fix import ProxyFix
+# from paste.translogger import TransLogger
 
 from turbulences import config_turb
 
@@ -20,6 +23,8 @@ from .util import assets
 from .views import base_views, history_views
 
 app = Flask(__name__, static_folder=None)
+# logger = logging.getLogger()
+# logger.setLevel(logging.INFO)
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_prefix=1)
 
@@ -74,14 +79,13 @@ def main(app_host, app_port, live_disable, history_disable,
     app.cat = Metsafe()
     app.network = Network()
     flask_thread = threading.Thread(
-        target=app.run,
+        target=serve,
         daemon=True,
         kwargs=dict(
+            app=TransLogger(app, setup_console_handler=False),
             host=app_host,
             port=app_port,
-            threaded=True,
-            debug=False,
-            use_reloader=False,
+            threads=8
         ),
     )
     flask_thread.start()
