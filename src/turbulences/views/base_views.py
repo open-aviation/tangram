@@ -21,7 +21,7 @@ import pandas as pd
 from turbulences.client.ADSBClient import ADSBClient
 from .forms import DatabaseForm, ThresholdForm
 
-from .view_functions import geojson_plane
+from .view_functions import geojson_traffic
 
 base_bp = Blueprint("base", __name__)
 CORS(base_bp)
@@ -215,7 +215,7 @@ def fetch_planes_Geojson() -> dict:
         und = int(und) / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")
         data = data.query(f"timestamp<='{str(t)}'")
-    return geojson_plane(data)
+    return geojson_traffic(data)
 
 
 @base_bp.route("/plane.png")
