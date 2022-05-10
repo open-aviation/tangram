@@ -6,29 +6,29 @@ def geojson_plane(data: Traffic) -> dict:
     features = []
     if data is not None:
         for flight in data:
-            if flight.shape is not None:
-                data = flight.data
-                latitude = data.latitude.iloc[-1]
-                longitude = data.longitude.iloc[-1]
-                track = data.track.iloc[-1]
-                if not (np.isnan(latitude) and np.isnan(longitude)):
-                    x = {
-                        "type": "Feature",
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [
-                                longitude,
-                                latitude,
-                            ],
-                        },
-                        "properties": {
-                            "icao": flight.icao24,
-                            "callsign": flight.callsign,
-                            "typecode": flight.typecode,
-                            "dir": 0 if np.isnan(track) else track,
-                        },
-                    }
-                    features.append(x)
+            # if flight.shape is not None:
+            data = flight.data
+            latitude = data.latitude.iloc[-1]
+            longitude = data.longitude.iloc[-1]
+            track = data.track.iloc[-1]
+            if not (np.isnan(latitude) and np.isnan(longitude)):
+                x = {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [
+                            longitude,
+                            latitude,
+                        ],
+                    },
+                    "properties": {
+                        "icao": flight.icao24,
+                        "callsign": flight.callsign,
+                        "typecode": flight.typecode,
+                        "dir": 0 if np.isnan(track) else track,
+                    },
+                }
+                features.append(x)
     geojson = {
         "type": "FeatureCollection",
         "features": features,

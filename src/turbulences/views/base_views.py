@@ -80,22 +80,24 @@ def turbulence() -> dict[str, Any]:
                         if segment is not None:
                             try:
                                 x = segment.geojson()
-                                x.update(
-                                    {
-                                        "properties": {
-                                            "icao": flight.icao24,
-                                            "callsign": flight.callsign,
-                                            "typecode": flight.typecode,
-                                            "start": segment.start.timestamp(),
-                                            "validity": segment.data["expire_turb"].iloc[0]
-                                        }
-                                    }
-                                )
-                                features.append(x)
                             except Exception as e:
                                 logging.exception(
                                     str(flight.icao24) + ":" + str(e)
                                 )
+                                x = None
+                            if x is not None:
+                                x.update(
+                                        {
+                                            "properties": {
+                                                "icao": flight.icao24,
+                                                "callsign": flight.callsign,
+                                                "typecode": flight.typecode,
+                                                "start": segment.start.timestamp(),
+                                                "validity": segment.data["expire_turb"].iloc[0]
+                                            }
+                                        }
+                                    )
+                                features.append(x)
 
     geojson = {
         "type": "FeatureCollection",
