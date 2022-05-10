@@ -1,6 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
+
+from traffic.core import Flight, Traffic
+
 import numpy as np
-from traffic.core import Traffic, Flight
 
 
 def geojson_flight(flight: Flight) -> dict:
@@ -36,6 +38,7 @@ def geojson_traffic(traffic: Traffic) -> dict:
             features = list(
                 executor.map(geojson_flight, traffic)
             )
+        features = list(filter(lambda t: t is not None, features))
     geojson = {
         "type": "FeatureCollection",
         "features": features,
