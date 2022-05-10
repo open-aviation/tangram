@@ -5,10 +5,11 @@ import logging
 import pickle
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from pymongo import MongoClient
-from pymongo.database import Database
 from pymongo.cursor import Cursor
+from pymongo.database import Database
 from traffic.core.traffic import Traffic
 from traffic.data import ModeS_Decoder
 
@@ -64,9 +65,16 @@ class ADSBClient:
     min_threshold: float = 150
     multiplier: float = 1.2
 
-    def __init__(self, decoder_address: str = "http://localhost:5050") -> None:
+    def __init__(
+        self,
+        decoders: list(str) | str = "http://localhost:5050"
+    ) -> None:
         self.running: bool = False
-        self.decoder: Decoder = Decoder(decoder_address)
+        if isinstance(decoders, str):
+            decoders = [decoders]
+        self.decoders: list(Decoder) = [
+            Decoder(address) for address in decoders
+        ]
         self._pro_data: Traffic = None
         self._traffic: Traffic = None
         self.thread: threading.Thread = None
@@ -94,9 +102,8 @@ class ADSBClient:
     def traffic(self) -> Traffic:
         return self._traffic
 
-    @property
-    def traffic_decoder(self) -> Traffic | None:
-        traffic_pickled = self.decoder.traffic_records()["traffic"]
+    def traffic_decoder(self, decoder : Decoder) -> Traffic | None:
+        traffic_pickled = decoder.traffic_records()["traffic"]
         if traffic_pickled is None:
             return None
         try:
@@ -122,14 +129,16 @@ class ADSBClient:
         )
 
     def calculate_traffic(self) -> None:
-        try:
-            traffic: Traffic = self.traffic_decoder
-        except Exception as e:
-            logging.warning(e)
-            traffic = None
-        if traffic is None:
+        traffic_decoders = None
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            traffic_decoders = list(
+                executor.map(self.traffic_decoder, self.decoders)
+            )
+        if traffic_decoders is None:
             self._traffic = None
             return
+        traffic_decoders = filter(lambda t: t is not None, traffic_decoders)
+        traffic = sum(traffic_decoders)
         self._traffic = self.resample_traffic(traffic)
 
     def set_min_threshold(self, value: float) -> None:
