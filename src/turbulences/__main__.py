@@ -44,8 +44,8 @@ mongo_uri = config_turb.get("history", "database_uri", fallback="")
 
 
 @click.command()
-@click.option("--source", default='toulouse')
-@click.option("--address", "decoder_address", default=None)
+@click.option("--source", default=None)
+@click.option("--address", "decoders_address", default=None)
 @click.option("--host", "app_host", default=app_host)
 @click.option("--port", "app_port", default=app_port)
 @click.option("--live_disable", default=live_disable)
@@ -53,15 +53,18 @@ mongo_uri = config_turb.get("history", "database_uri", fallback="")
 @click.option("--data_path", default=data_path)
 @click.option("--mongo_uri", default=mongo_uri)
 def main(app_host, app_port, live_disable, history_disable,
-         data_path, mongo_uri, source, decoder_address):
-    if decoder_address is None:
-        decoder_address = config_turb.get(
+         data_path, mongo_uri, source, decoders_address):
+    if decoders_address is None:
+        decoders_address = [val for key, val in config_turb.items("decoders")]
+
+    if source is not None:
+        decoders_address = config_turb.get(
             'decoders',
             source,
             fallback=""
         )
     app.start_time = datetime.now()
-    app.live_client = ADSBClient(decoder_address=decoder_address)
+    app.live_client = ADSBClient(decoders=decoders_address)
     app.history_client = ADSBClient()
     if not live_disable:
         app.live_client.start_live()
