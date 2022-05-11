@@ -178,6 +178,7 @@ def main(
         file_pattern=dump_file,
         uncertainty=decode_uncertainty,
     )
+    app.decoder.name = source
     flask_thread = threading.Thread(
         target=app.run,
         daemon=True,
