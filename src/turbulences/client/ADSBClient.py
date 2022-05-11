@@ -138,6 +138,9 @@ class ADSBClient:
             self._traffic = None
             return
         traffic_decoders = filter(lambda t: t is not None, traffic_decoders)
+        if traffic_decoders is None:
+            self._traffic = None
+            return
         traffic = sum(traffic_decoders)
         self._traffic = self.resample_traffic(traffic)
 
