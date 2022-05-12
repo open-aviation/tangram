@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 
 from traffic.core import Flight, Traffic
 
@@ -34,7 +34,7 @@ def geojson_flight(flight: Flight) -> dict:
 def geojson_traffic(traffic: Traffic) -> dict:
     features = []
     if traffic is not None:
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ProcessPoolExecutor(max_workers=4) as executor:
             features = list(
                 executor.map(geojson_flight, traffic)
             )
