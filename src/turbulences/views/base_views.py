@@ -121,63 +121,64 @@ def chart_data(icao) -> Union[str, dict]:
         return {}
     resultats = pro_data[icao].data
     resultats_turb = resultats.query("turbulence")
+    ts = list(map(lambda t: t.timestamp()*1000, resultats.to_dict()["timestamp"].values()))
     turb = zip(
         resultats_turb.to_dict()["timestamp"].values(),
         resultats_turb.to_dict()["turbulence"].values(),
     )
     vsi = zip(
-        resultats.to_dict()["timestamp"].values(),
+        ts,
         resultats.to_dict()["vertical_rate_inertial"].values(),
     )
     vsb = zip(
-        resultats.to_dict()["timestamp"].values(),
+        ts,
         resultats.to_dict()["vertical_rate_barometric"].values(),
     )
     cri = zip(
-        resultats.to_dict()["timestamp"].values(),
+        ts,
         resultats.to_dict()["criterion"].values(),
     )
     thr = zip(
-        resultats.to_dict()["timestamp"].values(),
+        ts,
         resultats.to_dict()["threshold"].values(),
     )
     altitude = zip(
-        resultats.to_dict()["timestamp"].values(),
+        ts,
         resultats.to_dict()["altitude"].values(),
     )
     vsi_std = zip(
-        resultats.to_dict()["timestamp"].values(),
+        ts,
         resultats.to_dict()["vertical_rate_inertial_std"].values(),
     )
     vsb_std = zip(
-        resultats.to_dict()["timestamp"].values(),
+        ts,
         resultats.to_dict()["vertical_rate_barometric_std"].values(),
     )
     data_turb = list(
         {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in turb
     )
     data_vsi = list(
-        {"t": timestamp.timestamp() * 1000, "y": str(t)} for timestamp, t in vsi
+        {"t": timestamp, "y": str(t)} for timestamp, t in vsi
     )
     data_vsb = list(
-        {"t": timestamp.timestamp() * 1000, "y": str(t)} for timestamp, t in vsb
+        {"t": timestamp, "y": str(t)} for timestamp, t in vsb
     )
     data_criterion = list(
-        {"t": timestamp.timestamp() * 1000, "y": str(t)} for timestamp, t in cri
+        {"t": timestamp, "y": str(t)} for timestamp, t in cri
     )
     data_threshold = list(
-        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in thr
+        {"t": timestamp, "y": t} for timestamp, t in thr
     )
     data_altitude = list(
-        {"t": timestamp.timestamp() * 1000, "y": str(t)}
+        {"t": timestamp, "y": str(t)}
         for timestamp, t in altitude
     )
     data_vsi_std = list(
-        {"t": timestamp.timestamp() * 1000, "y": str(t)}
+        {"t": timestamp, "y": str(t)}
         for timestamp, t in vsi_std
     )
     data_vsb_std = list(
-        {"t": timestamp.timestamp() * 1000, "y": str(t)}
+        {"t": timestamp, "y": str(t)}
         for timestamp, t in vsb_std
     )
     return json.dumps(
