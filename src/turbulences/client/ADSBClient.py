@@ -67,14 +67,14 @@ class ADSBClient:
 
     def __init__(
         self,
-        decoders: list(str) | str = "http://localhost:5050"
+        decoders: dict[str, str] | str = "http://localhost:5050"
     ) -> None:
         self.running: bool = False
         if isinstance(decoders, str):
-            decoders = [decoders]
-        self.decoders: list(Decoder) = [
-            Decoder(address) for address in decoders
-        ]
+            decoders = {"": decoders}
+        self.decoders: dict[str, Decoder] = {
+            name : Decoder(address) for name, address in decoders.items()
+        }
         self._pro_data: Traffic = None
         self._traffic: Traffic = None
         self.thread: threading.Thread = None
@@ -102,8 +102,8 @@ class ADSBClient:
     def traffic(self) -> Traffic:
         return self._traffic
 
-    def traffic_decoder(self, decoder : Decoder) -> Traffic | None:
-        traffic_pickled = decoder.traffic_records()["traffic"]
+    def traffic_decoder(self, decoder_name : str) -> Traffic | None:
+        traffic_pickled = self.decoders[decoder_name].traffic_records()["traffic"]
         if traffic_pickled is None:
             return None
         try:
@@ -111,7 +111,9 @@ class ADSBClient:
         except Exception as e:
             logging.warning("pickle: " + str(e))
             traffic = None
-        return traffic
+        return traffic.assign(
+            antenna=decoder_name
+        )
 
     def resample_traffic(self, traffic: Traffic) -> Traffic:
         return (
@@ -134,14 +136,11 @@ class ADSBClient:
             traffic_decoders = list(
                 executor.map(self.traffic_decoder, self.decoders)
             )
-        if traffic_decoders is None:
-            self._traffic = None
-            return
         traffic_decoders = filter(lambda t: t is not None, traffic_decoders)
-        if traffic_decoders is None:
+        traffic = sum(traffic_decoders)
+        if traffic == 0:
             self._traffic = None
             return
-        traffic = sum(traffic_decoders)
         self._traffic = self.resample_traffic(traffic)
 
     def set_min_threshold(self, value: float) -> None:
@@ -159,7 +158,7 @@ class ADSBClient:
     def turbulence(self) -> None:
         if self._traffic is not None:
             try:
-                self._pro_data = (
+                pro_data = (
                     self._traffic.longer_than("1T")
                     .filter(
                         strategy=None,
@@ -201,11 +200,13 @@ class ADSBClient:
                         anomaly=anomaly
                     )
                     .eval(max_workers=4)
-                    .query("not anomaly")
                 )
             except Exception as e:
                 logging.warning("turbulence" + str(e))
                 raise e
+            self._pro_data = (
+                pro_data.query("not anomaly") if pro_data is not None else None
+            )
         else:
             self._pro_data = None
 
