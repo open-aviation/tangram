@@ -62,8 +62,8 @@ def anomaly(df) -> pd.Series:
 
 
 class ADSBClient:
-    min_threshold: float = 150
-    multiplier: float = 1.2
+    min_threshold: float = 180
+    multiplier: float = 1.3
 
     def __init__(
         self,
@@ -113,7 +113,7 @@ class ADSBClient:
             traffic = None
         return traffic.assign(
             antenna=decoder_name
-        )
+        ) if not None else None
 
     def resample_traffic(self, traffic: Traffic) -> Traffic:
         return (
