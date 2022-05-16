@@ -1,4 +1,4 @@
-# turbulences
+# turbulence
 
 A Python API to detect turbulence
 

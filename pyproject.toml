@@ -1,13 +1,13 @@
 [tool.poetry]
-name = "turbulences"
+name = "turbulence"
 version = "0.1.0"
 description = ""
 authors = ["Michel Khalaf <khalafmichel98@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.scripts]
-turb = 'turbulences.__main__:main'
-decode = 'turbulences.decoder_app.modes_decoder:main'
+turb = 'turbulence.__main__:main'
+decode = 'turbulence.decoder_app.modes_decoder:main'
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.10"
