@@ -8,24 +8,24 @@ var heatmapLayer = L.layerGroup();
 
 chart_history = 0;
 
-var map = L.map("map", { layers: [planes, turbulences] }).setView([43.57155, 1.47165], 7);
+var map = L.map("map", { layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes] }).setView([46, 2], 6);
 
 var overlays = {
-  Planes: planes,
-  Turbulences: turbulences,
-  Sigmets: sigmets,
-  Airep: aireps,
   Cat_mod: cat_mod,
   Cat_sev: cat_sev,
+  Sigmets: sigmets,
+  Airep: aireps,
+  Turbulences: turbulences,
+  Planes: planes,
   Heatmap: heatmapLayer,
 };
 let myLayerOptions = {
   onEachFeature: onEachPlane,
   pointToLayer: createCustomIcon,
 };
+getCat();
 getSigmet();
 getAirep();
-getCat();
 setInterval(function () {
   getSigmet();
   getAirep();
@@ -41,7 +41,7 @@ var baselayer = L.tileLayer(
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://cartodb.com/attributions">CartoDB</a>',
   }
 );
-
+// var 
 L.control
   .liveupdate({
     update_map: function () {
@@ -77,3 +77,15 @@ setInterval(function () {
     UptimeSec = data.uptime
   })
 }, 1000 * 60);//1 minute
+
+// map.on('zoomend', function (feature) {
+//   var currentZoom = map.getZoom();
+//   if (currentZoom < 7) {
+//     feature.marker.setIcon(new L.icon({
+//       iconUrl: "plane.png",
+//       iconSize: [10, 10], // width and height of the image in pixels
+//       iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
+//       popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
+//     }));
+//   }
+// });
