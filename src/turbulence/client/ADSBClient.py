@@ -103,7 +103,9 @@ class ADSBClient:
         return self._traffic
 
     def traffic_decoder(self, decoder_name : str) -> Traffic | None:
-        traffic_pickled = self.decoders[decoder_name].traffic_records()["traffic"]
+        traffic_pickled = (
+            self.decoders[decoder_name].traffic_records()["traffic"]
+        )
         if traffic_pickled is None:
             return None
         try:
@@ -113,7 +115,7 @@ class ADSBClient:
             traffic = None
         return traffic.assign(
             antenna=decoder_name
-        ) if not None else None
+        ) if traffic is not None else None
 
     def resample_traffic(self, traffic: Traffic) -> Traffic:
         return (
