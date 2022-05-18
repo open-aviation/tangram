@@ -98,6 +98,15 @@ class ADSBClient:
     def pro_data(self) -> Traffic:
         return self._pro_data
 
+    @pro_data.setter
+    def pro_data(self, p: Traffic) -> None:
+        if self._pro_data is None:
+            self._pro_data = p
+        else:
+            valid_turb = self._pro_data.query(
+                f'expire_turb>="{pd.Timestamp("now", tz="utc")}"')
+            self._pro_data = valid_turb + p if valid_turb is not None else p
+
     @property
     def traffic(self) -> Traffic:
         return self._traffic
@@ -206,7 +215,7 @@ class ADSBClient:
             except Exception as e:
                 logging.warning("turbulence" + str(e))
                 raise e
-            self._pro_data = (
+            self.pro_data = (
                 pro_data.query("not anomaly") if pro_data is not None else None
             )
         else:
