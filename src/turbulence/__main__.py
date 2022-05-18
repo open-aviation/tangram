@@ -15,7 +15,7 @@ from flask_pymongo import PyMongo
 from waitress import serve
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from turbulences import config_turb
+from turbulence import config_turb
 
 from .client.ADSBClient import ADSBClient
 from .util import assets
@@ -55,7 +55,9 @@ mongo_uri = config_turb.get("history", "database_uri", fallback="")
 def main(app_host, app_port, live_disable, history_disable,
          data_path, mongo_uri, source, decoders_address):
     if decoders_address is None:
-        decoders_address = {key : val for key, val in config_turb.items("decoders")}
+        decoders_address = {
+            key : val for key, val in config_turb.items("decoders")
+        }
 
     if source is not None:
         decoders_address = config_turb.get(

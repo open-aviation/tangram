@@ -13,7 +13,7 @@ from pymongo.cursor import Cursor
 from werkzeug.utils import redirect
 from pandas import Timestamp
 
-from turbulences.client.ADSBClient import ADSBClient
+from turbulence.client.ADSBClient import ADSBClient
 
 history_bp = Blueprint("history", __name__)
 CORS(history_bp)

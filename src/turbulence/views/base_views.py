@@ -18,10 +18,10 @@ from traffic.core import Traffic
 
 import pandas as pd
 
-from turbulences.client.ADSBClient import ADSBClient
+from turbulence.client.ADSBClient import ADSBClient
 from .forms import DatabaseForm, ThresholdForm
 
-from .view_functions import geojson_traffic
+from .view_functions import geojson_traffic, geojson_traj
 
 base_bp = Blueprint("base", __name__)
 CORS(base_bp)
@@ -121,7 +121,12 @@ def chart_data(icao) -> Union[str, dict]:
         return {}
     resultats = pro_data[icao].data
     resultats_turb = resultats.query("turbulence")
-    ts = list(map(lambda t: t.timestamp()*1000, resultats.to_dict()["timestamp"].values()))
+    ts = list(
+        map(
+            lambda t: t.timestamp()*1000,
+            resultats.to_dict()["timestamp"].values()
+        )
+    )
     turb = zip(
         resultats_turb.to_dict()["timestamp"].values(),
         resultats_turb.to_dict()["turbulence"].values(),
@@ -372,32 +377,41 @@ def get_heatmap_data(und=None):
     return {"data": data}
 
 
+# @base_bp.route("/trajectory/<path:icao>")
+# def get_traj(icao: str):
+#     client = current_app.live_client
+#     history = request.args.get("history", default=False)
+#     if history:
+#         client = current_app.history_client
+#     data = client.pro_data
+#     features = []
+#     if data is not None:
+#         flight = data[icao]
+#         if flight.shape is not None:
+#             try:
+#                 x = flight.geojson()
+#                 x.update(
+#                     {
+#                         "properties": {
+#                             "icao": flight.icao24,
+#                         }
+#                     }
+#                 )
+#                 features.append(x)
+#             except Exception as e:
+#                 logging.exception(str(flight.icao24) + ":" + str(e))
+
+#     geojson = {
+#         "type": "FeatureCollection",
+#         "features": features,
+#     }
+#     return geojson
+
 @base_bp.route("/trajectory/<path:icao>")
 def get_traj(icao: str):
     client = current_app.live_client
     history = request.args.get("history", default=False)
     if history:
         client = current_app.history_client
-    data = client.pro_data
-    features = []
-    if data is not None:
-        flight = data[icao]
-        if flight.shape is not None:
-            try:
-                x = flight.geojson()
-                x.update(
-                    {
-                        "properties": {
-                            "icao": flight.icao24,
-                        }
-                    }
-                )
-                features.append(x)
-            except Exception as e:
-                logging.exception(str(flight.icao24) + ":" + str(e))
-
-    geojson = {
-        "type": "FeatureCollection",
-        "features": features,
-    }
-    return geojson
+    data = client.pro_data[icao]
+    return geojson_traj(data)

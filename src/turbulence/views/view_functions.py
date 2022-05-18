@@ -35,9 +35,7 @@ def geojson_traffic(traffic: Traffic) -> dict:
     features = []
     if traffic is not None:
         with ProcessPoolExecutor(max_workers=4) as executor:
-            features = list(
-                executor.map(geojson_flight, traffic)
-            )
+            features = executor.map(geojson_flight, traffic)
         features = list(filter(lambda t: t is not None, features))
     geojson = {
         "type": "FeatureCollection",
@@ -50,32 +48,23 @@ def geojson_traffic(traffic: Traffic) -> dict:
     return encapsulated_geojson
 
 
-def geojson_traj(data: Traffic) -> dict:
+def geojson_traj(flight: Flight) -> dict:
     features = []
-    if data is not None:
-        for flight in data:
-            if flight.shape is not None:
-                data = flight.data
-                latitude = data.latitude
-                longitude = data.longitude
-                track = data.track
-                # timestamp =
-                if not (np.isnan(latitude) and np.isnan(longitude)):
-                    x = {
-                        "type": "Feature",
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [
-                                longitude,
-                                latitude,
-                            ],
-                        },
-                        "properties": {
-                            "icao": flight.icao24,
-                            "dir": 0 if np.isnan(track) else track,
-                        },
-                    }
-                    features.append(x)
+    if flight is not None:
+        cor = flight.coords4d()
+        x = {
+                "type": "Feature",
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": list(cor),
+                },
+                "properties": {
+                    "icao": flight.icao24,
+                    "callsign": flight.callsign,
+                    "typecode": flight.typecode
+                },
+            }
+        features.append(x)
     geojson = {
         "type": "FeatureCollection",
         "features": features,

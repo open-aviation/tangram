@@ -16,7 +16,7 @@ from traffic.core import Flight
 from traffic.data import ModeS_Decoder
 
 import pandas as pd
-from turbulences import config_decoder
+from turbulence import config_decoder
 
 if TYPE_CHECKING:
     from traffic.core.structure import Airport
@@ -63,10 +63,10 @@ class TrafficDecoder(ModeS_Decoder):
         self.db = client.get_database()
         self.name = name
 
-    def on_expire_aircraft(self, icao: str) -> None:
-        logging.info(f"expire aircraft {icao}")
-        self.dump_data(icao)
-        return super().on_expire_aircraft(icao)
+    def on_expire_aircraft(self, icao24: str) -> None:
+        logging.info(f"expire aircraft {icao24}")
+        self.dump_data(icao24)
+        return super().on_expire_aircraft(icao24)
 
     def on_new_aircraft(self, icao24: str) -> None:
         logging.info(f"new aircraft {icao24}")
@@ -85,7 +85,7 @@ class TrafficDecoder(ModeS_Decoder):
         if callsign is None:
             return
         if isinstance(callsign, set):
-            callsign = list(flight.callsign)[
+            callsign = list(callsign)[
                 flight.data["callsign"].value_counts().argmax()
             ]
         try:
