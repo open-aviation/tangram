@@ -9,48 +9,118 @@
 <script type="text/javascript" src="{{ url_for('base.serve_static', filename='js/graph.js') }}"></script>
 
 <script type="text/javascript" src="{{ url_for('base.serve_static', filename='js/map_functions.js') }}"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/leaflet-sidebar-v2@3.2.3/js/leaflet-sidebar.min.js"></script>
 <var id="seconds_uptime" hidden="True">{{uptime}}</var>
-<div class="stats">
-  Uptime:
-  <p style="display: inline" id="uptime"></p>
-  <br /><br />
-  Number of aircraft:
-  <p style="display: inline" id="plane_count"></p>
-  <br />
-  First seen aircraft:
-  <p style="display: inline" id="first_seen"></p>
-  <br />
-  Last seen aircraft:
-  <p style="display: inline" id="last_seen"></p>
-  <br /><br />
+<div id="sidebar" class="leaflet-sidebar collapsed">
+  <div class="leaflet-sidebar-tabs">
+    <ul role="tablist">
+      <li><a href="#info_box" role="tab"><span class="fa fa-plane"></span></a></li>
+    </ul>
 
-  SIGMET (LF):
-  <p style="display: inline" id="sigmet_count"></p>
-  <br />
-  AIREP (LF):
-  <p style="display: inline" id="airep_count"></p>
-  <br />
-</div>
-<div class="flight" id="flight" hidden="true">
-  Icao:
-  <p style="display: inline" id="icao"></p>
-  <br />
-  Callsign:
-  <p style="display: inline" id="aircraft_id"></p>
-  <br />
-  Typecode:
-  <p style="display: inline" id="typecode"></p>
-  <br />
-  Flight Id:
-  <p style="display: inline" id="flight_id"></p>
-  <br />
-  Departure:
-  <p style="display: inline" id="departure"></p>
-  <br />
-  Destination:
-  <p style="display: inline" id="destination"></p>
-  <br />
+  </div>
+  <div class="leaflet-sidebar-content">
+    <div class="leaflet-sidebar-pane" id="info_box">
+      <table class="info_box_table">
+        <thead>
+
+          <tr class="info_header">
+            <td colspan="2">General Information</td>
+          </tr>
+
+        </thead>
+        <tbody>
+
+          <tr class="info_label">
+            <td>UTC Time</td>
+            <td>Local Time</td>
+          </tr>
+
+          <tr class="info_value" id="info_time">
+          </tr>
+
+        </tbody>
+        <tbody>
+          <tr class="info_label">
+            <td>Uptime</td>
+            <td><b>
+                <p style='display: inline' id='uptime'></p>
+              </b></td>
+          </tr>
+
+          <tr class="info_label">
+            <td>Aircraft on map</td>
+            <td><b>
+                <p style='display: inline' id='plane_count'></p>
+              </b></td>
+          </tr>
+          <tr class="info_label">
+            <td>Sigmet</td>
+            <td><b>
+                <p style="display: inline" id="sigmet_count"></p>
+              </b></td>
+          </tr>
+          <tr class="info_label">
+            <td>Airep</td>
+            <td><b>
+                <p style="display: inline" id="airep_count"></p>
+              </b></td>
+          </tr>
+
+        </tbody>
+      </table>
+      <table class="info_box_table" id="flight" hidden="true">
+        <thead>
+
+          <tr class="info_header">
+            <td colspan="2">Flight Information</td>
+          </tr>
+
+        </thead>
+        <tbody>
+
+          <tr class="info_label">
+            <td>Icao24</td>
+            <td>Callsign</td>
+          </tr>
+
+          <tr class="info_value" id="info_flight">
+            <td>
+              <p style="display: inline" id="icao"></p>
+            </td>
+            <td>
+              <p style="display: inline" id="aircraft_id"></p>
+            </td>
+          </tr>
+        </tbody>
+        <tbody>
+          <tr class="info_label">
+            <td>Typecode</td>
+            <td>
+              <p style="display: inline" id="typecode"></p>
+            </td>
+          </tr>
+          <tr class="info_label">
+            <td>Flight Id</td>
+            <td>
+              <p style="display: inline" id="flight_id"></p>
+            </td>
+          </tr>
+          <tr class="info_label">
+            <td>Departure</td>
+            <td>
+              <p style="display: inline" id="departure"></p>
+            </td>
+          </tr>
+          <tr class="info_label">
+            <td>Destination</td>
+            <td>
+              <p style="display: inline" id="destination"></p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 <div class="form" id="database_form" style="display: none">
   <form action="" method="POST" name="databaseform">
@@ -87,9 +157,9 @@
 
 <div>
   <a class="btn btn-sm btn-info" id="air">
-    <span class="glyphicon glyphicon-globe"></span>&nbsp; AIREP</a>
+    <i class="fa fa-flag"></i>&nbsp; AIREP</a>
   <a class="btn btn-sm btn-info" id="sigmet">
-    <span class="glyphicon glyphicon-flag"></span>&nbsp; SIGMET</a>
+    <i class="fa fa-cloud"></i>&nbsp; SIGMET</a>
 </div>
 <div>
   <table class="table table-bordered table-hover table-condensed smaller" id="table_airep" style="display: none">

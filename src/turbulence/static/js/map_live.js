@@ -8,8 +8,9 @@ var heatmapLayer = L.layerGroup();
 
 chart_history = 0;
 
-var map = L.map("map", { layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes] }).setView([46, 2], 6);
-
+var map = L.map("map", { layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes], scrollWheelZoom: false}).setView([46, 2], 6);
+var sidebar = L.control.sidebar({ container: "sidebar" });
+sidebar.addTo(map);
 var overlays = {
   Cat_mod: cat_mod,
   Cat_sev: cat_sev,
@@ -55,10 +56,12 @@ L.control
   .startUpdating();
 
 L.control.scale().addTo(map);
+// L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
 map.addLayer(baselayer);
 
 var UptimeSec = document.getElementById("seconds_uptime").textContent;
+document.getElementById("info_time").html = "<td>" + getTimeString(false) + "</td><td>" + getTimeString(true) + "</td>";
 setInterval(function () {
 
   distance = UptimeSec++;
@@ -69,6 +72,7 @@ setInterval(function () {
   var d = days == 0 ? "" : days + "d ";
   var h = hours == 0 ? "" : hours + "h ";
   document.getElementById("uptime").innerHTML = d + h + minutes + "m " + seconds + "s ";
+  document.getElementById("info_time").innerHTML = "<td>" + getTimeString(false) + "</td>" + "<td>" + getTimeString(true) + "</td>";
 }, 1000 * 1);//1 secondes
 
 setInterval(function () {

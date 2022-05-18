@@ -4,7 +4,6 @@ function getFlight_data(icao, callsign, typecode) {
   document.getElementById('typecode').innerHTML = typecode;
   var aircraft_id = document.getElementById('aircraft_id');
   aircraft_id.innerHTML = callsign;
-
   url = "context/flight/" + icao
   $.getJSON(url, function (data) {
     flight_id = document.getElementById('flight_id');
@@ -29,9 +28,11 @@ function whenClicked(e) {
   var typecode = (e.target.feature.properties.typecode === undefined) ? (e.target.feature.geometry.properties.typecode) : e.target.feature.properties.typecode
   draw_chart(icao, chart_history);
   getFlight_data(icao, callsign, typecode);
+  sidebar.open("info_box");
 }
 function onEachPlane(feature, layer) {
   var popupContent = "<p>ICAO: " + feature.properties.icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
+
   layer.bindPopup(popupContent);
   layer.on({
     click: whenClicked,
@@ -59,6 +60,8 @@ function onEachAirep(feature, layer) {
     feature.properties.expire +
     "<br>Phenomenon: " +
     feature.properties.phenomenon +
+    "<br>Altitude: " +
+    feature.properties.altitude +
     "</p>";
   layer.bindPopup(popupContent);
 }
@@ -280,7 +283,27 @@ function getheatmap(und = null, history = 0) {
   });
   return heatm;
 }
+function getTimeString(isLocal) {
+  var hours;
+  var minutes;
+  var date = new Date();
 
+  if (isLocal) {
+    hours = date.getHours();
+    minutes = date.getMinutes();
+  }
+  else {
+    hours = date.getUTCHours();
+    minutes = date.getUTCMinutes();
+  }
+
+  if (hours < 10) { hours = '0' + hours; }
+  if (minutes < 10) { minutes = '0' + minutes; }
+
+  var zeit_string = hours + ':' + minutes;
+
+  return zeit_string;
+}
 // function highlightTrajectory(e) {
 //   var layer = e.target;
 //   layer.setStyle({
