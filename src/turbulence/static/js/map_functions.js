@@ -120,6 +120,30 @@ function loadTable(tableId, fields, data) {
   });
   $("#" + tableId + " tbody").html(rows);
 }
+// html: "<svg  version='1' xmlns='http://www.w3.org/2000/svg' width='" + width_height + "' height='" + width_height + "' viewBox='0 0 " + box + " " + box + "'><path d='" + imageObj.path + "' fill='#f9fd15' stroke='#0014aa' stroke-width='1'></path></svg > ",
+function createCustomIcon2(feature, latlng) {
+  var imageObj = get_image_object(feature.properties.typecode)
+  var svg = "<svg xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 64 64' width='100%' height='100%'><g transform='scale(" + imageObj.scale + ")'><path id='" + feature.properties.icao + "' d='" + imageObj.path + "' fill='#f9fd15' stroke='#0014aa' stroke-width='0.1'></path></g></svg >";
+  var iconUrl = 'data:image/svg+xml;base64,' + btoa(svg);
+
+  var myIcon = L.icon({
+    iconUrl: iconUrl,
+    iconSize: [40, 40], // width and height of the image in pixels
+    iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
+    popupAnchor: [0, 0],
+  });
+  // let myIcon = L.divIcon({
+  //   html: " ",
+  //   className: "aircraft_img",
+  //   iconSize: [35, 37], // width and height of the image in pixels
+  //   iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
+  //   popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
+  // });
+  return L.marker(latlng, {
+    icon: myIcon,
+    rotationAngle: (feature.properties.dir + imageObj.rotcorr) % 360,
+  });
+}
 function updateTableSigmet(data) {
   loadTable(
     "table_sigmet",

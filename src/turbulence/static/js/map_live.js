@@ -8,7 +8,7 @@ var heatmapLayer = L.layerGroup();
 
 chart_history = 0;
 
-var map = L.map("map", { layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes], scrollWheelZoom: false}).setView([46, 2], 6);
+var map = L.map("map", { layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes], scrollWheelZoom: false }).setView([46, 2], 6);
 var sidebar = L.control.sidebar({ container: "sidebar" });
 sidebar.addTo(map);
 var overlays = {
@@ -22,7 +22,7 @@ var overlays = {
 };
 let myLayerOptions = {
   onEachFeature: onEachPlane,
-  pointToLayer: createCustomIcon,
+  pointToLayer: createCustomIcon2,
 };
 getCat();
 getSigmet();
