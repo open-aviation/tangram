@@ -14,6 +14,7 @@ from flask import Flask, current_app
 from pymongo import MongoClient
 from traffic.core import Flight
 from traffic.data import ModeS_Decoder
+from waitress import serve
 
 import pandas as pd
 from turbulence import config_decoder
@@ -122,7 +123,7 @@ app_host = config_decoder.get("application", "host", fallback="127.0.0.1")
 app_port = int(config_decoder.get("application", "port", fallback=5050))
 data_path = config_decoder.get(
     "file",
-    "path_data",
+    "dump_path",
     fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
 )
 
@@ -180,16 +181,26 @@ def main(
     )
     app.decoder.name = source
     flask_thread = threading.Thread(
-        target=app.run,
+        target=serve,
         daemon=True,
         kwargs=dict(
+            app=app,
             host=serve_host,
             port=serve_port,
-            threaded=True,
-            debug=False,
-            use_reloader=False,
+            threads=8
         ),
     )
+    # flask_thread = threading.Thread(
+    #     target=app.run,
+    #     daemon=True,
+    #     kwargs=dict(
+    #         host=serve_host,
+    #         port=5052,
+    #         threaded=True,
+    #         debug=False,
+    #         use_reloader=False,
+    #     ),
+    # )
     flask_thread.start()
 
 
