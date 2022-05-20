@@ -123,7 +123,7 @@ app_host = config_decoder.get("application", "host", fallback="127.0.0.1")
 app_port = int(config_decoder.get("application", "port", fallback=5050))
 data_path = config_decoder.get(
     "file",
-    "dump_path",
+    "path",
     fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
 )
 
