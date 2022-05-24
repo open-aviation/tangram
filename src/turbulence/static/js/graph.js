@@ -38,7 +38,7 @@ async function draw_chart(icao, chart_history = 0) {
         spanGaps: false,
       },
       {
-        type: "line",
+        type: "scatter",
         label: "criterion",
         data: result[4],
         fill: false,
@@ -56,7 +56,7 @@ async function draw_chart(icao, chart_history = 0) {
         spanGaps: false,
       },
       {
-        type: "line",
+        type: "scatter",
         label: "altitude",
         data: result[6],
         fill: false,
@@ -88,7 +88,7 @@ async function draw_chart(icao, chart_history = 0) {
     ],
   };
   var config = {
-    type: "scatter",
+    type: "line",
     data: data,
     stepped: false,
     spanGaps: false,
@@ -102,9 +102,6 @@ async function draw_chart(icao, chart_history = 0) {
             timezone: 'UTC',
           },
         ],
-        y: {
-          type: 'linear',
-        }
       },
       plugins: {
         zoom: {

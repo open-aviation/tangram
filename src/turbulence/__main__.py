@@ -89,7 +89,7 @@ def main(app_host, app_port, live_disable, history_disable,
             app=app,
             host=app_host,
             port=app_port,
-            threads=8
+            threads=20
         ),
     )
     flask_thread.start()

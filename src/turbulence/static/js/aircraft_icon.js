@@ -400,7 +400,6 @@ var ac_symbol_map = [
     { id: "PTS2", sym: "$1" },
     { id: "PUMA", sym: "$E" },
     { id: "PUP", sym: "$1" },
-    { id: "RX0", sym: "$CAR" },
     { id: "R13", sym: "$5" },
     { id: "R200", sym: "$1" },
     { id: "R22", sym: "$7" },
@@ -505,7 +504,7 @@ function sortPlaneSymbolList(a, b) {
 ac_symbol_map = ac_symbol_map.sort(sortPlaneSymbolList);
 
 // based on ac cat and type, returns according svg path
-function get_image_object(ac_type) {
+function get_image_object(ac_type, ac_callsign) {
     var retval = {};
     Object.assign(retval, acImagePathsR["$A320"]);
     // Assign aircraft symbol based on ICAO type code */

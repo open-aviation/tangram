@@ -122,7 +122,7 @@ function loadTable(tableId, fields, data) {
 }
 // html: "<svg  version='1' xmlns='http://www.w3.org/2000/svg' width='" + width_height + "' height='" + width_height + "' viewBox='0 0 " + box + " " + box + "'><path d='" + imageObj.path + "' fill='#f9fd15' stroke='#0014aa' stroke-width='1'></path></svg > ",
 function createCustomIcon2(feature, latlng) {
-  var imageObj = get_image_object(feature.properties.typecode)
+  var imageObj = get_image_object(feature.properties.typecode, feature.properties.callsign)
   var view_box = 34 / imageObj.scale
   var stroke_width = 0.8 / imageObj.scale
   var svg = "<svg xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 " + view_box + " " + view_box + "'><g transform='scale(" + imageObj.scale + ")'><path id='" + feature.properties.icao + "' d='" + imageObj.path + "' fill='#f9fd15' stroke='#0014aa' stroke-width='" + stroke_width + "'></path></g></svg >";
@@ -141,10 +141,14 @@ function createCustomIcon2(feature, latlng) {
   //   iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
   //   popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
   // });
-  return L.marker(latlng, {
+  marker = L.marker(latlng, {
     icon: myIcon,
     rotationAngle: (feature.properties.dir + imageObj.rotcorr) % 360,
   });
+  // marker.on('mouseover', function (e) {
+  //   marker.openPopup();
+  // });
+  return marker
 }
 function updateTableSigmet(data) {
   loadTable(

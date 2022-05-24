@@ -26,9 +26,6 @@ var overlays = {
   Planes: planes,
   Heatmap: heatmapLayer,
 };
-baselayer.on('click', function () {
-  sidebar.close();
-});
 getCat();
 getSigmet();
 getAirep();
@@ -56,6 +53,9 @@ L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
 map.addLayer(baselayer);
+baselayer.on('click', function () {
+  sidebar.close();
+});
 var UptimeSec = document.getElementById("seconds_uptime").textContent;
 document.getElementById("info_time").html = "<td>" + getTimeString(false) + "</td><td>" + getTimeString(true) + "</td>";
 setInterval(function () {
