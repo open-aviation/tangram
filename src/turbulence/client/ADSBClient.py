@@ -22,7 +22,7 @@ from .modes_decoder_client import Decoder
 def crit(df: pd.DataFrame) -> pd.Series:
     return (
         df.vertical_rate_barometric_std - df.vertical_rate_inertial_std
-    ).abs().where(df.vertical_rate_barometric_count > 15, None)
+    ).abs().where(df.vertical_rate_barometric_count > 20, None)
 
 
 def threshold(df: pd.DataFrame) -> float:
