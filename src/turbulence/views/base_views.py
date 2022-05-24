@@ -14,6 +14,7 @@ from flask import (
     url_for,
 )
 from flask_cors import CORS
+import numpy as np
 from traffic.core import Traffic
 
 import pandas as pd
@@ -119,83 +120,48 @@ def chart_data(icao) -> Union[str, dict]:
     pro_data = client.pro_data
     if pro_data is None:
         return {}
-    resultats = pro_data[icao].data
-    resultats_turb = resultats.query("turbulence")
+    resultat = pro_data[icao].data
     ts = list(
         map(
             lambda t: t.timestamp()*1000,
-            resultats.to_dict()["timestamp"].values()
+            resultat.to_dict()["timestamp"].values()
         )
     )
-    turb = zip(
-        resultats_turb.to_dict()["timestamp"].values(),
-        resultats_turb.to_dict()["turbulence"].values(),
+    turb = list(
+        resultat["turbulence"].replace(False, str(np.nan)).to_dict().values()
     )
-    vsi = zip(
-        ts,
-        resultats.to_dict()["vertical_rate_inertial"].values(),
+    vsi = list(
+        map(str, resultat.to_dict()["vertical_rate_inertial"].values())
     )
-    vsb = zip(
-        ts,
-        resultats.to_dict()["vertical_rate_barometric"].values(),
+    vsb = list(
+        map(str, resultat.to_dict()["vertical_rate_barometric"].values())
     )
-    cri = zip(
-        ts,
-        resultats.to_dict()["criterion"].values(),
+    cri = list(
+        map(str, resultat.to_dict()["criterion"].values())
     )
-    thr = zip(
-        ts,
-        resultats.to_dict()["threshold"].values(),
+    thr = list(
+        map(str, resultat.to_dict()["threshold"].values())
     )
-    altitude = zip(
-        ts,
-        resultats.to_dict()["altitude"].values(),
+    altitude = list(
+        map(str, resultat.to_dict()["altitude"].values())
     )
-    vsi_std = zip(
-        ts,
-        resultats.to_dict()["vertical_rate_inertial_std"].values(),
+    vsi_std = list(
+        map(str, resultat.to_dict()["vertical_rate_inertial_std"].values())
     )
-    vsb_std = zip(
-        ts,
-        resultats.to_dict()["vertical_rate_barometric_std"].values(),
-    )
-    data_turb = list(
-        {"t": timestamp.timestamp() * 1000, "y": t} for timestamp, t in turb
-    )
-    data_vsi = list(
-        {"t": timestamp, "y": str(t)} for timestamp, t in vsi
-    )
-    data_vsb = list(
-        {"t": timestamp, "y": str(t)} for timestamp, t in vsb
-    )
-    data_criterion = list(
-        {"t": timestamp, "y": str(t)} for timestamp, t in cri
-    )
-    data_threshold = list(
-        {"t": timestamp, "y": t} for timestamp, t in thr
-    )
-    data_altitude = list(
-        {"t": timestamp, "y": str(t)}
-        for timestamp, t in altitude
-    )
-    data_vsi_std = list(
-        {"t": timestamp, "y": str(t)}
-        for timestamp, t in vsi_std
-    )
-    data_vsb_std = list(
-        {"t": timestamp, "y": str(t)}
-        for timestamp, t in vsb_std
+    vsb_std = list(
+        map(str, resultat.to_dict()["vertical_rate_barometric_std"].values())
     )
     return json.dumps(
         [
-            data_turb,
-            data_vsi,
-            data_vsb,
-            data_criterion,
-            data_threshold,
-            data_altitude,
-            data_vsi_std,
-            data_vsb_std
+            ts,
+            turb,
+            vsi,
+            vsb,
+            cri,
+            thr,
+            altitude,
+            vsi_std,
+            vsb_std
         ]
     )
 

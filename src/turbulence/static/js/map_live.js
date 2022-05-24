@@ -5,7 +5,13 @@ var aireps = L.layerGroup();
 var cat_mod = L.layerGroup();
 var cat_sev = L.layerGroup();
 var heatmapLayer = L.layerGroup();
-
+var baselayer = L.tileLayer(
+  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+  {
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://cartodb.com/attributions">CartoDB</a>',
+  }
+);
 chart_history = 0;
 
 var map = L.map("map", { layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes], scrollWheelZoom: false }).setView([46, 2], 6);
@@ -20,10 +26,9 @@ var overlays = {
   Planes: planes,
   Heatmap: heatmapLayer,
 };
-let myLayerOptions = {
-  onEachFeature: onEachPlane,
-  pointToLayer: createCustomIcon2,
-};
+baselayer.on('click', function () {
+  sidebar.close();
+});
 getCat();
 getSigmet();
 getAirep();
@@ -34,14 +39,6 @@ setInterval(function () {
 setInterval(function () {
   getCat();
 }, 1000 * 60 * 10); //10 minutes
-
-var baselayer = L.tileLayer(
-  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-  {
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://cartodb.com/attributions">CartoDB</a>',
-  }
-);
 // var 
 L.control
   .liveupdate({
@@ -59,7 +56,6 @@ L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
 map.addLayer(baselayer);
-
 var UptimeSec = document.getElementById("seconds_uptime").textContent;
 document.getElementById("info_time").html = "<td>" + getTimeString(false) + "</td><td>" + getTimeString(true) + "</td>";
 setInterval(function () {

@@ -19,10 +19,6 @@ var overlays = {
   Cat_sev: cat_sev,
   Heatmap: heatmapLayer,
 };
-let myLayerOptions = {
-  onEachFeature: onEachPlane,
-  pointToLayer: createCustomIcon,
-};
 // Date 
 const urlSearchParams = new URLSearchParams(window.location.search);
 var min_date = urlSearchParams.get('min');
