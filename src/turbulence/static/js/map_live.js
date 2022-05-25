@@ -53,7 +53,9 @@ L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
 map.addLayer(baselayer);
-baselayer.on('click', function () {
+map.on('click', function () {
+  deselect_planes();
+
   sidebar.close();
 });
 var UptimeSec = document.getElementById("seconds_uptime").textContent;

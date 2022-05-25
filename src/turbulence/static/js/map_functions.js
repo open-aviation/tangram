@@ -1,4 +1,5 @@
 var chart_history;
+var selected = null;
 function getFlight_data(icao, callsign, typecode) {
   document.getElementById("icao").innerHTML = icao;
   document.getElementById('typecode').innerHTML = typecode;
@@ -21,24 +22,34 @@ function getFlight_data(icao, callsign, typecode) {
   });
   document.getElementById("flight").hidden = false;
 }
+function deselect_planes() {
+  selected = "";
+  const planes = document.querySelectorAll('.aircraft_img');
 
+  planes.forEach(plane => {
+    plane.style.fill = '#f9fd15';
+  });
+}
 function whenClicked(e) {
+  deselect_planes();
   var icao = (e.target.feature.properties.icao === undefined) ? (e.target.feature.geometry.properties.icao) : e.target.feature.properties.icao
   var callsign = (e.target.feature.properties.callsign === undefined) ? (e.target.feature.geometry.properties.callsign) : e.target.feature.properties.callsign
   var typecode = (e.target.feature.properties.typecode === undefined) ? (e.target.feature.geometry.properties.typecode) : e.target.feature.properties.typecode
+  selected = icao;
+  e.target._icon.style.fill = "red";
   draw_chart(icao, chart_history);
   getFlight_data(icao, callsign, typecode);
   sidebar.open("info_box");
 }
-// function onEachPlane(feature, layer) {
-//   var popupContent = "<p>ICAO: " + feature.properties.icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
+function onEachPlane(feature, layer) {
+  var popupContent = "<p>ICAO: " + feature.properties.icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
 
-//   layer.bindPopup(popupContent);
-//   layer.on({
-//     click: whenClicked,
-//   });
-// }
-function onEachTurbPlane(feature, layer) {
+  layer.bindPopup(popupContent);
+  layer.on({
+    click: whenClicked,
+  });
+}
+function onEachTurb(feature, layer) {
   // var popupContent = "<p>ICAO: " + feature.properties.icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
   // layer.bindPopup(popupContent);
   layer.on({
@@ -125,29 +136,36 @@ function createCustomIcon2(feature, latlng) {
   var imageObj = get_image_object(feature.properties.typecode, feature.properties.callsign)
   var view_box = 34 / imageObj.scale
   var stroke_width = 0.8 / imageObj.scale
-  var svg = "<svg xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 " + view_box + " " + view_box + "'><g transform='scale(" + imageObj.scale + ")'><path id='" + feature.properties.icao + "' d='" + imageObj.path + "' fill='#f9fd15' stroke='#0014aa' stroke-width='" + stroke_width + "'></path></g></svg >";
-  var iconUrl = 'data:image/svg+xml;base64,' + btoa(svg);
+  var svg = "<svg xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 " + view_box + " " + view_box + "'><g transform='scale(" + imageObj.scale + ")'><path id='" + feature.properties.icao + "' d='" + imageObj.path + "' stroke='#0014aa' stroke-width='" + stroke_width + "'></path></g></svg >";
+  // var iconUrl = 'data:image/svg+xml;base64,' + btoa(svg);
 
-  var myIcon = L.icon({
-    iconUrl: iconUrl,
+  // var myIcon = L.icon({
+  //   iconUrl: iconUrl,
+  //   iconSize: [33, 35], // width and height of the image in pixels
+  //   iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
+  //   popupAnchor: [0, 0],
+  // });
+  let myIcon = L.divIcon({
+    html: svg,
+    className: "aircraft_img",
     iconSize: [33, 35], // width and height of the image in pixels
     iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
-    popupAnchor: [0, 0],
+    popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
+    color: 'blue',
   });
-  // let myIcon = L.divIcon({
-  //   html: " ",
-  //   className: "aircraft_img",
-  //   iconSize: [35, 37], // width and height of the image in pixels
-  //   iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
-  //   popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
-  // });
-  marker = L.marker(latlng, {
+  let marker = L.marker(latlng, {
     icon: myIcon,
     rotationAngle: (feature.properties.dir + imageObj.rotcorr) % 360,
   });
-  // marker.on('mouseover', function (e) {
-  //   marker.openPopup();
-  // });
+  marker.on('mouseover', function (e) {
+    this.openPopup();
+  });
+  marker.on('mouseout', function (e) {
+    this.closePopup();
+  });
+  if (feature.properties.icao == selected) {
+    // marker._icon("fill: 'red'");
+  }
   return marker
 }
 function updateTableSigmet(data) {
@@ -279,7 +297,7 @@ function getPlanes(und = "", history = 0, icao24 = "", callsign = "") {
 
     planes.clearLayers();
     L.geoJson(data.geojson, {
-      onEachFeature: onEachTurbPlane,
+      onEachFeature: onEachPlane,
       pointToLayer: createCustomIcon2,
     }).addTo(planes);
   });
@@ -294,7 +312,7 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
     turbu = data
     turbulences.clearLayers();
     L.geoJson(data.geojson, {
-      onEachFeature: onEachTurbPlane,
+      onEachFeature: onEachTurb,
     }).addTo(turbulences);
   });
   return turbu;

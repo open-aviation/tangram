@@ -17,7 +17,6 @@ async function draw_chart(icao, chart_history = 0) {
         data: result[1],
         fill: false,
         borderColor: "rgb(192, 0, 0)",
-        spanGaps: false,
       },
       {
         type: "line",
@@ -26,7 +25,6 @@ async function draw_chart(icao, chart_history = 0) {
         fill: false,
         borderColor: "rgb(0, 192, 0)",
         pointRadius: 1,
-        spanGaps: false,
       },
       {
         type: "line",
@@ -35,7 +33,6 @@ async function draw_chart(icao, chart_history = 0) {
         fill: false,
         borderColor: "rgb(0, 0, 192)",
         pointRadius: 1,
-        spanGaps: false,
       },
       {
         type: "scatter",
@@ -44,7 +41,6 @@ async function draw_chart(icao, chart_history = 0) {
         fill: false,
         borderColor: "rgb(0, 100, 100)",
         pointRadius: 1,
-        spanGaps: false,
       },
       {
         type: "line",
@@ -53,7 +49,6 @@ async function draw_chart(icao, chart_history = 0) {
         fill: false,
         borderColor: "rgb(100, 100, 0)",
         pointRadius: 1,
-        spanGaps: false,
       },
       {
         type: "scatter",
@@ -63,7 +58,6 @@ async function draw_chart(icao, chart_history = 0) {
         borderColor: "rgb(211, 149, 237)",
         pointRadius: 1,
         hidden: true,
-        spanGaps: false,
       },
       {
         type: "line",
@@ -73,7 +67,6 @@ async function draw_chart(icao, chart_history = 0) {
         borderColor: "rgb(255, 204, 229)",
         pointRadius: 1,
         hidden: true,
-        spanGaps: false,
       },
       {
         type: "line",
@@ -83,7 +76,6 @@ async function draw_chart(icao, chart_history = 0) {
         borderColor: "rgb(153, 255, 255)",
         pointRadius: 1,
         hidden: true,
-        spanGaps: false,
       }
     ],
   };
@@ -92,7 +84,6 @@ async function draw_chart(icao, chart_history = 0) {
     data: data,
     stepped: false,
     spanGaps: false,
-    cubicInterpolationMode: "monotone",
     options: {
       responsive: true,
       scales: {

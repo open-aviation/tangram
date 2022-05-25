@@ -90,11 +90,12 @@ a.flag:hover::after {
   z-index: 1;
 }
 
-/* .aircraft_img {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  pointer-events: none;
+.aircraft_img {
+  fill: #f9fd15;
+}
+
+/* .aircraft_img:selection {
+  fill: red;
 } */
 
 .form-popup {
