@@ -50,7 +50,7 @@ def turbulence(df: pd.DataFrame) -> pd.Series:
 
 
 def expire_turb(df: pd.DataFrame) -> pd.Series:
-    return (df.timestamp + pd.Timedelta("30T")).where(df.turbulence, None)
+    return (df.timestamp + pd.Timedelta("20T")).where(df.turbulence, None)
 
 
 def anomaly(df) -> pd.Series:
