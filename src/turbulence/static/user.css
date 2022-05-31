@@ -94,9 +94,13 @@ a.flag:hover::after {
   fill: #f9fd15;
 }
 
-/* .aircraft_img:selection {
+.aircraft_selected {
   fill: red;
-} */
+}
+
+.turb_selected {
+  stroke: red;
+}
 
 .form-popup {
   display: none;

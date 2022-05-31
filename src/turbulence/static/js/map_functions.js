@@ -23,12 +23,9 @@ function getFlight_data(icao, callsign, typecode) {
   document.getElementById("flight").hidden = false;
 }
 function deselect_planes() {
+  $("#" + selected).toggleClass("aircraft_selected", false);
+  $("#" + selected).toggleClass("aircraft_img", true);
   selected = "";
-  const planes = document.querySelectorAll('.aircraft_img');
-
-  planes.forEach(plane => {
-    plane.style.fill = '#f9fd15';
-  });
 }
 function whenClicked(e) {
   deselect_planes();
@@ -36,10 +33,16 @@ function whenClicked(e) {
   var callsign = (e.target.feature.properties.callsign === undefined) ? (e.target.feature.geometry.properties.callsign) : e.target.feature.properties.callsign
   var typecode = (e.target.feature.properties.typecode === undefined) ? (e.target.feature.geometry.properties.typecode) : e.target.feature.properties.typecode
   selected = icao;
-  e.target._icon.style.fill = "red";
+  $("#" + icao).toggleClass("aircraft_img", false);
+  $("#" + icao).toggleClass("aircraft_selected", true);
+  console.info($("turb" + icao))
+  $("turb" + icao).toggleClass("turb_selected", true);
+  // console.info($("#" + icao));
+  // e.target._icon.style.fill = "red";
   draw_chart(icao, chart_history);
   getFlight_data(icao, callsign, typecode);
   sidebar.open("info_box");
+  getTrajectory(icao);
 }
 function onEachPlane(feature, layer) {
   var popupContent = "<p>ICAO: " + feature.properties.icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
@@ -136,7 +139,7 @@ function createCustomIcon2(feature, latlng) {
   var imageObj = get_image_object(feature.properties.typecode, feature.properties.callsign)
   var view_box = 34 / imageObj.scale
   var stroke_width = 0.8 / imageObj.scale
-  var svg = "<svg xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 " + view_box + " " + view_box + "'><g transform='scale(" + imageObj.scale + ")'><path id='" + feature.properties.icao + "' d='" + imageObj.path + "' stroke='#0014aa' stroke-width='" + stroke_width + "'></path></g></svg >";
+  var svg = "<svg id='" + feature.properties.icao + "' xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 " + view_box + " " + view_box + "'><g transform='scale(" + imageObj.scale + ")'><path d='" + imageObj.path + "' stroke='#0014aa' stroke-width='" + stroke_width + "'></path></g></svg >";
   // var iconUrl = 'data:image/svg+xml;base64,' + btoa(svg);
 
   // var myIcon = L.icon({
@@ -147,7 +150,7 @@ function createCustomIcon2(feature, latlng) {
   // });
   let myIcon = L.divIcon({
     html: svg,
-    className: "aircraft_img",
+    className: feature.properties.icao != selected ? "aircraft_img" : "aircraft_selected",
     iconSize: [33, 35], // width and height of the image in pixels
     iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
     popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
@@ -378,12 +381,14 @@ function getTimeString(isLocal) {
 //     mouseout: resetTrajectory,
 //   });
 // }
-
-// function getTrajectory(icao) {
-//   $.getJSON(url, function (data) {
-//     traj.clearLayers();
-//     L.geoJson(data, {
-//       onEachFeature: onEachTrajectory,
-//     }).addTo(traj);
-//   });
-// }
+function getTrajectory(icao, und = "", history = 0) {
+  url = "/trajectory/" + icao
+  const searchParams = new URLSearchParams({ history: history, und: und });
+  url = url + '?' + searchParams
+  $.getJSON(url, function (data) {
+    traj.clearLayers();
+    L.geoJson(data.geojson, {
+      color: "blue",
+    }).addTo(traj);
+  });
+}

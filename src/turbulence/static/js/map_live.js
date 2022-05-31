@@ -13,10 +13,19 @@ var baselayer = L.tileLayer(
   }
 );
 chart_history = 0;
-
+var traj = L.layerGroup();
 var map = L.map("map", { layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes], scrollWheelZoom: false }).setView([46, 2], 6);
+map.addLayer(baselayer);
+map.addLayer(traj);
 var sidebar = L.control.sidebar({ container: "sidebar" });
 sidebar.addTo(map);
+// map.on('click', function (layer) {
+//   console.info(layer.feature)
+//   deselect_planes();
+
+//   sidebar.close();
+// });
+
 var overlays = {
   Cat_mod: cat_mod,
   Cat_sev: cat_sev,
@@ -36,28 +45,14 @@ setInterval(function () {
 setInterval(function () {
   getCat();
 }, 1000 * 60 * 10); //10 minutes
-// var 
-L.control
-  .liveupdate({
-    update_map: function () {
-      getPlanes();
-      getTurbulence();
-      getheatmap();
-    },
-    interval: 1000 * 10, //10 secondes
-  })
-  .addTo(map)
-  .startUpdating();
-
+setInterval(function () {
+  getPlanes();
+  getTurbulence();
+  getheatmap();
+}, 1000 * 10);//10 secondes
 L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
-map.addLayer(baselayer);
-map.on('click', function () {
-  deselect_planes();
-
-  sidebar.close();
-});
 var UptimeSec = document.getElementById("seconds_uptime").textContent;
 document.getElementById("info_time").html = "<td>" + getTimeString(false) + "</td><td>" + getTimeString(true) + "</td>";
 setInterval(function () {
