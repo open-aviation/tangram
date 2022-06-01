@@ -24,11 +24,11 @@ div.form {
 }
 
 body {
-  font-family: "Ubuntu";
+  font-family: 'B612', sans-serif;
 }
 
 span.monospace {
-  font-family: "B612 Mono";
+  font-family: 'B612', sans-serif;
   font-size: 85%;
 }
 
@@ -99,7 +99,7 @@ a.flag:hover::after {
 }
 
 .turb_selected {
-  stroke: red;
+  color: red;
 }
 
 .form-popup {
@@ -209,6 +209,7 @@ a.flag:hover::after {
   height: 40px;
   color: #333;
   font-size: 12pt;
+  font-family: 'B612', sans-serif;
   overflow: hidden;
   transition: all 80ms;
 }
@@ -415,11 +416,13 @@ a.flag:hover::after {
 table.info_box_table {
   width: 100%;
   margin: 0px 0px 0px 0px;
+  font-family: 'B612', sans-serif;
   /*border-bottom: 1px solid #ff0000;*/
 }
 
 .info_header td {
   background-color: #e7e7e7;
+  font-family: 'B612', sans-serif;
   padding: 3px 8px 2px 8px;
   /* border-bottom: 1px solid #bbbbbb; */
   font-size: 15pt;
@@ -427,6 +430,7 @@ table.info_box_table {
 }
 
 .info_label td {
+  font-family: 'B612', sans-serif;
   font-size: 12pt;
   color: #555555;
   background-color: #ffffff;
@@ -436,6 +440,7 @@ table.info_box_table {
 
 .info_value td {
   /* bold */
+  font-family: 'B612', sans-serif;
   font-weight: bold;
   padding: 1px 8px 4px 8px;
   margin: 0px;
@@ -445,6 +450,7 @@ table.info_box_table {
 
 .info_value_normal td {
   padding: 1px 8px 4px 8px;
+  font-family: 'B612', sans-serif;
   margin: 0px;
   vertical-align: top;
   border-bottom: 1px solid #e7e7e7;

@@ -65,7 +65,8 @@ setInterval(function () {
   var d = days == 0 ? "" : days + "d ";
   var h = hours == 0 ? "" : hours + "h ";
   document.getElementById("uptime").innerHTML = d + h + minutes + "m " + seconds + "s ";
-  document.getElementById("info_time").innerHTML = "<td>" + getTimeString(false) + "</td>" + "<td>" + getTimeString(true) + "</td>";
+  document.getElementById("info_utc").innerHTML = getTimeString(false);
+  document.getElementById("info_local").innerHTML = getTimeString(true);
 }, 1000 * 1);//1 secondes
 
 setInterval(function () {
