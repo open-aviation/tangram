@@ -152,7 +152,7 @@ function createCustomIcon2(feature, latlng) {
     html: svg,
     className: feature.properties.icao != selected ? "aircraft_img" : "aircraft_selected",
     iconSize: [33, 35], // width and height of the image in pixels
-    iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
+    iconAnchor: [15, 15], // point of the icon which will correspond to marker's location
     popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
     color: 'blue',
   });
