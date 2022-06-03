@@ -12,19 +12,22 @@ var baselayer = L.tileLayer(
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://cartodb.com/attributions">CartoDB</a>',
   }
 );
+
 chart_history = 0;
 var traj = L.layerGroup();
-var map = L.map("map", { layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes], scrollWheelZoom: false }).setView([46, 2], 6);
-map.addLayer(baselayer);
+var map = L.map("map", { layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes] }).setView([46, 2], 6);
+map.on('click', function (e) {
+  if (e.originalEvent.target.classList.contains("turb_selected")) {
+    return
+  }
+  deselect_planes();
+
+  sidebar.close();
+});
 map.addLayer(traj);
+map.addLayer(baselayer);
 var sidebar = L.control.sidebar({ container: "sidebar" });
 sidebar.addTo(map);
-// map.on('click', function (layer) {
-//   console.info(layer.feature)
-//   deselect_planes();
-
-//   sidebar.close();
-// });
 
 var overlays = {
   Cat_mod: cat_mod,
@@ -54,7 +57,8 @@ L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
 var UptimeSec = document.getElementById("seconds_uptime").textContent;
-document.getElementById("info_time").html = "<td>" + getTimeString(false) + "</td><td>" + getTimeString(true) + "</td>";
+document.getElementById("info_utc").innerHTML = getTimeString(false);
+document.getElementById("info_local").innerHTML = getTimeString(true);
 setInterval(function () {
 
   distance = UptimeSec++;

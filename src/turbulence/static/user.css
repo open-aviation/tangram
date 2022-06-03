@@ -98,8 +98,14 @@ a.flag:hover::after {
   fill: red;
 }
 
+.turb_path {
+  stroke: blue;
+}
+
 .turb_selected {
-  color: red;
+  stroke: red;
+  stroke-width: 15px;
+  z-index: -1;
 }
 
 .form-popup {

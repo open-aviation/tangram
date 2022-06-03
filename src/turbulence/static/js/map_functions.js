@@ -23,8 +23,11 @@ function getFlight_data(icao, callsign, typecode) {
   document.getElementById("flight").hidden = false;
 }
 function deselect_planes() {
-  $("#" + selected).toggleClass("aircraft_selected", false);
-  $("#" + selected).toggleClass("aircraft_img", true);
+  traj.clearLayers();
+  $('.aircraft_selected').toggleClass("aircraft_img", true);
+  $('.aircraft_selected').toggleClass("aircraft_selected", false);
+  $('.turb_selected').toggleClass("turb_path", true);
+  $('.turb_selected').toggleClass("turb_selected", false);
   selected = "";
 }
 function whenClicked(e) {
@@ -35,21 +38,33 @@ function whenClicked(e) {
   selected = icao;
   $("#" + icao).toggleClass("aircraft_img", false);
   $("#" + icao).toggleClass("aircraft_selected", true);
-  console.info($("turb" + icao))
-  $("turb" + icao).toggleClass("turb_selected", true);
-  // console.info($("#" + icao));
-  // e.target._icon.style.fill = "red";
+  $("#turb-" + icao).toggleClass("turb_path", false);
+  $("#turb-" + icao).toggleClass("turb_selected", true);
   draw_chart(icao, chart_history);
   getFlight_data(icao, callsign, typecode);
   sidebar.open("info_box");
   getTrajectory(icao);
 }
 function onEachPlane(feature, layer) {
-  var popupContent = "<p>ICAO: " + feature.properties.icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
+  let icao = feature.properties.icao;
+  if (icao == selected) {
+    getTrajectory(icao);
+  }
+  var popupContent = "<p>ICAO: " + icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
 
   layer.bindPopup(popupContent);
   layer.on({
     click: whenClicked,
+  });
+  layer.on({
+    mouseover: function (e) {
+      this.openPopup();
+    }
+  });
+  layer.on({
+    mouseout: function (e) {
+      this.closePopup();
+    }
   });
 }
 function onEachTurb(feature, layer) {
@@ -110,19 +125,6 @@ function onEachCat(feature, layer) {
   layer.bindPopup(popupContent);
 }
 
-function createCustomIcon(feature, latlng) {
-  let myIcon = L.icon({
-    iconUrl: "plane.png",
-    iconSize: [30, 30], // width and height of the image in pixels
-    iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
-    popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
-  });
-  return L.marker(latlng, {
-    icon: myIcon,
-    rotationAngle: feature.properties.dir,
-  });
-}
-
 function loadTable(tableId, fields, data) {
   var rows = "";
   $.each(data, function (index, item) {
@@ -135,19 +137,11 @@ function loadTable(tableId, fields, data) {
   $("#" + tableId + " tbody").html(rows);
 }
 // html: "<svg  version='1' xmlns='http://www.w3.org/2000/svg' width='" + width_height + "' height='" + width_height + "' viewBox='0 0 " + box + " " + box + "'><path d='" + imageObj.path + "' fill='#f9fd15' stroke='#0014aa' stroke-width='1'></path></svg > ",
-function createCustomIcon2(feature, latlng) {
+function createCustomIcon(feature, latlng) {
   var imageObj = get_image_object(feature.properties.typecode, feature.properties.callsign)
   var view_box = 34 / imageObj.scale
   var stroke_width = 0.8 / imageObj.scale
   var svg = "<svg id='" + feature.properties.icao + "' xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 " + view_box + " " + view_box + "'><g transform='scale(" + imageObj.scale + ")'><path d='" + imageObj.path + "' stroke='#0014aa' stroke-width='" + stroke_width + "'></path></g></svg >";
-  // var iconUrl = 'data:image/svg+xml;base64,' + btoa(svg);
-
-  // var myIcon = L.icon({
-  //   iconUrl: iconUrl,
-  //   iconSize: [33, 35], // width and height of the image in pixels
-  //   iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
-  //   popupAnchor: [0, 0],
-  // });
   let myIcon = L.divIcon({
     html: svg,
     className: feature.properties.icao != selected ? "aircraft_img" : "aircraft_selected",
@@ -160,15 +154,6 @@ function createCustomIcon2(feature, latlng) {
     icon: myIcon,
     rotationAngle: (feature.properties.dir + imageObj.rotcorr) % 360,
   });
-  marker.on('mouseover', function (e) {
-    this.openPopup();
-  });
-  marker.on('mouseout', function (e) {
-    this.closePopup();
-  });
-  if (feature.properties.icao == selected) {
-    // marker._icon("fill: 'red'");
-  }
   return marker
 }
 function updateTableSigmet(data) {
@@ -301,7 +286,7 @@ function getPlanes(und = "", history = 0, icao24 = "", callsign = "") {
     planes.clearLayers();
     L.geoJson(data.geojson, {
       onEachFeature: onEachPlane,
-      pointToLayer: createCustomIcon2,
+      pointToLayer: createCustomIcon,
     }).addTo(planes);
   });
 }
@@ -314,9 +299,27 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
   $.getJSON(url, function (data) {
     turbu = data
     turbulences.clearLayers();
-    L.geoJson(data.geojson, {
+    var turb_geojson = L.geoJson(data.geojson, {
       onEachFeature: onEachTurb,
+      style: function (feature) {
+        var icao = feature.geometry.properties.icao;
+        if (icao == selected) {
+          return { className: "turb_selected" }
+        }
+        return { className: "turb_path" }
+      },
+      // function (feature) {
+      //   var icao = feature.properties.icao;
+      //   return icao == selected
+      //     ? { className: "turb_selected" }
+      //     : {
+      //       className: "turb_path"
+      //     };
+      // }
     }).addTo(turbulences);
+    turb_geojson.eachLayer(function (layer) {
+      layer._path.id = 'turb-' + layer.feature.geometry.properties.icao;
+    });
   });
   return turbu;
 }
