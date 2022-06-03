@@ -158,64 +158,7 @@
   <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_live.js') }}"></script>
   {% endif %}
 </div>
-
-<div>
-  <a class="btn btn-sm btn-info" id="air">
-    <i class="fa fa-flag"></i>&nbsp; AIREP</a>
-  <a class="btn btn-sm btn-info" id="sigmet">
-    <i class="fa fa-cloud"></i>&nbsp; SIGMET</a>
-</div>
-<div>
-  <table class="table table-bordered table-hover table-condensed smaller" id="table_airep" style="display: none">
-    <thead>
-      <tr>
-        <th>callsign</th>
-        <th>icao24</th>
-        <th>typecode</th>
-        <th>phenomenon</th>
-        <th>altitude</th>
-        <th>center</th>
-        <th>created</th>
-        <th>expire</th>
-        <th>reported</th>
-        <th>updated</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>There are no items to list...</td>
-      </tr>
-    </tbody>
-  </table>
-  <table class="table table-bordered table-hover table-condensed smaller" id="table_sigmet" style="display: none">
-    <thead>
-      <tr>
-        <th>id sigmet</th>
-        <th>hazard</th>
-        <th>from</th>
-        <th>to</th>
-        <th>fir name</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td colspan="3" style="text-align: center">
-          There are no items to list...
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
 <script>
-  var airep = document.getElementById("air");
-  airep.addEventListener("click", myfunction);
-  airep.name = "table_airep";
-
-  var sigmet = document.getElementById("sigmet");
-  sigmet.addEventListener("click", myfunction);
-  sigmet.name = "table_sigmet";
-
   var form_database = document.getElementById("databasebutton");
   form_database.addEventListener("click", myfunction);
   form_database.name = "database_form";

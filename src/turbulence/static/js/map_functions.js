@@ -68,8 +68,6 @@ function onEachPlane(feature, layer) {
   });
 }
 function onEachTurb(feature, layer) {
-  // var popupContent = "<p>ICAO: " + feature.properties.icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
-  // layer.bindPopup(popupContent);
   layer.on({
     click: whenClicked,
   });
@@ -124,19 +122,6 @@ function onEachCat(feature, layer) {
     "</p>";
   layer.bindPopup(popupContent);
 }
-
-function loadTable(tableId, fields, data) {
-  var rows = "";
-  $.each(data, function (index, item) {
-    var row = "<tr>";
-    $.each(fields, function (index, field) {
-      row += "<td>" + item["properties"][field + ""] + "</td>";
-    });
-    rows += row + "<tr>";
-  });
-  $("#" + tableId + " tbody").html(rows);
-}
-// html: "<svg  version='1' xmlns='http://www.w3.org/2000/svg' width='" + width_height + "' height='" + width_height + "' viewBox='0 0 " + box + " " + box + "'><path d='" + imageObj.path + "' fill='#f9fd15' stroke='#0014aa' stroke-width='1'></path></svg > ",
 function createCustomIcon(feature, latlng) {
   var imageObj = get_image_object(feature.properties.typecode, feature.properties.callsign)
   var view_box = 34 / imageObj.scale
@@ -156,16 +141,6 @@ function createCustomIcon(feature, latlng) {
   });
   return marker
 }
-function updateTableSigmet(data) {
-  loadTable(
-    "table_sigmet",
-    ["idSigmet", "hazard", "validTimeFrom", "validTimeTo", "firName"],
-    data["features"]
-  );
-  document.getElementById("sigmet_count").innerHTML = Object.keys(
-    data.features
-  ).length;
-}
 function getSigmet(wef = null, und = null) {
   var url = "context/sigmet";
   if ((wef !== null) & (und !== null)) {
@@ -177,8 +152,10 @@ function getSigmet(wef = null, und = null) {
     if (data.features == undefined) {
       data["features"] = {}
     }
+    document.getElementById("sigmet_count").innerHTML = Object.keys(
+      data.features
+    ).length;
     sigmet = data
-    updateTableSigmet(data)
     sigmets.clearLayers();
     L.geoJson(data, {
       style: function (feature) {
@@ -198,27 +175,6 @@ function getSigmet(wef = null, und = null) {
   });
   return sigmet;
 }
-function updateTableAirep(data) {
-  loadTable(
-    "table_airep",
-    [
-      "callsign",
-      "icao24",
-      "typecode",
-      "phenomenon",
-      "altitude",
-      "center",
-      "created",
-      "expire",
-      "reported_time",
-      "updated",
-    ],
-    data["features"]
-  );
-  document.getElementById("airep_count").innerHTML = Object.keys(
-    data.features
-  ).length;
-}
 function getAirep(wef = null, und = null) {
   url = "context/airep";
   if ((wef !== null) & (und !== null)) {
@@ -230,7 +186,9 @@ function getAirep(wef = null, und = null) {
     if (data.features == undefined) {
       data["features"] = {}
     }
-    updateTableAirep(data);
+    document.getElementById("airep_count").innerHTML = Object.keys(
+      data.features
+    ).length;
     airep = data
     aireps.clearLayers();
     L.geoJson(data, {
