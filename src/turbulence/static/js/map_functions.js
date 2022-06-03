@@ -38,8 +38,8 @@ function whenClicked(e) {
   selected = icao;
   $("#" + icao).toggleClass("aircraft_img", false);
   $("#" + icao).toggleClass("aircraft_selected", true);
-  $("#turb-" + icao).toggleClass("turb_path", false);
-  $("#turb-" + icao).toggleClass("turb_selected", true);
+  $(".turb-" + icao).toggleClass("turb_path", false);
+  $(".turb-" + icao).toggleClass("turb_selected", true);
   draw_chart(icao, chart_history);
   getFlight_data(icao, callsign, typecode);
   sidebar.open("info_box");
@@ -304,9 +304,9 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
       style: function (feature) {
         var icao = feature.geometry.properties.icao;
         if (icao == selected) {
-          return { className: "turb_selected" }
+          return { className: "turb_selected turb-" + icao }
         }
-        return { className: "turb_path" }
+        return { className: "turb_path turb-" + icao }
       },
       // function (feature) {
       //   var icao = feature.properties.icao;
@@ -317,9 +317,9 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
       //     };
       // }
     }).addTo(turbulences);
-    turb_geojson.eachLayer(function (layer) {
-      layer._path.id = 'turb-' + layer.feature.geometry.properties.icao;
-    });
+    // turb_geojson.eachLayer(function (layer) {
+    //   layer._path.id = 'turb-' + layer.feature.geometry.properties.icao;
+    // });
   });
   return turbu;
 }
