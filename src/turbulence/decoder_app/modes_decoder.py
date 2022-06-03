@@ -121,22 +121,17 @@ class TrafficDecoder(ModeS_Decoder):
 
 app_host = config_decoder.get("application", "host", fallback="127.0.0.1")
 app_port = int(config_decoder.get("application", "port", fallback=5050))
-data_path = config_decoder.get(
-    "file",
-    "path",
-    fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
-)
 
 
 @click.command()
 @click.argument("source")
-@click.option(
-    "-f",
-    "--filename",
-    default=data_path,
-    show_default=True,
-    help="Filename pattern describing where to dump raw data",
-)
+# @click.option(
+#     "-f",
+#     "--filename",
+#     default=data_path,
+#     show_default=True,
+#     help="Filename pattern describing where to dump raw data",
+# )
 @click.option(
     "--host",
     "serve_host",
@@ -155,7 +150,7 @@ data_path = config_decoder.get(
 @click.option("-v", "--verbose", count=True, help="Verbosity level")
 def main(
     source: str = 'toulouse',
-    filename: str | Path = "~/ADSB_EHS_RAW_%Y%m%d_tcp.csv",
+    # filename: str | Path = "~/ADSB_EHS_RAW_%Y%m%d_tcp.csv",
     decode_uncertainty: bool = False,
     verbose: int = 0,
     serve_host: str | None = "127.0.0.1",
@@ -167,9 +162,13 @@ def main(
         logger.setLevel(logging.INFO)
     elif verbose > 1:
         logger.setLevel(logging.DEBUG)
-
-    dump_file = Path(filename).with_suffix(".csv").as_posix()
     address = config_decoder.get("decoders", source)
+    data_path = config_decoder.get(
+        "file",
+        source,
+        fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
+    )
+    dump_file = Path(data_path).with_suffix(".csv").as_posix()
     host_port, reference = address.split("/")
     host, port = host_port.split(":")
     app.decoder = TrafficDecoder.from_address(
