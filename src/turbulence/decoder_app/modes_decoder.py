@@ -169,7 +169,7 @@ def main(
         fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
     )
     dump_file = Path(data_path).with_suffix(".csv").as_posix()
-    host_port, reference = address.split("/")
+    host_port, reference, protocol = address.split("/")
     host, port = host_port.split(":")
     app.decoder = TrafficDecoder.from_address(
         host=host,
@@ -177,6 +177,7 @@ def main(
         reference=reference,
         file_pattern=dump_file,
         uncertainty=decode_uncertainty,
+        tcp=False if protocol == "UDP" else True
     )
     app.decoder.name = source
     flask_thread = threading.Thread(
