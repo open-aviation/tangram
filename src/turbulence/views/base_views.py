@@ -22,7 +22,7 @@ import pandas as pd
 from turbulence.client.ADSBClient import ADSBClient
 from .forms import DatabaseForm, ThresholdForm
 
-from .view_functions import geojson_traffic, geojson_traj
+from .view_functions import geojson_traffic
 
 base_bp = Blueprint("base", __name__)
 CORS(base_bp)
@@ -343,45 +343,6 @@ def get_heatmap_data(und=None):
     return {"data": data}
 
 
-# @base_bp.route("/trajectory/<path:icao>")
-# def get_traj(icao: str):
-#     client = current_app.live_client
-#     history = request.args.get("history", default=False)
-#     if history:
-#         client = current_app.history_client
-#     data = client.pro_data
-#     features = []
-#     if data is not None:
-#         flight = data[icao]
-#         if flight.shape is not None:
-#             try:
-#                 x = flight.geojson()
-#                 x.update(
-#                     {
-#                         "properties": {
-#                             "icao": flight.icao24,
-#                         }
-#                     }
-#                 )
-#                 features.append(x)
-#             except Exception as e:
-#                 logging.exception(str(flight.icao24) + ":" + str(e))
-
-#     geojson = {
-#         "type": "FeatureCollection",
-#         "features": features,
-#     }
-#     return geojson
-
-# @base_bp.route("/trajectory/<path:icao>")
-# def get_traj(icao: str):
-#     client = current_app.live_client
-#     history = request.args.get("history", default=False)
-#     if history:
-#         client = current_app.history_client
-#     data = client.pro_data[icao]
-#     return geojson_traj(data)
-
 @base_bp.route("/trajectory/<path:icao24>")
 def get_traj(icao24: str) -> dict[str, Any]:
     client = current_app.live_client
@@ -398,24 +359,22 @@ def get_traj(icao24: str) -> dict[str, Any]:
             t = pd.Timestamp(und, unit="s", tz="utc")
             flight = flight.query(f"timestamp<='{str(t)}'")
         if flight.shape is not None:
-            for segment in flight.split("1T"):
-                if segment is not None:
-                    try:
-                        x = segment.geojson()
-                    except Exception as e:
-                        logging.exception(
-                            str(flight.icao24) + ":" + str(e)
-                        )
-                        x = None
-                    if x is not None:
-                        x.update(
-                                {
-                                    "properties": {
-                                        "icao": flight.icao24,
-                                    }
-                                }
-                            )
-                        features.append(x)
+            try:
+                x = flight.geojson()
+            except Exception as e:
+                logging.exception(
+                    str(flight.icao24) + ":" + str(e)
+                )
+                x = None
+            if x is not None:
+                x.update(
+                        {
+                            "properties": {
+                                "icao": flight.icao24,
+                            }
+                        }
+                    )
+                features.append(x)
 
     geojson = {
         "type": "FeatureCollection",
