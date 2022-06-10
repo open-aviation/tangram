@@ -1,6 +1,5 @@
 import logging
 import os
-import threading
 from datetime import datetime
 
 import click
@@ -82,18 +81,24 @@ def main(app_host, app_port, live_disable, history_disable,
     app.airep = AIREP()
     app.cat = Metsafe()
     app.network = Network()
-    flask_thread = threading.Thread(
-        target=serve,
-        daemon=True,
-        kwargs=dict(
-            app=app,
-            host=app_host,
-            port=app_port,
-            threads=20
-        ),
+    # flask_thread = threading.Thread(
+    #     target=serve,
+    #     daemon=False,
+    #     kwargs=dict(
+    #         app=app,
+    #         host=app_host,
+    #         port=app_port,
+    #         threads=1
+    #     ),
+    # # )
+    # flask_thread.start()
+    # flask_thread.join()
+    serve(
+        app=app,
+        host=app_host,
+        port=app_port,
+        threads=10
     )
-    flask_thread.start()
-    flask_thread.join()
     # app.run(host=app_host, port=app_port)
 
 
