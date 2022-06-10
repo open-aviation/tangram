@@ -177,7 +177,8 @@ def main(
         reference=reference,
         file_pattern=dump_file,
         uncertainty=decode_uncertainty,
-        tcp=False if protocol == "UDP" else True
+        tcp=False if protocol == "UDP" else True,
+        time_fmt="default" if protocol == "UDP" else "radarcape"
     )
     app.decoder.name = source
     flask_thread = threading.Thread(
