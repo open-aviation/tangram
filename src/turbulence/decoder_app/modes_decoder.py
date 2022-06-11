@@ -4,15 +4,11 @@ import base64
 import logging
 import pickle
 import threading
-from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
-from atmlab.network import Network
 from flask import Flask, current_app
-from pymongo import MongoClient
-from traffic.core import Flight
 from traffic.data import ModeS_Decoder
 from waitress import serve
 
@@ -22,11 +18,6 @@ from turbulence import config_decoder
 if TYPE_CHECKING:
     from traffic.core.structure import Airport
 
-mongo_uri = config_decoder.get(
-    "database",
-    "database_uri",
-    fallback="mongodb://localhost:27017/adsb"
-)
 expire_frequency = pd.Timedelta(
     config_decoder.get("parameters", "expire_frequency", fallback="1 minute")
 )
@@ -35,88 +26,26 @@ expire_threshold = pd.Timedelta(
 )
 
 
-def clean_callsign(cumul):
-    i = 0
-    while i < len(cumul):
-        if cumul[i].keys() == {'timestamp', 'icao24', 'callsign'}:
-            del cumul[i]
-            i -= 1
-        i += 1
-    return cumul
-
-
 class TrafficDecoder(ModeS_Decoder):
     def __init__(
         self,
         reference: None | str | Airport | tuple[float, float] = None,
-        database_uri: str = mongo_uri,
         expire_frequency: pd.Timedelta = expire_frequency,
         expire_threshold: pd.Timedelta = expire_threshold,
-        name: str = 'toulouse'
     ) -> None:
         super().__init__(
             reference,
             expire_frequency=expire_frequency,
             expire_threshold=expire_threshold,
         )
-        client = MongoClient(host=database_uri)
-        self.network = Network()
-        self.db = client.get_database()
-        self.name = name
+        self.pickled_traffic: str = None
+        self.name: str = ""
 
-    def on_expire_aircraft(self, icao24: str) -> None:
-        logging.info(f"expire aircraft {icao24}")
-        self.dump_data(icao24)
-        return super().on_expire_aircraft(icao24)
-
-    def on_new_aircraft(self, icao24: str) -> None:
-        logging.info(f"new aircraft {icao24}")
-
-    def dump_data(self, icao) -> None:
-        flight: Flight = self[icao]
-        if flight is None:
-            return
-        start = flight.start
-        stop = flight.stop
-
-        if stop - start < timedelta(minutes=1):
-            return
-
-        callsign = flight.callsign
-        if callsign is None:
-            return
-        if isinstance(callsign, set):
-            callsign = list(callsign)[
-                flight.data["callsign"].value_counts().argmax()
-            ]
-        try:
-            flight_data = self.network.icao24(icao)["flightId"]
-        except Exception:
-            flight_data = {}
-
-        data = flight.data
-        cumul = [
-            row.dropna().to_dict()
-            for index, row in data.iterrows()
-        ]
-        cumul = clean_callsign(cumul)
-        count = len(cumul)
-        if count == 0:
-            return
-        dum = {
-            "icao": icao,
-            "callsign": callsign,
-            "start": str(start),
-            "stop": str(stop),
-            "count": count,
-            "traj": cumul,
-            "flight_data": flight_data,
-            "antenna": self.name
-        }
-        try:
-            self.db.tracks.insert_one(dum)
-        except Exception as e:
-            logging.warning(e)
+    @ModeS_Decoder.on_timer("5s")
+    def prepare_request(self) -> None:
+        t = self.traffic
+        t = t.assign(antenna=self.name) if t is not None else None
+        self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode("utf-8")
 
 
 app_host = config_decoder.get("application", "host", fallback="127.0.0.1")
@@ -149,7 +78,7 @@ app_port = int(config_decoder.get("application", "port", fallback=5050))
 )
 @click.option("-v", "--verbose", count=True, help="Verbosity level")
 def main(
-    source: str = 'toulouse',
+    source: str = "toulouse",
     # filename: str | Path = "~/ADSB_EHS_RAW_%Y%m%d_tcp.csv",
     decode_uncertainty: bool = False,
     verbose: int = 0,
@@ -164,9 +93,7 @@ def main(
         logger.setLevel(logging.DEBUG)
     address = config_decoder.get("decoders", source)
     data_path = config_decoder.get(
-        "file",
-        source,
-        fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
+        "file", source, fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
     )
     dump_file = Path(data_path).with_suffix(".csv").as_posix()
     host_port, reference, protocol = address.split("/")
@@ -178,30 +105,14 @@ def main(
         file_pattern=dump_file,
         uncertainty=decode_uncertainty,
         tcp=False if protocol == "UDP" else True,
-        time_fmt="default" if protocol == "UDP" else "radarcape"
+        time_fmt="default" if protocol == "UDP" else "radarcape",
     )
     app.decoder.name = source
     flask_thread = threading.Thread(
         target=serve,
         daemon=True,
-        kwargs=dict(
-            app=app,
-            host=serve_host,
-            port=serve_port,
-            threads=8
-        ),
+        kwargs=dict(app=app, host=serve_host, port=serve_port, threads=8),
     )
-    # flask_thread = threading.Thread(
-    #     target=app.run,
-    #     daemon=True,
-    #     kwargs=dict(
-    #         host=serve_host,
-    #         port=5052,
-    #         threaded=True,
-    #         debug=False,
-    #         use_reloader=False,
-    #     ),
-    # )
     flask_thread.start()
 
 
@@ -216,9 +127,7 @@ def home() -> dict[str, int]:
 
 @app.route("/traffic")
 def get_all() -> dict[str, str]:
-    t = current_app.decoder.traffic
-    pickled_traffic = base64.b64encode(pickle.dumps(t)).decode('utf-8')
-    return {"traffic": pickled_traffic}
+    return {"traffic": current_app.decoder.pickled_traffic}
 
 
 if __name__ == "__main__":
