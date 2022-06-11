@@ -11,3 +11,7 @@ config_turb.read(config_file.as_posix())
 config_file = config_dir / "decoder.conf"
 config_decoder = configparser.ConfigParser()
 config_decoder.read(config_file.as_posix())
+
+config_file = config_dir / "aggregator.conf"
+config_agg = configparser.ConfigParser()
+config_agg.read(config_file.as_posix())
