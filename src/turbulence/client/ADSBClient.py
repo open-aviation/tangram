@@ -124,10 +124,12 @@ class ADSBClient:
         except Exception as e:
             logging.warning("pickle: " + str(e))
             traffic = None
+        if traffic is None:
+            return traffic
         return (
             traffic.assign(antenna=decoder_name)
-            if traffic is not None
-            else None
+            if "antenna" not in traffic.data.columns
+            else traffic
         )
 
     def resample_traffic(self, traffic: Traffic) -> Traffic:
