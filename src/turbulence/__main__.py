@@ -36,7 +36,7 @@ app.config["SECRET_KEY"] = SECRET_KEY
 
 app_host = config_turb.get("application", "host", fallback="0.0.0.0")
 app_port = int(config_turb.get("application", "port", fallback=5000))
-live_disable = int(config_turb.get("decoders", "disable", fallback=0))
+live_disable = int(config_turb.get("live", "disable", fallback=0))
 history_disable = int(config_turb.get("history", "disable", fallback=0))
 data_path = config_turb.get("history", "path_data", fallback="")
 mongo_uri = config_turb.get("history", "database_uri", fallback="")
