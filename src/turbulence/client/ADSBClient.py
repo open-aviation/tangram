@@ -21,8 +21,10 @@ from .modes_decoder_client import Decoder
 
 def crit(df: pd.DataFrame) -> pd.Series:
     return (
-        df.vertical_rate_barometric_std - df.vertical_rate_inertial_std
-    ).abs().where(df.vertical_rate_barometric_count > 20, None)
+        (df.vertical_rate_barometric_std - df.vertical_rate_inertial_std)
+        .abs()
+        .where(df.vertical_rate_barometric_count > 20, None)
+    )
 
 
 def threshold(df: pd.DataFrame) -> float:
@@ -66,14 +68,13 @@ class ADSBClient:
     multiplier: float = 1.3
 
     def __init__(
-        self,
-        decoders: dict[str, str] | str = "http://localhost:5050"
+        self, decoders: dict[str, str] | str = "http://localhost:5050"
     ) -> None:
         self.running: bool = False
         if isinstance(decoders, str):
             decoders = {"": decoders}
         self.decoders: dict[str, Decoder] = {
-            name : Decoder(address) for name, address in decoders.items()
+            name: Decoder(address) for name, address in decoders.items()
         }
         self._pro_data: Traffic = None
         self._traffic: Traffic = None
@@ -104,17 +105,18 @@ class ADSBClient:
             self._pro_data = p
         else:
             valid_turb = self._pro_data.query(
-                f'expire_turb>="{pd.Timestamp("now", tz="utc")}"')
+                f'expire_turb>="{pd.Timestamp("now", tz="utc")}"'
+            )
             self._pro_data = valid_turb + p if valid_turb is not None else p
 
     @property
     def traffic(self) -> Traffic:
         return self._traffic
 
-    def traffic_decoder(self, decoder_name : str) -> Traffic | None:
-        traffic_pickled = (
-            self.decoders[decoder_name].traffic_records()["traffic"]
-        )
+    def traffic_decoder(self, decoder_name: str) -> Traffic | None:
+        traffic_pickled = self.decoders[decoder_name].traffic_records()[
+            "traffic"
+        ]
         if traffic_pickled is None:
             return None
         try:
@@ -122,9 +124,11 @@ class ADSBClient:
         except Exception as e:
             logging.warning("pickle: " + str(e))
             traffic = None
-        return traffic.assign(
-            antenna=decoder_name
-        ) if traffic is not None else None
+        return (
+            traffic.assign(antenna=decoder_name)
+            if traffic is not None
+            else None
+        )
 
     def resample_traffic(self, traffic: Traffic) -> Traffic:
         return (
@@ -206,10 +210,7 @@ class ADSBClient:
                         threshold=threshold
                     )
                     .assign(turbulence=turbulence)
-                    .assign(
-                        expire_turb=expire_turb,
-                        anomaly=anomaly
-                    )
+                    .assign(expire_turb=expire_turb, anomaly=anomaly)
                     .eval(max_workers=4)
                 )
             except Exception as e:
@@ -231,7 +232,7 @@ class ADSBClient:
         self.running = True
         self.thread = threading.Thread(
             target=self.calculate_live_turbulence,
-            daemon=False,
+            daemon=True,
         )
         self.thread.start()
 

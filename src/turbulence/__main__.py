@@ -21,7 +21,7 @@ from .util import assets
 from .views import base_views, history_views
 
 app = Flask(__name__, static_folder=None)
-logger = logging.getLogger('waitress')
+logger = logging.getLogger("waitress")
 logger.setLevel(logging.INFO)
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_prefix=1)
@@ -51,19 +51,23 @@ mongo_uri = config_turb.get("history", "database_uri", fallback="")
 @click.option("--history_disable", default=history_disable)
 @click.option("--data_path", default=data_path)
 @click.option("--mongo_uri", default=mongo_uri)
-def main(app_host, app_port, live_disable, history_disable,
-         data_path, mongo_uri, source, decoders_address):
+def main(
+    app_host,
+    app_port,
+    live_disable,
+    history_disable,
+    data_path,
+    mongo_uri,
+    source,
+    decoders_address,
+):
     if decoders_address is None:
         decoders_address = {
-            key : val for key, val in config_turb.items("decoders")
+            key: val for key, val in config_turb.items("decoders")
         }
 
     if source is not None:
-        decoders_address = config_turb.get(
-            'decoders',
-            source,
-            fallback=""
-        )
+        decoders_address = config_turb.get("decoders", source, fallback="")
     app.start_time = datetime.now()
     app.live_client = ADSBClient(decoders=decoders_address)
     app.history_client = ADSBClient()
@@ -93,12 +97,7 @@ def main(app_host, app_port, live_disable, history_disable,
     # # )
     # flask_thread.start()
     # flask_thread.join()
-    serve(
-        app=app,
-        host=app_host,
-        port=app_port,
-        threads=10
-    )
+    serve(app=app, host=app_host, port=app_port, threads=10)
     # app.run(host=app_host, port=app_port)
 
 

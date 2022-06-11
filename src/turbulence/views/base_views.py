@@ -63,13 +63,13 @@ def turbulence() -> dict[str, Any]:
     icao24 = request.args.get("icao24", default=None)
     callsign = request.args.get("callsign", default=None)
     pro_data = client.pro_data
-    if icao24 not in (None, ''):
+    if icao24 not in (None, ""):
         pro_data = pro_data.query(f"icao24=='{str(icao24)}'")
-    if callsign not in (None, ''):
+    if callsign not in (None, ""):
         pro_data = pro_data.query(f"callsign=='{str(callsign)}'")
     features = []
     if pro_data is not None:
-        if und not in (None, ''):
+        if und not in (None, ""):
             und = int(und) / 1000
             t = pd.Timestamp(und, unit="s", tz="utc")
             pro_data = pro_data.query(f"timestamp<='{str(t)}'")
@@ -88,16 +88,18 @@ def turbulence() -> dict[str, Any]:
                                 x = None
                             if x is not None:
                                 x.update(
-                                        {
-                                            "properties": {
-                                                "icao": flight.icao24,
-                                                "callsign": flight.callsign,
-                                                "typecode": flight.typecode,
-                                                "start": segment.start.timestamp(),
-                                                "validity": segment.data["expire_turb"].iloc[0]
-                                            }
+                                    {
+                                        "properties": {
+                                            "icao": flight.icao24,
+                                            "callsign": flight.callsign,
+                                            "typecode": flight.typecode,
+                                            "start": segment.start.timestamp(),
+                                            "validity": segment.data[
+                                                "expire_turb"
+                                            ].iloc[0],
                                         }
-                                    )
+                                    }
+                                )
                                 features.append(x)
 
     geojson = {
@@ -123,28 +125,20 @@ def chart_data(icao) -> Union[str, dict]:
     resultat = pro_data[icao].data
     ts = list(
         map(
-            lambda t: t.timestamp()*1000,
-            resultat.to_dict()["timestamp"].values()
+            lambda t: t.timestamp() * 1000,
+            resultat.to_dict()["timestamp"].values(),
         )
     )
     turb = list(
         resultat["turbulence"].replace(False, str(np.nan)).to_dict().values()
     )
-    vsi = list(
-        map(str, resultat.to_dict()["vertical_rate_inertial"].values())
-    )
+    vsi = list(map(str, resultat.to_dict()["vertical_rate_inertial"].values()))
     vsb = list(
         map(str, resultat.to_dict()["vertical_rate_barometric"].values())
     )
-    cri = list(
-        map(str, resultat.to_dict()["criterion"].values())
-    )
-    thr = list(
-        map(str, resultat.to_dict()["threshold"].values())
-    )
-    altitude = list(
-        map(str, resultat.to_dict()["altitude"].values())
-    )
+    cri = list(map(str, resultat.to_dict()["criterion"].values()))
+    thr = list(map(str, resultat.to_dict()["threshold"].values()))
+    altitude = list(map(str, resultat.to_dict()["altitude"].values()))
     vsi_std = list(
         map(str, resultat.to_dict()["vertical_rate_inertial_std"].values())
     )
@@ -152,17 +146,7 @@ def chart_data(icao) -> Union[str, dict]:
         map(str, resultat.to_dict()["vertical_rate_barometric_std"].values())
     )
     return json.dumps(
-        [
-            ts,
-            turb,
-            vsi,
-            vsb,
-            cri,
-            thr,
-            altitude,
-            vsi_std,
-            vsb_std
-        ]
+        [ts, turb, vsi, vsb, cri, thr, altitude, vsi_std, vsb_std]
     )
 
 
@@ -178,12 +162,12 @@ def fetch_planes_Geojson() -> dict:
         client = current_app.history_client
     data = client.traffic
 
-    if icao24 not in (None, ''):
+    if icao24 not in (None, ""):
         data = data.query(f"icao24=='{str(icao24)}'")
-    if callsign not in (None, ''):
+    if callsign not in (None, ""):
         data = data.query(f"callsign=='{str(callsign)}'")
 
-    if und not in (None, ''):
+    if und not in (None, ""):
         und = int(und) / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")
         data = data.query(f"timestamp<='{str(t)}'")
@@ -284,10 +268,16 @@ def home_page() -> str:
         return redirect(
             url_for(
                 "history.database_request",
-                min=(str(form_database.startdate.data) + " " +
-                     str(form_database.starttime.data)),
-                max=(str(form_database.enddate.data) + " " +
-                     str(form_database.endtime.data)),
+                min=(
+                    str(form_database.startdate.data)
+                    + " "
+                    + str(form_database.starttime.data)
+                ),
+                max=(
+                    str(form_database.enddate.data)
+                    + " "
+                    + str(form_database.endtime.data)
+                ),
             )
         )
 
@@ -304,7 +294,7 @@ def home_page() -> str:
             "index.html",
             history=1,
             form_database=form_database,
-            form_threshold=form_threshold
+            form_threshold=form_threshold,
         )
 
     return render_template(
@@ -312,7 +302,7 @@ def home_page() -> str:
         history=0,
         form_database=form_database,
         form_threshold=form_threshold,
-        uptime=get_uptime()['uptime']
+        uptime=get_uptime()["uptime"],
     )
 
 
@@ -354,7 +344,7 @@ def get_traj(icao24: str) -> dict[str, Any]:
     flight = pro_data[icao24]
     features = []
     if flight is not None:
-        if und not in (None, ''):
+        if und not in (None, ""):
             und = int(und) / 1000
             t = pd.Timestamp(und, unit="s", tz="utc")
             flight = flight.query(f"timestamp<='{str(t)}'")
@@ -362,18 +352,16 @@ def get_traj(icao24: str) -> dict[str, Any]:
             try:
                 x = flight.geojson()
             except Exception as e:
-                logging.exception(
-                    str(flight.icao24) + ":" + str(e)
-                )
+                logging.exception(str(flight.icao24) + ":" + str(e))
                 x = None
             if x is not None:
                 x.update(
-                        {
-                            "properties": {
-                                "icao": flight.icao24,
-                            }
+                    {
+                        "properties": {
+                            "icao": flight.icao24,
                         }
-                    )
+                    }
+                )
                 features.append(x)
 
     geojson = {

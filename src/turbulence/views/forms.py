@@ -13,11 +13,9 @@ class DatabaseForm(FlaskForm):
 
 class ThresholdForm(FlaskForm):
     multiplier = FloatField(
-        "Multiplier",
-        validators=(validators.DataRequired(),)
+        "Multiplier", validators=(validators.DataRequired(),)
     )
     threshold = IntegerField(
-        "Min Threshold",
-        validators=(validators.DataRequired(),)
+        "Min Threshold", validators=(validators.DataRequired(),)
     )
     submit = SubmitField("Submit")

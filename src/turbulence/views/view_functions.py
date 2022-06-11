@@ -53,17 +53,17 @@ def geojson_traj(flight: Flight) -> dict:
     if flight is not None:
         cor = flight.coords4d()
         x = {
-                "type": "Feature",
-                "geometry": {
-                    "type": "LineString",
-                    "coordinates": list(cor),
-                },
-                "properties": {
-                    "icao": flight.icao24,
-                    "callsign": flight.callsign,
-                    "typecode": flight.typecode
-                },
-            }
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": list(cor),
+            },
+            "properties": {
+                "icao": flight.icao24,
+                "callsign": flight.callsign,
+                "typecode": flight.typecode,
+            },
+        }
         features.append(x)
     geojson = {
         "type": "FeatureCollection",
