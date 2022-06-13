@@ -110,9 +110,9 @@ class Aggregetor:
         if traffic is None:
             return None
         previous_endtime = self.decoders_time[decoder_name]
-        self.decoders_time[decoder_name] = traffic.end_time
         if previous_endtime is not None:
             traffic = traffic.query(f"timestamp>='{previous_endtime}'")
+        self.decoders_time[decoder_name] = traffic.end_time
         return traffic.assign(antenna=decoder_name)
 
     def calculate_traffic(self) -> None:
