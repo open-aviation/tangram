@@ -116,7 +116,7 @@ def main(
     app.decoder.name = source
     # return app
     from gevent.pywsgi import WSGIServer
-    http_server = WSGIServer((serve_host, serve_host), app)
+    http_server = WSGIServer((serve_host, serve_port), app)
     http_server.serve_forever()
 
 
