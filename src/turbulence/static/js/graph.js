@@ -106,7 +106,7 @@ async function draw_chart(icao, chart_history = 0) {
 
             // Enable drag-to-zoom behavior
             wheel: {
-              enabled: true,
+              enabled: false,
             },
 
             pinch: {
