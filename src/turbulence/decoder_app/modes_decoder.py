@@ -1,16 +1,16 @@
 from __future__ import annotations
+# from gevent import monkey
 
+# monkey.patch_all()
 import base64
 import logging
 import pickle
-import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
 from flask import Flask, current_app
 from traffic.data import ModeS_Decoder
-from waitress import serve
 
 import pandas as pd
 from turbulence import config_decoder
@@ -52,15 +52,22 @@ app_host = config_decoder.get("application", "host", fallback="127.0.0.1")
 app_port = int(config_decoder.get("application", "port", fallback=5050))
 
 
+app = Flask(__name__)
+
+
+@app.route("/")
+def home() -> dict[str, int]:
+    d = dict(current_app.decoder.acs)
+    return dict((key, len(aircraft.cumul)) for (key, aircraft) in d.items())
+
+
+@app.route("/traffic")
+def get_all() -> dict[str, str]:
+    return {"traffic": current_app.decoder.pickled_traffic}
+
+
 @click.command()
 @click.argument("source")
-# @click.option(
-#     "-f",
-#     "--filename",
-#     default=data_path,
-#     show_default=True,
-#     help="Filename pattern describing where to dump raw data",
-# )
 @click.option(
     "--host",
     "serve_host",
@@ -78,13 +85,12 @@ app_port = int(config_decoder.get("application", "port", fallback=5050))
 )
 @click.option("-v", "--verbose", count=True, help="Verbosity level")
 def main(
-    source: str = "toulouse",
-    # filename: str | Path = "~/ADSB_EHS_RAW_%Y%m%d_tcp.csv",
+    source: str = "delft",
     decode_uncertainty: bool = False,
     verbose: int = 0,
     serve_host: str | None = "127.0.0.1",
     serve_port: int | None = 5050,
-) -> None:
+):
 
     logger = logging.getLogger()
     if verbose == 1:
@@ -108,26 +114,10 @@ def main(
         time_fmt="default" if protocol == "UDP" else "radarcape",
     )
     app.decoder.name = source
-    flask_thread = threading.Thread(
-        target=serve,
-        daemon=True,
-        kwargs=dict(app=app, host=serve_host, port=serve_port, threads=8),
-    )
-    flask_thread.start()
-
-
-app = Flask(__name__)
-
-
-@app.route("/")
-def home() -> dict[str, int]:
-    d = dict(current_app.decoder.acs)
-    return dict((key, len(aircraft.cumul)) for (key, aircraft) in d.items())
-
-
-@app.route("/traffic")
-def get_all() -> dict[str, str]:
-    return {"traffic": current_app.decoder.pickled_traffic}
+    # return app
+    from gevent.pywsgi import WSGIServer
+    http_server = WSGIServer((serve_host, 5053), app)
+    http_server.serve_forever()
 
 
 if __name__ == "__main__":

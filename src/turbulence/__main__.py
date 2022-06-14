@@ -15,10 +15,9 @@ from waitress import serve
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from turbulence import config_turb
-
-from .client.ADSBClient import ADSBClient
-from .util import assets
-from .views import base_views, history_views
+from turbulence.client.ADSBClient import ADSBClient
+from turbulence.util import assets
+from turbulence.views import base_views, history_views
 
 app = Flask(__name__, static_folder=None)
 logger = logging.getLogger("waitress")

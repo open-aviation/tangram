@@ -1,5 +1,6 @@
 from __future__ import annotations
-
+# from gevent import monkey
+# monkey.patch_all()
 import base64
 import heapq
 import logging
@@ -14,16 +15,16 @@ from typing import Callable
 import click
 from atmlab.network import Network
 from flask import Flask, current_app
+from gevent.pywsgi import WSGIServer
 from pymongo import MongoClient
 from traffic.core.traffic import Flight, Traffic
-from waitress import serve
 
 import pandas as pd
 from turbulence import config_agg
 from turbulence.client.modes_decoder_client import Decoder
 
-logger = logging.getLogger("waitress")
-logger.setLevel(logging.INFO)
+
+
 
 mongo_uri = config_agg.get(
     "history", "database_uri", fallback="mongodb://localhost:27017/adsb"
@@ -268,6 +269,14 @@ class Aggregetor:
 app_host = config_agg.get("application", "host", fallback="127.0.0.1")
 app_port = int(config_agg.get("application", "port", fallback=5054))
 
+app = Flask(__name__)
+
+
+@app.route("/traffic")
+def get_all() -> dict[str, str]:
+    p = current_app.aggd.pickled_traffic
+    return {"traffic": p}
+
 
 @click.command()
 @click.option(
@@ -285,7 +294,7 @@ app_port = int(config_agg.get("application", "port", fallback=5054))
     type=int,
     help="port to serve decoded information",
 )
-# @click.option("-v", "--verbose", count=True, help="Verbosity level")
+@click.option("-v", "--verbose", count=True, help="Verbosity level")
 def main(
     # verbose: int = 0,
     serve_host: str | None = "127.0.0.1",
@@ -299,27 +308,11 @@ def main(
     #     logger.setLevel(logging.DEBUG)
     decoders_address = {key: val for key, val in config_agg.items("decoders")}
     app.aggd = Aggregetor.aggregate_decoders(decoders=decoders_address)
-    # flask_thread = threading.Thread(
-    #     target=serve,
-    #     daemon=False,
-    #     kwargs=dict(
-    #         app=app,
-    #         host=serve_host,
-    #         port=serve_port,
-    #         threads=8
-    #     ),
-    # )
-    serve(app=app, host=serve_host, port=serve_port)
 
-
-app = Flask(__name__)
-
-
-@app.route("/traffic")
-def get_all() -> dict[str, str]:
-    p = current_app.aggd.pickled_traffic
-    return {"traffic": p}
-
+    http_server = WSGIServer((serve_host, serve_port), app)
+    http_server.serve_forever()
+    # return app
+# app = main()
 
 if __name__ == "__main__":
     main()
