@@ -296,16 +296,16 @@ def get_all() -> dict[str, str]:
 )
 @click.option("-v", "--verbose", count=True, help="Verbosity level")
 def main(
-    # verbose: int = 0,
+    verbose: int = 0,
     serve_host: str | None = "127.0.0.1",
     serve_port: int | None = 5050,
 ) -> None:
 
-    # logger = logging.getLogger()
-    # if verbose == 1:
-    #     logger.setLevel(logging.INFO)
-    # elif verbose > 1:
-    #     logger.setLevel(logging.DEBUG)
+    logger = logging.getLogger()
+    if verbose == 1:
+        logger.setLevel(logging.INFO)
+    elif verbose > 1:
+        logger.setLevel(logging.DEBUG)
     decoders_address = {key: val for key, val in config_agg.items("decoders")}
     app.aggd = Aggregetor.aggregate_decoders(decoders=decoders_address)
 
