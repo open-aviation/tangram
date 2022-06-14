@@ -24,8 +24,6 @@ from turbulence import config_agg
 from turbulence.client.modes_decoder_client import Decoder
 
 
-
-
 mongo_uri = config_agg.get(
     "history", "database_uri", fallback="mongodb://localhost:27017/adsb"
 )
@@ -179,6 +177,8 @@ class Aggregetor:
 
     def on_expire_aircraft(self, icao24: str) -> None:
         t = self.traffic
+        if t is None:
+            return
         self.dump_data(icao24)
         self.traffic = t.query(f'icao24!="{icao24}"')
 
@@ -312,7 +312,7 @@ def main(
     http_server = WSGIServer((serve_host, serve_port), app)
     http_server.serve_forever()
     # return app
-# app = main()
+
 
 if __name__ == "__main__":
     main()
