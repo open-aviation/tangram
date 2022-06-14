@@ -343,7 +343,7 @@ function getTimeString(isLocal) {
 //   });
 // }
 function getTrajectory(icao, und = "", history = 0) {
-  url = "/trajectory/" + icao
+  url = "trajectory/" + icao
   const searchParams = new URLSearchParams({ history: history, und: und });
   url = url + '?' + searchParams
   $.getJSON(url, function (data) {
