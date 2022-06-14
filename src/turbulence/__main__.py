@@ -96,7 +96,7 @@ def main(
     # # )
     # flask_thread.start()
     # flask_thread.join()
-    serve(app=app, host=app_host, port=app_port, threads=10)
+    serve(app=app, host=app_host, port=app_port, threads=20)
     # app.run(host=app_host, port=app_port)
 
 
