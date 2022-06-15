@@ -319,29 +319,6 @@ function getTimeString(isLocal) {
 
   return zeit_string;
 }
-// function highlightTrajectory(e) {
-//   var layer = e.target;
-//   layer.setStyle({
-//     weight: 4,
-//     opacity: 1,
-//     color: "#dbff4d",
-//   });
-//   layer.bringToFront();
-// }
-
-// //reset the hightlighted states on mouseout
-// function resetTrajectory(e) {
-//   geojsonStates.resetStyle(e.target);
-// }
-
-
-// //add these events to the layer object
-// function onEachTrajectory(feature, layer) {
-//   layer.on({
-//     click: highlightTrajectory,
-//     mouseout: resetTrajectory,
-//   });
-// }
 function getTrajectory(icao, und = "", history = 0) {
   url = "trajectory/" + icao
   const searchParams = new URLSearchParams({ history: history, und: und });
@@ -349,7 +326,7 @@ function getTrajectory(icao, und = "", history = 0) {
   $.getJSON(url, function (data) {
     traj.clearLayers();
     L.geoJson(data.geojson, {
-      color: "blue",
+      color: "black",
     }).addTo(traj);
   });
 }
