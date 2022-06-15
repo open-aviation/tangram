@@ -1,7 +1,5 @@
 from __future__ import annotations
-# from gevent import monkey
 
-# monkey.patch_all()
 import base64
 import logging
 import pickle
@@ -97,13 +95,17 @@ def main(
         logger.setLevel(logging.INFO)
     elif verbose > 1:
         logger.setLevel(logging.DEBUG)
-    address = config_decoder.get("decoders", source)
-    data_path = config_decoder.get(
-        "file", source, fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
+    host = config_decoder.get("decoders."+source, "host")
+    port = config_decoder.get("decoders."+source, "port")
+    time_fmt = config_decoder.get(
+        "decoders."+source, "time_fmt", fallback="default"
     )
+    protocol = config_decoder.get("decoders."+source, "socket")
+    data_path = config_decoder.get(
+        "decoders."+source, "file", fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
+    )
+    reference = config_decoder.get("decoders."+source, "reference")
     dump_file = Path(data_path).with_suffix(".csv").as_posix()
-    host_port, reference, protocol = address.split("/")
-    host, port = host_port.split(":")
     app.decoder = TrafficDecoder.from_address(
         host=host,
         port=int(port),
@@ -111,7 +113,7 @@ def main(
         file_pattern=dump_file,
         uncertainty=decode_uncertainty,
         tcp=False if protocol == "UDP" else True,
-        time_fmt="default" if protocol == "UDP" else "radarcape",
+        time_fmt=time_fmt,
     )
     app.decoder.name = source
     # return app
