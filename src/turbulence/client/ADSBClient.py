@@ -149,7 +149,7 @@ class ADSBClient:
 
     def calculate_traffic(self) -> None:
         traffic_decoders = None
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=3) as executor:
             traffic_decoders = list(
                 executor.map(self.traffic_decoder, self.decoders)
             )

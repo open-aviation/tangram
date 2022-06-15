@@ -1,6 +1,5 @@
 from __future__ import annotations
-# from gevent import monkey
-# monkey.patch_all()
+
 import base64
 import heapq
 import logging
@@ -15,14 +14,12 @@ from typing import Callable
 import click
 from atmlab.network import Network
 from flask import Flask, current_app
-from gevent.pywsgi import WSGIServer
 from pymongo import MongoClient
 from traffic.core.traffic import Flight, Traffic
 
 import pandas as pd
 from turbulence import config_agg
 from turbulence.client.modes_decoder_client import Decoder
-
 
 mongo_uri = config_agg.get(
     "history", "database_uri", fallback="mongodb://localhost:27017/adsb"
@@ -308,7 +305,7 @@ def main(
         logger.setLevel(logging.DEBUG)
     decoders_address = {key: val for key, val in config_agg.items("decoders")}
     app.aggd = Aggregetor.aggregate_decoders(decoders=decoders_address)
-
+    from gevent.pywsgi import WSGIServer
     http_server = WSGIServer((serve_host, serve_port), app)
     http_server.serve_forever()
     # return app

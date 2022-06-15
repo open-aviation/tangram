@@ -1,8 +1,8 @@
 import logging
+# from gevent import monkey
+# monkey.patch_all()
 import os
-
 from requests import Session
-
 os.environ["no_proxy"] = "localhost"
 
 
