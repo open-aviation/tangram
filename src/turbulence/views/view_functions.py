@@ -9,7 +9,7 @@ def geojson_flight(flight: Flight) -> dict:
     longitude = data.longitude
     if not (np.isnan(latitude) and np.isnan(longitude)):
         track = data.track
-        typecode = data.typecode 
+        typecode = data.typecode
         x = {
             "type": "Feature",
             "geometry": {
