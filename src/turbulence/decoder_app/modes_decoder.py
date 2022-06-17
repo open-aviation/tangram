@@ -22,6 +22,13 @@ expire_frequency = pd.Timedelta(
 expire_threshold = pd.Timedelta(
     config_decoder.get("parameters", "expire_threshold", fallback="1 minute")
 )
+columns = set(config_decoder.get("columns", "columns", fallback=[]))
+columns = {
+    'timestamp', 'icao24', 'altitude', 'heading',
+    'vertical_rate_barometric', 'vertical_rate_inertial',
+    'track', 'vertical_rate', 'latitude', 'longitude',
+    'callsign', 'track_rate'
+}
 
 
 class TrafficDecoder(ModeS_Decoder):
@@ -42,7 +49,9 @@ class TrafficDecoder(ModeS_Decoder):
     @ModeS_Decoder.on_timer("5s")
     def prepare_request(self) -> None:
         t = self.traffic
-        t = t.assign(antenna=self.name) if t is not None else None
+        if t is not None:
+            t = t.drop(set(t.data.columns) - columns, axis=1)
+            t = t.assign(antenna=self.name)
         self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode("utf-8")
 
 
