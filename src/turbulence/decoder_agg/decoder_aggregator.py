@@ -30,6 +30,13 @@ expire_frequency = pd.Timedelta(
 expire_threshold = pd.Timedelta(
     config_agg.get("parameters", "expire_threshold", fallback="1 minute")
 )
+columns = set(config_agg.get("columns", "columns", fallback=[]))
+columns = {
+    'timestamp', 'icao24', 'altitude', 'heading',
+    'vertical_rate_barometric', 'vertical_rate_inertial',
+    'track', 'vertical_rate', 'latitude', 'longitude',
+    'callsign', 'track_rate'
+}
 
 
 def clean_callsign(cumul):
@@ -109,6 +116,7 @@ class Aggregetor:
         if previous_endtime is not None:
             traffic = traffic.query(f"timestamp>='{previous_endtime}'")
         if traffic is None:
+            self.decoders_time[decoder_name] = None
             return None
         self.decoders_time[decoder_name] = traffic.end_time
         return traffic.assign(antenna=decoder_name)
@@ -134,8 +142,12 @@ class Aggregetor:
         print("process id:", os.getpid())
         while self.running:
             self.calculate_traffic()
+            t = self.traffic
+            t = t.drop(
+                set(t.data.columns) - columns, axis=1
+            ) if t is not None else t
             self.pickled_traffic = base64.b64encode(
-                pickle.dumps(self.traffic)
+                pickle.dumps(t)
             ).decode("utf-8")
             time.sleep(5)
 
