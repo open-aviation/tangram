@@ -6,9 +6,9 @@ authors = ["Michel Khalaf <khalafmichel98@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.scripts]
-turb = 'turbulence.__main__:main'
+turbulence = 'turbulence.__main__:main'
 decode = 'turbulence.decoder_app.modes_decoder:main'
-agg = 'turbulence.decoder_agg.decoder_aggregator:main'
+aggregator = 'turbulence.decoder_agg.decoder_aggregator:main'
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.10"
