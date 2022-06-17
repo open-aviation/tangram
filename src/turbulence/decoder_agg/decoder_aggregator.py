@@ -146,9 +146,9 @@ class Aggregetor:
             # t = t.drop(
             #     set(t.data.columns) - columns, axis=1
             # ) if t is not None else t
-            self.pickled_traffic = base64.b64encode(
-                pickle.dumps(t)
-            ).decode("utf-8")
+            self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode(
+                "utf-8"
+            )
             time.sleep(5)
 
     @classmethod
@@ -318,6 +318,7 @@ def main(
     decoders_address = {key: val for key, val in config_agg.items("decoders")}
     app.aggd = Aggregetor.aggregate_decoders(decoders=decoders_address)
     from gevent.pywsgi import WSGIServer
+
     http_server = WSGIServer((serve_host, serve_port), app)
     http_server.serve_forever()
     # return app
