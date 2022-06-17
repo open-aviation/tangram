@@ -6,6 +6,7 @@ import pickle
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from traffic.data import aircraft
 
 from pymongo import MongoClient
 from pymongo.cursor import Cursor
@@ -158,7 +159,11 @@ class ADSBClient:
         if traffic == 0:
             self._traffic = None
             return
-        self._traffic = self.resample_traffic(traffic)
+        t = self.resample_traffic(traffic)
+        self._traffic = t.merge(
+            aircraft.data[['icao24', 'typecode']],
+            how="left",
+        ) if t is not None else t
 
     def set_min_threshold(self, value: float) -> None:
         ADSBClient.min_threshold = value
@@ -180,8 +185,8 @@ class ADSBClient:
                     .filter(
                         strategy=None,
                         # median filters for abnormal points
-                        vertical_rate_barometric=3,
-                        vertical_rate_inertial=3,  # kernel sizes
+                        # vertical_rate_barometric=3,
+                        # vertical_rate_inertial=3,  # kernel sizes
                         latitude=13,
                         longitude=13,
                     )
@@ -197,8 +202,8 @@ class ADSBClient:
                         vertical_rate_inertial="std",
                         vertical_rate_barometric=["std", "count"],
                         # reduce one minute to one point
-                        latitude="mean",
-                        longitude="mean",
+                        # latitude="mean",
+                        # longitude="mean",
                     )
                     .assign(
                         # we define a criterion based on the

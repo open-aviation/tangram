@@ -1,16 +1,15 @@
-from concurrent.futures import ProcessPoolExecutor
-
 from traffic.core import Flight, Traffic
 
 import numpy as np
 
 
 def geojson_flight(flight: Flight) -> dict:
-    data = flight.data
-    latitude = data.latitude.iloc[-1]
-    longitude = data.longitude.iloc[-1]
-    track = data.track.iloc[-1]
+    data = flight.data.iloc[-1]
+    latitude = data.latitude
+    longitude = data.longitude
     if not (np.isnan(latitude) and np.isnan(longitude)):
+        track = data.track
+        typecode = data.typecode 
         x = {
             "type": "Feature",
             "geometry": {
@@ -23,7 +22,7 @@ def geojson_flight(flight: Flight) -> dict:
             "properties": {
                 "icao": flight.icao24,
                 "callsign": flight.callsign,
-                "typecode": flight.typecode,
+                "typecode": None if str(typecode) == 'nan' else typecode,
                 "dir": 0 if np.isnan(track) else track,
             },
         }
@@ -34,8 +33,8 @@ def geojson_flight(flight: Flight) -> dict:
 def geojson_traffic(traffic: Traffic) -> dict:
     features = []
     if traffic is not None:
-        with ProcessPoolExecutor(max_workers=4) as executor:
-            features = executor.map(geojson_flight, traffic)
+        # with ProcessPoolExecutor(max_workers=4) as executor:
+        features = map(geojson_flight, traffic)
         features = list(filter(lambda t: t is not None, features))
     geojson = {
         "type": "FeatureCollection",
@@ -48,25 +47,23 @@ def geojson_traffic(traffic: Traffic) -> dict:
     return encapsulated_geojson
 
 
-def geojson_traj(flight: Flight) -> dict:
-    features = []
-    if flight is not None:
-        cor = flight.coords4d()
-        x = {
-            "type": "Feature",
-            "geometry": {
-                "type": "LineString",
-                "coordinates": list(cor),
-            },
-            "properties": {
-                "icao": flight.icao24,
-                "callsign": flight.callsign,
-                "typecode": flight.typecode,
-            },
-        }
-        features.append(x)
-    geojson = {
-        "type": "FeatureCollection",
-        "features": features,
-    }
-    return geojson
+# def geojson_traj(flight: Flight) -> dict:
+#     features = []
+#     if flight is not None:
+#         cor = flight.shape
+#         x = {
+#             "type": "Feature",
+#             "geometry": {
+#                 "type": "LineString",
+#                 "coordinates": cor,
+#             },
+#             "properties": {
+#                 "icao": flight.icao24,
+#             },
+#         }
+#         features.append(x)
+#     geojson = {
+#         "type": "FeatureCollection",
+#         "features": features,
+#     }
+#     return geojson
