@@ -41,9 +41,9 @@ function whenClicked(e) {
   $(".turb-" + icao).toggleClass("turb_path", false);
   $(".turb-" + icao).toggleClass("turb_selected", true);
   draw_chart(icao, chart_history);
+  getTrajectory(icao);
   getFlight_data(icao, callsign, typecode);
   sidebar.open("info_box");
-  getTrajectory(icao);
 }
 function onEachPlane(feature, layer) {
   let icao = feature.properties.icao;

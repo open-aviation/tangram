@@ -342,32 +342,21 @@ def get_traj(icao24: str) -> dict[str, Any]:
     und = request.args.get("und", default=None)
     pro_data = client.pro_data
     flight = pro_data[icao24]
-    features = []
+    geojson = None
     if flight is not None:
         if und not in (None, ""):
             und = int(und) / 1000
             t = pd.Timestamp(und, unit="s", tz="utc")
             flight = flight.query(f"timestamp<='{str(t)}'")
-        if flight.shape is not None:
-            try:
-                x = flight.geojson()
-            except Exception as e:
-                logging.exception(str(flight.icao24) + ":" + str(e))
-                x = None
-            if x is not None:
-                x.update(
-                    {
-                        "properties": {
-                            "icao": flight.icao24,
-                        }
+        geojson = flight.geojson()
+        if geojson is not None:
+            geojson.update(
+                {
+                    "properties": {
+                        "icao": flight.icao24,
                     }
-                )
-                features.append(x)
-
-    geojson = {
-        "type": "FeatureCollection",
-        "features": features,
-    }
+                }
+            )
     encapsulated_geojson = {
         "geojson": geojson,
     }
