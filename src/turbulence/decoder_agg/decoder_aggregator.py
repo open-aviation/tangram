@@ -185,11 +185,8 @@ class Aggregetor:
                 self.on_expire_aircraft(flight.icao24)
 
     def on_expire_aircraft(self, icao24: str) -> None:
-        t = self.traffic
-        if t is None:
-            return
         self.dump_data(icao24)
-        self.traffic = t.query(f'icao24!="{icao24}"')
+        self.traffic = self.traffic.query(f'icao24!="{icao24}"')
 
     def dump_data(self, icao) -> None:
         flight: Flight = self.traffic[icao]
@@ -296,6 +293,13 @@ def get_all() -> dict[str, str]:
     help="host address where to serve decoded information",
 )
 @click.option(
+    "-l",
+    "--log",
+    "log_file",
+    default=None,
+    help="logging information",
+)
+@click.option(
     "--port",
     "serve_port",
     show_default=True,
@@ -307,7 +311,8 @@ def get_all() -> dict[str, str]:
 def main(
     verbose: int = 0,
     serve_host: str | None = "127.0.0.1",
-    serve_port: int | None = 5050,
+    serve_port: int | None = 5054,
+    log_file: str | None = None,
 ) -> None:
 
     logger = logging.getLogger()
@@ -315,6 +320,22 @@ def main(
         logger.setLevel(logging.INFO)
     elif verbose > 1:
         logger.setLevel(logging.DEBUG)
+    logger.handlers.clear()
+
+    formatter = logging.Formatter(
+        "%(process)d - %(threadName)s - %(asctime)s - %(levelname)s - %(message)s"
+    )
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    if log_file is not None:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
     decoders_address = {key: val for key, val in config_agg.items("decoders")}
     app.aggd = Aggregetor.aggregate_decoders(decoders=decoders_address)
     from gevent.pywsgi import WSGIServer
