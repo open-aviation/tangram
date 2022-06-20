@@ -4,12 +4,11 @@ import numpy as np
 
 
 def geojson_flight(flight: Flight) -> dict:
-    data = flight.data.iloc[-1]
-    latitude = data.latitude
-    longitude = data.longitude
+    latitude = flight.data.latitude.iloc[-1]
+    longitude = flight.data.longitude.iloc[-1]
     if not (np.isnan(latitude) and np.isnan(longitude)):
-        track = data.track
-        typecode = data.typecode
+        track = flight.data.track.iloc[-1]
+        typecode = flight.data.typecode.iloc[-1]
         x = {
             "type": "Feature",
             "geometry": {
