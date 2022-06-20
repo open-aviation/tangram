@@ -55,10 +55,6 @@ class TrafficDecoder(ModeS_Decoder):
         self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode("utf-8")
 
 
-app_host = config_decoder.get("application", "host", fallback="127.0.0.1")
-app_port = int(config_decoder.get("application", "port", fallback=5050))
-
-
 app = Flask(__name__)
 
 
@@ -79,16 +75,23 @@ def get_all() -> dict[str, str]:
     "--host",
     "serve_host",
     show_default=True,
-    default=app_host,
+    default=None,
     help="host address where to serve decoded information",
 )
 @click.option(
     "--port",
     "serve_port",
     show_default=True,
-    default=app_port,
+    default=None,
     type=int,
     help="port to serve decoded information",
+)
+@click.option(
+    "-l",
+    "--log",
+    "log_file",
+    default=None,
+    help="logging information",
 )
 @click.option("-v", "--verbose", count=True, help="Verbosity level")
 def main(
@@ -97,6 +100,7 @@ def main(
     verbose: int = 0,
     serve_host: str | None = "127.0.0.1",
     serve_port: int | None = 5050,
+    log_file: str | None = None,
 ):
 
     logger = logging.getLogger()
@@ -104,8 +108,29 @@ def main(
         logger.setLevel(logging.INFO)
     elif verbose > 1:
         logger.setLevel(logging.DEBUG)
+
+    logger.handlers.clear()
+
+    formatter = logging.Formatter(
+        "%(process)d - %(threadName)s - %(asctime)s - %(levelname)s - %(message)s"
+    )
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    if log_file is not None:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
     host = config_decoder.get("decoders."+source, "host")
     port = config_decoder.get("decoders."+source, "port")
+    if serve_host is None:
+        serve_host = config_decoder.get("application", "host", fallback="127.0.0.1")
+    if serve_port is None:
+        serve_port = int(config_decoder.get("application", "port", fallback=5050))
     time_fmt = config_decoder.get(
         "decoders."+source, "time_fmt", fallback="default"
     )
