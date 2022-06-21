@@ -21,6 +21,8 @@ import pandas as pd
 from turbulence import config_agg
 from turbulence.client.modes_decoder_client import Decoder
 
+logger = logging.getLogger("aggregator")
+
 mongo_uri = config_agg.get(
     "history", "database_uri", fallback="mongodb://localhost:27017/adsb"
 )
@@ -99,7 +101,7 @@ class Aggregetor:
         with self.lock_traffic:
             self._traffic = t
 
-    def traffic_decoder(self, decoder_name: str) -> Traffic | None:
+    def traffic_decoder(self, decoder_name: set(str)) -> Traffic | None:
         traffic_pickled = self.decoders[decoder_name].traffic_records()[
             "traffic"
         ]
@@ -108,7 +110,7 @@ class Aggregetor:
         try:
             traffic = pickle.loads(base64.b64decode(traffic_pickled.encode()))
         except Exception as e:
-            logging.warning("pickle: " + str(e))
+            logger.warning("pickle: " + str(e))
             return None
         if traffic is None:
             return None
@@ -125,7 +127,7 @@ class Aggregetor:
         traffic_decoders = None
         with ThreadPoolExecutor(max_workers=4) as executor:
             traffic_decoders = list(
-                executor.map(self.traffic_decoder, self.decoders)
+                executor.map(self.traffic_decoder, self.decoders.keys())
             )
         traffic_decoders = filter(lambda t: t is not None, traffic_decoders)
         t = sum(traffic_decoders)
@@ -141,14 +143,17 @@ class Aggregetor:
         print("parent process:", os.getppid())
         print("process id:", os.getpid())
         while self.running:
-            self.calculate_traffic()
-            t = self.traffic
-            # t = t.drop(
-            #     set(t.data.columns) - columns, axis=1
-            # ) if t is not None else t
-            self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode(
-                "utf-8"
-            )
+            try:
+                self.calculate_traffic()
+                t = self.traffic
+                # t = t.drop(
+                #     set(t.data.columns) - columns, axis=1
+                # ) if t is not None else t
+                self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode(
+                    "utf-8"
+                )
+            except Exception as e:
+                logger.exception(e)
             time.sleep(5)
 
     @classmethod
@@ -162,7 +167,7 @@ class Aggregetor:
         def decorate(
             function: Callable[[Aggregetor], None]
         ) -> Callable[[Aggregetor], None]:
-            logging.info(f"Schedule {function.__name__} with {frequency}")
+            logger.info(f"Schedule {function.__name__} with {frequency}")
             heapq.heappush(
                 cls.timer_functions,
                 (now + frequency, frequency, function),
@@ -172,7 +177,7 @@ class Aggregetor:
         return decorate
 
     def expire_aircraft(self) -> None:
-        logging.info("Running expire_aircraft")
+        logger.info("Running expire_aircraft")
 
         now = pd.Timestamp("now", tz="utc")
         t = self.traffic
@@ -229,7 +234,7 @@ class Aggregetor:
         try:
             self.db.tracks.insert_one(dum)
         except Exception as e:
-            logging.warning(e)
+            logger.warning(e)
 
     @classmethod
     def aggregate_decoders(
@@ -251,7 +256,7 @@ class Aggregetor:
 
                 now = pd.Timestamp("now", tz="utc")
                 operation(agg)
-                logging.info(f"Schedule {operation.__name__} at {now + delta}")
+                logger.info(f"Schedule {operation.__name__} at {now + delta}")
                 heapq.heappush(
                     cls.timer_functions, (now + delta, delta, operation)
                 )
@@ -314,8 +319,6 @@ def main(
     serve_port: int | None = 5054,
     log_file: str | None = None,
 ) -> None:
-
-    logger = logging.getLogger()
     if verbose == 1:
         logger.setLevel(logging.INFO)
     elif verbose > 1:
@@ -336,6 +339,7 @@ def main(
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
+        logging.getLogger().addHandler(file_handler)
     decoders_address = {key: val for key, val in config_agg.items("decoders")}
     app.aggd = Aggregetor.aggregate_decoders(decoders=decoders_address)
     from gevent.pywsgi import WSGIServer
