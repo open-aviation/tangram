@@ -18,6 +18,7 @@ from turbulence import config_turb
 from turbulence.client.ADSBClient import ADSBClient
 from turbulence.util import assets
 from turbulence.views import base_views, history_views
+from turbulence.views.view_functions import RequestBuilder
 
 app = Flask(__name__, static_folder=None)
 logger = logging.getLogger("waitress")
@@ -84,6 +85,7 @@ def main(
     app.airep = AIREP()
     app.cat = Metsafe()
     app.network = Network()
+    app.request_builder = RequestBuilder(app.live_client)
     # flask_thread = threading.Thread(
     #     target=serve,
     #     daemon=False,

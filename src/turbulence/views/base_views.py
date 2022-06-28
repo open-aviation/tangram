@@ -1,6 +1,7 @@
+import base64
 import json
+import pickle
 from datetime import datetime
-import logging
 from typing import Any, Union
 
 from flask import (
@@ -14,15 +15,13 @@ from flask import (
     url_for,
 )
 from flask_cors import CORS
-import numpy as np
 from traffic.core import Traffic
 
+import numpy as np
 import pandas as pd
-
 from turbulence.client.ADSBClient import ADSBClient
-from .forms import DatabaseForm, ThresholdForm
-
-from .view_functions import geojson_traffic
+from turbulence.views.forms import DatabaseForm, ThresholdForm
+from turbulence.views.view_functions import geojson_traffic, geojson_turbulence
 
 base_bp = Blueprint("base", __name__)
 CORS(base_bp)
@@ -53,64 +52,43 @@ def get_uptime() -> dict[str, Any]:
     return {"uptime": (datetime.now() - current_app.start_time).total_seconds()}
 
 
+@base_bp.route('/traffic')
+def get_traffic():
+    t = current_app.live_client.pro_data
+    return {"traffic" : base64.b64encode(pickle.dumps(t)).decode(
+                "utf-8"
+            )}
+
+
 @base_bp.route("/turb.geojson")
 def turbulence() -> dict[str, Any]:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
-    if history:
-        client = current_app.history_client
     und = request.args.get("und", default=None)
     icao24 = request.args.get("icao24", default=None)
     callsign = request.args.get("callsign", default=None)
+    standard = True
+    if history:
+        standard = False
+        client = current_app.history_client
+
     pro_data = client.pro_data
+
     if icao24 not in (None, ""):
+        standard = False
         pro_data = pro_data.query(f"icao24=='{str(icao24)}'")
     if callsign not in (None, ""):
+        standard = False
         pro_data = pro_data.query(f"callsign=='{str(callsign)}'")
-    features = []
-    if pro_data is not None:
-        if und not in (None, ""):
-            und = int(und) / 1000
-            t = pd.Timestamp(und, unit="s", tz="utc")
-            pro_data = pro_data.query(f"timestamp<='{str(t)}'")
-        turb: Traffic = pro_data.query("turbulence")
-        if turb is not None:
-            for flight in turb:
-                if flight.shape is not None:
-                    for segment in flight.split("1T"):
-                        if segment is not None:
-                            try:
-                                x = segment.geojson()
-                            except Exception as e:
-                                logging.exception(
-                                    str(flight.icao24) + ":" + str(e)
-                                )
-                                x = None
-                            if x is not None:
-                                x.update(
-                                    {
-                                        "properties": {
-                                            "icao": flight.icao24,
-                                            "callsign": flight.callsign,
-                                            "typecode": flight.typecode,
-                                            "start": segment.start.timestamp(),
-                                            "validity": segment.data[
-                                                "expire_turb"
-                                            ].iloc[0],
-                                        }
-                                    }
-                                )
-                                features.append(x)
+    if und not in (None, ""):
+        standard = False
+        und = int(und) / 1000
+        t = pd.Timestamp(und, unit="s", tz="utc")
+        pro_data = pro_data.query(f"timestamp<='{str(t)}'")
 
-    geojson = {
-        "type": "FeatureCollection",
-        "features": features,
-    }
-    encapsulated_geojson = {
-        "count": len(geojson["features"]),
-        "geojson": geojson,
-    }
-    return encapsulated_geojson
+    return current_app.request_builder.turb_result if standard else geojson_turbulence(
+        pro_data
+    )
 
 
 @base_bp.route("/chart.data/<path:icao>")
@@ -157,21 +135,28 @@ def fetch_planes_Geojson() -> dict:
     und = request.args.get("und", default=None)
     icao24 = request.args.get("icao24", default=None)
     callsign = request.args.get("callsign", default=None)
-
+    standard = True
     if history:
+        standard = False
         client = current_app.history_client
     data = client.traffic
 
     if icao24 not in (None, ""):
+        standard = False
         data = data.query(f"icao24=='{str(icao24)}'")
     if callsign not in (None, ""):
+        standard = False
         data = data.query(f"callsign=='{str(callsign)}'")
 
     if und not in (None, ""):
+        standard = False
         und = int(und) / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")
         data = data.query(f"timestamp<='{str(t)}'")
-    return geojson_traffic(data)
+
+    return current_app.request_builder.planes_position if standard else geojson_traffic(
+        data
+    )
 
 
 @base_bp.route("/plane.png")
