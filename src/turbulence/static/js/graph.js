@@ -82,8 +82,6 @@ async function draw_chart(icao, chart_history = 0) {
   var config = {
     type: "line",
     data: data,
-    stepped: false,
-    spanGaps: false,
     options: {
       responsive: true,
       scales: {
@@ -94,64 +92,64 @@ async function draw_chart(icao, chart_history = 0) {
           },
         ],
       },
-      plugins: {
-        zoom: {
-          pan: {
-            enabled: true,
-          },
-          // Container for zoom options
-          zoom: {
-            // Boolean to enable zooming
-            enabled: true,
+      // plugins: {
+      //   zoom: {
+      //     pan: {
+      //       enabled: true,
+      //     },
+      //     // Container for zoom options
+      //     zoom: {
+      //       // Boolean to enable zooming
+      //       enabled: true,
 
-            // Enable drag-to-zoom behavior
-            wheel: {
-              enabled: false,
-            },
+      //       // Enable drag-to-zoom behavior
+      //       wheel: {
+      //         enabled: false,
+      //       },
 
-            pinch: {
-              enabled: true
-            },
-            // Drag-to-zoom effect can be customized
-            // drag: {
-            // 	 borderColor: 'rgba(225,225,225,0.3)'
-            // 	 borderWidth: 5,
-            // 	 backgroundColor: 'rgb(225,225,225)',
-            // 	 animationDuration: 0
-            // },
+      //       pinch: {
+      //         enabled: true
+      //       },
+      //       // Drag-to-zoom effect can be customized
+      //       // drag: {
+      //       // 	 borderColor: 'rgba(225,225,225,0.3)'
+      //       // 	 borderWidth: 5,
+      //       // 	 backgroundColor: 'rgb(225,225,225)',
+      //       // 	 animationDuration: 0
+      //       // },
 
-            // Zooming directions. Remove the appropriate direction to disable
-            // Eg. 'y' would only allow zooming in the y direction
-            // A function that is called as the user is zooming and returns the
-            // available directions can also be used:
-            //   mode: function({ chart }) {
-            //     return 'xy';
-            //   },
-            mode: 'xy',
+      //       // Zooming directions. Remove the appropriate direction to disable
+      //       // Eg. 'y' would only allow zooming in the y direction
+      //       // A function that is called as the user is zooming and returns the
+      //       // available directions can also be used:
+      //       //   mode: function({ chart }) {
+      //       //     return 'xy';
+      //       //   },
+      //       mode: 'xy',
 
-            rangeMin: {
-              // Format of min zoom range depends on scale type
-              x: null,
-              y: null
-            },
-            rangeMax: {
-              // Format of max zoom range depends on scale type
-              x: null,
-              y: null
-            },
+      //       rangeMin: {
+      //         // Format of min zoom range depends on scale type
+      //         x: null,
+      //         y: null
+      //       },
+      //       rangeMax: {
+      //         // Format of max zoom range depends on scale type
+      //         x: null,
+      //         y: null
+      //       },
 
-            // Speed of zoom via mouse wheel
-            // (percentage of zoom on a wheel event)
-            speed: 0.1,
+      //       // Speed of zoom via mouse wheel
+      //       // (percentage of zoom on a wheel event)
+      //       speed: 0.1,
 
-            // Minimal zoom distance required before actually applying zoom
-            threshold: 2,
+      //       // Minimal zoom distance required before actually applying zoom
+      //       threshold: 2,
 
-            // On category scale, minimal zoom level before actually applying zoom
-            sensitivity: 3,
-          }
-        }
-      }
+      //       // On category scale, minimal zoom level before actually applying zoom
+      //       sensitivity: 3,
+      //     }
+      //   }
+      // }
     }
   }
   if (myChart != undefined || myChart != null) {
