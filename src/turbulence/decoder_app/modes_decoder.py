@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import base64
 import logging
-import pickle
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
-from flask import Flask, current_app
+import zmq
 from traffic.data import ModeS_Decoder
 
 import pandas as pd
@@ -46,27 +44,27 @@ class TrafficDecoder(ModeS_Decoder):
         self.pickled_traffic: str = None
         self.name: str = ""
 
-    @ModeS_Decoder.on_timer("5s")
-    def prepare_request(self) -> None:
-        t = self.traffic
-        if t is not None:
-            t = t.drop(set(t.data.columns) - columns, axis=1)
-            t = t.assign(antenna=self.name)
-        self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode("utf-8")
+    # @ModeS_Decoder.on_timer("5s")
+    # def prepare_request(self) -> None:
+    #     t = self.traffic
+    #     if t is not None:
+    #         t = t.drop(set(t.data.columns) - columns, axis=1)
+    #         t = t.assign(antenna=self.name)
+    #     self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode("utf-8")
 
 
-app = Flask(__name__)
+# app = Flask(__name__)
 
 
-@app.route("/")
-def home() -> dict[str, int]:
-    d = dict(current_app.decoder.acs)
-    return dict((key, len(aircraft.cumul)) for (key, aircraft) in d.items())
+# @app.route("/")
+# def home() -> dict[str, int]:
+#     d = dict(current_app.decoder.acs)
+#     return dict((key, len(aircraft.cumul)) for (key, aircraft) in d.items())
 
 
-@app.route("/traffic")
-def get_all() -> dict[str, str]:
-    return {"traffic": current_app.decoder.pickled_traffic}
+# @app.route("/traffic")
+# def get_all() -> dict[str, str]:
+#     return {"traffic": current_app.decoder.pickled_traffic}
 
 
 @click.command()
@@ -95,7 +93,7 @@ def get_all() -> dict[str, str]:
 )
 @click.option("-v", "--verbose", count=True, help="Verbosity level")
 def main(
-    source: str = "delft",
+    source: str = "salon",
     decode_uncertainty: bool = False,
     verbose: int = 0,
     serve_host: str | None = "127.0.0.1",
@@ -138,9 +136,10 @@ def main(
     data_path = config_decoder.get(
         "decoders."+source, "file", fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
     )
+    data_path = "ADSB_EHS_RAW_%Y%m%d.csv"
     reference = config_decoder.get("decoders."+source, "reference")
     dump_file = Path(data_path).with_suffix(".csv").as_posix()
-    app.decoder = TrafficDecoder.from_address(
+    decoder = TrafficDecoder.from_address(
         host=host,
         port=int(port),
         reference=reference,
@@ -149,11 +148,33 @@ def main(
         tcp=False if protocol == "UDP" else True,
         time_fmt=time_fmt,
     )
-    app.decoder.name = source
+    decoder.name = source
     # return app
-    from gevent.pywsgi import WSGIServer
-    http_server = WSGIServer((serve_host, serve_port), app)
-    http_server.serve_forever()
+    # from gevent.pywsgi import WSGIServer
+    # http_server = WSGIServer((serve_host, 5055), app)
+    # http_server.serve_forever()
+    context = zmq.Context()
+    server = context.socket(zmq.REP)
+    server.bind(f"tcp://{serve_host}:{serve_port}")
+
+    # def sigint_handler(signal, frame):
+    #     print('KeyboardInterrupt is caught')
+    #     server.close()
+    #     context.term()
+    #     decoder.stop()
+    #     sys.exit(0)
+
+    # signal.signal(signal.SIGINT, sigint_handler)
+    while True:
+        request = server.recv_multipart()
+        logger.info(request)
+        t = decoder.traffic
+        if t is not None:
+            if len(request[0]) != 0:
+                t = t.query(f"timestamp>='{request[0].decode('utf8')}'")
+            t = t.drop(set(t.data.columns) - columns, axis=1)
+            t = t.assign(antenna=decoder.name)
+        server.send_pyobj(t)
 
 
 if __name__ == "__main__":

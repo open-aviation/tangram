@@ -5,6 +5,8 @@ import heapq
 import logging
 import os
 import pickle
+import signal
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -18,6 +20,7 @@ from pymongo import MongoClient
 from traffic.core.traffic import Flight, Traffic
 
 import pandas as pd
+import zmq
 from turbulence import config_agg
 from turbulence.client.modes_decoder_client import Decoder
 
@@ -39,7 +42,6 @@ expire_threshold = pd.Timedelta(
 #     'track', 'vertical_rate', 'latitude', 'longitude',
 #     'callsign', 'track_rate'
 # }
-
 
 def clean_callsign(cumul):
     i = 0
@@ -71,8 +73,8 @@ class Aggregetor:
         self.decoders: dict[str, Decoder] = {
             name: Decoder(address) for name, address in decoders.items()
         }
-        self.decoders_time: dict[str, pd.Timestamp] = {
-            name: None for name in decoders
+        self.decoders_time: dict[str, str] = {
+            name: "" for name in decoders
         }
         self.running: bool = False
         self._traffic: Traffic = None
@@ -88,9 +90,9 @@ class Aggregetor:
             else pd.Timedelta(expire_frequency)
         )
         self.lock_traffic = threading.Lock()
-        client = MongoClient(host=database_uri)
+        self.mclient = MongoClient(host=database_uri)
         self.network = Network()
-        self.db = client.get_database()
+        self.db = self.mclient.get_database()
 
     @property
     def traffic(self):
@@ -102,29 +104,24 @@ class Aggregetor:
             self._traffic = t
 
     def traffic_decoder(self, decoder_name: set(str)) -> Traffic | None:
-        traffic_pickled = self.decoders[decoder_name].traffic_records()[
-            "traffic"
-        ]
-        if traffic_pickled is None:
-            return None
-        try:
-            traffic = pickle.loads(base64.b64decode(traffic_pickled.encode()))
-        except Exception as e:
-            logger.warning("pickle: " + str(e))
-            return None
-        if traffic is None:
-            return None
         previous_endtime = self.decoders_time[decoder_name]
-        if previous_endtime is not None:
-            traffic = traffic.query(f"timestamp>='{previous_endtime}'")
+        traffic = self.decoders[decoder_name].traffic_records(
+            start=previous_endtime
+        )
         if traffic is None:
-            self.decoders_time[decoder_name] = None
             return None
-        self.decoders_time[decoder_name] = traffic.end_time
-        return traffic.assign(antenna=decoder_name)
+        # if previous_endtime is not None:
+        #     traffic = traffic.query(f"timestamp>='{previous_endtime}'")
+        if traffic is None:
+            self.decoders_time[decoder_name] = ""
+            return None
+        self.decoders_time[decoder_name] = str(traffic.end_time)
+        return traffic
 
     def calculate_traffic(self) -> None:
         traffic_decoders = None
+        # for client in self.decoders_time.values():
+        #     client.socket.send_string('traffic')
         with ThreadPoolExecutor(max_workers=4) as executor:
             traffic_decoders = list(
                 executor.map(self.traffic_decoder, self.decoders.keys())
@@ -134,27 +131,24 @@ class Aggregetor:
         if t == 0 or t is None:
             return
         if self.traffic is None:
-            self.traffic = t
+            self.traffic = t.drop_duplicates()
         else:
-            self.traffic += t
+            self.traffic += t.drop_duplicates()
 
     def aggregation(self) -> None:
         self.running = True
-        print("parent process:", os.getppid())
-        print("process id:", os.getpid())
+        logger.info(f"parent process: {os.getppid()}")
+        logger.info(f"process id: {os.getpid()}")
         while self.running:
-            try:
-                self.calculate_traffic()
-                t = self.traffic
-                # t = t.drop(
-                #     set(t.data.columns) - columns, axis=1
-                # ) if t is not None else t
-                self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode(
-                    "utf-8"
-                )
-            except Exception as e:
-                logger.exception(e)
-            time.sleep(5)
+            self.calculate_traffic()
+            t = self.traffic
+            # t = t.drop(
+            #     set(t.data.columns) - columns, axis=1
+            # ) if t is not None else t
+            self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode(
+                "utf-8"
+            )
+            time.sleep(4)
 
     @classmethod
     def on_timer(
@@ -181,6 +175,8 @@ class Aggregetor:
 
         now = pd.Timestamp("now", tz="utc")
         t = self.traffic
+        if t is None:
+            return
         if self.agg_thread and not self.agg_thread.is_alive():
             for icao in t.icao24:
                 self.on_expire_aircraft(icao)
@@ -271,16 +267,22 @@ class Aggregetor:
         self.running = False
         if self.agg_thread is not None and self.agg_thread.is_alive():
             self.agg_thread.join()
-
-    def __del__(self) -> None:
-        self.stop()
+        for d in self.decoders.values():
+            d.stop()
+        self._traffic = None
         self.timer_thread.join()
+        self.mclient.close()
 
 
 app_host = config_agg.get("application", "host", fallback="127.0.0.1")
 app_port = int(config_agg.get("application", "port", fallback=5054))
 
 app = Flask(__name__)
+
+
+@app.route("/")
+def home() -> dict[str, int]:
+    return dict((f.icao24, len(f)) for f in current_app.aggd.traffic)
 
 
 @app.route("/traffic")
@@ -342,6 +344,13 @@ def main(
         logging.getLogger().addHandler(file_handler)
     decoders_address = {key: val for key, val in config_agg.items("decoders")}
     app.aggd = Aggregetor.aggregate_decoders(decoders=decoders_address)
+
+    # def sigint_handler(signal, frame):
+    #     print('KeyboardInterrupt is caught')
+    #     app.aggd.stop()
+    #     sys.exit(0)
+    # signal.signal(signal.SIGINT, sigint_handler)
+
     from gevent.pywsgi import WSGIServer
 
     http_server = WSGIServer((serve_host, serve_port), app)
