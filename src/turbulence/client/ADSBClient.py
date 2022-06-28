@@ -17,7 +17,7 @@ from traffic.data import ModeS_Decoder
 import numpy as np
 import pandas as pd
 
-from .modes_decoder_client import Decoder
+from .modes_decoder_client import Aggregator
 
 
 def crit(df: pd.DataFrame) -> pd.Series:
@@ -74,8 +74,8 @@ class ADSBClient:
         self.running: bool = False
         if isinstance(decoders, str):
             decoders = {"": decoders}
-        self.decoders: dict[str, Decoder] = {
-            name: Decoder(address) for name, address in decoders.items()
+        self.decoders: dict[str, Aggregator] = {
+            name: Aggregator(address) for name, address in decoders.items()
         }
         self._pro_data: Traffic = None
         self._traffic: Traffic = None
@@ -100,15 +100,15 @@ class ADSBClient:
     def pro_data(self) -> Traffic:
         return self._pro_data
 
-    @pro_data.setter
-    def pro_data(self, p: Traffic) -> None:
-        if self._pro_data is None:
-            self._pro_data = p
-        else:
-            valid_turb = self._pro_data.query(
-                f'expire_turb>="{pd.Timestamp("now", tz="utc")}"'
-            )
-            self._pro_data = valid_turb + p if valid_turb is not None else p
+    # @pro_data.setter
+    # def pro_data(self, p: Traffic) -> None:
+    #     # if self._pro_data is None:
+    #     self._pro_data = p
+    #     # else:
+    #     #     valid_turb = self._pro_data.query(
+    #     #         f'expire_turb>="{pd.Timestamp("now", tz="utc")}"'
+    #     #     )
+    #     #     self._pro_data = valid_turb + p if valid_turb is not None else p
 
     @property
     def traffic(self) -> Traffic:
@@ -120,11 +120,7 @@ class ADSBClient:
         ]
         if traffic_pickled is None:
             return None
-        try:
-            traffic = pickle.loads(base64.b64decode(traffic_pickled.encode()))
-        except Exception as e:
-            logging.warning("pickle: " + str(e))
-            traffic = None
+        traffic = pickle.loads(base64.b64decode(traffic_pickled))
         if traffic is None:
             return traffic
         return (
@@ -145,7 +141,7 @@ class ADSBClient:
                     - {"vertical_rate_barometric", "vertical_rate_inertial"}
                 },
             )
-            .eval(max_workers=4)
+            .eval(max_workers=1)
         )
 
     def calculate_traffic(self) -> None:
@@ -202,8 +198,8 @@ class ADSBClient:
                         vertical_rate_inertial="std",
                         vertical_rate_barometric=["std", "count"],
                         # reduce one minute to one point
-                        # latitude="mean",
-                        # longitude="mean",
+                        latitude="mean",
+                        longitude="mean",
                     )
                     .assign(
                         # we define a criterion based on the
@@ -218,12 +214,12 @@ class ADSBClient:
                     )
                     .assign(turbulence=turbulence)
                     .assign(expire_turb=expire_turb, anomaly=anomaly)
-                    .eval(max_workers=4)
+                    .eval(max_workers=1)
                 )
             except Exception as e:
                 logging.warning("turbulence" + str(e))
                 raise e
-            self.pro_data = (
+            self._pro_data = (
                 pro_data.query("not anomaly") if pro_data is not None else None
             )
         else:
