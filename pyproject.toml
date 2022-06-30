@@ -7,8 +7,8 @@ license = "MIT"
 
 [tool.poetry.scripts]
 turbulence = 'turbulence.__main__:main'
-decode = 'turbulence.decoder_app.modes_decoder:main'
-aggregator = 'turbulence.decoder_agg.decoder_aggregator:main'
+decoder = 'turbulence.scripts.decoder:main'
+aggregator = 'turbulence.scripts.aggregator:main'
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.10"
@@ -29,8 +29,8 @@ pymongo = ">=3.12,<4"
 gevent = "^21.12.0"
 
 [tool.poetry.dev-dependencies]
-mypy = "^0.920"
-black = "^21.12b0"
+mypy = ">=0.950"
+black = ">=21.6"
 isort = "^5.10.1"
 flake8 = "^4.0.1"
 

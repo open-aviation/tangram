@@ -1,8 +1,8 @@
 var myChart;
 async function get_data(icao, chart_history) {
-  url = "chart.data/" + icao
+  url = "chart.data/" + icao;
   const searchParams = new URLSearchParams({ history: chart_history });
-  url = url + '?' + searchParams
+  url = url + "?" + searchParams;
   var a = await $.getJSON(url);
   return a;
 }
@@ -76,7 +76,7 @@ async function draw_chart(icao, chart_history = 0) {
         borderColor: "rgb(153, 255, 255)",
         pointRadius: 1,
         hidden: true,
-      }
+      },
     ],
   };
   var config = {
@@ -88,7 +88,7 @@ async function draw_chart(icao, chart_history = 0) {
         xAxes: [
           {
             type: "time",
-            timezone: 'UTC',
+            timezone: "UTC",
           },
         ],
       },
@@ -150,12 +150,12 @@ async function draw_chart(icao, chart_history = 0) {
       //     }
       //   }
       // }
-    }
-  }
+    },
+  };
   if (myChart != undefined || myChart != null) {
     myChart.destroy();
   }
   document.getElementById("myChart").style.display = "block";
   var context = document.getElementById("myChart").getContext("2d");
   myChart = new Chart(context, config);
-};
+}

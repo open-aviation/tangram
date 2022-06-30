@@ -1,9 +1,6 @@
-from threading import Timer
-
 from traffic.core import Flight, Traffic
 
 import numpy as np
-from turbulence.client.ADSBClient import ADSBClient
 
 
 def geojson_flight(flight: Flight) -> dict:
@@ -24,7 +21,7 @@ def geojson_flight(flight: Flight) -> dict:
             "properties": {
                 "icao": flight.icao24,
                 "callsign": flight.callsign,
-                "typecode": None if str(typecode) == 'nan' else typecode,
+                "typecode": None if str(typecode) == "nan" else typecode,
                 "dir": 0 if np.isnan(track) else track,
             },
         }
@@ -84,26 +81,3 @@ def geojson_turbulence(pro_data: Traffic) -> dict:
         "geojson": geojson,
     }
     return encapsulated_geojson
-
-
-class RepeatTimer(Timer):
-    def run(self):
-        while not self.finished.wait(self.interval):
-            self.function(*self.args, **self.kwargs)
-
-
-class RequestBuilder():
-    def __init__(self, client: ADSBClient) -> None:
-        self.client: ADSBClient = client
-        self.planes_position: dict = {}
-        self.turb_result: dict = {}
-        self.planethread: RepeatTimer = RepeatTimer(5, self.plane_request)
-        self.planethread.start()
-        self.turbthread: RepeatTimer = RepeatTimer(5, self.turb_request)
-        self.turbthread.start()
-
-    def plane_request(self):
-        self.planes_position = geojson_traffic(self.client.traffic)
-
-    def turb_request(self):
-        self.turb_result = geojson_turbulence(self.client.pro_data)

@@ -1,31 +1,36 @@
 from __future__ import annotations
 
 import logging
+import pickle
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
 import zmq
+from traffic import config
 from traffic.data import ModeS_Decoder
 
 import pandas as pd
-from turbulence import config_decoder
 
 if TYPE_CHECKING:
     from traffic.core.structure import Airport
 
-expire_frequency = pd.Timedelta(
-    config_decoder.get("parameters", "expire_frequency", fallback="1 minute")
-)
-expire_threshold = pd.Timedelta(
-    config_decoder.get("parameters", "expire_threshold", fallback="1 minute")
-)
-columns = set(config_decoder.get("columns", "columns", fallback=[]))
+_log = logging.getLogger(__name__)
+
+columns = set(config.get("columns", "columns", fallback=[]))
 columns = {
-    'timestamp', 'icao24', 'altitude', 'heading',
-    'vertical_rate_barometric', 'vertical_rate_inertial',
-    'track', 'vertical_rate', 'latitude', 'longitude',
-    'callsign', 'track_rate'
+    "timestamp",
+    "icao24",
+    "altitude",
+    "heading",
+    "vertical_rate_barometric",
+    "vertical_rate_inertial",
+    "track",
+    "vertical_rate",
+    "latitude",
+    "longitude",
+    "callsign",
+    "track_rate",
 }
 
 
@@ -33,15 +38,10 @@ class TrafficDecoder(ModeS_Decoder):
     def __init__(
         self,
         reference: None | str | Airport | tuple[float, float] = None,
-        expire_frequency: pd.Timedelta = expire_frequency,
-        expire_threshold: pd.Timedelta = expire_threshold,
     ) -> None:
         super().__init__(
             reference,
-            expire_frequency=expire_frequency,
-            expire_threshold=expire_threshold,
         )
-        self.pickled_traffic: str = None
         self.name: str = ""
 
     # @ModeS_Decoder.on_timer("5s")
@@ -50,21 +50,6 @@ class TrafficDecoder(ModeS_Decoder):
     #     if t is not None:
     #         t = t.drop(set(t.data.columns) - columns, axis=1)
     #         t = t.assign(antenna=self.name)
-    #     self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode("utf-8")
-
-
-# app = Flask(__name__)
-
-
-# @app.route("/")
-# def home() -> dict[str, int]:
-#     d = dict(current_app.decoder.acs)
-#     return dict((key, len(aircraft.cumul)) for (key, aircraft) in d.items())
-
-
-# @app.route("/traffic")
-# def get_all() -> dict[str, str]:
-#     return {"traffic": current_app.decoder.pickled_traffic}
 
 
 @click.command()
@@ -97,7 +82,7 @@ def main(
     decode_uncertainty: bool = False,
     verbose: int = 0,
     serve_host: str | None = "127.0.0.1",
-    serve_port: int | None = 5050,
+    serve_port: int | None = 5056,
     log_file: str | None = None,
 ):
 
@@ -110,7 +95,8 @@ def main(
     logger.handlers.clear()
 
     formatter = logging.Formatter(
-        "%(process)d - %(threadName)s - %(asctime)s - %(levelname)s - %(message)s"
+        "%(process)d - %(threadName)s - %(asctime)s"
+        " - %(levelname)s - %(message)s"
     )
 
     console_handler = logging.StreamHandler()
@@ -123,21 +109,32 @@ def main(
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
-    host = config_decoder.get("decoders."+source, "host")
-    port = config_decoder.get("decoders."+source, "port")
+    host = config.get("decoders." + source, "host")
+    port = config.get("decoders." + source, "port")
     if serve_host is None:
-        serve_host = config_decoder.get("application", "host", fallback="127.0.0.1")
+        serve_host = config.get(
+            "decoders." + source, "serve_host", fallback="127.0.0.1"
+        )
     if serve_port is None:
-        serve_port = int(config_decoder.get("application", "port", fallback=5050))
-    time_fmt = config_decoder.get(
-        "decoders."+source, "time_fmt", fallback="default"
+        serve_port = int(
+            config.get("decoders." + source, "serve_port", fallback=5050)
+        )
+    time_fmt = config.get("decoders." + source, "time_fmt", fallback="default")
+    protocol = config.get("decoders." + source, "socket")
+    data_path = config.get(
+        "decoders." + source, "file", fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
     )
-    protocol = config_decoder.get("decoders."+source, "socket")
-    data_path = config_decoder.get(
-        "decoders."+source, "file", fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
+    reference = config.get("decoders." + source, "reference")
+    expire_frequency = pd.Timedelta(
+        config.get(
+            "decoders." + source, "expire_frequency", fallback="1 minute"
+        )
     )
-    data_path = "ADSB_EHS_RAW_%Y%m%d.csv"
-    reference = config_decoder.get("decoders."+source, "reference")
+    expire_threshold = pd.Timedelta(
+        config.get(
+            "decoders." + source, "expire_threshold", fallback="1 minute"
+        )
+    )
     dump_file = Path(data_path).with_suffix(".csv").as_posix()
     decoder = TrafficDecoder.from_address(
         host=host,
@@ -149,10 +146,8 @@ def main(
         time_fmt=time_fmt,
     )
     decoder.name = source
-    # return app
-    # from gevent.pywsgi import WSGIServer
-    # http_server = WSGIServer((serve_host, 5055), app)
-    # http_server.serve_forever()
+    decoder.expire_frequency = expire_frequency
+    decoder.expire_threshold = expire_threshold
     context = zmq.Context()
     server = context.socket(zmq.REP)
     server.bind(f"tcp://{serve_host}:{serve_port}")
@@ -166,15 +161,18 @@ def main(
 
     # signal.signal(signal.SIGINT, sigint_handler)
     while True:
-        request = server.recv_multipart()
-        logger.info(request)
+        request = server.recv_json()
         t = decoder.traffic
         if t is not None:
-            if len(request[0]) != 0:
-                t = t.query(f"timestamp>='{request[0].decode('utf8')}'")
+            timestamp = request["payload"][0]
+            t = t.query(
+                f"timestamp>='{timestamp}'"
+            )  # poser la question a Xavier
             t = t.drop(set(t.data.columns) - columns, axis=1)
             t = t.assign(antenna=decoder.name)
-        server.send_pyobj(t)
+        # pyobj = zlib.compressobj(t)
+        zobj = pickle.dumps(t)
+        server.send(zobj)
 
 
 if __name__ == "__main__":

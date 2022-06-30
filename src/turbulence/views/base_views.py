@@ -1,6 +1,7 @@
 import base64
 import json
 import pickle
+import zlib
 from datetime import datetime
 from typing import Any, Union
 
@@ -19,9 +20,10 @@ from traffic.core import Traffic
 
 import numpy as np
 import pandas as pd
-from turbulence.client.ADSBClient import ADSBClient
-from turbulence.views.forms import DatabaseForm, ThresholdForm
-from turbulence.views.view_functions import geojson_traffic, geojson_turbulence
+
+from ..client.turbulence import TurbulenceClient
+from ..util.geojson import geojson_traffic, geojson_turbulence
+from ..views.forms import DatabaseForm, ThresholdForm
 
 base_bp = Blueprint("base", __name__)
 CORS(base_bp)
@@ -52,12 +54,12 @@ def get_uptime() -> dict[str, Any]:
     return {"uptime": (datetime.now() - current_app.start_time).total_seconds()}
 
 
-@base_bp.route('/traffic')
+@base_bp.route("/traffic")
 def get_traffic():
     t = current_app.live_client.pro_data
-    return {"traffic" : base64.b64encode(pickle.dumps(t)).decode(
-                "utf-8"
-            )}
+    t = pickle.dumps(t)
+    t = zlib.compress(t, 2)
+    return {"traffic": base64.b64encode(t).decode("utf-8")}
 
 
 @base_bp.route("/turb.geojson")
@@ -86,9 +88,10 @@ def turbulence() -> dict[str, Any]:
         t = pd.Timestamp(und, unit="s", tz="utc")
         pro_data = pro_data.query(f"timestamp<='{str(t)}'")
 
-    return current_app.request_builder.turb_result if standard else geojson_turbulence(
-        pro_data
-    )
+    if standard:
+        return current_app.request_builder.turb_result
+    else:
+        return geojson_turbulence(pro_data)
 
 
 @base_bp.route("/chart.data/<path:icao>")
@@ -153,10 +156,10 @@ def fetch_planes_Geojson() -> dict:
         und = int(und) / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")
         data = data.query(f"timestamp<='{str(t)}'")
-
-    return current_app.request_builder.planes_position if standard else geojson_traffic(
-        data
-    )
+    if standard:
+        return current_app.request_builder.planes_position
+    else:
+        return geojson_traffic(data)
 
 
 @base_bp.route("/plane.png")
@@ -246,7 +249,7 @@ def home_page() -> str:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
     if history:
-        client: ADSBClient = current_app.history_client
+        client: TurbulenceClient = current_app.history_client
 
     form_database = DatabaseForm()
     if form_database.validate_on_submit():

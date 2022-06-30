@@ -1,98 +1,108 @@
 {% extends "layout.html" %} {% block body %}
 
-<!-- TODO tidy that a bunch -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@0.7.7"></script>
 
-<script type="text/javascript" src="{{ url_for('base.serve_static', filename='js/graph.js') }}"></script>
+<script
+  type="text/javascript"
+  src="{{ url_for('base.serve_static', filename='js/graph.js') }}"
+></script>
 
-<script type="text/javascript" src="{{ url_for('base.serve_static', filename='js/map_functions.js') }}"></script>
-<script type="text/javascript" src="{{ url_for('base.serve_static', filename='js/aircraft_icon.js') }}"></script>
+<script
+  type="text/javascript"
+  src="{{ url_for('base.serve_static', filename='js/map_functions.js') }}"
+></script>
+<script
+  type="text/javascript"
+  src="{{ url_for('base.serve_static', filename='js/aircraft_icon.js') }}"
+></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-sidebar-v2@3.2.3/js/leaflet-sidebar.min.js"></script>
 <var id="seconds_uptime" hidden="True">{{uptime}}</var>
 <div id="sidebar" class="leaflet-sidebar collapsed">
   <div class="leaflet-sidebar-tabs">
     <ul role="tablist">
-      <li><a href="#info_box" role="tab"><span class="fa fa-plane"></span></a></li>
+      <li>
+        <a href="#info_box" role="tab"><span class="fa fa-plane"></span></a>
+      </li>
     </ul>
-
   </div>
   <div class="leaflet-sidebar-content">
     <div class="leaflet-sidebar-pane" id="info_box">
       <table class="info_box_table">
         <thead>
-
           <tr class="info_header">
             <td colspan="2">General Information</td>
           </tr>
-
         </thead>
         <tbody>
-
           <tr class="info_label">
             <td>UTC</td>
             <td class="info_value">
-              <p style='display: inline' id="info_utc"></p>
+              <p style="display: inline" id="info_utc"></p>
             </td>
           </tr>
           <tr class="info_label">
             <td>Local</td>
             <td class="info_value">
-              <p style='display: inline' id="info_local"></p>
+              <p style="display: inline" id="info_local"></p>
             </td>
           </tr>
         </tbody>
         <tbody>
           <tr class="info_label">
             <td>uptime</td>
-            <td><b>
-                <p style='display: inline' id='uptime'></p>
-              </b></td>
+            <td>
+              <b>
+                <p style="display: inline" id="uptime"></p>
+              </b>
+            </td>
           </tr>
 
           <tr class="info_label">
             <td>aircraft on map</td>
-            <td><b>
-                <p style='display: inline' id='plane_count'></p>
-              </b></td>
+            <td>
+              <b>
+                <p style="display: inline" id="plane_count"></p>
+              </b>
+            </td>
           </tr>
           <tr class="info_label">
             <td>SIGMET</td>
-            <td><b>
+            <td>
+              <b>
                 <p style="display: inline" id="sigmet_count"></p>
-              </b></td>
+              </b>
+            </td>
           </tr>
           <tr class="info_label">
             <td>AIREP</td>
-            <td><b>
+            <td>
+              <b>
                 <p style="display: inline" id="airep_count"></p>
-              </b></td>
+              </b>
+            </td>
           </tr>
-
         </tbody>
       </table>
       <table class="info_box_table" id="flight" hidden="true">
         <thead>
-
           <tr class="info_header">
             <td colspan="2">Flight Information</td>
           </tr>
-
         </thead>
         <tbody>
-
           <tr class="info_label">
             <td>icao24</td>
             <td class="info_value">
-              <p style='display: inline' id="icao"></p>
+              <p style="display: inline" id="icao"></p>
             </td>
           </tr>
           <tr class="info_label">
             <td>callsign</td>
             <td class="info_value">
-              <p style='display: inline' id="aircraft_id"></p>
+              <p style="display: inline" id="aircraft_id"></p>
             </td>
           </tr>
         </tbody>
@@ -130,39 +140,44 @@
   <form action="" method="POST" name="databaseform">
     {{ form_database.csrt_token }} {{ form_database.startdate.label }}
     {{form_database.startdate(class='datepicker')}} {{
-    form_database.starttime(class='timepicker') }}{{form_database.hidden_tag()}} {{
-    form_database.enddate.label }} {{form_database.enddate(class='datetimepicker')}} {{
+    form_database.starttime(class='timepicker') }}{{form_database.hidden_tag()}}
+    {{ form_database.enddate.label }}
+    {{form_database.enddate(class='datetimepicker')}} {{
     form_database.endtime(class='timepicker') }}{{form_database.hidden_tag()}}
-    <input type="submit" value="Submit">
-
+    <input type="submit" value="Submit" />
   </form>
 </div>
 <div class="form" id="threshold_form" style="display: none">
   <form action="" method="POST" name="f_threshold">
     {{ form_threshold.csrt_token }} {{ form_threshold.threshold.label }}
-    {{form_threshold.threshold()}}
+    {{form_threshold.threshold()}} {{form_threshold.hidden_tag()}}
+    <br />
+    {{ form_threshold.multiplier.label }} {{form_threshold.multiplier()}}
     {{form_threshold.hidden_tag()}}
-    <br>
-    {{ form_threshold.multiplier.label }}
-    {{form_threshold.multiplier()}}
-    {{form_threshold.hidden_tag()}}
-    <input type="submit" value="Submit">
+    <input type="submit" value="Submit" />
   </form>
 </div>
 <div id="map">
   {% if history == 1 %}
-  <script type="text/javascript"
-    src="{{ url_for('base.serve_static',filename='js/map_filter_functions.js') }}"></script>
-  <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_history.js') }}"></script>
+  <script
+    type="text/javascript"
+    src="{{ url_for('base.serve_static',filename='js/map_filter_functions.js') }}"
+  ></script>
+  <script
+    type="text/javascript"
+    src="{{ url_for('base.serve_static',filename='js/map_history.js') }}"
+  ></script>
   {% else %}
-  <script type="text/javascript" src="{{ url_for('base.serve_static',filename='js/map_live.js') }}"></script>
+  <script
+    type="text/javascript"
+    src="{{ url_for('base.serve_static',filename='js/map_live.js') }}"
+  ></script>
   {% endif %}
 </div>
 <script>
   var form_database = document.getElementById("databasebutton");
   form_database.addEventListener("click", myfunction);
   form_database.name = "database_form";
-
   var form_threshold = document.getElementById("parambutton");
   form_threshold.addEventListener("click", myfunction);
   form_threshold.name = "threshold_form";
@@ -178,6 +193,11 @@
 </script>
 
 <div>
-  <canvas id="myChart" max-width="100" max-height="100" style="display: none"></canvas>
+  <canvas
+    id="myChart"
+    max-width="100"
+    max-height="100"
+    style="display: none"
+  ></canvas>
 </div>
 {% endblock %}

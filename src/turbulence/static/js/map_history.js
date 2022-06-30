@@ -8,7 +8,10 @@ var heatmapLayer = L.layerGroup();
 
 chart_history = 1;
 
-var map = L.map("map", { layers: [planes, turbulences] }).setView([43.57155, 1.47165], 7);
+var map = L.map("map", { layers: [planes, turbulences] }).setView(
+  [43.57155, 1.47165],
+  7
+);
 
 var overlays = {
   Planes: planes,
@@ -19,10 +22,10 @@ var overlays = {
   Cat_sev: cat_sev,
   Heatmap: heatmapLayer,
 };
-// Date 
+// Date
 const urlSearchParams = new URLSearchParams(window.location.search);
-var min_date = urlSearchParams.get('min');
-var max_date = urlSearchParams.get('max');
+var min_date = urlSearchParams.get("min");
+var max_date = urlSearchParams.get("max");
 
 var firstseen = document.getElementById("first_seen");
 firstseen.innerHTML = new Date(min_date).toUTCString();
@@ -31,16 +34,16 @@ lastseen.innerHTML = new Date(max_date).toUTCString();
 
 // Requests
 $.ajaxSetup({
-  async: false
+  async: false,
 });
-getPlanes(Date.parse(min_date), history = 1);
-var turbu = getTurbulence(und = "", history = 1);
+getPlanes(Date.parse(min_date), (history = 1));
+var turbu = getTurbulence((und = ""), (history = 1));
 var sig = getSigmet(Date.parse(min_date), Date.parse(max_date));
 var air = getAirep(Date.parse(min_date), Date.parse(max_date));
 var cleanair = getCat(Date.parse(min_date), Date.parse(max_date));
-getheatmap(und = null, history = 1);
+getheatmap((und = null), (history = 1));
 $.ajaxSetup({
-  async: true
+  async: true,
 });
 // partie slider
 function createTemporalLegend(startTimestamp) {
@@ -75,9 +78,9 @@ function createSliderUI() {
       filterairep(air, $(this).val() / 1000);
       filtercat(cleanair, $(this).val() / 1000);
       filterturb(turbu, $(this).val() / 1000);
-      getPlanes($(this).val().toString(), history = 1);
+      getPlanes($(this).val().toString(), (history = 1));
       // filterheatmap(heatm, $(this).val().toString());
-      getheatmap($(this).val().toString(), history = 1);
+      getheatmap($(this).val().toString(), (history = 1));
       $(".temporal-legend").text(new Date($(this).val() * 1).toUTCString());
     });
     return slider;

@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import base64
 import heapq
 import logging
 import os
 import pickle
-import signal
-import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -14,34 +11,27 @@ from threading import Thread
 from typing import Callable
 
 import click
+import zmq
 from atmlab.network import Network
-from flask import Flask, current_app
 from pymongo import MongoClient
+from pymongo.errors import OperationFailure
+from traffic import config
 from traffic.core.traffic import Flight, Traffic
 
 import pandas as pd
-import zmq
-from turbulence import config_agg
-from turbulence.client.modes_decoder_client import Decoder
 
-logger = logging.getLogger("aggregator")
+from ..util.zmq_sockets import DecoderSocket
 
-mongo_uri = config_agg.get(
-    "history", "database_uri", fallback="mongodb://localhost:27017/adsb"
-)
-expire_frequency = pd.Timedelta(
-    config_agg.get("parameters", "expire_frequency", fallback="1 minute")
-)
-expire_threshold = pd.Timedelta(
-    config_agg.get("parameters", "expire_threshold", fallback="1 minute")
-)
-# columns = set(config_agg.get("columns", "columns", fallback=[]))
+_log = logging.getLogger(__name__)
+
+# columns = set(config.get("columns", "columns", fallback=[]))
 # columns = {
 #     'timestamp', 'icao24', 'altitude', 'heading',
 #     'vertical_rate_barometric', 'vertical_rate_inertial',
 #     'track', 'vertical_rate', 'latitude', 'longitude',
 #     'callsign', 'track_rate'
 # }
+
 
 def clean_callsign(cumul):
     i = 0
@@ -53,46 +43,43 @@ def clean_callsign(cumul):
     return cumul
 
 
-class Aggregetor:
-
+class Aggregator:
     timer_functions: list[
-        tuple[pd.Timestamp, pd.Timedelta, Callable[[Aggregetor], None]]
+        tuple[pd.Timestamp, pd.Timedelta, Callable[[Aggregator], None]]
     ] = list()
     agg_thread: Thread
     timer_thread: Thread
 
     def __init__(
         self,
-        decoders: dict[str, str] | str = "http://localhost:5050",
-        expire_frequency: pd.Timedelta = expire_frequency,
-        expire_threshold: pd.Timedelta = expire_threshold,
-        database_uri: str = mongo_uri,
+        decoders: dict[str, str] | str = "tcp://127.0.0.1:5050",
     ) -> None:
         if isinstance(decoders, str):
             decoders = {"": decoders}
-        self.decoders: dict[str, Decoder] = {
-            name: Decoder(address) for name, address in decoders.items()
+        self.decoders: dict[str, DecoderSocket] = {
+            name: DecoderSocket(address) for name, address in decoders.items()
         }
-        self.decoders_time: dict[str, str] = {
-            name: "" for name in decoders
+        self.decoders_time: dict[str, int] = {
+            name: pd.Timestamp(0, tz="utc") for name in decoders
         }
-        self.running: bool = False
-        self._traffic: Traffic = None
-        self.pickled_traffic: str = None
-        self.expire_threshold = (
-            expire_threshold
-            if isinstance(expire_threshold, pd.Timedelta)
-            else pd.Timedelta(expire_threshold)
+        self.expire_frequency = pd.Timedelta(
+            config.get("aggregator", "expire_frequency", fallback="1 minute")
         )
-        self.expire_frequency = (
-            expire_frequency
-            if isinstance(expire_frequency, pd.Timedelta)
-            else pd.Timedelta(expire_frequency)
+        self.expire_threshold = pd.Timedelta(
+            config.get("aggregator", "expire_threshold", fallback="1 minute")
         )
-        self.lock_traffic = threading.Lock()
+        database_uri = config.get(
+            "aggregator",
+            "database_uri",
+            fallback="mongodb://localhost:27017/adsb",
+        )
         self.mclient = MongoClient(host=database_uri)
         self.network = Network()
         self.db = self.mclient.get_database()
+        self.running: bool = False
+        self._traffic: Traffic = None
+        self.pickled_traffic: bytes = pickle.dumps(None)
+        self.lock_traffic = threading.Lock()
 
     @property
     def traffic(self):
@@ -103,31 +90,26 @@ class Aggregetor:
         with self.lock_traffic:
             self._traffic = t
 
-    def traffic_decoder(self, decoder_name: set(str)) -> Traffic | None:
+    def traffic_decoder(self, decoder_name: str) -> Traffic | None:
         previous_endtime = self.decoders_time[decoder_name]
         traffic = self.decoders[decoder_name].traffic_records(
             start=previous_endtime
         )
         if traffic is None:
+            self.decoders_time[decoder_name] = pd.Timestamp(0, tz="utc")
             return None
-        # if previous_endtime is not None:
-        #     traffic = traffic.query(f"timestamp>='{previous_endtime}'")
-        if traffic is None:
-            self.decoders_time[decoder_name] = ""
-            return None
-        self.decoders_time[decoder_name] = str(traffic.end_time)
+        self.decoders_time[decoder_name] = traffic.end_time
         return traffic
 
     def calculate_traffic(self) -> None:
-        traffic_decoders = None
-        # for client in self.decoders_time.values():
-        #     client.socket.send_string('traffic')
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        max_workers: int = len(self.decoders)
+        with ThreadPoolExecutor(
+            max_workers=max_workers, thread_name_prefix="agg_traffic"
+        ) as executor:
             traffic_decoders = list(
                 executor.map(self.traffic_decoder, self.decoders.keys())
             )
-        traffic_decoders = filter(lambda t: t is not None, traffic_decoders)
-        t = sum(traffic_decoders)
+        t = sum(t for t in traffic_decoders if t is not None)
         if t == 0 or t is None:
             return
         if self.traffic is None:
@@ -137,31 +119,29 @@ class Aggregetor:
 
     def aggregation(self) -> None:
         self.running = True
-        logger.info(f"parent process: {os.getppid()}")
-        logger.info(f"process id: {os.getpid()}")
+        _log.info(f"parent process: {os.getppid()}")
+        _log.info(f"process id: {os.getpid()}")
         while self.running:
             self.calculate_traffic()
             t = self.traffic
             # t = t.drop(
             #     set(t.data.columns) - columns, axis=1
             # ) if t is not None else t
-            self.pickled_traffic = base64.b64encode(pickle.dumps(t)).decode(
-                "utf-8"
-            )
+            self.pickled_traffic = pickle.dumps(t)
             time.sleep(4)
 
     @classmethod
     def on_timer(
         cls, frequency: pd.Timedelta | str
-    ) -> Callable[[Callable[[Aggregetor], None]], Callable[[Aggregetor], None]]:
+    ) -> Callable[[Callable[[Aggregator], None]], Callable[[Aggregator], None]]:
         now = pd.Timestamp("now", tz="utc")
         if isinstance(frequency, str):
             frequency = pd.Timedelta(frequency)
 
         def decorate(
-            function: Callable[[Aggregetor], None]
-        ) -> Callable[[Aggregetor], None]:
-            logger.info(f"Schedule {function.__name__} with {frequency}")
+            function: Callable[[Aggregator], None]
+        ) -> Callable[[Aggregator], None]:
+            _log.info(f"Schedule {function.__name__} with {frequency}")
             heapq.heappush(
                 cls.timer_functions,
                 (now + frequency, frequency, function),
@@ -171,7 +151,7 @@ class Aggregetor:
         return decorate
 
     def expire_aircraft(self) -> None:
-        logger.info("Running expire_aircraft")
+        _log.info("Running expire_aircraft")
 
         now = pd.Timestamp("now", tz="utc")
         t = self.traffic
@@ -190,6 +170,7 @@ class Aggregetor:
         self.traffic = self.traffic.query(f'icao24!="{icao24}"')
 
     def dump_data(self, icao) -> None:
+        """documentation"""
         flight: Flight = self.traffic[icao]
         if flight is None:
             return
@@ -203,17 +184,15 @@ class Aggregetor:
         if callsign is None:
             return
         if isinstance(callsign, set):
-            callsign = list(callsign)[
-                flight.data["callsign"].value_counts().argmax()
-            ]
+            callsign = list(callsign)
         try:
             flight_data = self.network.icao24(icao)["flightId"]
-        except Exception:
+        except Exception:  # exact exception
             flight_data = {}
 
         data: pd.DataFrame = flight.data
         cumul = [row.dropna().to_dict() for index, row in data.iterrows()]
-        cumul = clean_callsign(cumul)
+        cumul = clean_callsign(cumul)  # todo verifier
         count = len(cumul)
         if count == 0:
             return
@@ -229,13 +208,13 @@ class Aggregetor:
         }
         try:
             self.db.tracks.insert_one(dum)
-        except Exception as e:
-            logger.warning(e)
+        except OperationFailure as e:
+            _log.warning(e)
 
     @classmethod
-    def aggregate_decoders(
+    def from_decoders(
         cls, decoders: dict[str, str] | str = "http://localhost:5050"
-    ) -> "Aggregetor":
+    ) -> "Aggregator":
         agg = cls(decoders)
 
         def timer() -> None:
@@ -252,7 +231,7 @@ class Aggregetor:
 
                 now = pd.Timestamp("now", tz="utc")
                 operation(agg)
-                logger.info(f"Schedule {operation.__name__} at {now + delta}")
+                _log.info(f"Schedule {operation.__name__} at {now + delta}")
                 heapq.heappush(
                     cls.timer_functions, (now + delta, delta, operation)
                 )
@@ -264,6 +243,7 @@ class Aggregetor:
         return agg
 
     def stop(self) -> None:
+        """documentation"""
         self.running = False
         if self.agg_thread is not None and self.agg_thread.is_alive():
             self.agg_thread.join()
@@ -274,29 +254,12 @@ class Aggregetor:
         self.mclient.close()
 
 
-app_host = config_agg.get("application", "host", fallback="127.0.0.1")
-app_port = int(config_agg.get("application", "port", fallback=5054))
-
-app = Flask(__name__)
-
-
-@app.route("/")
-def home() -> dict[str, int]:
-    return dict((f.icao24, len(f)) for f in current_app.aggd.traffic)
-
-
-@app.route("/traffic")
-def get_all() -> dict[str, str]:
-    p = current_app.aggd.pickled_traffic
-    return {"traffic": p}
-
-
 @click.command()
 @click.option(
     "--host",
     "serve_host",
     show_default=True,
-    default=app_host,
+    default=None,
     help="host address where to serve decoded information",
 )
 @click.option(
@@ -310,7 +273,7 @@ def get_all() -> dict[str, str]:
     "--port",
     "serve_port",
     show_default=True,
-    default=app_port,
+    default=None,
     type=int,
     help="port to serve decoded information",
 )
@@ -322,40 +285,59 @@ def main(
     log_file: str | None = None,
 ) -> None:
     if verbose == 1:
-        logger.setLevel(logging.INFO)
+        _log.setLevel(logging.INFO)
     elif verbose > 1:
-        logger.setLevel(logging.DEBUG)
-    logger.handlers.clear()
+        _log.setLevel(logging.DEBUG)
+    _log.handlers.clear()
 
     formatter = logging.Formatter(
-        "%(process)d - %(threadName)s - %(asctime)s - %(levelname)s - %(message)s"
+        "%(process)d - %(threadName)s - %(asctime)s"
+        " - %(levelname)s - %(message)s"
     )
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.WARNING)
     console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    _log.addHandler(console_handler)
 
     if log_file is not None:
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        _log.addHandler(file_handler)
         logging.getLogger().addHandler(file_handler)
-    decoders_address = {key: val for key, val in config_agg.items("decoders")}
-    app.aggd = Aggregetor.aggregate_decoders(decoders=decoders_address)
 
+    decoders_address = {}
+    for i in config.sections():
+        if i.startswith("decoders"):
+            name = i.split(".")[1]
+            decoders_address[name] = str(
+                "tcp://"
+                + config.get(i, "serve_host")
+                + ":"
+                + config.get(i, "serve_port")
+            )
+    aggd = Aggregator.from_decoders(decoders=decoders_address)
+
+    if serve_host is None:
+        serve_host = config.get(
+            "aggregator", "serve_host", fallback="127.0.0.1"
+        )
+    if serve_port is None:
+        serve_port = int(config.get("aggregator", "serve_port", fallback=5054))
     # def sigint_handler(signal, frame):
     #     print('KeyboardInterrupt is caught')
     #     app.aggd.stop()
     #     sys.exit(0)
     # signal.signal(signal.SIGINT, sigint_handler)
-
-    from gevent.pywsgi import WSGIServer
-
-    http_server = WSGIServer((serve_host, serve_port), app)
-    http_server.serve_forever()
-    # return app
+    context = zmq.Context()
+    server = context.socket(zmq.REP)
+    server.bind(f"tcp://{serve_host}:{serve_port}")
+    while True:
+        server.recv_multipart()
+        a = time.time()
+        server.send(aggd.pickled_traffic)
+        print(time.time() - a)
 
 
 if __name__ == "__main__":

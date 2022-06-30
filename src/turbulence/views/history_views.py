@@ -1,5 +1,5 @@
 import os
-from flask_cors import CORS
+
 from flask import (
     Blueprint,
     Response,
@@ -9,18 +9,20 @@ from flask import (
     request,
     url_for,
 )
+from flask_cors import CORS
 from pymongo.cursor import Cursor
 from werkzeug.utils import redirect
+
 from pandas import Timestamp
 
-from turbulence.client.ADSBClient import ADSBClient
+from ..client.turbulence import TurbulenceClient
 
 history_bp = Blueprint("history", __name__)
 CORS(history_bp)
 
 
 def get_date_file() -> tuple[Timestamp, Timestamp]:
-    client: ADSBClient = current_app.history_client
+    client: TurbulenceClient = current_app.history_client
     return (
         client.pro_data.start_time,
         client.pro_data.end_time,

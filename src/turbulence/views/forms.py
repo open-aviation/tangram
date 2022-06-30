@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms.fields import DateField, TimeField, IntegerField, FloatField
-from wtforms import validators, SubmitField
+from wtforms import SubmitField, validators
+from wtforms.fields import DateField, FloatField, IntegerField, TimeField
 
 
 class DatabaseForm(FlaskForm):

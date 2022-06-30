@@ -15,10 +15,12 @@ var baselayer = L.tileLayer(
 
 chart_history = 0;
 var traj = L.layerGroup();
-var map = L.map("map", { layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes] }).setView([46, 2], 6);
-map.on('click', function (e) {
+var map = L.map("map", {
+  layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes],
+}).setView([46, 2], 6);
+map.on("click", function (e) {
   if (e.originalEvent.target.classList.contains("turb_selected")) {
-    return
+    return;
   }
   deselect_planes();
 
@@ -41,6 +43,9 @@ var overlays = {
 getCat();
 getSigmet();
 getAirep();
+getPlanes();
+getTurbulence();
+getheatmap();
 setInterval(function () {
   getSigmet();
   getAirep();
@@ -52,7 +57,7 @@ setInterval(function () {
   getPlanes();
   getTurbulence();
   getheatmap();
-}, 1000 * 10);//10 secondes
+}, 1000 * 10); //10 secondes
 L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
@@ -60,25 +65,25 @@ var UptimeSec = document.getElementById("seconds_uptime").textContent;
 document.getElementById("info_utc").innerHTML = getTimeString(false);
 document.getElementById("info_local").innerHTML = getTimeString(true);
 setInterval(function () {
-
   distance = UptimeSec++;
   var days = Math.floor(distance / (60 * 60 * 24));
   var hours = Math.floor((distance % (60 * 60 * 24)) / (60 * 60));
   var minutes = Math.floor((distance % (60 * 60)) / 60);
-  var seconds = Math.floor((distance % 60));
+  var seconds = Math.floor(distance % 60);
   var d = days == 0 ? "" : days + "d ";
   var h = hours == 0 ? "" : hours + "h ";
-  document.getElementById("uptime").innerHTML = d + h + minutes + "m " + seconds + "s ";
+  document.getElementById("uptime").innerHTML =
+    d + h + minutes + "m " + seconds + "s ";
   document.getElementById("info_utc").innerHTML = getTimeString(false);
   document.getElementById("info_local").innerHTML = getTimeString(true);
-}, 1000 * 1);//1 secondes
+}, 1000 * 1); //1 secondes
 
 setInterval(function () {
-  url = "uptime"
+  url = "uptime";
   $.getJSON(url, function (data) {
-    UptimeSec = data.uptime
-  })
-}, 1000 * 60);//1 minute
+    UptimeSec = data.uptime;
+  });
+}, 1000 * 60); //1 minute
 
 // map.on('zoomend', function (feature) {
 //   var currentZoom = map.getZoom();

@@ -2,17 +2,19 @@ var chart_history;
 var selected = null;
 function getFlight_data(icao, callsign, typecode) {
   document.getElementById("icao").innerHTML = icao;
-  document.getElementById('typecode').innerHTML = typecode;
-  var aircraft_id = document.getElementById('aircraft_id');
+  document.getElementById("typecode").innerHTML = typecode;
+  var aircraft_id = document.getElementById("aircraft_id");
   aircraft_id.innerHTML = callsign;
-  url = "context/flight/" + icao
+  url = "context/flight/" + icao;
   $.getJSON(url, function (data) {
-    flight_id = document.getElementById('flight_id');
-    departure = document.getElementById('departure');
-    destination = document.getElementById('destination');
+    flight_id = document.getElementById("flight_id");
+    departure = document.getElementById("departure");
+    destination = document.getElementById("destination");
 
     if (data.flightId === undefined) {
-      flight_id.innerHTML = ""; departure.innerHTML = ""; destination.innerHTML = "";
+      flight_id.innerHTML = "";
+      departure.innerHTML = "";
+      destination.innerHTML = "";
     } else {
       flight_id.innerHTML = data.flightId.id;
       departure.innerHTML = data.flightId.keys.aerodromeOfDeparture;
@@ -24,17 +26,26 @@ function getFlight_data(icao, callsign, typecode) {
 }
 function deselect_planes() {
   traj.clearLayers();
-  $('.aircraft_selected').toggleClass("aircraft_img", true);
-  $('.aircraft_selected').toggleClass("aircraft_selected", false);
-  $('.turb_selected').toggleClass("turb_path", true);
-  $('.turb_selected').toggleClass("turb_selected", false);
+  $(".aircraft_selected").toggleClass("aircraft_img", true);
+  $(".aircraft_selected").toggleClass("aircraft_selected", false);
+  $(".turb_selected").toggleClass("turb_path", true);
+  $(".turb_selected").toggleClass("turb_selected", false);
   selected = "";
 }
 function whenClicked(e) {
   deselect_planes();
-  var icao = (e.target.feature.properties.icao === undefined) ? (e.target.feature.geometry.properties.icao) : e.target.feature.properties.icao
-  var callsign = (e.target.feature.properties.callsign === undefined) ? (e.target.feature.geometry.properties.callsign) : e.target.feature.properties.callsign
-  var typecode = (e.target.feature.properties.typecode === undefined) ? (e.target.feature.geometry.properties.typecode) : e.target.feature.properties.typecode
+  var icao =
+    e.target.feature.properties.icao === undefined
+      ? e.target.feature.geometry.properties.icao
+      : e.target.feature.properties.icao;
+  var callsign =
+    e.target.feature.properties.callsign === undefined
+      ? e.target.feature.geometry.properties.callsign
+      : e.target.feature.properties.callsign;
+  var typecode =
+    e.target.feature.properties.typecode === undefined
+      ? e.target.feature.geometry.properties.typecode
+      : e.target.feature.properties.typecode;
   selected = icao;
   $("#" + icao).toggleClass("aircraft_img", false);
   $("#" + icao).toggleClass("aircraft_selected", true);
@@ -50,7 +61,12 @@ function onEachPlane(feature, layer) {
   if (icao == selected) {
     getTrajectory(icao);
   }
-  var popupContent = "<p>ICAO: " + icao + "<br>Callsign: " + feature.properties.callsign + "</p>";
+  var popupContent =
+    "<p>ICAO: " +
+    icao +
+    "<br>Callsign: " +
+    feature.properties.callsign +
+    "</p>";
 
   layer.bindPopup(popupContent);
   layer.on({
@@ -59,12 +75,12 @@ function onEachPlane(feature, layer) {
   layer.on({
     mouseover: function (e) {
       this.openPopup();
-    }
+    },
   });
   layer.on({
     mouseout: function (e) {
       this.closePopup();
-    }
+    },
   });
 }
 function onEachTurb(feature, layer) {
@@ -123,39 +139,58 @@ function onEachCat(feature, layer) {
   layer.bindPopup(popupContent);
 }
 function createCustomIcon(feature, latlng) {
-  var imageObj = get_image_object(feature.properties.typecode, feature.properties.callsign)
-  var view_box = 34 / imageObj.scale
-  var stroke_width = 0.8 / imageObj.scale
-  var svg = "<svg id='" + feature.properties.icao + "' xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 " + view_box + " " + view_box + "'><g transform='scale(" + 0.7 + ")'><path d='" + imageObj.path + "' stroke='#0014aa' stroke-width='" + stroke_width + "'></path></g></svg >";
+  var imageObj = get_image_object(
+    feature.properties.typecode,
+    feature.properties.callsign
+  );
+  var view_box = 34 / imageObj.scale;
+  var stroke_width = 0.8 / imageObj.scale;
+  var svg =
+    "<svg id='" +
+    feature.properties.icao +
+    "' xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 " +
+    view_box +
+    " " +
+    view_box +
+    "'><g transform='scale(" +
+    0.7 +
+    ")'><path d='" +
+    imageObj.path +
+    "' stroke='#0014aa' stroke-width='" +
+    stroke_width +
+    "'></path></g></svg >";
   let myIcon = L.divIcon({
     html: svg,
-    className: feature.properties.icao != selected ? "aircraft_img" : "aircraft_selected",
+    className:
+      feature.properties.icao != selected
+        ? "aircraft_img"
+        : "aircraft_selected",
     iconSize: [33, 35], // width and height of the image in pixels
     iconAnchor: [15, 15], // point of the icon which will correspond to marker's location
     popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
-    color: 'blue',
+    color: "blue",
   });
   let marker = L.marker(latlng, {
     icon: myIcon,
     rotationAngle: (feature.properties.dir + imageObj.rotcorr) % 360,
   });
-  return marker
+  return marker;
 }
 function getSigmet(wef = null, und = null) {
   var url = "context/sigmet";
   if ((wef !== null) & (und !== null)) {
     const searchParams = new URLSearchParams({ wef: wef, und: und });
-    url = url + '?' + searchParams;
+    url = url + "?" + searchParams;
   }
   var sigmet;
   $.getJSON(url, function (data) {
     if (data.features == undefined) {
-      data["features"] = {}
+      data["features"] = {};
     }
     document.getElementById("sigmet_count").innerHTML = Object.keys(
       data.features
     ).length;
-    sigmet = data
+    sigmet = data;
     sigmets.clearLayers();
     L.geoJson(data, {
       style: function (feature) {
@@ -163,12 +198,12 @@ function getSigmet(wef = null, und = null) {
         return d == "TS"
           ? { color: "red" }
           : d == "TURB"
-            ? { color: "blue" }
-            : d == "MTW"
-              ? { color: "yellow" }
-              : d == "ICE"
-                ? { color: "gray" }
-                : { color: "black" };
+          ? { color: "blue" }
+          : d == "MTW"
+          ? { color: "yellow" }
+          : d == "ICE"
+          ? { color: "gray" }
+          : { color: "black" };
       },
       onEachFeature: onEachSigmet,
     }).addTo(sigmets);
@@ -179,53 +214,53 @@ function getAirep(wef = null, und = null) {
   url = "context/airep";
   if ((wef !== null) & (und !== null)) {
     const searchParams = new URLSearchParams({ wef: wef, und: und });
-    url = url + '?' + searchParams;
+    url = url + "?" + searchParams;
   }
   var airep;
   $.getJSON(url, function (data) {
     if (data.features == undefined) {
-      data["features"] = {}
+      data["features"] = {};
     }
     document.getElementById("airep_count").innerHTML = Object.keys(
       data.features
     ).length;
-    airep = data
+    airep = data;
     aireps.clearLayers();
     L.geoJson(data, {
       onEachFeature: onEachAirep,
     }).addTo(aireps);
   });
-  return airep
+  return airep;
 }
 function getCat(wef = null, und = null) {
   url = "context/cat";
   if ((wef !== null) & (und !== null)) {
     const searchParams = new URLSearchParams({ wef: wef, und: und });
-    url = url + '?' + searchParams;
+    url = url + "?" + searchParams;
   }
   var cat;
   $.getJSON(url, function (data) {
     cat_sev.clearLayers();
     cat_mod.clearLayers();
     if ($.isEmptyObject(data)) {
-      return
+      return;
     }
     cat = data;
     L.geoJson(data, {
       filter: function (feature) {
-        return feature.properties.intensityValue == 2
+        return feature.properties.intensityValue == 2;
       },
       style: function () {
-        return { color: "red", opacity: 0 }
+        return { color: "red", opacity: 0 };
       },
       onEachFeature: onEachCat,
     }).addTo(cat_sev);
     L.geoJson(data, {
       filter: function (feature) {
-        return feature.properties.intensityValue == 1
+        return feature.properties.intensityValue == 1;
       },
       style: function () {
-        return { color: "gray", opacity: 0 }
+        return { color: "gray", opacity: 0 };
       },
       onEachFeature: onEachCat,
     }).addTo(cat_mod);
@@ -233,9 +268,14 @@ function getCat(wef = null, und = null) {
   return cat;
 }
 function getPlanes(und = "", history = 0, icao24 = "", callsign = "") {
-  url = "planes.geojson"
-  const searchParams = new URLSearchParams({ history: history, und: und, icao24: icao24, callsign: callsign });
-  url = url + '?' + searchParams
+  url = "planes.geojson";
+  const searchParams = new URLSearchParams({
+    history: history,
+    und: und,
+    icao24: icao24,
+    callsign: callsign,
+  });
+  url = url + "?" + searchParams;
 
   $.getJSON(url, function (data) {
     var avion = document.getElementById("plane_count");
@@ -249,22 +289,27 @@ function getPlanes(und = "", history = 0, icao24 = "", callsign = "") {
   });
 }
 function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
-  url = "turb.geojson"
-  const searchParams = new URLSearchParams({ history: history, und: und, icao24: icao24, callsign: callsign });
-  url = url + '?' + searchParams
+  url = "turb.geojson";
+  const searchParams = new URLSearchParams({
+    history: history,
+    und: und,
+    icao24: icao24,
+    callsign: callsign,
+  });
+  url = url + "?" + searchParams;
 
   var turbu;
   $.getJSON(url, function (data) {
-    turbu = data
+    turbu = data;
     turbulences.clearLayers();
     var turb_geojson = L.geoJson(data.geojson, {
       onEachFeature: onEachTurb,
       style: function (feature) {
         var icao = feature.geometry.properties.icao;
         if (icao == selected) {
-          return { className: "turb_selected turb-" + icao }
+          return { className: "turb_selected turb-" + icao };
         }
-        return { className: "turb_path turb-" + icao }
+        return { className: "turb_path turb-" + icao };
       },
       // function (feature) {
       //   var icao = feature.properties.icao;
@@ -282,13 +327,13 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
   return turbu;
 }
 function getheatmap(und = null, history = 0) {
-  url = "heatmap.data"
+  url = "heatmap.data";
   if (und !== null) {
-    url = url + "/" + und
+    url = url + "/" + und;
   }
   if (history) {
     const searchParams = new URLSearchParams({ history: history });
-    url = url + '?' + searchParams
+    url = url + "?" + searchParams;
   }
   var heatm;
   $.getJSON(url, function (data) {
@@ -306,23 +351,26 @@ function getTimeString(isLocal) {
   if (isLocal) {
     hours = date.getHours();
     minutes = date.getMinutes();
-  }
-  else {
+  } else {
     hours = date.getUTCHours();
     minutes = date.getUTCMinutes();
   }
 
-  if (hours < 10) { hours = '0' + hours; }
-  if (minutes < 10) { minutes = '0' + minutes; }
+  if (hours < 10) {
+    hours = "0" + hours;
+  }
+  if (minutes < 10) {
+    minutes = "0" + minutes;
+  }
 
-  var zeit_string = hours + ':' + minutes;
+  var zeit_string = hours + ":" + minutes;
 
   return zeit_string;
 }
 function getTrajectory(icao, und = "", history = 0) {
-  url = "trajectory/" + icao
+  url = "trajectory/" + icao;
   const searchParams = new URLSearchParams({ history: history, und: und });
-  url = url + '?' + searchParams
+  url = url + "?" + searchParams;
   $.getJSON(url, function (data) {
     traj.clearLayers();
     L.geoJson(data.geojson, {
