@@ -1,5 +1,6 @@
 import logging
 import os
+import resource
 from datetime import datetime
 
 import click
@@ -43,6 +44,21 @@ data_path = config_turb.get("turbulence", "path_data", fallback="")
 mongo_uri = config_turb.get("turbulence", "database_uri", fallback="")
 
 
+def memory_limit() -> None:
+    soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+    resource.setrlimit(resource.RLIMIT_AS, (get_memory() * 1024 / 2, hard))
+
+
+def get_memory() -> int:
+    with open("/proc/meminfo", "r") as mem:
+        free_memory = 0
+        for i in mem:
+            sline = i.split()
+            if str(sline[0]) in ("MemFree:", "Buffers:", "Cached:"):
+                free_memory += int(sline[1])
+    return free_memory
+
+
 @click.command()
 @click.option("--source", default=None)
 @click.option("--address", "decoders_address", default=None)
@@ -61,7 +77,10 @@ def main(
     mongo_uri,
     source,
     decoders_address,
-):
+) -> None:
+    memory_limit()
+    # with memray.Tracker("output_file.bin",):
+    #     print("Allocations will be tracked until the with block ends")
     if decoders_address is None:
         decoders_address = {
             "aggregator": str(

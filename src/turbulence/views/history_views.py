@@ -1,4 +1,5 @@
 import os
+from typing import Tuple, Union
 
 from flask import (
     Blueprint,
@@ -21,7 +22,7 @@ history_bp = Blueprint("history", __name__)
 CORS(history_bp)
 
 
-def get_date_file() -> tuple[Timestamp, Timestamp]:
+def get_date_file() -> Tuple[Timestamp, Timestamp]:
     client: TurbulenceClient = current_app.history_client
     return (
         client.pro_data.start_time,
@@ -31,7 +32,7 @@ def get_date_file() -> tuple[Timestamp, Timestamp]:
 
 @history_bp.route("/data", defaults={"req_path": ""})
 @history_bp.route("/data/<path:req_path>")
-def dir_listing(req_path):
+def dir_listing(req_path: str) -> Union[Response, str]:
     BASE_DIR = os.path.join(current_app.data_path)
 
     # Joining the base and the requested path

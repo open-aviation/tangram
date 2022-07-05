@@ -3,7 +3,7 @@ import json
 import pickle
 import zlib
 from datetime import datetime
-from typing import Any, Union
+from typing import Any, Dict, List, Union
 
 from flask import (
     Blueprint,
@@ -30,13 +30,13 @@ CORS(base_bp)
 
 
 @base_bp.route("/stop")
-def stop_client():
+def stop_client() -> Dict:
     current_app.live_client.stop()
     return {}
 
 
 @base_bp.route("/context/flight/<path:icao>")
-def get_info_flight(icao):
+def get_info_flight(icao) -> Dict[str, Any]:
     try:
         data = current_app.network.icao24(icao)
     except Exception:
@@ -50,12 +50,12 @@ def format_datetime(value, format="medium"):
 
 
 @base_bp.route("/uptime")
-def get_uptime() -> dict[str, Any]:
+def get_uptime() -> Dict[str, Any]:
     return {"uptime": (datetime.now() - current_app.start_time).total_seconds()}
 
 
 @base_bp.route("/traffic")
-def get_traffic():
+def get_traffic() -> Dict[str, str]:
     t = current_app.live_client.pro_data
     t = pickle.dumps(t)
     t = zlib.compress(t, 2)
@@ -63,12 +63,12 @@ def get_traffic():
 
 
 @base_bp.route("/turb.geojson")
-def turbulence() -> dict[str, Any]:
+def turbulence() -> Dict[str, Any]:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
-    und = request.args.get("und", default=None)
-    icao24 = request.args.get("icao24", default=None)
-    callsign = request.args.get("callsign", default=None)
+    und = request.args.get("und", default="")
+    icao24 = request.args.get("icao24", default="")
+    callsign = request.args.get("callsign", default="")
     standard = True
     if history:
         standard = False
@@ -95,7 +95,7 @@ def turbulence() -> dict[str, Any]:
 
 
 @base_bp.route("/chart.data/<path:icao>")
-def chart_data(icao) -> Union[str, dict]:
+def chart_data(icao: str) -> List[List]:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
     if history:
@@ -132,12 +132,12 @@ def chart_data(icao) -> Union[str, dict]:
 
 
 @base_bp.route("/planes.geojson")
-def fetch_planes_Geojson() -> dict:
+def fetch_planes_Geojson() -> Dict[str, Any]:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
-    und = request.args.get("und", default=None)
-    icao24 = request.args.get("icao24", default=None)
-    callsign = request.args.get("callsign", default=None)
+    und = request.args.get("und", default="")
+    icao24 = request.args.get("icao24", default="")
+    callsign = request.args.get("callsign", default="")
     standard = True
     if history:
         standard = False
@@ -168,7 +168,7 @@ def favicon() -> Response:
 
 
 @base_bp.route("/context/sigmet")
-def fetch_sigmets() -> dict:
+def fetch_sigmets() -> Any:
     wef = request.args.get("wef", default=None, type=int)
     und = request.args.get("und", default=None, type=int)
     t = pd.Timestamp("now", tz="utc")  # noqa: F841
@@ -186,11 +186,11 @@ def fetch_sigmets() -> dict:
 
 
 @base_bp.route("/context/airep")
-def airep_geojson() -> dict:
-    wef = request.args.get("wef", default=None, type=int)
-    und = request.args.get("und", default=None, type=int)
-    condition = wef is None and und is None
-    if not condition:
+def airep_geojson() -> Any:
+    wef = request.args.get("wef", default=0, type=int)
+    und = request.args.get("und", default=0, type=int)
+    condition: bool = wef != 0 and und != 0
+    if condition:
         wef = wef / 1000
         und = und / 1000
     data = current_app.airep.aireps(wef, und)
@@ -205,13 +205,13 @@ def airep_geojson() -> dict:
 
 
 @base_bp.route("/context/cat")
-def clear_air_turbulence() -> dict:
-    wef = request.args.get("wef", default=None, type=int)
-    und = request.args.get("und", default=None, type=int)
+def clear_air_turbulence() -> Any:
+    wef = request.args.get("wef", default=0, type=int)
+    und = request.args.get("und", default=0, type=int)
     t = pd.Timestamp("now", tz="utc")
-    if wef is not None:
+    if wef != 0:
         wef = wef / 1000
-    if und is not None:
+    if und != 0:
         und = und / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")  # noqa: F841
     res = current_app.cat.metsafe(
@@ -233,19 +233,19 @@ def clear_air_turbulence() -> dict:
 
 
 @base_bp.route("/fonts/<path:filename>")
-def serve_fonts(filename) -> Response:
+def serve_fonts(filename: str) -> Response:
     return send_from_directory("fonts/", filename)
 
 
 @base_bp.route("/static/<path:filename>")
-def serve_static(filename):
+def serve_static(filename: str) -> Response:
     response = send_from_directory("static/", filename)
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
 
 
 @base_bp.route("/", methods=["GET", "POST"])
-def home_page() -> str:
+def home_page() -> Response:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
     if history:
@@ -296,7 +296,7 @@ def home_page() -> str:
 
 @base_bp.route("/heatmap.data")
 @base_bp.route("/heatmap.data/<path:und>")
-def get_heatmap_data(und=None):
+def get_heatmap_data(und: str = None) -> Dict[str, Union[List[List], Dict]]:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
     if history:
@@ -322,17 +322,17 @@ def get_heatmap_data(und=None):
 
 
 @base_bp.route("/trajectory/<path:icao24>")
-def get_traj(icao24: str) -> dict[str, Any]:
+def get_traj(icao24: str) -> Dict[str, Any]:
     client = current_app.live_client
     history = request.args.get("history", default=0, type=int)
     if history:
         client = current_app.history_client
-    und = request.args.get("und", default=None)
+    und = request.args.get("und", default=0, type=float)
     pro_data = client.pro_data
     flight = pro_data[icao24]
     geojson = None
     if flight is not None:
-        if und not in (None, ""):
+        if und not in (None, 0):
             und = int(und) / 1000
             t = pd.Timestamp(und, unit="s", tz="utc")
             flight = flight.query(f"timestamp<='{str(t)}'")

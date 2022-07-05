@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import pickle
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict
 
 import click
 import zmq
@@ -84,7 +84,7 @@ def main(
     serve_host: str | None = "127.0.0.1",
     serve_port: int | None = 5056,
     log_file: str | None = None,
-):
+) -> None:
 
     logger = logging.getLogger()
     if verbose == 1:
@@ -161,15 +161,16 @@ def main(
 
     # signal.signal(signal.SIGINT, sigint_handler)
     while True:
-        request = server.recv_json()
+        request: Dict[str, Any] = server.recv_json()
         t = decoder.traffic
         if t is not None:
             timestamp = request["payload"][0]
             t = t.query(
                 f"timestamp>='{timestamp}'"
             )  # poser la question a Xavier
-            t = t.drop(set(t.data.columns) - columns, axis=1)
-            t = t.assign(antenna=decoder.name)
+            if t is not None:
+                t = t.drop(set(t.data.columns) - columns, axis=1)
+                t = t.assign(antenna=decoder.name)
         # pyobj = zlib.compressobj(t)
         zobj = pickle.dumps(t)
         server.send(zobj)

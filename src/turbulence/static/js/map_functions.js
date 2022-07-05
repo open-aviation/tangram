@@ -306,10 +306,18 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
       onEachFeature: onEachTurb,
       style: function (feature) {
         var icao = feature.geometry.properties.icao;
+        var intensity = feature.geometry.properties.intensity;
+        var color = function () {
+          return intensity >= 200
+            ? "blueviolet"
+            : (intensity < 200) & (intensity > 100)
+            ? "#ff9900"
+            : "blue";
+        };
         if (icao == selected) {
-          return { className: "turb_selected turb-" + icao };
+          return { className: "turb_selected turb-" + icao, color: color() };
         }
-        return { className: "turb_path turb-" + icao };
+        return { className: "turb_path turb-" + icao, color: color() };
       },
       // function (feature) {
       //   var icao = feature.properties.icao;

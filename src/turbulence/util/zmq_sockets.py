@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import pickle
-import zlib
+from typing import Any, Dict, Optional
 
 import zmq
 from requests import Session
@@ -25,7 +25,7 @@ class DecoderSocket:
 
     def traffic_records(
         self, start: pd.Timestamp = pd.Timestamp(0, tz="utc")
-    ) -> Traffic:
+    ) -> Optional[Traffic]:
         # {"origin": __name__, "timestamp": int, "payload": bytes}
         request = {
             "origin": __name__,
@@ -33,12 +33,11 @@ class DecoderSocket:
             "payload": [str(start), "traffic"],
         }
         # request = json.dumps(request)
-        traffic = None
         try:
             self.socket.send_json(request)
             if (self.socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
                 zobj = self.socket.recv()
-                traffic = pickle.loads(zobj)
+                return pickle.loads(zobj)
                 # traffic = zlib.decompressobj(pobj)
         except zmq.ZMQError as e:
             _log.warning(str(__name__) + ": " + str(e))
@@ -46,10 +45,10 @@ class DecoderSocket:
             self.context = zmq.Context()
             self.socket = self.context.socket(zmq.REQ)
             self.socket.connect(self.base_url)
-            traffic = None
-        return traffic
+            return None
+        # return traffic
 
-    def stop(self):
+    def stop(self) -> None:
         self.socket.setsockopt(zmq.LINGER, 0)
         self.socket.close()
         self.context.term()
@@ -63,23 +62,23 @@ class AggregatorSocket:
     def icao24(
         self,
         icao24: str,
-    ):
+    ) -> Any:
         c = self.session.get(self.base_url, params={"icao": icao24})
         c.raise_for_status()
 
         return c.json()
 
-    def get_planes(self):
+    def get_planes(self) -> Any:
         c = self.session.get(self.base_url)
         c.raise_for_status()
 
         return c.json()
 
-    def traffic_records(self):
+    def traffic_records(self) -> Dict[str, Any]:
         try:
             c = self.session.get(self.base_url + "/traffic")
             c.raise_for_status()
         except Exception as e:
             logging.warning("decoder" + str(e))
             return {"traffic": None}
-        return c.json()
+        return {"traffic": c.json()}

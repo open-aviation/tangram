@@ -90,9 +90,9 @@ a.flag:hover::after {
   fill: red;
 }
 
-.turb_path {
-  stroke: blue;
-}
+/* .turb_path {
+  stroke: blueviolet;
+} */
 
 .turb_selected {
   stroke: red;

@@ -8,7 +8,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
-from typing import Callable
+from typing import Callable, List, Optional, Set
 
 import click
 import zmq
@@ -17,6 +17,7 @@ from pymongo import MongoClient
 from pymongo.errors import OperationFailure
 from traffic import config
 from traffic.core.traffic import Flight, Traffic
+from traffic.data.adsb.decode import Entry
 
 import pandas as pd
 
@@ -33,7 +34,7 @@ _log = logging.getLogger(__name__)
 # }
 
 
-def clean_callsign(cumul):
+def clean_callsign(cumul: List[Entry]) -> List[Entry]:
     i = 0
     while i < len(cumul):
         if cumul[i].keys() == {"timestamp", "icao24", "callsign"}:
@@ -77,24 +78,24 @@ class Aggregator:
         self.network = Network()
         self.db = self.mclient.get_database()
         self.running: bool = False
-        self._traffic: Traffic = None
+        self._traffic: Optional[Traffic] = None
         self.pickled_traffic: bytes = pickle.dumps(None)
         self.lock_traffic = threading.Lock()
 
     @property
-    def traffic(self):
+    def traffic(self) -> Optional[Traffic]:
         return self._traffic
 
     @traffic.setter
-    def traffic(self, t: Traffic) -> None:
+    def traffic(self, t: Optional[Traffic]) -> None:
         with self.lock_traffic:
             self._traffic = t
 
-    def traffic_decoder(self, decoder_name: str) -> Traffic | None:
+    def traffic_decoder(self, decoder_name: str) -> Optional[Traffic]:
         previous_endtime = self.decoders_time[decoder_name]
-        traffic = self.decoders[decoder_name].traffic_records(
-            start=previous_endtime
-        )
+        traffic: Optional[Traffic] = self.decoders[
+            decoder_name
+        ].traffic_records(start=previous_endtime)
         if traffic is None:
             self.decoders_time[decoder_name] = pd.Timestamp(0, tz="utc")
             return None
@@ -141,7 +142,7 @@ class Aggregator:
         def decorate(
             function: Callable[[Aggregator], None]
         ) -> Callable[[Aggregator], None]:
-            _log.info(f"Schedule {function.__name__} with {frequency}")
+            # _log.info(f"Schedule {function.__name__} with {frequency}")
             heapq.heappush(
                 cls.timer_functions,
                 (now + frequency, frequency, function),
@@ -151,7 +152,7 @@ class Aggregator:
         return decorate
 
     def expire_aircraft(self) -> None:
-        _log.info("Running expire_aircraft")
+        # _log.info("Running expire_aircraft")
 
         now = pd.Timestamp("now", tz="utc")
         t = self.traffic
@@ -165,13 +166,15 @@ class Aggregator:
             if now - flight.stop >= self.expire_threshold:
                 self.on_expire_aircraft(flight.icao24)
 
-    def on_expire_aircraft(self, icao24: str) -> None:
+    def on_expire_aircraft(self, icao24: str | Set[str] | None) -> None:
+        if icao24 is None:
+            return
         self.dump_data(icao24)
         self.traffic = self.traffic.query(f'icao24!="{icao24}"')
 
-    def dump_data(self, icao) -> None:
+    def dump_data(self, icao: str | Set[str]) -> None:
         """documentation"""
-        flight: Flight = self.traffic[icao]
+        flight: Optional[Flight] = self.traffic[icao]
         if flight is None:
             return
         start = flight.start
@@ -191,7 +194,9 @@ class Aggregator:
             flight_data = {}
 
         data: pd.DataFrame = flight.data
-        cumul = [row.dropna().to_dict() for index, row in data.iterrows()]
+        cumul: List[Entry] = [
+            row.dropna().to_dict() for index, row in data.iterrows()
+        ]
         cumul = clean_callsign(cumul)  # todo verifier
         count = len(cumul)
         if count == 0:
@@ -231,7 +236,7 @@ class Aggregator:
 
                 now = pd.Timestamp("now", tz="utc")
                 operation(agg)
-                _log.info(f"Schedule {operation.__name__} at {now + delta}")
+                # _log.info(f"Schedule {operation.__name__} at {now + delta}")
                 heapq.heappush(
                     cls.timer_functions, (now + delta, delta, operation)
                 )

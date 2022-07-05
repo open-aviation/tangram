@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from typing import Optional
 
 from pymongo import MongoClient
 from pymongo.cursor import Cursor
@@ -28,25 +29,13 @@ def crit(df: pd.DataFrame) -> pd.Series:
 
 
 def threshold(df: pd.DataFrame) -> float:
-    t = np.mean(df.criterion) + TurbulenceClient.multiplier * np.std(
+    t: float = np.mean(df.criterion) + TurbulenceClient.multiplier * np.std(
         df.criterion
     )
     if t > TurbulenceClient.min_threshold:
         return t
     else:
         return TurbulenceClient.min_threshold
-
-
-# def longitude_fill(df: pd.DataFrame) -> pd.Series:
-#     return df.longitude.interpolate().bfill().ffill()
-
-
-# def latitude_fill(df: pd.DataFrame) -> pd.Series:
-#     return df.latitude.interpolate().bfill().ffill()
-
-
-# def altitude_fill(df: pd.DataFrame) -> pd.Series:
-#     return df.altitude.bfill().ffill()
 
 
 def turbulence(df: pd.DataFrame) -> pd.Series:
@@ -57,7 +46,11 @@ def expire_turb(df: pd.DataFrame) -> pd.Series:
     return (df.timestamp + pd.Timedelta("20T")).where(df.turbulence, None)
 
 
-def anomaly(df) -> pd.Series:
+def intensity_turb(df: pd.DataFrame) -> pd.Series:
+    return df.criterion - df.threshold
+
+
+def anomaly(df: pd.DataFrame) -> pd.Series:
     lat_1 = df.latitude > (np.mean(df.latitude) + 3 * np.std(df.latitude))
     lat_2 = df.latitude < (np.mean(df.latitude) - 3 * np.std(df.latitude))
     lon_3 = df.longitude > (np.mean(df.longitude) + 3 * np.std(df.longitude))
@@ -78,13 +71,15 @@ class TurbulenceClient:
         self.decoders: dict[str, DecoderSocket] = {
             name: DecoderSocket(address) for name, address in decoders.items()
         }
-        self._pro_data: Traffic = None
-        self._traffic: Traffic = None
-        self.thread: threading.Thread = None
+        self._pro_data: Optional[Traffic] = None
+        self._traffic: Optional[Traffic] = None
+        self.thread: Optional[threading.Thread] = None
         mongo_client: MongoClient = MongoClient()
         self.db: Database = mongo_client.get_database(name="adsb")
 
-    def dump_threshold(self, icao24: str, thres: float, start, stop):
+    def dump_threshold(
+        self, icao24: str, thres: float, start: pd.Timestamp, stop: pd.Timestamp
+    ) -> None:
         try:
             self.db.threshold.insert_one(
                 {
@@ -98,7 +93,7 @@ class TurbulenceClient:
             _log.warning("dump" + str(e))
 
     @property
-    def pro_data(self) -> Traffic:
+    def pro_data(self) -> Optional[Traffic]:
         return self._pro_data
 
     # @pro_data.setter
@@ -112,11 +107,13 @@ class TurbulenceClient:
     #     #     self._pro_data = valid_turb + p if valid_turb is not None else p
 
     @property
-    def traffic(self) -> Traffic:
+    def traffic(self) -> Optional[Traffic]:
         return self._traffic
 
-    def traffic_decoder(self, decoder_name: str) -> Traffic | None:
-        traffic = self.decoders[decoder_name].traffic_records()
+    def traffic_decoder(self, decoder_name: str) -> Optional[Traffic]:
+        traffic: Optional[Traffic] = self.decoders[
+            decoder_name
+        ].traffic_records()
         if traffic is None:
             return traffic
         return (
@@ -125,7 +122,7 @@ class TurbulenceClient:
             else traffic
         )
 
-    def resample_traffic(self, traffic: Traffic) -> Traffic:
+    def resample_traffic(self, traffic: Traffic) -> Optional[Traffic]:
         return (
             traffic.longer_than("1T")
             .resample(
@@ -150,7 +147,7 @@ class TurbulenceClient:
         if traffic == 0:
             self._traffic = None
             return
-        traffic = self.resample_traffic(traffic)
+        traffic: Optional[Traffic] = self.resample_traffic(traffic)
         self._traffic = (
             traffic.merge(
                 aircraft.data[["icao24", "typecode"]],
@@ -176,21 +173,7 @@ class TurbulenceClient:
     def turbulence(self) -> None:
         if self._traffic is not None:
             pro_data = (
-                self._traffic
-                # .filter(
-                #     strategy=None,
-                #     # median filters for abnormal points
-                #     # vertical_rate_barometric=3,
-                #     # vertical_rate_inertial=3,  # kernel sizes
-                #     latitude=13,
-                #     longitude=13,
-                # )
-                # .assign(
-                #     longitude=longitude_fill,
-                #     latitude=latitude_fill,
-                #     altitude=altitude_fill,
-                # )
-                .agg_time(
+                self._traffic.agg_time(
                     # aggregate data over intervals of one minute
                     "1 min",
                     # compute the std of the data
@@ -208,11 +191,17 @@ class TurbulenceClient:
                 )
                 .assign(
                     # we define a thushold based on the
-                    # mean criterion + 1.2 * standar deviation criterion
+                    # mean criterion + 1.3 * standar deviation criterion
                     threshold=threshold
                 )
-                .assign(turbulence=turbulence)
-                .assign(expire_turb=expire_turb, anomaly=anomaly)
+                .assign(
+                    turbulence=turbulence,
+                    intensity_turb=intensity_turb,
+                )
+                .assign(
+                    expire_turb=expire_turb,
+                    anomaly=anomaly,
+                )
                 .eval(max_workers=1)
             )
             self._pro_data = (
@@ -263,7 +252,8 @@ class TurbulenceClient:
 
     def stop(self) -> None:
         self.running = False
-        self.thread.join()
+        if self.thread is not None and self.thread.is_alive():
+            self.thread.join()
 
     def clear(self) -> None:
         self._traffic = None

@@ -1,9 +1,11 @@
+from typing import Any, Dict, List, Optional
+
 from traffic.core import Flight, Traffic
 
 import numpy as np
 
 
-def geojson_flight(flight: Flight) -> dict:
+def geojson_flight(flight: Flight) -> Optional[Dict[str, Any]]:
     latitude = flight.data.latitude.iloc[-1]
     longitude = flight.data.longitude.iloc[-1]
     if not (np.isnan(latitude) and np.isnan(longitude)):
@@ -29,12 +31,14 @@ def geojson_flight(flight: Flight) -> dict:
     return None
 
 
-def geojson_traffic(traffic: Traffic) -> dict:
-    features = []
+def geojson_traffic(
+    traffic: Traffic,
+) -> Dict[str, Any]:
+    features: List[Optional[Dict[str, Any]]] = []
     if traffic is not None:
         # with ProcessPoolExecutor(max_workers=4) as executor:
-        features = map(geojson_flight, traffic)
-        features = list(filter(lambda t: t is not None, features))
+        f = map(geojson_flight, traffic)
+        features = list(t for t in f if t is not None)
     geojson = {
         "type": "FeatureCollection",
         "features": features,
@@ -46,12 +50,15 @@ def geojson_traffic(traffic: Traffic) -> dict:
     return encapsulated_geojson
 
 
-def geojson_turbulence(pro_data: Traffic) -> dict:
+def geojson_turbulence(pro_data: Optional[Traffic]) -> Dict[str, Any]:
     features = []
     if pro_data is not None:
-        turb: Traffic = pro_data.query("turbulence")
+        turb: Optional[Traffic] = pro_data.query("turbulence")
         if turb is not None:
             for flight in turb:
+                icao24 = flight.icao24
+                callsign = flight.callsign
+                typecode = flight.data.typecode.iloc[0]
                 if flight.shape is not None:
                     for segment in flight.split("1T"):
                         if segment is not None:
@@ -60,13 +67,18 @@ def geojson_turbulence(pro_data: Traffic) -> dict:
                                 x.update(
                                     {
                                         "properties": {
-                                            "icao": flight.icao24,
-                                            "callsign": flight.callsign,
-                                            "typecode": flight.typecode,
+                                            "icao": icao24,
+                                            "callsign": callsign,
+                                            "typecode": None
+                                            if str(typecode) == "nan"
+                                            else typecode,
                                             "start": segment.start.timestamp(),
                                             "validity": segment.data[
                                                 "expire_turb"
                                             ].iloc[0],
+                                            "intensity": segment.data.intensity_turb.iloc[
+                                                0
+                                            ],
                                         }
                                     }
                                 )
