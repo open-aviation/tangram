@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import heapq
 import logging
+from math import ceil
 import os
 import pickle
+from sys import getsizeof
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -14,7 +16,7 @@ import click
 import zmq
 from atmlab.network import Network
 from pymongo import MongoClient
-from pymongo.errors import OperationFailure
+from pymongo.errors import OperationFailure, DocumentTooLarge
 from traffic import config
 from traffic.core.traffic import Flight, Traffic
 from traffic.data.adsb.decode import Entry
@@ -193,28 +195,38 @@ class Aggregator:
         except Exception:  # exact exception
             flight_data = {}
 
-        data: pd.DataFrame = flight.data
         cumul: List[Entry] = [
-            row.dropna().to_dict() for index, row in data.iterrows()
+            row.dropna().to_dict() for index, row in flight.data.iterrows()
         ]
         cumul = clean_callsign(cumul)  # todo verifier
         count = len(cumul)
         if count == 0:
             return
-        dum = {
-            "icao": icao,
-            "callsign": callsign,
-            "start": str(start),
-            "stop": str(stop),
-            "count": count,
-            "traj": cumul,
-            "flight_data": flight_data,
-            "antenna": list(data.antenna.unique()),
-        }
-        try:
-            self.db.tracks.insert_one(dum)
-        except OperationFailure as e:
-            _log.warning(e)
+
+        def check_insert(cumul):
+            number_chunks = ceil(getsizeof(cumul) // 16793598)
+            k, m = divmod(len(cumul), number_chunks)
+            return (
+                cumul[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)]
+                for i in range(number_chunks)
+            )
+
+        for i in check_insert(cumul):
+            dum = {
+                "icao": icao,
+                "callsign": callsign,
+                "start": str(start),
+                "stop": str(stop),
+                "count": count,
+                "traj": i,
+                "flight_data": flight_data,
+                "antenna": list(flight.data.antenna.unique()),
+            }
+            try:
+                self.db.tracks.insert_one(dum)
+            except (OperationFailure, DocumentTooLarge) as e:
+                _log.warning(str(icao) + str(count) + ":" + str(e))
+                break
 
     @classmethod
     def from_decoders(
