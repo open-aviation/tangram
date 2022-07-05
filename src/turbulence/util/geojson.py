@@ -64,6 +64,7 @@ def geojson_turbulence(pro_data: Optional[Traffic]) -> Dict[str, Any]:
                         if segment is not None:
                             x = segment.geojson()
                             if x is not None:
+                                intensity = segment.data.intensity_turb.iloc[0]
                                 x.update(
                                     {
                                         "properties": {
@@ -76,9 +77,7 @@ def geojson_turbulence(pro_data: Optional[Traffic]) -> Dict[str, Any]:
                                             "validity": segment.data[
                                                 "expire_turb"
                                             ].iloc[0],
-                                            "intensity": segment.data.intensity_turb.iloc[
-                                                0
-                                            ],
+                                            "intensity": intensity,
                                         }
                                     }
                                 )

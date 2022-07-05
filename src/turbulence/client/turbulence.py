@@ -230,7 +230,10 @@ class TurbulenceClient:
             file_decoder = ModeS_Decoder.from_file(
                 file, template="time,df,icao,shortmsg", reference=reference
             )
-            self._traffic = self.resample_traffic(file_decoder.traffic)
+            if file_decoder.traffic is None:
+                self._traffic = None
+            else:
+                self._traffic = self.resample_traffic(file_decoder.traffic)
             self.turbulence()
         elif file.endswith(".pkl") or file.endswith(".parquet"):
             self._traffic = Traffic.from_file(file)
