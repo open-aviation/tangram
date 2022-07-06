@@ -161,6 +161,11 @@ def main(
 
     # signal.signal(signal.SIGINT, sigint_handler)
     while True:
+        if not decoder.decode_thread.is_alive():
+            server.setsockopt(zmq.LINGER, 0)
+            server.close()
+            context.term()
+            break
         request: Dict[str, Any] = server.recv_json()
         t = decoder.traffic
         if t is not None:
