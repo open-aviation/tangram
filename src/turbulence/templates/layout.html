@@ -18,8 +18,8 @@
     href="https://fonts.googleapis.com/css2?family=B612&display=swap"
     rel="stylesheet"
   />
-  <script src="{{ url_for('base.serve_static', filename='jquery.min.js') }}"></script>
-  <script src="{{ url_for('base.serve_static', filename='bootstrap.min.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.4.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
@@ -52,6 +52,14 @@
     rel="stylesheet"
     href="{{ url_for('base.serve_static', filename='user.css') }}"
   />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.fullscreen@latest/Control.FullScreen.css"
+  />
+  <script
+    type="text/javascript"
+    src="https://unpkg.com/leaflet.fullscreen@latest/Control.FullScreen.js"
+  ></script>
 </head>
 
 <body>
@@ -64,12 +72,6 @@
           href="{{url_for('base.home_page',history=0)}}"
         >
           <span class="glyphicon glyphicon-refresh"></span>&nbsp; Live</a
-        >
-        <a
-          class="btn btn-sm btn-success"
-          href="{{url_for('history.dir_listing')}}"
-        >
-          <span class="glyphicon glyphicon-leaf"></span>&nbsp; File History</a
         >
         <button class="btn btn-sm btn-success" id="databasebutton">
           Database History

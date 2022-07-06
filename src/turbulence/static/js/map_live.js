@@ -18,6 +18,8 @@ var traj = L.layerGroup();
 var map = L.map("map", {
   layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes],
 }).setView([46, 2], 6);
+var fullscreenControl = L.control.fullscreen();
+map.addControl(fullscreenControl);
 map.on("click", function (e) {
   if (e.originalEvent.target.classList.contains("turb_selected")) {
     return;
@@ -57,7 +59,7 @@ setInterval(function () {
   getPlanes();
   getTurbulence();
   getheatmap();
-}, 1000 * 10); //10 secondes
+}, 1000 * 5); //10 secondes
 L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
