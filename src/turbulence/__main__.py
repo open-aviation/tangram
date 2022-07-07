@@ -107,7 +107,6 @@ def main(
         app.live_client.start_live()
         app.request_builder = RequestBuilder(app.live_client)
     if history:
-        app.data_path = data_path
         app.config["MONGO_URI"] = mongo_uri
         app.mongo = PyMongo(app)
 

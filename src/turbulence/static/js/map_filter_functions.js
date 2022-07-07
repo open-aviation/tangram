@@ -5,6 +5,21 @@ function filterturb(data, time) {
   }
   L.geoJson(data.geojson, {
     onEachFeature: onEachTurb,
+    style: function (feature) {
+      var icao = feature.geometry.properties.icao;
+      var intensity = feature.geometry.properties.intensity;
+      var color = function () {
+        return intensity >= 200
+          ? "#8400ff"
+          : (intensity < 200) & (intensity > 100)
+          ? "#ff9900"
+          : "#0084ff";
+      };
+      if (icao == selected) {
+        return { className: "turb_selected turb-" + icao, color: color() };
+      }
+      return { className: "turb_path turb-" + icao, color: color() };
+    },
     filter: function (feature) {
       return feature.properties.start <= time;
     },
@@ -24,7 +39,6 @@ function filterairep(data, time) {
       );
     },
   });
-  updateTableAirep(filtered.toGeoJSON());
   filtered.addTo(aireps);
 }
 function filtersigmet(data, time) {
@@ -53,7 +67,6 @@ function filtersigmet(data, time) {
       );
     },
   });
-  updateTableSigmet(filtered.toGeoJSON());
   filtered.addTo(sigmets);
 }
 function filtercat(data, time) {

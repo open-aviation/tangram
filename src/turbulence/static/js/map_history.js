@@ -5,14 +5,33 @@ var aireps = L.layerGroup();
 var cat_mod = L.layerGroup();
 var cat_sev = L.layerGroup();
 var heatmapLayer = L.layerGroup();
-
-chart_history = 1;
-
-var map = L.map("map", { layers: [planes, turbulences] }).setView(
-  [43.57155, 1.47165],
-  7
+var baselayer = L.tileLayer(
+  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+  {
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://cartodb.com/attributions">CartoDB</a>',
+  }
 );
 
+chart_history = 1;
+var traj = L.layerGroup();
+var map = L.map("map", {
+  layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes],
+}).setView([46, 2], 6);
+var fullscreenControl = L.control.fullscreen();
+map.addControl(fullscreenControl);
+map.addLayer(traj);
+map.addLayer(baselayer);
+map.on("click", function (e) {
+  if (e.originalEvent.target.classList.contains("turb_selected")) {
+    return;
+  }
+  deselect_planes();
+
+  sidebar.close();
+});
+var sidebar = L.control.sidebar({ container: "sidebar" });
+sidebar.addTo(map);
 var overlays = {
   Planes: planes,
   Turbulences: turbulences,
@@ -27,10 +46,10 @@ const urlSearchParams = new URLSearchParams(window.location.search);
 var min_date = urlSearchParams.get("min");
 var max_date = urlSearchParams.get("max");
 
-var firstseen = document.getElementById("first_seen");
-firstseen.innerHTML = new Date(min_date).toUTCString();
-var lastseen = document.getElementById("last_seen");
-lastseen.innerHTML = new Date(max_date).toUTCString();
+// var firstseen = document.getElementById("first_seen");
+// firstseen.innerHTML = new Date(min_date).toUTCString();
+// var lastseen = document.getElementById("last_seen");
+// lastseen.innerHTML = new Date(max_date).toUTCString();
 
 // Requests
 $.ajaxSetup({
@@ -130,13 +149,5 @@ createSliderUI();
 //   createTemporalLegend(new Date(min_date).toUTCString());
 // }
 
-var baselayer = L.tileLayer(
-  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-  {
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://cartodb.com/attributions">CartoDB</a>',
-  }
-);
 L.control.scale().addTo(map);
 L.control.layers(null, overlays).addTo(map);
-map.addLayer(baselayer);

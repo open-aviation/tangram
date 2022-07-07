@@ -10,7 +10,7 @@ from pymongo.cursor import Cursor
 from pymongo.database import Database
 from pymongo.errors import OperationFailure
 from traffic.core.traffic import Traffic
-from traffic.data import ModeS_Decoder, aircraft
+from traffic.data import aircraft
 
 import numpy as np
 import pandas as pd
@@ -224,33 +224,31 @@ class TurbulenceClient:
         )
         self.thread.start()
 
-    def start_from_file(self, file: str, reference: str) -> None:
-        self.clear()
-        if file.endswith(".csv"):
-            file_decoder = ModeS_Decoder.from_file(
-                file, template="time,df,icao,shortmsg", reference=reference
-            )
-            if file_decoder.traffic is None:
-                self._traffic = None
-            else:
-                self._traffic = self.resample_traffic(file_decoder.traffic)
-            self.turbulence()
-        elif file.endswith(".pkl") or file.endswith(".parquet"):
-            self._traffic = Traffic.from_file(file)
-            self._pro_data = self._traffic
+    # def start_from_file(self, file: str, reference: str) -> None:
+    #     self.clear()
+    #     if file.endswith(".csv"):
+    #         file_decoder = ModeS_Decoder.from_file(
+    #             file, template="time,df,icao,shortmsg", reference=reference
+    #         )
+    #         if file_decoder.traffic is None:
+    #             self._traffic = None
+    #         else:
+    #             self._traffic = self.resample_traffic(file_decoder.traffic)
+    #         self.turbulence()
+    #     elif file.endswith(".pkl") or file.endswith(".parquet"):
+    #         self._traffic = Traffic.from_file(file)
+    #         self._pro_data = self._traffic
 
     def start_from_database(self, data: Cursor) -> None:
         self.clear()
-        df = pd.concat(
-            [
-                pd.DataFrame.from_records(f["traj"]).assign(
-                    callsign=f["callsign"]
-                )
-                for f in data
-            ]
-        )
+        df = pd.concat([pd.DataFrame.from_records(f["traj"]) for f in data])
         df["timestamp"] = pd.to_datetime(df.timestamp, utc=True)
         self._traffic = self.resample_traffic(Traffic(df))
+        if self.traffic is not None:
+            self._traffic = self.traffic.merge(
+                aircraft.data[["icao24", "typecode"]],
+                how="left",
+            )
         self.turbulence()
 
     def stop(self) -> None:
