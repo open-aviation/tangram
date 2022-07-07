@@ -25,27 +25,23 @@ class DecoderSocket:
     def traffic_records(
         self, start: pd.Timestamp = pd.Timestamp(0, tz="utc")
     ) -> Optional[Traffic]:
-        # {"origin": __name__, "timestamp": int, "payload": bytes}
         request = {
             "origin": __name__,
             "timestamp": str(pd.Timestamp("now", tz="utc")),
             "payload": [str(start), "traffic"],
         }
-        # request = json.dumps(request)
         try:
             self.socket.send_json(request)
             if (self.socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
                 zobj = self.socket.recv()
                 return pickle.loads(zobj)
-                # traffic = zlib.decompressobj(pobj)
         except zmq.ZMQError as e:
-            _log.warning(str(__name__) + ": " + str(e))
+            _log.warning(str(__name__) + ": " + self.base_url + ":" + str(e))
             self.stop()
             self.context = zmq.Context()
             self.socket = self.context.socket(zmq.REQ)
             self.socket.connect(self.base_url)
             return None
-        # return traffic
 
     def stop(self) -> None:
         self.socket.setsockopt(zmq.LINGER, 0)

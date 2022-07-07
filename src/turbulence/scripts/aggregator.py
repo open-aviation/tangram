@@ -204,7 +204,7 @@ class Aggregator:
             return
 
         def check_insert(cumul):
-            number_chunks = ceil(getsizeof(cumul) // 16793598)
+            number_chunks = ceil(getsizeof(cumul) / 16793598)
             k, m = divmod(len(cumul), number_chunks)
             return (
                 cumul[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)]

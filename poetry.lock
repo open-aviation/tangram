@@ -2077,7 +2077,7 @@ async-timeout = [
     {file = "async_timeout-4.0.2-py3-none-any.whl", hash = "sha256:8ca1e4fcf50d07413d66d1a5e416e42cfdf5851c981d679a09851a6853383b3c"},
 ]
 atmlab = [
-    {file = "atmlab-0.1.0.tar.gz", hash = "sha256:9f8408894bb74759e727393d07b0fd43712c815c303c69006acebe5d9c435f4a"},
+    {file = "atmlab-0.1.0.tar.gz", hash = "sha256:248cd66b1e7531da4b901e323c99e9f9b869280fc8f050b597e54c6b1453139f"},
 ]
 attrs = [
     {file = "attrs-21.4.0-py2.py3-none-any.whl", hash = "sha256:2d27e3784d7a565d36ab851fe94887c5eccd6a463168875832a1be79c82828b4"},
@@ -3476,7 +3476,7 @@ tqdm = [
     {file = "tqdm-4.64.0.tar.gz", hash = "sha256:40be55d30e200777a307a7585aee69e4eabb46b4ec6a4b4a5f2d9f11e7d5408d"},
 ]
 traffic = [
-    {file = "traffic-2.8.0.tar.gz", hash = "sha256:b000cbc8445e8efedf134562e5b9fa434ac0c5401cb4dad753c38df5ef0bc111"},
+    {file = "traffic-2.8.0.tar.gz", hash = "sha256:8ef821fa156346fcf8177b2de293691c43eff8ea1c12db5558fb6b4f0294a3fc"},
 ]
 traitlets = [
     {file = "traitlets-5.3.0-py3-none-any.whl", hash = "sha256:65fa18961659635933100db8ca120ef6220555286949774b9cfc106f941d1c7a"},

@@ -309,10 +309,10 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
         var intensity = feature.geometry.properties.intensity;
         var color = function () {
           return intensity >= 200
-            ? "blueviolet"
+            ? "#8400ff"
             : (intensity < 200) & (intensity > 100)
             ? "#ff9900"
-            : "blue";
+            : "#0084ff";
         };
         if (icao == selected) {
           return { className: "turb_selected turb-" + icao, color: color() };
