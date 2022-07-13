@@ -52,14 +52,14 @@ function whenClicked(e) {
   $(".turb-" + icao).toggleClass("turb_path", false);
   $(".turb-" + icao).toggleClass("turb_selected", true);
   draw_chart(icao, chart_history);
-  getTrajectory(icao);
+  getTrajectory(icao, chart_history);
   getFlight_data(icao, callsign, typecode);
   sidebar.open("info_box");
 }
 function onEachPlane(feature, layer) {
   let icao = feature.properties.icao;
   if (icao == selected) {
-    getTrajectory(icao);
+    getTrajectory(icao, chart_history);
   }
   var popupContent =
     "<p>ICAO: " +
