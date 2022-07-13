@@ -58,6 +58,10 @@ def anomaly(df: pd.DataFrame) -> pd.Series:
     return lat_1 | lat_2 | lon_3 | lon_4
 
 
+def altitude_fill(df: pd.DataFrame) -> pd.Series:
+    return df.altitude.ffill().bfill()
+
+
 class TurbulenceClient:
     min_threshold: float = 180
     multiplier: float = 1.3
@@ -95,16 +99,6 @@ class TurbulenceClient:
     @property
     def pro_data(self) -> Optional[Traffic]:
         return self._pro_data
-
-    # @pro_data.setter
-    # def pro_data(self, p: Traffic) -> None:
-    #     # if self._pro_data is None:
-    #     self._pro_data = p
-    #     # else:
-    #     #     valid_turb = self._pro_data.query(
-    #     #         f'expire_turb>="{pd.Timestamp("now", tz="utc")}"'
-    #     #     )
-    #     #     self._pro_data = valid_turb + p if valid_turb is not None else p
 
     @property
     def traffic(self) -> Optional[Traffic]:
@@ -187,7 +181,8 @@ class TurbulenceClient:
                     # we define a criterion based on the
                     # difference between two standard deviations
                     # on windows of one minute
-                    criterion=crit
+                    criterion=crit,
+                    altitude=altitude_fill,
                 )
                 .assign(
                     # we define a thushold based on the
@@ -223,21 +218,6 @@ class TurbulenceClient:
             daemon=True,
         )
         self.thread.start()
-
-    # def start_from_file(self, file: str, reference: str) -> None:
-    #     self.clear()
-    #     if file.endswith(".csv"):
-    #         file_decoder = ModeS_Decoder.from_file(
-    #             file, template="time,df,icao,shortmsg", reference=reference
-    #         )
-    #         if file_decoder.traffic is None:
-    #             self._traffic = None
-    #         else:
-    #             self._traffic = self.resample_traffic(file_decoder.traffic)
-    #         self.turbulence()
-    #     elif file.endswith(".pkl") or file.endswith(".parquet"):
-    #         self._traffic = Traffic.from_file(file)
-    #         self._pro_data = self._traffic
 
     def start_from_database(self, data: Cursor) -> None:
         self.clear()
