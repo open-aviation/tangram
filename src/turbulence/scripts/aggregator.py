@@ -10,16 +10,17 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
-from typing import Callable, List, Optional, Set
+from typing import Callable, Generator, Optional, Set
+from requests.exceptions import HTTPError
 
 import click
+import numpy as np
 import zmq
 from atmlab.network import Network
 from pymongo import MongoClient
 from pymongo.errors import OperationFailure, DocumentTooLarge
 from traffic import config
 from traffic.core.traffic import Flight, Traffic
-from traffic.data.adsb.decode import Entry
 
 import pandas as pd
 
@@ -36,14 +37,13 @@ _log = logging.getLogger(__name__)
 # }
 
 
-def clean_callsign(cumul: List[Entry]) -> List[Entry]:
-    i = 0
-    while i < len(cumul):
-        if cumul[i].keys() == {"timestamp", "icao24", "callsign"}:
-            del cumul[i]
-            i -= 1
-        i += 1
-    return cumul
+def check_insert(chuck: np.ndarray) -> Generator:
+    number_chunks = ceil(chuck.nbytes / 16793598)
+    k, m = divmod(len(chuck), number_chunks)
+    return (
+        chuck[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)]
+        for i in range(number_chunks)
+    )
 
 
 class Aggregator:
@@ -131,7 +131,7 @@ class Aggregator:
             #     set(t.data.columns) - columns, axis=1
             # ) if t is not None else t
             self.pickled_traffic = pickle.dumps(t)
-            time.sleep(4)
+            time.sleep(2)
 
     @classmethod
     def on_timer(
@@ -144,7 +144,6 @@ class Aggregator:
         def decorate(
             function: Callable[[Aggregator], None]
         ) -> Callable[[Aggregator], None]:
-            # _log.info(f"Schedule {function.__name__} with {frequency}")
             heapq.heappush(
                 cls.timer_functions,
                 (now + frequency, frequency, function),
@@ -154,8 +153,6 @@ class Aggregator:
         return decorate
 
     def expire_aircraft(self) -> None:
-        # _log.info("Running expire_aircraft")
-
         now = pd.Timestamp("now", tz="utc")
         t = self.traffic
         if t is None:
@@ -184,49 +181,60 @@ class Aggregator:
 
         if stop - start < pd.Timedelta(minutes=1):
             return
-
+        name_change = {
+            "timestamp": "ts",
+            "altitude": "alt",
+            "heading": "hdg",
+            "vertical_rate_barometric": "vrb",
+            "vertical_rate_inertial": "vri",
+            "track": "trk",
+            "track_rate": "trkr",
+            "vertical_rate": "vr",
+            "latitude": "lat",
+            "longitude": "lon",
+        }
+        droped_columns = ["callsign", "icao24", "antenna"]
         callsign = flight.callsign
         if callsign is None:
             return
         if isinstance(callsign, set):
             callsign = list(callsign)
+            droped_columns = ["icao24", "antenna"]
         try:
             flight_data = self.network.icao24(icao)["flightId"]
-        except Exception:  # exact exception
+        except HTTPError:
             flight_data = {}
 
-        cumul: List[Entry] = [
-            row.dropna().to_dict() for index, row in flight.data.iterrows()
-        ]
-        cumul = clean_callsign(cumul)  # todo verifier
+        cumul: pd.DataFrame = (
+            flight.data.dropna(
+                subset=set(flight.data.columns)
+                - {"timestamp", "callsign", "icao24", "antenna"},
+                how="all",
+            )
+            .drop(columns=droped_columns)
+            .rename(columns=name_change)
+        )
         count = len(cumul)
         if count == 0:
             return
 
-        def check_insert(cumul):
-            number_chunks = ceil(getsizeof(cumul) / 16793598)
-            k, m = divmod(len(cumul), number_chunks)
-            return (
-                cumul[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)]
-                for i in range(number_chunks)
-            )
-
-        for i in check_insert(cumul):
+        for i in check_insert(cumul.values):
             dum = {
                 "icao": icao,
                 "callsign": callsign,
                 "start": str(start),
                 "stop": str(stop),
-                "count": count,
-                "traj": i,
                 "flight_data": flight_data,
                 "antenna": list(flight.data.antenna.unique()),
+                "columns": list(cumul.columns),
+                "count": len(i),
+                "traj": i.tolist(),
             }
             try:
                 self.db.tracks.insert_one(dum)
             except (OperationFailure, DocumentTooLarge) as e:
-                _log.warning(str(icao) + str(count) + ":" + str(e))
-                break
+                print(getsizeof(dum))
+                _log.warning(str(icao) + ":" + str(count) + ":" + str(e))
 
     @classmethod
     def from_decoders(
@@ -352,9 +360,7 @@ def main(
     server.bind(f"tcp://{serve_host}:{serve_port}")
     while True:
         server.recv_multipart()
-        a = time.time()
         server.send(aggd.pickled_traffic)
-        print(time.time() - a)
 
 
 if __name__ == "__main__":
