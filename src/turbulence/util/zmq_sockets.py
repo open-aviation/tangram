@@ -76,4 +76,4 @@ class AggregatorSocket:
         except Exception as e:
             logging.warning("decoder" + str(e))
             return {"traffic": None}
-        return {"traffic": c.json()}
+        return c.json()

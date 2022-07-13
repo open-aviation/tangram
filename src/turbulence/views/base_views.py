@@ -1,7 +1,5 @@
-import base64
 import json
-import pickle
-import zlib
+from requests.exceptions import HTTPError
 from datetime import datetime
 from typing import Any, Dict, List, Union
 
@@ -39,7 +37,7 @@ def stop_client() -> Dict:
 def get_info_flight(icao) -> Dict[str, Any]:
     try:
         data = current_app.network.icao24(icao)
-    except Exception:
+    except HTTPError:
         data = {}
     return data
 
@@ -52,14 +50,6 @@ def format_datetime(value, format="medium"):
 @base_bp.route("/uptime")
 def get_uptime() -> Dict[str, Any]:
     return {"uptime": (datetime.now() - current_app.start_time).total_seconds()}
-
-
-@base_bp.route("/traffic")
-def get_traffic() -> Dict[str, str]:
-    t = current_app.live_client.pro_data
-    t = pickle.dumps(t)
-    t = zlib.compress(t, 2)
-    return {"traffic": base64.b64encode(t).decode("utf-8")}
 
 
 @base_bp.route("/turb.geojson")
