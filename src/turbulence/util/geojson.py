@@ -6,8 +6,8 @@ import numpy as np
 
 
 def geojson_flight(flight: Flight) -> Optional[Dict[str, Any]]:
-    latitude = flight.data.latitude.iloc[-1]
-    longitude = flight.data.longitude.iloc[-1]
+    latitude = flight.data.latitude.ffill().iloc[-1]
+    longitude = flight.data.longitude.ffill().iloc[-1]
     if not (np.isnan(latitude) and np.isnan(longitude)):
         track = flight.data.track.iloc[-1]
         typecode = flight.data.typecode.iloc[-1]
