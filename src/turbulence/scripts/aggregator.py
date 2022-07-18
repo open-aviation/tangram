@@ -2,26 +2,27 @@ from __future__ import annotations
 
 import heapq
 import logging
-from math import ceil
 import os
 import pickle
-from sys import getsizeof
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from math import ceil
+from sys import getsizeof
 from threading import Thread
 from typing import Callable, Generator, Optional, Set
-from requests.exceptions import HTTPError
 
 import click
-import numpy as np
 import zmq
 from atmlab.network import Network
 from pymongo import MongoClient
-from pymongo.errors import OperationFailure, DocumentTooLarge
+from pymongo.errors import DocumentTooLarge, OperationFailure
+from requests.exceptions import HTTPError, ProxyError
 from traffic import config
 from traffic.core.traffic import Flight, Traffic
+from urllib3.exceptions import MaxRetryError
 
+import numpy as np
 import pandas as pd
 
 from ..util.zmq_sockets import DecoderSocket
@@ -202,7 +203,7 @@ class Aggregator:
             droped_columns = ["icao24", "antenna"]
         try:
             flight_data = self.network.icao24(icao)["flightId"]
-        except HTTPError:
+        except (HTTPError, ProxyError, MaxRetryError):
             flight_data = {}
 
         cumul: pd.DataFrame = (
