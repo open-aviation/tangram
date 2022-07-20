@@ -1,16 +1,16 @@
 from typing import Any, Dict, List, Optional
 
-from traffic.core import Flight, Traffic
+from traffic.core import Traffic
 
 import numpy as np
 
 
-def geojson_flight(flight: Flight) -> Optional[Dict[str, Any]]:
-    latitude = flight.data.latitude.ffill().iloc[-1]
-    longitude = flight.data.longitude.ffill().iloc[-1]
+def geojson_flight(stv: list) -> Optional[Dict[str, Any]]:
+    latitude = stv["latitude"]
+    longitude = stv["longitude"]
     if not (np.isnan(latitude) and np.isnan(longitude)):
-        track = flight.data.track.iloc[-1]
-        typecode = flight.data.typecode.iloc[-1]
+        track = stv["track"]
+        typecode = stv["typecode"]
         x = {
             "type": "Feature",
             "geometry": {
@@ -21,8 +21,8 @@ def geojson_flight(flight: Flight) -> Optional[Dict[str, Any]]:
                 ],
             },
             "properties": {
-                "icao": flight.icao24,
-                "callsign": flight.callsign,
+                "icao": stv["icao24"],
+                "callsign": stv["callsign"],
                 "typecode": None if str(typecode) == "nan" else typecode,
                 "dir": 0 if np.isnan(track) else track,
             },
@@ -36,8 +36,20 @@ def geojson_traffic(
 ) -> Dict[str, Any]:
     features: List[Optional[Dict[str, Any]]] = []
     if traffic is not None:
-        # with ProcessPoolExecutor(max_workers=4) as executor:
-        f = map(geojson_flight, traffic)
+        state_vectors = (
+            traffic.data.groupby("icao24", as_index=False)[
+                "icao24",
+                "callsign",
+                "track",
+                "latitude",
+                "longitude",
+                "typecode",
+            ]
+            .ffill()
+            .groupby("icao24", as_index=False)
+            .last()
+        ).to_dict(orient="records")
+        f = map(geojson_flight, state_vectors)
         features = list(t for t in f if t is not None)
     geojson = {
         "type": "FeatureCollection",
