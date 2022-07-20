@@ -8,34 +8,41 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from math import ceil
-from sys import getsizeof
 from threading import Thread
 from typing import Callable, Generator, Optional, Set
 
 import click
 import zmq
 from atmlab.network import Network
+from flask import Flask
 from pymongo import MongoClient
 from pymongo.errors import DocumentTooLarge, OperationFailure
-from requests.exceptions import HTTPError, ProxyError
+from requests.exceptions import RequestException
 from traffic import config
 from traffic.core.traffic import Flight, Traffic
 from urllib3.exceptions import MaxRetryError
 
 import numpy as np
 import pandas as pd
-
-from ..util.zmq_sockets import DecoderSocket
+from turbulence.util.zmq_sockets import DecoderSocket
 
 _log = logging.getLogger(__name__)
 
 # columns = set(config.get("columns", "columns", fallback=[]))
-# columns = {
-#     'timestamp', 'icao24', 'altitude', 'heading',
-#     'vertical_rate_barometric', 'vertical_rate_inertial',
-#     'track', 'vertical_rate', 'latitude', 'longitude',
-#     'callsign', 'track_rate'
-# }
+columns = {
+    "timestamp",
+    "icao24",
+    "altitude",
+    "heading",
+    "vertical_rate_barometric",
+    "vertical_rate_inertial",
+    "track",
+    "vertical_rate",
+    "latitude",
+    "longitude",
+    "callsign",
+    "track_rate",
+}
 
 
 def check_insert(chuck: np.ndarray) -> Generator:
@@ -53,6 +60,7 @@ class Aggregator:
     ] = list()
     agg_thread: Thread
     timer_thread: Thread
+    dump_database: bool = True
 
     def __init__(
         self,
@@ -77,6 +85,7 @@ class Aggregator:
             "database_uri",
             fallback="mongodb://localhost:27017/adsb",
         )
+        self.state_vector = {}
         self.mclient = MongoClient(host=database_uri)
         self.network = Network()
         self.db = self.mclient.get_database()
@@ -93,6 +102,19 @@ class Aggregator:
     def traffic(self, t: Optional[Traffic]) -> None:
         with self.lock_traffic:
             self._traffic = t
+
+    def update_state(self):
+        if self.traffic is None:
+            return {}
+        return (
+            self.traffic.data.groupby("icao24", as_index=False)
+            .tail(50)
+            .groupby("icao24", as_index=False)[self.traffic.data.columns]
+            .ffill()
+            .groupby("icao24", as_index=False)
+            .last()
+            .to_json(orient="records")
+        )
 
     def traffic_decoder(self, decoder_name: str) -> Optional[Traffic]:
         previous_endtime = self.decoders_time[decoder_name]
@@ -127,12 +149,14 @@ class Aggregator:
         _log.info(f"process id: {os.getpid()}")
         while self.running:
             self.calculate_traffic()
+            self.state_vector = self.update_state()
             t = self.traffic
-            # t = t.drop(
-            #     set(t.data.columns) - columns, axis=1
-            # ) if t is not None else t
+            t = (
+                t.drop(set(t.data.columns) - columns, axis=1)
+                if t is not None
+                else t
+            )
             self.pickled_traffic = pickle.dumps(t)
-            time.sleep(2)
 
     @classmethod
     def on_timer(
@@ -164,13 +188,18 @@ class Aggregator:
 
         for flight in t:
             if now - flight.stop >= self.expire_threshold:
-                self.on_expire_aircraft(flight.icao24)
+                self.on_expire_aircraft(flight.icao24, flight.callsign)
 
-    def on_expire_aircraft(self, icao24: str | Set[str] | None) -> None:
+    def on_expire_aircraft(
+        self, icao24: str | Set[str] | None, callsign: str | Set[str] | None
+    ) -> None:
         if icao24 is None:
             return
-        self.dump_data(icao24)
-        self.traffic = self.traffic.query(f'icao24!="{icao24}"')
+        if Aggregator.dump_database:
+            self.dump_data(icao24)
+        self.traffic = self.traffic.query(
+            f'icao24!="{icao24}" and callsign!="{callsign}"'
+        )
 
     def dump_data(self, icao: str | Set[str]) -> None:
         """documentation"""
@@ -201,10 +230,10 @@ class Aggregator:
         if isinstance(callsign, set):
             callsign = list(callsign)
             droped_columns = ["icao24", "antenna"]
-        try:
-            flight_data = self.network.icao24(icao)["flightId"]
-        except (HTTPError, ProxyError, MaxRetryError):
-            flight_data = {}
+        # try:
+        #     flight_data = self.network.icao24(icao)["flightId"]
+        # except (RequestException):
+        flight_data = {}
 
         cumul: pd.DataFrame = (
             flight.data.dropna(
@@ -234,7 +263,8 @@ class Aggregator:
             try:
                 self.db.tracks.insert_one(dum)
             except (OperationFailure, DocumentTooLarge) as e:
-                print(getsizeof(dum))
+                print(cumul.values.nbytes)
+                print(len(cumul.to_pickle()))
                 _log.warning(str(icao) + ":" + str(count) + ":" + str(e))
 
     @classmethod
@@ -282,6 +312,14 @@ class Aggregator:
 
 @click.command()
 @click.option(
+    "--with_flask",
+    "flask",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="activate flask and desactivate zmq",
+)
+@click.option(
     "--host",
     "serve_host",
     show_default=True,
@@ -305,10 +343,11 @@ class Aggregator:
 )
 @click.option("-v", "--verbose", count=True, help="Verbosity level")
 def main(
+    serve_host: str | None,
+    serve_port: int | None,
+    flask: bool,
+    log_file: str | None,
     verbose: int = 0,
-    serve_host: str | None = "127.0.0.1",
-    serve_port: int | None = 5054,
-    log_file: str | None = None,
 ) -> None:
     if verbose == 1:
         _log.setLevel(logging.INFO)
@@ -343,25 +382,34 @@ def main(
                 + ":"
                 + config.get(i, "serve_port")
             )
-    aggd = Aggregator.from_decoders(decoders=decoders_address)
-
     if serve_host is None:
         serve_host = config.get(
             "aggregator", "serve_host", fallback="127.0.0.1"
         )
     if serve_port is None:
         serve_port = int(config.get("aggregator", "serve_port", fallback=5054))
+    Aggregator.dump_database = not flask
+    aggd = Aggregator.from_decoders(decoders=decoders_address)
     # def sigint_handler(signal, frame):
     #     print('KeyboardInterrupt is caught')
     #     app.aggd.stop()
     #     sys.exit(0)
     # signal.signal(signal.SIGINT, sigint_handler)
-    context = zmq.Context()
-    server = context.socket(zmq.REP)
-    server.bind(f"tcp://{serve_host}:{serve_port}")
-    while True:
-        server.recv_multipart()
-        server.send(aggd.pickled_traffic)
+    if not flask:
+        context = zmq.Context()
+        server = context.socket(zmq.REP)
+        server.bind(f"tcp://{serve_host}:{serve_port}")
+        while True:
+            server.recv_multipart()
+            server.send(aggd.pickled_traffic)
+    else:
+        app = Flask(__name__)
+
+        @app.route("/")
+        def home() -> dict[str, int]:
+            return aggd.state_vector
+
+        app.run(serve_host, serve_port)
 
 
 if __name__ == "__main__":
