@@ -38,12 +38,14 @@ def geojson_traffic(
     if traffic is not None:
         state_vectors = (
             traffic.data.groupby("icao24", as_index=False)[
-                "icao24",
-                "callsign",
-                "track",
-                "latitude",
-                "longitude",
-                "typecode",
+                [
+                    "icao24",
+                    "callsign",
+                    "track",
+                    "latitude",
+                    "longitude",
+                    "typecode",
+                ]
             ]
             .ffill()
             .groupby("icao24", as_index=False)
