@@ -57,13 +57,13 @@ $.ajaxSetup({
 });
 getPlanes(Date.parse(min_date), (history = 1));
 var turbu = getTurbulence((und = ""), (history = 1));
-var sig = getSigmet(Date.parse(min_date), Date.parse(max_date));
-var air = getAirep(Date.parse(min_date), Date.parse(max_date));
-var cleanair = getCat(Date.parse(min_date), Date.parse(max_date));
 getheatmap((und = null), (history = 1));
 $.ajaxSetup({
   async: true,
 });
+var sig = getSigmet(Date.parse(min_date), Date.parse(max_date));
+var air = getAirep(Date.parse(min_date), Date.parse(max_date));
+var cleanair = getCat(Date.parse(min_date), Date.parse(max_date));
 // partie slider
 function createTemporalLegend(startTimestamp) {
   var temporalLegend = L.control({ position: "bottomleft" });
