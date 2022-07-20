@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import heapq
+import json
 import logging
 import os
 import pickle
@@ -21,6 +22,7 @@ from requests.exceptions import RequestException
 from traffic import config
 from traffic.core.traffic import Flight, Traffic
 from urllib3.exceptions import MaxRetryError
+from waitress import serve
 
 import numpy as np
 import pandas as pd
@@ -403,13 +405,15 @@ def main(
             server.recv_multipart()
             server.send(aggd.pickled_traffic)
     else:
+        from flask import Response
+
         app = Flask(__name__)
 
         @app.route("/")
         def home() -> dict[str, int]:
-            return aggd.state_vector
+            return Response(aggd.state_vector, mimetype="application/json")
 
-        app.run(serve_host, serve_port)
+        serve(app=app, host=serve_host, port=serve_port)
 
 
 if __name__ == "__main__":
