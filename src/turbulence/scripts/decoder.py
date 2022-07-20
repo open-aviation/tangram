@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 import pickle
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import click
 import zmq
 from traffic import config
+from traffic.core import Traffic
 from traffic.data import ModeS_Decoder
 
 import pandas as pd
@@ -43,13 +44,15 @@ class TrafficDecoder(ModeS_Decoder):
             reference,
         )
         self.name: str = ""
+        self.prepared_traffic: Optional[Traffic] = None
 
-    # @ModeS_Decoder.on_timer("5s")
-    # def prepare_request(self) -> None:
-    #     t = self.traffic
-    #     if t is not None:
-    #         t = t.drop(set(t.data.columns) - columns, axis=1)
-    #         t = t.assign(antenna=self.name)
+    @ModeS_Decoder.on_timer("2s")
+    def prepare_request(self) -> None:
+        t = self.traffic
+        if t is not None:
+            # t = t.drop(set(t.data.columns) - columns, axis=1)
+            t = t.assign(antenna=self.name)
+        self.prepared_traffic = t
 
 
 @click.command()
@@ -78,7 +81,7 @@ class TrafficDecoder(ModeS_Decoder):
 )
 @click.option("-v", "--verbose", count=True, help="Verbosity level")
 def main(
-    source: str = "salon",
+    source: str = "delft",
     decode_uncertainty: bool = False,
     verbose: int = 0,
     serve_host: str | None = "127.0.0.1",
@@ -167,16 +170,12 @@ def main(
             context.term()
             break
         request: Dict[str, Any] = server.recv_json()
-        t = decoder.traffic
+        t = decoder.prepared_traffic
         if t is not None:
             timestamp = request["payload"][0]
             t = t.query(
                 f"timestamp>='{timestamp}'"
             )  # poser la question a Xavier
-            if t is not None:
-                t = t.drop(set(t.data.columns) - columns, axis=1)
-                t = t.assign(antenna=decoder.name)
-        # pyobj = zlib.compressobj(t)
         zobj = pickle.dumps(t)
         server.send(zobj)
 
