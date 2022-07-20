@@ -177,15 +177,15 @@ def fetch_sigmets() -> Any:
 
 @base_bp.route("/context/airep")
 def airep_geojson() -> Any:
-    wef = request.args.get("wef", default=0, type=int)
-    und = request.args.get("und", default=0, type=int)
-    condition: bool = wef != 0 and und != 0
+    wef = request.args.get("wef", default=None, type=int)
+    und = request.args.get("und", default=None, type=int)
+    condition: bool = wef is not None and und is not None
     if condition:
         wef = wef / 1000
         und = und / 1000
     data = current_app.airep.aireps(wef, und)
     if data is not None:
-        if condition:
+        if not condition:
             t = pd.Timestamp("now", tz="utc")  # noqa: F841
             data = data.query("expire>@t")
         result = data._to_geo()
@@ -196,12 +196,12 @@ def airep_geojson() -> Any:
 
 @base_bp.route("/context/cat")
 def clear_air_turbulence() -> Any:
-    wef = request.args.get("wef", default=0, type=int)
-    und = request.args.get("und", default=0, type=int)
+    wef = request.args.get("wef", default=None, type=int)
+    und = request.args.get("und", default=None, type=int)
     t = pd.Timestamp("now", tz="utc")
-    if wef != 0:
+    if wef is not None:
         wef = wef / 1000
-    if und != 0:
+    if und is not None:
         und = und / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")  # noqa: F841
     res = current_app.cat.metsafe(
@@ -236,7 +236,7 @@ def serve_static(filename: str) -> Response:
 
 @base_bp.route("/", methods=["GET", "POST"])
 def home_page() -> Response:
-    client = current_app.live_client
+    client: TurbulenceClient = current_app.live_client
     history = request.args.get("history", default=0, type=int)
     if history:
         client: TurbulenceClient = current_app.history_client
