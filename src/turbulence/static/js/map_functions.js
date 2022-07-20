@@ -52,7 +52,7 @@ function whenClicked(e) {
   $(".turb-" + icao).toggleClass("turb_path", false);
   $(".turb-" + icao).toggleClass("turb_selected", true);
   draw_chart(icao, chart_history);
-  getTrajectory(icao, chart_history);
+  getTrajectory(icao, (history = chart_history));
   getFlight_data(icao, callsign, typecode);
   sidebar.open("info_box");
 }
