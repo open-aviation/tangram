@@ -141,14 +141,15 @@ class Aggregator:
         if t == 0 or t is None:
             return
         if self.traffic is None:
-            self.traffic = t.drop_duplicates()
+            self.traffic = t
         else:
-            self.traffic += t.drop_duplicates()
+            self.traffic += t
 
     def aggregation(self) -> None:
         self.running = True
         _log.info(f"parent process: {os.getppid()}")
         _log.info(f"process id: {os.getpid()}")
+        # updatestate_thread = Thread()
         while self.running:
             self.calculate_traffic()
             self.state_vector = self.update_state()
@@ -187,10 +188,14 @@ class Aggregator:
         if self.agg_thread and not self.agg_thread.is_alive():
             for icao in t.icao24:
                 self.on_expire_aircraft(icao)
-
-        for flight in t:
-            if now - flight.stop >= self.expire_threshold:
-                self.on_expire_aircraft(flight.icao24, flight.callsign)
+        expired_flights = (
+            t.groupby(["icao24", "callsign"])["timestamp"]
+            .max()
+            .loc[lambda x: now - x >= self.expire_threshold]
+            .index
+        )
+        for flight in expired_flights:
+            self.on_expire_aircraft(flight[0], flight[1])
 
     def on_expire_aircraft(
         self, icao24: str | Set[str] | None, callsign: str | Set[str] | None
@@ -199,9 +204,7 @@ class Aggregator:
             return
         if Aggregator.dump_database:
             self.dump_data(icao24)
-        self.traffic = self.traffic.query(
-            f'icao24!="{icao24}" and callsign!="{callsign}"'
-        )
+        self.traffic = self.traffic.query(f'icao24!="{icao24}"')
 
     def dump_data(self, icao: str | Set[str]) -> None:
         """documentation"""
@@ -265,8 +268,8 @@ class Aggregator:
             try:
                 self.db.tracks.insert_one(dum)
             except (OperationFailure, DocumentTooLarge) as e:
-                print(cumul.values.nbytes)
-                print(len(cumul.to_pickle()))
+                print(i.values.nbytes)
+                print(len(i.to_pickle()))
                 _log.warning(str(icao) + ":" + str(count) + ":" + str(e))
 
     @classmethod
