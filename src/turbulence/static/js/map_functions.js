@@ -139,40 +139,97 @@ function onEachCat(feature, layer) {
   layer.bindPopup(popupContent);
 }
 function createCustomIcon(feature, latlng) {
-  var imageObj = get_image_object(
+  var iconProps = get_image_object(
     feature.properties.typecode,
     feature.properties.callsign
   );
-  var view_box = 34 / imageObj.scale;
-  var stroke_width = 0.8 / imageObj.scale;
-  var svg =
-    "<svg id='" +
-    feature.properties.icao +
-    "' xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 " +
-    view_box +
-    " " +
-    view_box +
-    "'><g transform='scale(" +
-    0.7 +
-    ")'><path d='" +
-    imageObj.path +
-    "' stroke='#0014aa' stroke-width='" +
-    stroke_width +
-    "'></path></g></svg >";
+  var bbox = Raphael.pathBBox(iconProps.path);
+  var x = Math.floor(bbox.x + bbox.width / 2.0);
+  var y = Math.floor(bbox.y + bbox.height / 2.0);
+  var center = { x: x, y: y };
+  offs_x = 0;
+  if (iconProps.ofX) {
+    offs_x = iconProps.ofX;
+  }
+  offs_y = 0;
+  if (iconProps.ofY) {
+    offs_y = iconProps.ofY;
+  }
+  var transform =
+    "T" +
+    (-1 * center.x + offs_x) +
+    "," +
+    (-1 * center.y + offs_y) +
+    "S" +
+    iconProps.scale * 0.9;
+  var newPath = Raphael.mapPath(
+    iconProps.path,
+    Raphael.toMatrix(iconProps.path, transform)
+  );
+
+  // recalculate bounding box
+  // var object_box = Raphael.pathBBox(newPath);
+  // use a viewbox that has its top left point at the top left point of the geometry's bounding box
+  // as specified by the google maps js api, a symbol has to fit a 32x32 coordinate system, hence the size
+  var viewBox = 'viewBox="' + [-16, -16, 32, 32].join(" ") + '"';
+  var svgDynProps = {
+    stroke: "#0014aa",
+    strokeWdt: 0.8,
+  };
+
+  var generateSvgString = function (addition) {
+    var pathplain =
+      "<path stroke=" +
+      svgDynProps.stroke +
+      " stroke-width=" +
+      svgDynProps.strokeWdt +
+      " d=" +
+      newPath +
+      "/>";
+    var svgplain =
+      '<svg id="' +
+      feature.properties.icao +
+      '"version="1.1" shape-rendering="geometricPrecision" width="32px" height="32px" ' +
+      viewBox +
+      ' xmlns="http://www.w3.org/2000/svg">' +
+      pathplain +
+      "</svg>";
+    return svgplain;
+  };
+  // var svgdat =
+  //   "data:image/svg+xml;charset=utf-8," +
+  //   encodeURIComponent(generateSvgString(""));
+
+  // var view_box = 34 / imageObj.scale;
+  // var stroke_width = 0.8 / imageObj.scale;
+  // var svg =
+  //   "<svg id='" +
+  //   feature.properties.icao +
+  //   "' xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 " +
+  //   view_box +
+  //   " " +
+  //   view_box +
+  //   "'><g transform='scale(" +
+  //   0.7 +
+  //   ")'><path d='" +
+  //   imageObj.path +
+  //   "' stroke='#0014aa' stroke-width='" +
+  //   stroke_width +
+  //   "'></path></g></svg >";
   let myIcon = L.divIcon({
-    html: svg,
+    html: generateSvgString(""),
     className:
       feature.properties.icao != selected
         ? "aircraft_img"
         : "aircraft_selected",
     iconSize: [33, 35], // width and height of the image in pixels
-    iconAnchor: [15, 15], // point of the icon which will correspond to marker's location
+    iconAnchor: [16.5, 17.5], // point of the icon which will correspond to marker's location
     popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
     color: "blue",
   });
   let marker = L.marker(latlng, {
     icon: myIcon,
-    rotationAngle: (feature.properties.dir + imageObj.rotcorr) % 360,
+    rotationAngle: (feature.properties.dir + iconProps.rotcorr) % 360,
   });
   return marker;
 }

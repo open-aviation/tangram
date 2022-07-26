@@ -734,91 +734,53 @@ function get_image_object(ac_type, ac_callsign) {
     }
   }
   return retval;
-  //  // Assign aircraft image based on Mode-S aircraft type
-  //  switch (ac_category)
-  // {
-  //   case "A0":  // Unkown A class
-  //   case "A1":  // Light
-  //     retval = acImagePathsR["$2"];
-  //     break;
-  //   case "A2": /* Medium */
-  //     retval = acImagePathsR["$3"];
-  //     break;
-  //   case "A3": /* Heavy */
-  //     retval = acImagePathsR["$4"];
-  //     break;
-  //   case "A4": /* High-Vortex */
-  //     retval = acImagePathsR["$4"];
-  //     break;
-  //   case "A5": /* Very-Heavy */
-  //     retval = acImagePathsR["$A380"];
-  //     break;
-  //   case "A6": // High-Performance/High-Speed
-  //     retval = acImagePathsR["$TORN"];
-  //     break;
-  //   case "A7": // Rotorcraft
-  //       retval = acImagePathsR["$7"];
-  //       break;
-  //   case "B1": // Glider
-  //       retval = acImagePathsR["$SF25"];
-  //       break;
-  //   case "B2": // Lighter-than-Air
-  //   case "B3": // Parachutist/Skydiver
-  //   case "B6": // Unmanned Aerial Vehicle
-  //   case "B7": // Space/Trans-atmospheric vehicle
-  //       retval = acImagePathsR["$0"];
-  //       break;
-  //   case "B4": // Ultralight/hang-glider/paraglider
-  //       retval = acImagePathsR["$1"]; // Small aircraft
-  //       break;
-  //   case "C0": // Beacon
-  //       retval = acImagePathsR["$BEACON"];
-  //       break;
-  //   case "C1": // Surface Vehicle - Emergency Vehicle
-  //       retval = acImagePathsR["$ALARMCAR"];
-  //       break;
-  //   case "C2": // Surface Vehicle - Service Vehicle
-  //       retval = acImagePathsR["$CAR"];
-  //       break;
-  //   case "C3": // Fixed Ground or Tethered Obstruction
-  //   case "C4":
-  //   case "C5":
-  //   case "C6":
-  //   case "C7":
-  //       retval = acImagePathsR["$0"]; // Triangle
-  //       break;
-
-  //   case "F00": // Flarm: Unknown
-  //   case "F01": // Flarm: Glider
-  //   case "F14": // Flarm: Unused
-  //     retval = acImagePathsR["$SF25"]; // Sail Plane
-  //     break;
-  //   case "F03": // Flarm: Helicopter, Rotorcraft
-  //       retval = acImagePathsR["$7"];
-  //       break;
-  //   case "F07": // Paraglider
-  //       retval = acImagePathsR["$PARAGLIDER"];
-  //       break;
-  //   case "F04": // Flarm: Parachute
-  //   case "F06": // Hang Glider
-  //   case "F10": // UFO
-  //   case "F11": // Balloon
-  //   case "F12": // Airship
-  //   case "F13": // UAV
-  //   case "F15": // Fixed Ground
-  //       retval = acImagePathsR["$0"]; // Triangle
-  //       break;
-  //   case "F02": // Flarm: Tow Plane
-  //   case "F05": // Flarm: Drop Plane
-  //   case "F08": // Flarm: Small
-  //       retval = acImagePathsR["$1"]; // Small aircraft
-  //       break;
-  //   case "F09": // Flarm: Jet Aircraft
-  //       retval = acImagePathsR["$3"]; // Jet with two turbines
-  //       break;
-  // }
-
-  // var tmp = {};
-  // Object.assign(tmp, retval);
-  // return tmp;
 }
+(function () {
+  acImagePathsR["$PARAGLIDER"].scale = 0.05;
+  acImagePathsR["$BEACON"].scale = 0.2;
+  acImagePathsR["$E"].scale = 0.95;
+  acImagePathsR["$SF25"].scale = 1.5;
+  acImagePathsR["$SI2"].scale = 0.78;
+  acImagePathsR["$AWACS"].scale = 0.68;
+  acImagePathsR["$A320"].scale = 0.6;
+  acImagePathsR["$A330"].scale = 0.53;
+  acImagePathsR["$A340"].scale = 0.58;
+  acImagePathsR["$A380"].scale = 0.58;
+  acImagePathsR["$B737"].scale = 0.61;
+  acImagePathsR["$B747"].scale = 0.53;
+  acImagePathsR["$B777"].scale = 0.53;
+  acImagePathsR["$B787"].scale = 0.53;
+  acImagePathsR["$F15"].scale = 0.53;
+
+  acImagePathsR["$0"].ofY = 2.0;
+  acImagePathsR["$1"].ofX = 0.0;
+
+  acImagePathsR["$2"].ofY = -1.5;
+  acImagePathsR["$2"].ofX = 0.2;
+  acImagePathsR["$3"].ofX = -1.15;
+  acImagePathsR["$4"].ofX = 0.1;
+
+  acImagePathsR["$5"].ofX = -0.0;
+  acImagePathsR["$A"].ofX = -0.2;
+  acImagePathsR["$A2"].ofX = -0.6;
+  acImagePathsR["$B"].ofX = -0.6;
+  acImagePathsR["$AWACS"].ofX = -1.2;
+
+  acImagePathsR["$SF25"].ofX = -1.1;
+  acImagePathsR["$SF25"].ofY = 1.2;
+
+  acImagePathsR["$SI2"].ofX = -0.3;
+  acImagePathsR["$SI2"].ofY = 3.7;
+
+  acImagePathsR["$A320"].ofY = -0.9;
+  acImagePathsR["$A320"].ofX = -0.4;
+  acImagePathsR["$A330"].ofY = -1.0;
+  acImagePathsR["$A330"].ofX = -1.1;
+  acImagePathsR["$A340"].ofY = -0.5;
+  acImagePathsR["$A340"].ofX = -0.3;
+  acImagePathsR["$A380"].ofX = -0.2;
+  acImagePathsR["$A400"].ofX = -1.05;
+  acImagePathsR["$B737"].ofY = -0.9;
+  acImagePathsR["$B737"].ofX = -0.4;
+  acImagePathsR["$F15"].ofX = -0.25;
+})();
