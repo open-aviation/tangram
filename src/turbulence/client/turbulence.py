@@ -39,6 +39,8 @@ def threshold(df: pd.DataFrame) -> float:
 
 
 def turbulence(df: pd.DataFrame) -> pd.Series:
+    if TurbulenceClient.demo:
+        return df.criterion > df.threshold + 100
     return df.criterion > df.threshold
 
 
@@ -65,6 +67,7 @@ def altitude_fill(df: pd.DataFrame) -> pd.Series:
 class TurbulenceClient:
     min_threshold: float = 180
     multiplier: float = 1.3
+    demo: bool = False
 
     def __init__(
         self, decoders: dict[str, str] | str = "tcp://localhost:5050"

@@ -68,6 +68,11 @@ def get_memory() -> int:
 @click.option("--history", default=history)
 @click.option("--data_path", default=data_path)
 @click.option("--mongo_uri", default=mongo_uri)
+@click.option(
+    "--demo",
+    is_flag=True,
+    default=False,
+)
 def main(
     app_host,
     app_port,
@@ -77,6 +82,7 @@ def main(
     mongo_uri,
     source,
     decoders_address,
+    demo,
 ) -> None:
     memory_limit()
     # with memray.Tracker("output_file.bin",):
@@ -101,6 +107,7 @@ def main(
             )
         }
     app.start_time = datetime.now()
+    TurbulenceClient.demo = demo
     app.live_client = TurbulenceClient(decoders=decoders_address)
     app.history_client = TurbulenceClient()
     if live:
@@ -117,7 +124,6 @@ def main(
     app.airep = AIREP()
     app.cat = Metsafe()
     app.network = Network()
-
     serve(app=app, host=app_host, port=app_port, threads=20)
 
 
