@@ -139,7 +139,7 @@ def main(
         )
     )
     dump_file = Path(data_path).with_suffix(".csv").as_posix()
-    decoder = TrafficDecoder.from_address(
+    decoder: TrafficDecoder = TrafficDecoder.from_address(
         host=host,
         port=int(port),
         reference=reference,

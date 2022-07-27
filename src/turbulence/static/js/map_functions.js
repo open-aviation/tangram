@@ -196,26 +196,6 @@ function createCustomIcon(feature, latlng) {
       "</svg>";
     return svgplain;
   };
-  // var svgdat =
-  //   "data:image/svg+xml;charset=utf-8," +
-  //   encodeURIComponent(generateSvgString(""));
-
-  // var view_box = 34 / imageObj.scale;
-  // var stroke_width = 0.8 / imageObj.scale;
-  // var svg =
-  //   "<svg id='" +
-  //   feature.properties.icao +
-  //   "' xmlns='http://www.w3.org/2000/svg' version='1.0' viewBox='0 0 " +
-  //   view_box +
-  //   " " +
-  //   view_box +
-  //   "'><g transform='scale(" +
-  //   0.7 +
-  //   ")'><path d='" +
-  //   imageObj.path +
-  //   "' stroke='#0014aa' stroke-width='" +
-  //   stroke_width +
-  //   "'></path></g></svg >";
   let myIcon = L.divIcon({
     html: generateSvgString(""),
     className:

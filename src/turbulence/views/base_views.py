@@ -331,7 +331,7 @@ def get_traj(icao24: str) -> Dict[str, Any]:
             geojson.update(
                 {
                     "properties": {
-                        "icao": flight.icao24,
+                        "icao": icao24,
                     }
                 }
             )
