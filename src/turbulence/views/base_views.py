@@ -284,33 +284,6 @@ def home_page() -> Response:
     )
 
 
-@base_bp.route("/heatmap.data")
-@base_bp.route("/heatmap.data/<path:und>")
-def get_heatmap_data(und: str = None) -> Dict[str, Union[List[List], Dict]]:
-    client = current_app.live_client
-    history = request.args.get("history", default=0, type=int)
-    if history:
-        client = current_app.history_client
-    data = {}
-    pro_data = client.pro_data
-    if pro_data is not None:
-        if und is not None:
-            und = int(und) / 1000
-            t = pd.Timestamp(und, unit="s", tz="utc")
-            pro_data = pro_data.query(f"timestamp<='{str(t)}'")
-        turb: Traffic = pro_data.query("turbulence")
-        if turb is not None:
-            # turb_agg = turb.agg_latlon(
-            #     resolution=dict(latitude=5, longitude=5), criterion="max"
-            # )
-            turb = turb.data[["latitude", "longitude", "turbulence"]].dropna()
-            data = [
-                [i.latitude, i.longitude, 1 if i.turbulence else 0]
-                for i in turb.itertuples()
-            ]
-    return {"data": data}
-
-
 @base_bp.route("/trajectory/<path:icao24>")
 def get_traj(icao24: str) -> Dict[str, Any]:
     client = current_app.live_client

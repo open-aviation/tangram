@@ -161,7 +161,7 @@ function createCustomIcon(feature, latlng) {
     "," +
     (-1 * center.y + offs_y) +
     "S" +
-    iconProps.scale * 0.9;
+    iconProps.scale * 0.7;
   var newPath = Raphael.mapPath(
     iconProps.path,
     Raphael.toMatrix(iconProps.path, transform)
@@ -174,7 +174,7 @@ function createCustomIcon(feature, latlng) {
   var viewBox = 'viewBox="' + [-16, -16, 32, 32].join(" ") + '"';
   var svgDynProps = {
     stroke: "#0014aa",
-    strokeWdt: 0.8,
+    strokeWdt: 0.65,
   };
 
   var generateSvgString = function (addition) {
@@ -205,7 +205,6 @@ function createCustomIcon(feature, latlng) {
     iconSize: [33, 35], // width and height of the image in pixels
     iconAnchor: [16.5, 17.5], // point of the icon which will correspond to marker's location
     popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
-    color: "blue",
   });
   let marker = L.marker(latlng, {
     icon: myIcon,
@@ -365,6 +364,18 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
       //     };
       // }
     }).addTo(turbulences);
+    heatm = data.geojson.features;
+    var values = [];
+    var res = [];
+    heatm.forEach(function (key) {
+      for (var i = 0, l1 = key.coordinates.length; i < l1; i++) {
+        key.coordinates[i][3]=key.properties.intensity
+        res.push(key.coordinates[i]);
+      }
+      // values.push(Object.values());
+    });
+
+    hexLayer.data(res);
     // turb_geojson.eachLayer(function (layer) {
     //   layer._path.id = 'turb-' + layer.feature.geometry.properties.icao;
     // });
@@ -383,8 +394,7 @@ function getheatmap(und = null, history = 0) {
   var heatm;
   $.getJSON(url, function (data) {
     heatm = data.data;
-    heatmapLayer.clearLayers();
-    L.heatLayer(data.data, { radius: 25 }).addTo(heatmapLayer);
+    hexLayer.data(heatm);
   });
   return heatm;
 }

@@ -4,7 +4,12 @@ var sigmets = L.layerGroup();
 var aireps = L.layerGroup();
 var cat_mod = L.layerGroup();
 var cat_sev = L.layerGroup();
-var heatmapLayer = L.layerGroup();
+var options = {
+  radius: 8,
+  opacity: 0.5,
+};
+
+var hexLayer = L.hexbinLayer(options);
 var baselayer = L.tileLayer(
   "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
   {
@@ -32,7 +37,33 @@ map.addLayer(traj);
 map.addLayer(baselayer);
 var sidebar = L.control.sidebar({ container: "sidebar" });
 sidebar.addTo(map);
+hexLayer.colorScale().range(["gray", "green", "orange", "red"]);
 
+hexLayer
+  .radiusRange([2, 20])
+  .lng(function (d) {
+    return d[0];
+  })
+  .lat(function (d) {
+    return d[1];
+  })
+  .radiusValue(function (d) {
+    return d.length;
+  })
+  .colorValue(function (d) {
+    var intensity_sum = d.reduce(function (acc, obj) {
+      return acc + obj["o"][3];
+    }, 0);
+    return intensity_sum;
+  })
+  .hoverHandler(
+    L.HexbinHoverHandler.compound({
+      handlers: [
+        L.HexbinHoverHandler.resizeFill(),
+        L.HexbinHoverHandler.tooltip(),
+      ],
+    })
+  );
 var overlays = {
   Cat_mod: cat_mod,
   Cat_sev: cat_sev,
@@ -40,7 +71,7 @@ var overlays = {
   Airep: aireps,
   Turbulences: turbulences,
   Planes: planes,
-  Heatmap: heatmapLayer,
+  Hexbins: hexLayer,
 };
 getCat();
 getSigmet();
@@ -58,7 +89,6 @@ setInterval(function () {
 setInterval(function () {
   getPlanes();
   getTurbulence();
-  getheatmap();
 }, 1000 * 5); //10 secondes
 L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);

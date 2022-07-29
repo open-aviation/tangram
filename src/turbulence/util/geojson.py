@@ -76,7 +76,7 @@ def geojson_turbulence(pro_data: Optional[Traffic]) -> Dict[str, Any]:
                 if flight.shape is not None:
                     for segment in flight.split("1T"):
                         if segment is not None:
-                            x = segment.geojson()
+                            x = segment.simplify(1e3).geojson()
                             if x is not None:
                                 intensity = segment.data.intensity_turb.iloc[0]
                                 x.update(
