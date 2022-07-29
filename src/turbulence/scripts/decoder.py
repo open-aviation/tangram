@@ -89,13 +89,11 @@ def main(
     log_file: str | None = None,
 ) -> None:
 
-    logger = logging.getLogger()
     if verbose == 1:
-        logger.setLevel(logging.INFO)
+        _log.setLevel(logging.INFO)
     elif verbose > 1:
-        logger.setLevel(logging.DEBUG)
-
-    logger.handlers.clear()
+        _log.setLevel(logging.DEBUG)
+    _log.handlers.clear()
 
     formatter = logging.Formatter(
         "%(process)d - %(threadName)s - %(asctime)s"
@@ -105,13 +103,14 @@ def main(
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.WARNING)
     console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    _log.addHandler(console_handler)
 
     if log_file is not None:
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        _log.addHandler(file_handler)
+        logging.getLogger().addHandler(file_handler)
     host = config.get("decoders." + source, "host")
     port = config.get("decoders." + source, "port")
     if serve_host is None:
