@@ -745,11 +745,11 @@ function get_image_object(ac_type, ac_callsign) {
   acImagePathsR["$A320"].scale = 0.6;
   acImagePathsR["$A330"].scale = 0.53;
   acImagePathsR["$A340"].scale = 0.58;
-  acImagePathsR["$A380"].scale = 0.58;
+  acImagePathsR["$A380"].scale = 0.6;
   acImagePathsR["$B737"].scale = 0.61;
-  acImagePathsR["$B747"].scale = 0.53;
-  acImagePathsR["$B777"].scale = 0.53;
-  acImagePathsR["$B787"].scale = 0.53;
+  acImagePathsR["$B747"].scale = 0.9;
+  acImagePathsR["$B777"].scale = 0.6;
+  acImagePathsR["$B787"].scale = 0.58;
   acImagePathsR["$F15"].scale = 0.53;
 
   acImagePathsR["$0"].ofY = 2.0;

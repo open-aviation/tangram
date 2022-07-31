@@ -78,7 +78,6 @@ getSigmet();
 getAirep();
 getPlanes();
 getTurbulence();
-getheatmap();
 setInterval(function () {
   getSigmet();
   getAirep();

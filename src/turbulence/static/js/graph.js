@@ -155,7 +155,6 @@ async function draw_chart(icao, chart_history = 0) {
   if (myChart != undefined || myChart != null) {
     myChart.destroy();
   }
-  document.getElementById("myChart").style.display = "block";
   var context = document.getElementById("myChart").getContext("2d");
   myChart = new Chart(context, config);
 }

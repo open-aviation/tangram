@@ -25,6 +25,7 @@ function getFlight_data(icao, callsign, typecode) {
   document.getElementById("flight").hidden = false;
 }
 function deselect_planes() {
+  document.getElementById("info-pane").style.display = "none";
   traj.clearLayers();
   $(".aircraft_selected").toggleClass("aircraft_img", true);
   $(".aircraft_selected").toggleClass("aircraft_selected", false);
@@ -34,6 +35,7 @@ function deselect_planes() {
 }
 function whenClicked(e) {
   deselect_planes();
+  document.getElementById("info-pane").style.display = "block";
   var icao =
     e.target.feature.properties.icao === undefined
       ? e.target.feature.geometry.properties.icao
@@ -52,6 +54,7 @@ function whenClicked(e) {
   $(".turb-" + icao).toggleClass("turb_path", false);
   $(".turb-" + icao).toggleClass("turb_selected", true);
   draw_chart(icao, chart_history);
+  document.getElementById("info-pane").style.display = "block";
   getTrajectory(icao, (history = chart_history));
   getFlight_data(icao, callsign, typecode);
   sidebar.open("info_box");
@@ -369,7 +372,7 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
     var res = [];
     heatm.forEach(function (key) {
       for (var i = 0, l1 = key.coordinates.length; i < l1; i++) {
-        key.coordinates[i][3]=key.properties.intensity
+        key.coordinates[i][3] = key.properties.intensity;
         res.push(key.coordinates[i]);
       }
       // values.push(Object.values());
