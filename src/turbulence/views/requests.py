@@ -16,6 +16,8 @@ class RequestBuilder:
         self.client: TurbulenceClient = client
         self.planes_position: Dict[str, Any] = {}
         self.turb_result: Dict[str, Any] = {}
+        self.plane_request()
+        self.turb_request()
         self.planethread: RepeatTimer = RepeatTimer(3, self.plane_request)
         self.planethread.start()
         self.turbthread: RepeatTimer = RepeatTimer(5, self.turb_request)
