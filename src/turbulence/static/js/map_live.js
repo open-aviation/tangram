@@ -26,7 +26,10 @@ var map = L.map("map", {
 var fullscreenControl = L.control.fullscreen();
 map.addControl(fullscreenControl);
 map.on("click", function (e) {
-  if (e.originalEvent.target.classList.contains("turb_selected")) {
+  if (
+    e.originalEvent.target.classList.contains("turb_selected") |
+    (e.originalEvent.target.id == "myChart")
+  ) {
     return;
   }
   deselect_planes();
@@ -55,15 +58,7 @@ hexLayer
       return acc + obj["o"][3];
     }, 0);
     return intensity_sum;
-  })
-  .hoverHandler(
-    L.HexbinHoverHandler.compound({
-      handlers: [
-        L.HexbinHoverHandler.resizeFill(),
-        L.HexbinHoverHandler.tooltip(),
-      ],
-    })
-  );
+  });
 var overlays = {
   Cat_mod: cat_mod,
   Cat_sev: cat_sev,
