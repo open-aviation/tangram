@@ -20,7 +20,7 @@ from pymongo import MongoClient
 from pymongo.errors import DocumentTooLarge, OperationFailure
 from requests.exceptions import RequestException
 from traffic import config
-from traffic.core import Flight, Traffic
+from traffic.core.traffic import Flight, Traffic
 from urllib3.exceptions import MaxRetryError
 from waitress import serve
 
@@ -106,30 +106,17 @@ class Aggregator:
             self._traffic = t
 
     def update_state(self):
-        while self.timer_thread.is_alive():
-            t = self.traffic
-            if t is None:
-                self.state_vector = {}
-            else:
-                self.state_vector = (
-                    t.data.groupby("icao24", as_index=False)
-                    .tail(50)
-                    .groupby("icao24", as_index=False)[t.data.columns]
-                    .ffill()
-                    .groupby("icao24", as_index=False)
-                    .last()
-                    .to_json(orient="records")
-                )
-
-    def prepare_request(self):
-        while self.timer_thread.is_alive():
-            t = self.traffic
-            t = (
-                t.drop(set(t.data.columns) - columns, axis=1)
-                if t is not None
-                else t
-            )
-            self.pickled_traffic = pickle.dumps(t)
+        if self.traffic is None:
+            return {}
+        return (
+            self.traffic.data.groupby("icao24", as_index=False)
+            .tail(50)
+            .groupby("icao24", as_index=False)[self.traffic.data.columns]
+            .ffill()
+            .groupby("icao24", as_index=False)
+            .last()
+            .to_json(orient="records")
+        )
 
     def traffic_decoder(self, decoder_name: str) -> Optional[Traffic]:
         previous_endtime = self.decoders_time[decoder_name]
@@ -143,37 +130,36 @@ class Aggregator:
         return traffic
 
     def calculate_traffic(self) -> None:
-        while self.running:
-            max_workers: int = len(self.decoders)
-            with ThreadPoolExecutor(
-                max_workers=max_workers, thread_name_prefix="agg_traffic"
-            ) as executor:
-                traffic_decoders = list(
-                    executor.map(self.traffic_decoder, self.decoders.keys())
-                )
-            t = sum(t for t in traffic_decoders if t is not None)
-            if t == 0 or t is None:
-                return
-            if self.traffic is None:
-                self.traffic = t
-            else:
-                with self.lock_traffic:
-                    t = self.traffic + t
-                self.traffic = t
+        max_workers: int = len(self.decoders)
+        with ThreadPoolExecutor(
+            max_workers=max_workers, thread_name_prefix="agg_traffic"
+        ) as executor:
+            traffic_decoders = list(
+                executor.map(self.traffic_decoder, self.decoders.keys())
+            )
+        t = sum(t for t in traffic_decoders if t is not None)
+        if t == 0 or t is None:
+            return
+        if self.traffic is None:
+            self.traffic = t
+        else:
+            self.traffic += t
 
     def aggregation(self) -> None:
         self.running = True
         _log.info(f"parent process: {os.getppid()}")
         _log.info(f"process id: {os.getpid()}")
-        traffic_thread = Thread(target=self.calculate_traffic)
-        traffic_thread.start()
-        update_thread = Thread(target=self.update_state)
-        update_thread.start()
-        request_thread = Thread(target=self.prepare_request)
-        request_thread.start()
-        traffic_thread.join()
-        update_thread.join()
-        request_thread.join()
+        # updatestate_thread = Thread()
+        while self.running:
+            self.calculate_traffic()
+            self.state_vector = self.update_state()
+            t = self.traffic
+            t = (
+                t.drop(set(t.data.columns) - columns, axis=1)
+                if t is not None
+                else t
+            )
+            self.pickled_traffic = pickle.dumps(t)
 
     @classmethod
     def on_timer(
@@ -216,16 +202,13 @@ class Aggregator:
     ) -> None:
         if icao24 is None:
             return
-        # if Aggregator.dump_database:
-        #     self.dump_data(icao24)
-        a = time.time()
-        self.traffic = self.traffic - icao24
-        print(time.time() - a)
+        if Aggregator.dump_database:
+            self.dump_data(icao24)
+        self.traffic = self.traffic.query(f'icao24!="{icao24}"')
 
     def dump_data(self, icao: str | Set[str]) -> None:
         """documentation"""
-        with self.lock_traffic:
-            flight: Optional[Flight] = self.traffic[icao]
+        flight: Optional[Flight] = self.traffic[icao]
         if flight is None:
             return
         start = flight.start
@@ -272,7 +255,7 @@ class Aggregator:
 
         for i in check_insert(cumul.values):
             dum = {
-                "icao": flight.icao24,
+                "icao": icao,
                 "callsign": callsign,
                 "start": str(start),
                 "stop": str(stop),
@@ -285,11 +268,7 @@ class Aggregator:
             try:
                 self.db.tracks.insert_one(dum)
             except (OperationFailure, DocumentTooLarge) as e:
-                print(i.values.nbytes)
-                print(len(i.to_pickle()))
-                _log.warning(
-                    str(flight.icao24) + ":" + str(count) + ":" + str(e)
-                )
+                _log.warning(str(icao) + ":" + str(count) + ":" + str(e))
 
     @classmethod
     def from_decoders(
@@ -329,7 +308,7 @@ class Aggregator:
             self.agg_thread.join()
         for d in self.decoders.values():
             d.stop()
-        self.traffic = None
+        self._traffic = None
         self.timer_thread.join()
         self.mclient.close()
 
