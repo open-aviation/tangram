@@ -193,7 +193,10 @@ class TurbulenceClient:
                     threshold=threshold
                 )
                 .assign(
+                    # True if creterion >= threshold
                     turbulence=turbulence,
+                    # intensity of the turbulence is the
+                    # difference between criterion and threshold
                     intensity_turb=intensity_turb,
                 )
                 .assign(

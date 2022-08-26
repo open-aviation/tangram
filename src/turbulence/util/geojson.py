@@ -76,8 +76,18 @@ def geojson_turbulence(pro_data: Optional[Traffic]) -> Dict[str, Any]:
                 if flight.shape is not None:
                     for segment in flight.split("1T"):
                         if segment is not None:
-                            x = segment.simplify(1e3).geojson()
-                            if x is not None:
+                            x = {"type": "LineString", "coordinates": []}
+                            t = []
+                            for i in segment.simplify(1e3).coords4d():
+                                x["coordinates"].append(
+                                    [
+                                        i["longitude"],
+                                        i["latitude"],
+                                        i["altitude"],
+                                    ]
+                                )
+                                t.append(i["timestamp"])
+                            if len(x["coordinates"]) > 0:
                                 intensity = segment.data.intensity_turb.iloc[0]
                                 x.update(
                                     {
@@ -88,6 +98,7 @@ def geojson_turbulence(pro_data: Optional[Traffic]) -> Dict[str, Any]:
                                             if str(typecode) == "nan"
                                             else typecode,
                                             "start": segment.start.timestamp(),
+                                            "time": t,
                                             "validity": segment.data[
                                                 "expire_turb"
                                             ].iloc[0],

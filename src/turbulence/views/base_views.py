@@ -293,15 +293,15 @@ def get_traj(icao24: str) -> Dict[str, Any]:
     und = request.args.get("und", default=0, type=float)
     pro_data = client.pro_data
     flight = pro_data[icao24]
-    geojson = None
+    geojson_f = []
     if flight is not None:
         if und not in (None, 0):
             und = int(und) / 1000
             t = pd.Timestamp(und, unit="s", tz="utc")
             flight = flight.query(f"timestamp<='{str(t)}'")
-        geojson = flight.geojson()
-        if geojson is not None:
-            geojson.update(
+        geojson_f = flight.geojson()
+        if geojson_f is not None:
+            geojson_f.update(
                 {
                     "properties": {
                         "icao": icao24,
@@ -309,6 +309,6 @@ def get_traj(icao24: str) -> Dict[str, Any]:
                 }
             )
     encapsulated_geojson = {
-        "geojson": geojson,
+        "geojson": geojson_f,
     }
     return encapsulated_geojson
