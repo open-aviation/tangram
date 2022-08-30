@@ -286,7 +286,7 @@ var ac_symbol_map = [
   { id: "A33", sym: "$A330" },
   { id: "A35", sym: "$A330" },
   { id: "A34", sym: "$A340" },
-  { id: "A38", sym: "$A380" },
+  { id: "A38", sym: "$B747" },
   { id: "A400", sym: "$A400" },
   { id: "A3ST", sym: "$A330" },
   { id: "AA5", sym: "$1" },

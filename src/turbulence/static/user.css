@@ -28,7 +28,7 @@ body {
   width: 100%;
   height: 100%;
 }
-#info-pane {
+#Chart {
   position: absolute;
   bottom: 10px;
   right: 10px;
@@ -37,7 +37,7 @@ body {
   background: white;
   display: none;
   width: 600px;
-  height: fit-content;
+  height: 600px;
 }
 div.form {
   float: right;

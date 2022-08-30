@@ -44,10 +44,6 @@
     type="text/javascript"
     src="https://cdn.jsdelivr.net/npm/leaflet-timedimension@1.1.1/dist/leaflet.timedimension.min.js"
   ></script>
-  <script
-    type="text/javascript"
-    src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.min.js"
-  ></script>
   <link
     rel="stylesheet"
     href="{{ url_for('base.serve_static', filename='user.css') }}"
@@ -63,9 +59,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3"></script>
   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@0.7.7"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <script src="https://d3js.org/d3-hexbin.v0.2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/arquero@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-sidebar-v2@3.2.3/js/leaflet-sidebar.min.js"></script>
   <script
     src="https://unpkg.com/@asymmetrik/leaflet-d3@4/dist/leaflet-d3.js"
     charset="utf-8"
@@ -86,8 +84,6 @@
     type="text/javascript"
     src="{{ url_for('base.serve_static', filename='js/map_functions.js') }}"
   ></script>
-  <script src="https://cdn.jsdelivr.net/npm/leaflet-sidebar-v2@3.2.3/js/leaflet-sidebar.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.5"></script>
 </head>
 
 <body>
