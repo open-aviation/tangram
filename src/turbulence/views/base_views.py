@@ -1,7 +1,6 @@
 import json
-from requests.exceptions import HTTPError
 from datetime import datetime
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 from flask import (
     Blueprint,
@@ -14,7 +13,7 @@ from flask import (
     url_for,
 )
 from flask_cors import CORS
-from traffic.core import Traffic
+from requests.exceptions import HTTPError
 
 import numpy as np
 import pandas as pd
@@ -94,31 +93,33 @@ def chart_data(icao: str) -> List[List]:
     if pro_data is None:
         return {}
     resultat = pro_data[icao].data
-    ts = list(
-        map(
-            lambda t: t.timestamp() * 1000,
-            resultat.to_dict()["timestamp"].values(),
-        )
+    ts = resultat["timestamp"].to_json(orient="values", date_format="epoch")
+    altitude = resultat["altitude"].to_json(orient="values")
+    turb = (
+        resultat["turbulence"]
+        .replace(False, np.NAN)
+        .replace(True, 1)
+        .to_json(orient="values")
     )
-    turb = list(
-        resultat["turbulence"].replace(False, str(np.nan)).to_dict().values()
-    )
-    vsi = list(map(str, resultat.to_dict()["vertical_rate_inertial"].values()))
-    vsb = list(
-        map(str, resultat.to_dict()["vertical_rate_barometric"].values())
-    )
-    cri = list(map(str, resultat.to_dict()["criterion"].values()))
-    thr = list(map(str, resultat.to_dict()["threshold"].values()))
-    altitude = list(map(str, resultat.to_dict()["altitude"].values()))
-    vsi_std = list(
-        map(str, resultat.to_dict()["vertical_rate_inertial_std"].values())
-    )
-    vsb_std = list(
-        map(str, resultat.to_dict()["vertical_rate_barometric_std"].values())
-    )
-    return json.dumps(
-        [ts, turb, vsi, vsb, cri, thr, altitude, vsi_std, vsb_std]
-    )
+    vsi = resultat["vertical_rate_inertial"].to_json(orient="values")
+    vsb = resultat["vertical_rate_barometric"].to_json(orient="values")
+    cri = resultat["criterion"].to_json(orient="values")
+    thr = resultat["threshold"].to_json(orient="values")
+    altitude = resultat["altitude"].to_json(orient="values")
+    vsi_std = resultat["vertical_rate_inertial_std"].to_json(orient="values")
+    vsb_std = resultat["vertical_rate_barometric_std"].to_json(orient="values")
+    # resultat[['timesta']].tojson(orient="values")
+    return {
+        "ts": json.loads(ts),
+        "turb": json.loads(turb),
+        "vsi": json.loads(vsi),
+        "vsb": json.loads(vsb),
+        "cri": json.loads(cri),
+        "thr": json.loads(thr),
+        "altitude": json.loads(altitude),
+        "vsi_std": json.loads(vsi_std),
+        "vsb_std": json.loads(vsb_std),
+    }
 
 
 @base_bp.route("/planes.geojson")

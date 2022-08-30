@@ -37,7 +37,7 @@ body {
   background: white;
   display: none;
   width: 600px;
-  height: 600px;
+  height: fit-content;
 }
 div.form {
   float: right;

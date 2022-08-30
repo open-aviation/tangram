@@ -25,7 +25,7 @@ function getFlight_data(icao, callsign, typecode) {
   document.getElementById("flight").hidden = false;
 }
 function deselect_planes() {
-  document.getElementById("info-pane").style.display = "none";
+  document.getElementById("Chart").style.display = "none";
   traj.clearLayers();
   $(".aircraft_selected").toggleClass("aircraft_img", true);
   $(".aircraft_selected").toggleClass("aircraft_selected", false);
@@ -35,7 +35,7 @@ function deselect_planes() {
 }
 function whenClicked(e) {
   deselect_planes();
-  document.getElementById("info-pane").style.display = "block";
+  document.getElementById("Chart").style.display = "block";
   var icao =
     e.target.feature.properties.icao === undefined
       ? e.target.feature.geometry.properties.icao
@@ -54,7 +54,7 @@ function whenClicked(e) {
   $(".turb-" + icao).toggleClass("turb_path", false);
   $(".turb-" + icao).toggleClass("turb_selected", true);
   draw_chart(icao, chart_history);
-  document.getElementById("info-pane").style.display = "block";
+  document.getElementById("Chart").style.display = "block";
   getTrajectory(icao, (history = chart_history));
   getFlight_data(icao, callsign, typecode);
   sidebar.open("info_box");
