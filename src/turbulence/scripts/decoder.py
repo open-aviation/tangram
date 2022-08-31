@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import pickle
 from pathlib import Path
+import sys
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import click
@@ -167,7 +168,7 @@ def main(
             server.setsockopt(zmq.LINGER, 0)
             server.close()
             context.term()
-            break
+            sys.exit("Connection dropped")
         request: Dict[str, Any] = server.recv_json()
         t = decoder.prepared_traffic
         if t is not None:
