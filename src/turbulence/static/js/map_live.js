@@ -83,7 +83,7 @@ setInterval(function () {
 setInterval(function () {
   getPlanes();
   getTurbulence();
-}, 1000 * 5); //10 secondes
+}, 1000 * 2); //2 secondes
 L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
