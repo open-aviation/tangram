@@ -1,0 +1,13 @@
+[Unit]
+Description=Aggregator
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/home/ubuntu/.cache/pypoetry/virtualenvs/turbulence-PqbjmqZK-py3.10/bin/aggregator
+
+[Install]
+WantedBy=multi-user.target

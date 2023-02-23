@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import heapq
-import json
 import logging
 import os
 import pickle
@@ -18,10 +17,8 @@ from atmlab.network import Network
 from flask import Flask
 from pymongo import MongoClient
 from pymongo.errors import DocumentTooLarge, OperationFailure
-from requests.exceptions import RequestException
 from traffic import config
 from traffic.core.traffic import Flight, Traffic
-from urllib3.exceptions import MaxRetryError
 from waitress import serve
 
 import numpy as np
@@ -64,10 +61,7 @@ class Aggregator:
     timer_thread: Thread
     dump_database: bool = True
 
-    def __init__(
-        self,
-        decoders: dict[str, str] | str = "tcp://127.0.0.1:5050",
-    ) -> None:
+    def __init__(self, decoders: dict[str, str] | str) -> None:
         if isinstance(decoders, str):
             decoders = {"": decoders}
         self.decoders: dict[str, DecoderSocket] = {
@@ -271,9 +265,7 @@ class Aggregator:
                 _log.warning(str(icao) + ":" + str(count) + ":" + str(e))
 
     @classmethod
-    def from_decoders(
-        cls, decoders: dict[str, str] | str = "http://localhost:5050"
-    ) -> "Aggregator":
+    def from_decoders(cls, decoders: dict[str, str] | str) -> "Aggregator":
         agg = cls(decoders)
 
         def timer() -> None:
@@ -315,7 +307,7 @@ class Aggregator:
 
 @click.command()
 @click.option(
-    "--with_flask",
+    "--with-flask",
     "flask",
     is_flag=True,
     show_default=True,
@@ -376,21 +368,19 @@ def main(
         logging.getLogger().addHandler(file_handler)
 
     decoders_address = {}
+    agg_decoders = config.get("aggregator", "decoders", fallback="").split()
     for i in config.sections():
         if i.startswith("decoders"):
             name = i.split(".")[1]
-            decoders_address[name] = str(
-                "tcp://"
-                + config.get(i, "serve_host")
-                + ":"
-                + config.get(i, "serve_port")
-            )
+            if name in agg_decoders or len(agg_decoders) == 0:
+                host = config.get(i, "serve_host")
+                port =  config.get(i, "serve_port")
+                decoders_address[name] =f"tcp://{host}:{port}"
+                  
     if serve_host is None:
-        serve_host = config.get(
-            "aggregator", "serve_host", fallback="127.0.0.1"
-        )
+        serve_host = config.get("aggregator", "serve_host")
     if serve_port is None:
-        serve_port = int(config.get("aggregator", "serve_port", fallback=5054))
+        serve_port = config.getint("aggregator", "serve_port")
     Aggregator.dump_database = not flask
     aggd = Aggregator.from_decoders(decoders=decoders_address)
     # def sigint_handler(signal, frame):
@@ -414,7 +404,7 @@ def main(
         def home() -> dict[str, int]:
             return Response(aggd.state_vector, mimetype="application/json")
 
-        serve(app=app, host=serve_host, port=serve_port)
+        serve(app=app, host=serve_host, port=serve_port, _quiet=False)
 
 
 if __name__ == "__main__":

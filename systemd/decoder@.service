@@ -1,0 +1,13 @@
+[Unit]
+Description=Decoder (%I antenna)
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/home/ubuntu/.cache/pypoetry/virtualenvs/turbulence-PqbjmqZK-py3.10/bin/decoder %i
+
+[Install]
+WantedBy=multi-user.target

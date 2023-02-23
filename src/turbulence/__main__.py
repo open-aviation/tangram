@@ -36,17 +36,17 @@ SECRET_KEY = os.urandom(32)
 app.config["SECRET_KEY"] = SECRET_KEY
 
 
-app_host = config_turb.get("turbulence", "host", fallback="0.0.0.0")
-app_port = int(config_turb.get("turbulence", "port", fallback=5000))
-live = int(config_turb.get("turbulence", "live", fallback=1))
-history = int(config_turb.get("turbulence", "history", fallback=1))
-data_path = config_turb.get("turbulence", "path_data", fallback="")
-mongo_uri = config_turb.get("turbulence", "database_uri", fallback="")
+app_host = config_turb.get("tangram", "host", fallback="0.0.0.0")
+app_port = int(config_turb.get("tangram", "port", fallback=5050))
+live = int(config_turb.get("tangram", "live", fallback=1))
+history = int(config_turb.get("tangram", "history", fallback=1))
+data_path = config_turb.get("tangram", "path_data", fallback="")
+mongo_uri = config_turb.get("tangram", "database_uri", fallback="")
 
 
 def memory_limit() -> None:
     soft, hard = resource.getrlimit(resource.RLIMIT_AS)
-    resource.setrlimit(resource.RLIMIT_AS, (get_memory() * 1024 / 2, hard))
+    resource.setrlimit(resource.RLIMIT_AS, (get_memory() * 1024 // 2, hard))
 
 
 def get_memory() -> int:
@@ -91,9 +91,9 @@ def main(
         decoders_address = {
             "aggregator": str(
                 "tcp://"
-                + config.get("aggregator", "host", fallback="127.0.0.1")
+                + config.get("aggregator", "serve_host")
                 + ":"
-                + config.get("aggregator", "port", fallback="5054")
+                + config.get("aggregator", "serve_port")
             )
         }
 
@@ -109,7 +109,7 @@ def main(
     app.start_time = datetime.now()
     TurbulenceClient.demo = demo
     app.live_client = TurbulenceClient(decoders=decoders_address)
-    app.history_client = TurbulenceClient()
+    # app.history_client = TurbulenceClient()
     if live:
         app.live_client.start_live()
         app.request_builder = RequestBuilder(app.live_client)
@@ -120,11 +120,11 @@ def main(
     app.register_blueprint(history_views.history_bp)
     app.register_blueprint(base_views.base_bp)
 
-    app.sigmet = Weather()
+    # app.sigmet = Weather()
     app.airep = AIREP()
     app.cat = Metsafe()
-    app.network = Network()
-    serve(app=app, host=app_host, port=app_port, threads=20)
+    # app.network = Network()
+    serve(app=app, host=app_host, port=app_port, threads=1)
 
 
 if __name__ == "__main__":

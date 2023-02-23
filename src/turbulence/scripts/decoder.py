@@ -115,18 +115,12 @@ def main(
     host = config.get("decoders." + source, "host")
     port = config.get("decoders." + source, "port")
     if serve_host is None:
-        serve_host = config.get(
-            "decoders." + source, "serve_host", fallback="127.0.0.1"
-        )
+        serve_host = config.get("decoders." + source, "serve_host")
     if serve_port is None:
-        serve_port = int(
-            config.get("decoders." + source, "serve_port", fallback=5050)
-        )
+        serve_port = config.getint("decoders." + source, "serve_port")
     time_fmt = config.get("decoders." + source, "time_fmt", fallback="default")
-    protocol = config.get("decoders." + source, "socket")
-    data_path = config.get(
-        "decoders." + source, "file", fallback="~/ADSB_EHS_RAW_%Y%m%d.csv"
-    )
+    protocol = config.get("decoders." + source, "socket", fallback="TCP")
+    data_path = config.get( "decoders." + source, "file")
     reference = config.get("decoders." + source, "reference")
     expire_frequency = pd.Timedelta(
         config.get(
@@ -138,7 +132,7 @@ def main(
             "decoders." + source, "expire_threshold", fallback="1 minute"
         )
     )
-    dump_file = Path(data_path).with_suffix(".csv").as_posix()
+    dump_file = Path(data_path).as_posix()
     decoder: TrafficDecoder = TrafficDecoder.from_address(
         host=host,
         port=int(port),

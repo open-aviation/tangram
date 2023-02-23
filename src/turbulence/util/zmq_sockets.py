@@ -3,11 +3,10 @@ import os
 import pickle
 from typing import Any, Dict, Optional
 
+import pandas as pd
 import zmq
 from requests import Session
 from traffic.core import Traffic
-
-import pandas as pd
 
 os.environ["no_proxy"] = "localhost"
 REQUEST_TIMEOUT = 5500
@@ -16,7 +15,7 @@ _log = logging.getLogger(__name__)
 
 
 class DecoderSocket:
-    def __init__(self, base_url: str = "tcp://127.0.0.1:5050") -> None:
+    def __init__(self, base_url: str) -> None:
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REQ)
         self.socket.connect(base_url)
@@ -50,7 +49,7 @@ class DecoderSocket:
 
 
 class AggregatorSocket:
-    def __init__(self, base_url: str = "http://localhost:5054") -> None:
+    def __init__(self, base_url: str) -> None:
         self.session = Session()
         self.base_url = base_url
 
