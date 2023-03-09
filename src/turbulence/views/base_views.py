@@ -82,6 +82,9 @@ def turbulence() -> Dict[str, Any]:
     else:
         return geojson_turbulence(pro_data)
 
+@base_bp.route("/shitty_aircraft")
+def shitty_aircraft() -> Dict[str, Any]:
+    return {'shitty': "toi"}
 
 @base_bp.route("/chart.data/<path:icao>")
 def chart_data(icao: str) -> List[List]:

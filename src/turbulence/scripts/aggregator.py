@@ -82,9 +82,9 @@ class Aggregator:
             fallback="mongodb://localhost:27017/adsb",
         )
         self.state_vector = {}
-        self.mclient = MongoClient(host=database_uri)
+        # self.mclient = MongoClient(host=database_uri)
         self.network = Network()
-        self.db = self.mclient.get_database()
+        # self.db = self.mclient.get_database()
         self.running: bool = False
         self._traffic: Optional[Traffic] = None
         self.pickled_traffic: bytes = pickle.dumps(None)
@@ -260,7 +260,8 @@ class Aggregator:
                 "traj": i.tolist(),
             }
             try:
-                self.db.tracks.insert_one(dum)
+                pass
+                # self.db.tracks.insert_one(dum)
             except (OperationFailure, DocumentTooLarge) as e:
                 _log.warning(str(icao) + ":" + str(count) + ":" + str(e))
 
@@ -302,7 +303,7 @@ class Aggregator:
             d.stop()
         self._traffic = None
         self.timer_thread.join()
-        self.mclient.close()
+        # self.mclient.close()
 
 
 @click.command()
@@ -374,9 +375,9 @@ def main(
             name = i.split(".")[1]
             if name in agg_decoders or len(agg_decoders) == 0:
                 host = config.get(i, "serve_host")
-                port =  config.get(i, "serve_port")
-                decoders_address[name] =f"tcp://{host}:{port}"
-                  
+                port = config.get(i, "serve_port")
+                decoders_address[name] = f"tcp://{host}:{port}"
+
     if serve_host is None:
         serve_host = config.get("aggregator", "serve_host")
     if serve_port is None:

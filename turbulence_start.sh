@@ -7,6 +7,7 @@ systemctl --user restart aggregator
 systemctl --user restart turbulence
 
 systemctl --user status decoder@zurich
+systemctl --user status decoder@delft
 
 systemctl --user status aggregator
 

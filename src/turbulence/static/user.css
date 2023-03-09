@@ -119,7 +119,7 @@ a.flag:hover::after {
 }
 
 .aircraft_selected {
-  fill: red;
+  fill: green;
 }
 
 .turb_selected {
