@@ -1,8 +1,12 @@
 [tool.poetry]
-name = "turbulence"
+name = "tangram"
 version = "0.1.0"
 description = ""
-authors = ["Michel Khalaf <khalafmichel98@gmail.com>"]
+authors = [
+  "Xavier Olive <git@xoolive.org>",
+  "Junzi Sun <junzi.sun@gmail.com>",
+  "Michel Khalaf <khalafmichel98@gmail.com>"
+]
 license = "MIT"
 
 [tool.poetry.scripts]
