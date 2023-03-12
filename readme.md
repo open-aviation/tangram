@@ -53,7 +53,7 @@ systemctl --user start turbulence
 
 ### Send Data
 
-The raw feed can be sent to the server from your receiver as following:
+The raw feed can be sent to the server from your receiver as follows:
 
 ```sh
 nc 127.0.0.1 [modesbeast_port] | nc -u [server_ip] [port_number]
@@ -68,3 +68,8 @@ systemctl --user status aggregator
 systemctl --user status turbulence
 ```
 
+## Results
+
+Here is an example of the tool running in real time:
+
+![plot](./src/tangram/static/screenshot.png)
