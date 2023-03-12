@@ -7,7 +7,7 @@ StartLimitIntervalSec=0
 Type=simple
 Restart=always
 RestartSec=1
-ExecStart=/home/ubuntu/.cache/pypoetry/virtualenvs/turbulence-PqbjmqZK-py3.10/bin/turbulence
+ExecStart=/home/ubuntu/.cache/pypoetry/virtualenvs/tangram-YIm3yPWF-py3.10/bin/turbulence
 
 [Install]
 WantedBy=multi-user.target

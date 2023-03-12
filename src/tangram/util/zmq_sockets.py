@@ -33,7 +33,15 @@ class DecoderSocket:
             self.socket.send_json(request)
             if (self.socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
                 zobj = self.socket.recv()
-                return pickle.loads(zobj)
+                t = pickle.loads(zobj)
+                if t is None or t.data.shape[0] == 0:
+                    _log.warn("No data received")
+                else:
+                    recv = ""
+                    if "decoder" in t.data.columns:
+                        recv = t.data.decoder.unique()
+                    _log.warn(f"Received data from {self.base_url}: {recv}")
+                return t
         except zmq.ZMQError as e:
             _log.warning(str(__name__) + ": " + self.base_url + ":" + str(e))
             self.stop()

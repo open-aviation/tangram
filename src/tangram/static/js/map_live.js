@@ -22,7 +22,7 @@ chart_history = 0;
 var traj = L.layerGroup();
 var map = L.map("map", {
   layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes],
-}).setView([46, 2], 6);
+}).setView([48, 5], 5);
 var fullscreenControl = L.control.fullscreen();
 map.addControl(fullscreenControl);
 map.on("click", function (e) {
@@ -60,13 +60,13 @@ hexLayer
     return intensity_sum;
   });
 var overlays = {
-  Cat_mod: cat_mod,
-  Cat_sev: cat_sev,
-  Sigmets: sigmets,
-  Airep: aireps,
+  CAT_moderate: cat_mod,
+  CAT_severe: cat_sev,
+  SIGMET: sigmets,
+  AIREP: aireps,
   Turbulences: turbulences,
   Planes: planes,
-  Hexbins: hexLayer,
+  hexbins: hexLayer,
 };
 getCat();
 getSigmet();

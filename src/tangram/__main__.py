@@ -120,11 +120,11 @@ def main(
     app.register_blueprint(history_views.history_bp)
     app.register_blueprint(base_views.base_bp)
 
-    # app.sigmet = Weather()
+    app.sigmet = Weather()
     app.airep = AIREP()
     app.cat = Metsafe()
-    # app.network = Network()
-    serve(app=app, host=app_host, port=app_port, threads=1)
+    app.network = Network()
+    serve(app=app, host=app_host, port=app_port, threads=5)
 
 
 if __name__ == "__main__":

@@ -12,18 +12,17 @@ from threading import Thread
 from typing import Callable, Generator, Optional, Set
 
 import click
+import numpy as np
+import pandas as pd
 import zmq
 from atmlab.network import Network
 from flask import Flask
 from pymongo import MongoClient
 from pymongo.errors import DocumentTooLarge, OperationFailure
+from tangram.util.zmq_sockets import DecoderSocket
 from traffic import config
 from traffic.core.traffic import Flight, Traffic
 from waitress import serve
-
-import numpy as np
-import pandas as pd
-from turbulence.util.zmq_sockets import DecoderSocket
 
 _log = logging.getLogger(__name__)
 
@@ -114,14 +113,19 @@ class Aggregator:
 
     def traffic_decoder(self, decoder_name: str) -> Optional[Traffic]:
         previous_endtime = self.decoders_time[decoder_name]
-        traffic: Optional[Traffic] = self.decoders[
-            decoder_name
-        ].traffic_records(start=previous_endtime)
-        if traffic is None:
+        t: Optional[Traffic] = self.decoders[decoder_name].traffic_records(
+            start=previous_endtime
+        )
+        _log.warn(
+            f"[{decoder_name}]: "
+            f"received: {len(t) if t is not None else 0} "
+            f"start: {t.start_time if t is not None else None} "
+        )
+        if t is None:
             self.decoders_time[decoder_name] = pd.Timestamp(0, tz="utc")
             return None
-        self.decoders_time[decoder_name] = traffic.end_time
-        return traffic
+        self.decoders_time[decoder_name] = t.end_time
+        return t.assign(decoder=decoder_name)
 
     def calculate_traffic(self) -> None:
         max_workers: int = len(self.decoders)

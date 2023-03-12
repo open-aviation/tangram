@@ -10,9 +10,9 @@ authors = [
 license = "MIT"
 
 [tool.poetry.scripts]
-turbulence = 'turbulence.__main__:main'
-decoder = 'turbulence.scripts.decoder:main'
-aggregator = 'turbulence.scripts.aggregator:main'
+turbulence = 'tangram.__main__:main'
+decoder = 'tangram.scripts.decoder:main'
+aggregator = 'tangram.scripts.aggregator:main'
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"

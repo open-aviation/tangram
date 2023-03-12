@@ -2,6 +2,8 @@ import json
 from datetime import datetime
 from typing import Any, Dict, List
 
+import numpy as np
+import pandas as pd
 from flask import (
     Blueprint,
     Response,
@@ -14,9 +16,6 @@ from flask import (
 )
 from flask_cors import CORS
 from requests.exceptions import HTTPError
-
-import numpy as np
-import pandas as pd
 
 from ..client.turbulence import TurbulenceClient
 from ..util.geojson import geojson_traffic, geojson_turbulence
@@ -82,9 +81,6 @@ def turbulence() -> Dict[str, Any]:
     else:
         return geojson_turbulence(pro_data)
 
-@base_bp.route("/shitty_aircraft")
-def shitty_aircraft() -> Dict[str, Any]:
-    return {'shitty': "toi"}
 
 @base_bp.route("/chart.data/<path:icao>")
 def chart_data(icao: str) -> List[List]:

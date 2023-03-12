@@ -73,20 +73,16 @@ class TurbulenceClient:
     ) -> None:
         import threading
 
-        print(f"threads: {threading.active_count()}")
         self.running: bool = False
         if isinstance(decoders, str):
             decoders = {"": decoders}
-        print(f"threads: {threading.active_count()}")
         self.decoders: dict[str, DecoderSocket] = {
             name: DecoderSocket(address) for name, address in decoders.items()
         }
-        print(f"threads: {threading.active_count()}")
         self._pro_data: Optional[Traffic] = None
         self._traffic: Optional[Traffic] = None
         self.thread: Optional[threading.Thread] = None
         mongo_client: MongoClient = MongoClient()
-        print(f"threads: {threading.active_count()}")
         self.db: Database = mongo_client.get_database(name="adsb")
 
     def dump_threshold(

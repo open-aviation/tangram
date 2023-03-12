@@ -89,7 +89,6 @@ def main(
     serve_port: int | None = 5056,
     log_file: str | None = None,
 ) -> None:
-
     if verbose == 1:
         _log.setLevel(logging.INFO)
     elif verbose > 1:
@@ -120,7 +119,7 @@ def main(
         serve_port = config.getint("decoders." + source, "serve_port")
     time_fmt = config.get("decoders." + source, "time_fmt", fallback="default")
     protocol = config.get("decoders." + source, "socket", fallback="TCP")
-    data_path = config.get( "decoders." + source, "file")
+    data_path = config.get("decoders." + source, "file")
     reference = config.get("decoders." + source, "reference")
     expire_frequency = pd.Timedelta(
         config.get(
@@ -167,9 +166,9 @@ def main(
         t = decoder.prepared_traffic
         if t is not None:
             timestamp = request["payload"][0]
-            t = t.query(
-                f"timestamp>='{timestamp}'"
-            )  # poser la question a Xavier
+            # poser la question a Xavier
+            t = t.query(f"timestamp>='{timestamp}'")
+        # print(t.data if t is not None else None)
         zobj = pickle.dumps(t)
         server.send(zobj)
 
