@@ -15,7 +15,7 @@ decoder = 'tangram.scripts.decoder:main'
 aggregator = 'tangram.scripts.aggregator:main'
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.8,<=3.12"
 # traffic = "^2.8.0"
 traffic = { path = "../traffic", extras = ["web"], develop = true}
 appdirs = "^1.4.4"
