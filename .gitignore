@@ -3,6 +3,7 @@ archive/
 *.ipynb
 .git-old
 .vscode/
+.idea/
 
 ### Data ###
 data/

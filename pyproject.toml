@@ -16,13 +16,17 @@ aggregator = 'tangram.scripts.aggregator:main'
 
 [tool.poetry.dependencies]
 python = ">=3.8,<=3.12"
+
 # traffic = "^2.8.0"
 traffic = { path = "../traffic", extras = ["web"], develop = true}
+
 appdirs = "^1.4.4"
 Flask = "^2.0.2"
 Flask-Assets = "^2.0"
+
 atmlab = { path = "../atmlab", develop = true }
 # atmlab = ">=0.1.0"
+
 waitress = "^2.0.0"
 click = "^8.0.3"
 Flask-WTF = "^1.0.0"

@@ -111,6 +111,7 @@ def main(
         file_handler.setFormatter(formatter)
         _log.addHandler(file_handler)
         logging.getLogger().addHandler(file_handler)
+
     host = config.get("decoders." + source, "host")
     port = config.get("decoders." + source, "port")
     if serve_host is None:
@@ -121,17 +122,10 @@ def main(
     protocol = config.get("decoders." + source, "socket", fallback="TCP")
     data_path = config.get("decoders." + source, "file")
     reference = config.get("decoders." + source, "reference")
-    expire_frequency = pd.Timedelta(
-        config.get(
-            "decoders." + source, "expire_frequency", fallback="1 minute"
-        )
-    )
-    expire_threshold = pd.Timedelta(
-        config.get(
-            "decoders." + source, "expire_threshold", fallback="1 minute"
-        )
-    )
+    expire_frequency = pd.Timedelta(config.get("decoders." + source, "expire_frequency", fallback="1 minute"))
+    expire_threshold = pd.Timedelta(config.get("decoders." + source, "expire_threshold", fallback="1 minute"))
     dump_file = Path(data_path).as_posix()
+
     decoder: TrafficDecoder = TrafficDecoder.from_address(
         host=host,
         port=int(port),
@@ -144,6 +138,7 @@ def main(
     decoder.name = source
     decoder.expire_frequency = expire_frequency
     decoder.expire_threshold = expire_threshold
+
     context = zmq.Context()
     server = context.socket(zmq.REP)
     server.bind(f"tcp://{serve_host}:{serve_port}")
@@ -162,6 +157,7 @@ def main(
             server.close()
             context.term()
             sys.exit("Connection dropped")
+
         request: Dict[str, Any] = server.recv_json()
         t = decoder.prepared_traffic
         if t is not None:
@@ -169,6 +165,7 @@ def main(
             # poser la question a Xavier
             t = t.query(f"timestamp>='{timestamp}'")
         # print(t.data if t is not None else None)
+
         zobj = pickle.dumps(t)
         server.send(zobj)
 

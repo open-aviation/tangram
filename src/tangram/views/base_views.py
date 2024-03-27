@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from typing import Any, Dict, List
+import logging
 
 import numpy as np
 import pandas as pd
@@ -21,6 +22,7 @@ from ..client.turbulence import TurbulenceClient
 from ..util.geojson import geojson_traffic, geojson_turbulence
 from ..views.forms import DatabaseForm, ThresholdForm
 
+log = logging.getLogger(__name__)
 base_bp = Blueprint("base", __name__)
 CORS(base_bp)
 
@@ -159,6 +161,10 @@ def favicon() -> Response:
 
 @base_bp.route("/context/sigmet")
 def fetch_sigmets() -> Any:
+    if not hasattr(current_app, 'sigmet'):
+        log.warning('sigmet is not initialized for the app')
+        return {}
+
     wef = request.args.get("wef", default=None, type=int)
     und = request.args.get("und", default=None, type=int)
     t = pd.Timestamp("now", tz="utc")  # noqa: F841
@@ -177,6 +183,10 @@ def fetch_sigmets() -> Any:
 
 @base_bp.route("/context/airep")
 def airep_geojson() -> Any:
+    if not hasattr(current_app, 'airep'):
+        log.warning('airep is not initialized for the app')
+        return {}
+
     wef = request.args.get("wef", default=None, type=int)
     und = request.args.get("und", default=None, type=int)
     condition: bool = wef is not None and und is not None
@@ -196,6 +206,10 @@ def airep_geojson() -> Any:
 
 @base_bp.route("/context/cat")
 def clear_air_turbulence() -> Any:
+    if not hasattr(current_app, 'cat'):
+        log.warning('cat is not initialized for the app')
+        return {}
+
     wef = request.args.get("wef", default=None, type=int)
     und = request.args.get("und", default=None, type=int)
     t = pd.Timestamp("now", tz="utc")
@@ -204,6 +218,7 @@ def clear_air_turbulence() -> Any:
     if und is not None:
         und = und / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")  # noqa: F841
+    log.info('cat: %s', current_app.cat)
     res = current_app.cat.metsafe(
         "metgate:cat_mf_arpege01_europe",
         wef=wef,

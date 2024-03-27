@@ -15,7 +15,6 @@ import click
 import numpy as np
 import pandas as pd
 import zmq
-from atmlab.network import Network
 from flask import Flask
 from pymongo import MongoClient
 from pymongo.errors import DocumentTooLarge, OperationFailure
@@ -23,6 +22,8 @@ from tangram.util.zmq_sockets import DecoderSocket
 from traffic import config
 from traffic.core.traffic import Flight, Traffic
 from waitress import serve
+
+from atmlab.network import Network
 
 _log = logging.getLogger(__name__)
 
@@ -355,10 +356,7 @@ def main(
         _log.setLevel(logging.DEBUG)
     _log.handlers.clear()
 
-    formatter = logging.Formatter(
-        "%(process)d - %(threadName)s - %(asctime)s"
-        " - %(levelname)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(process)d - %(threadName)s - %(asctime)s - %(levelname)s - %(message)s")
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.WARNING)
@@ -372,6 +370,7 @@ def main(
         _log.addHandler(file_handler)
         logging.getLogger().addHandler(file_handler)
 
+    # decoder config
     decoders_address = {}
     agg_decoders = config.get("aggregator", "decoders", fallback="").split()
     for i in config.sections():
@@ -386,13 +385,16 @@ def main(
         serve_host = config.get("aggregator", "serve_host")
     if serve_port is None:
         serve_port = config.getint("aggregator", "serve_port")
+
     Aggregator.dump_database = not flask
     aggd = Aggregator.from_decoders(decoders=decoders_address)
+
     # def sigint_handler(signal, frame):
     #     print('KeyboardInterrupt is caught')
     #     app.aggd.stop()
     #     sys.exit(0)
     # signal.signal(signal.SIGINT, sigint_handler)
+
     if not flask:
         context = zmq.Context()
         server = context.socket(zmq.REP)
