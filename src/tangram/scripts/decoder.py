@@ -37,13 +37,9 @@ columns = {
 
 
 class TrafficDecoder(ModeS_Decoder):
-    def __init__(
-        self,
-        reference: None | str | Airport | tuple[float, float] = None,
-    ) -> None:
-        super().__init__(
-            reference,
-        )
+    def __init__(self, reference: None | str | Airport | tuple[float, float] = None) -> None:
+        super().__init__(reference)
+
         self.name: str = ""
         self.prepared_traffic: Optional[Traffic] = None
 

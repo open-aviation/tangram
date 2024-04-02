@@ -117,7 +117,7 @@ class Aggregator:
         t: Optional[Traffic] = self.decoders[decoder_name].traffic_records(
             start=previous_endtime
         )
-        _log.warn(
+        _log.warning(
             f"[{decoder_name}]: "
             f"received: {len(t) if t is not None else 0} "
             f"start: {t.start_time if t is not None else None} "
@@ -130,15 +130,13 @@ class Aggregator:
 
     def calculate_traffic(self) -> None:
         max_workers: int = len(self.decoders)
-        with ThreadPoolExecutor(
-            max_workers=max_workers, thread_name_prefix="agg_traffic"
-        ) as executor:
-            traffic_decoders = list(
-                executor.map(self.traffic_decoder, self.decoders.keys())
-            )
+        with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="agg_traffic") as executor:
+            traffic_decoders = list(executor.map(self.traffic_decoder, self.decoders.keys()))
+
         t = sum(t for t in traffic_decoders if t is not None)
         if t == 0 or t is None:
             return
+
         if self.traffic is None:
             self.traffic = t
         else:
@@ -312,44 +310,12 @@ class Aggregator:
 
 
 @click.command()
-@click.option(
-    "--with-flask",
-    "flask",
-    is_flag=True,
-    show_default=True,
-    default=False,
-    help="activate flask and desactivate zmq",
-)
-@click.option(
-    "--host",
-    "serve_host",
-    show_default=True,
-    default=None,
-    help="host address where to serve decoded information",
-)
-@click.option(
-    "-l",
-    "--log",
-    "log_file",
-    default=None,
-    help="logging information",
-)
-@click.option(
-    "--port",
-    "serve_port",
-    show_default=True,
-    default=None,
-    type=int,
-    help="port to serve decoded information",
-)
+@click.option("--with-flask", "flask", is_flag=True, show_default=True, default=False, help="activate flask and desactivate zmq")
+@click.option("--host", "serve_host", show_default=True, default=None, help="host address where to serve decoded information")
+@click.option("-l", "--log", "log_file", default=None, help="logging information")
+@click.option("--port", "serve_port", show_default=True, default=None, type=int, help="port to serve decoded information")
 @click.option("-v", "--verbose", count=True, help="Verbosity level")
-def main(
-    serve_host: str | None,
-    serve_port: int | None,
-    flask: bool,
-    log_file: str | None,
-    verbose: int = 0,
-) -> None:
+def main(serve_host: str | None, serve_port: int | None, flask: bool, log_file: str | None, verbose: int = 0) -> None:
     if verbose == 1:
         _log.setLevel(logging.INFO)
     elif verbose > 1:
@@ -398,6 +364,7 @@ def main(
     if not flask:
         context = zmq.Context()
         server = context.socket(zmq.REP)
+        _log.info('binding to %s:%s ...', serve_host, serve_port)
         server.bind(f"tcp://{serve_host}:{serve_port}")
         while True:
             server.recv_multipart()

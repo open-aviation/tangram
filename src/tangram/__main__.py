@@ -81,12 +81,15 @@ def main(app_host, app_port, live, history, data_path, mongo_uri, source, decode
     #     print("Allocations will be tracked until the with block ends")
 
     if decoders_address is None:
-        # serve_host = config.get("aggregator", "serve_host", fallback='omdb.lr.tudelft.nl')
-        # serve_port = config.get("aggregator", "serve_port", fallback=9142)
-        # decoders_address = {
-        #     'aggregator': f"tcp://{serve_host}:{serve_port}",
-        # }
-        decoders_address = {}
+        # directly from local decoders
+        # serve_host, serve_port = '127.0.0.1', 5051
+
+        # from aggregator defined in traffic.config
+        serve_host = config.get("aggregator", "serve_host", fallback='omdb.lr.tudelft.nl')
+        serve_port = config.get("aggregator", "serve_port", fallback=9142)
+        decoders_address = {
+            'aggregator': f"tcp://{serve_host}:{serve_port}",
+        }
 
     if source is not None:
         host, port = config.get(f"decoders.{source}", "serve_host"), config.get(f"decoders.{source}", "serve_port")
@@ -97,6 +100,7 @@ def main(app_host, app_port, live, history, data_path, mongo_uri, source, decode
     app.start_time = datetime.now()
 
     TurbulenceClient.demo = demo
+    _log.info('turbulence live client, decoders: %s ...', decoders_address)
     app.live_client = TurbulenceClient(decoders=decoders_address)
     if live:
         app.live_client.start_live()
