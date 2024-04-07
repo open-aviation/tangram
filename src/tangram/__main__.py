@@ -4,12 +4,6 @@ import resource
 from datetime import datetime
 
 import click
-
-# from atmlab.airep import AIREP
-# from atmlab.metsafe import Metsafe
-# from atmlab.network import Network
-# from atmlab.weather import Weather
-
 from flask import Flask
 from flask_assets import Environment
 from flask_cors import CORS
@@ -23,6 +17,11 @@ from .client.turbulence import TurbulenceClient
 from .util import assets
 from .views import base_views, history_views
 from .views.requests import RequestBuilder
+
+# from atmlab.airep import AIREP
+# from atmlab.metsafe import Metsafe
+# from atmlab.network import Network
+# from atmlab.weather import Weather
 
 app = Flask(__name__, static_folder=None)
 # _log = logging.getLogger("waitress")

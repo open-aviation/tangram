@@ -259,20 +259,9 @@ def home_page() -> Response:
     form_database = DatabaseForm()
     if form_database.validate_on_submit():
         return redirect(
-            url_for(
-                "history.database_request",
-                min=(
-                    str(form_database.startdate.data)
-                    + " "
-                    + str(form_database.starttime.data)
-                ),
-                max=(
-                    str(form_database.enddate.data)
-                    + " "
-                    + str(form_database.endtime.data)
-                ),
-            )
-        )
+            url_for("history.database_request",
+                    min=(str(form_database.startdate.data) + " " + str(form_database.starttime.data)),
+                    max=(str(form_database.enddate.data) + " " + str(form_database.endtime.data))))
 
     form_threshold = ThresholdForm()
     if form_threshold.validate_on_submit():
@@ -283,20 +272,8 @@ def home_page() -> Response:
         form_threshold.threshold.data = client.get_min_threshold()
         form_threshold.multiplier.data = client.get_multiplier()
     if history:
-        return render_template(
-            "index.html",
-            history=1,
-            form_database=form_database,
-            form_threshold=form_threshold,
-        )
-
-    return render_template(
-        "index.html",
-        history=0,
-        form_database=form_database,
-        form_threshold=form_threshold,
-        uptime=get_uptime()["uptime"],
-    )
+        return render_template("index.html", history=1, form_database=form_database, form_threshold=form_threshold)
+    return render_template("index.html", history=0, form_database=form_database, form_threshold=form_threshold, uptime=get_uptime()["uptime"])
 
 
 @base_bp.route("/trajectory/<path:icao24>")
