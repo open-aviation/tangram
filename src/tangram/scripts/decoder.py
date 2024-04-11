@@ -154,13 +154,19 @@ def main(
             context.term()
             sys.exit("Connection dropped")
 
+        # zmq_soket.py, DecoderSocket::traffic_socket
+        # only payload.0, as starting timestamp, is used. Filter data starting from `now` timestamp.
+        # request = {
+        #     "origin": __name__,
+        #     "timestamp": str(pd.Timestamp("now", tz="utc")),
+        #     "payload": [str(start), "traffic"],
+        # }
         request: Dict[str, Any] = server.recv_json()
         t = decoder.prepared_traffic
         if t is not None:
             timestamp = request["payload"][0]
             # poser la question a Xavier
             t = t.query(f"timestamp>='{timestamp}'")
-        # print(t.data if t is not None else None)
 
         zobj = pickle.dumps(t)
         server.send(zobj)

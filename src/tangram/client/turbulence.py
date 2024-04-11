@@ -73,9 +73,7 @@ class TurbulenceClient:
     multiplier: float = 1.3
     demo: bool = False
 
-    def __init__(
-        self, decoders: dict[str, str] | str = "tcp://localhost:5050"
-    ) -> None:
+    def __init__(self, decoders: dict[str, str] | str = "tcp://localhost:5050") -> None:
         import threading
 
         self.running: bool = False
@@ -135,6 +133,7 @@ class TurbulenceClient:
         traffic_decoders = None
         with ThreadPoolExecutor(max_workers=3) as executor:
             traffic_decoders = list(executor.map(self.traffic_decoder, self.decoders))
+
         traffic = sum(t for t in traffic_decoders if t is not None)
         if traffic == 0:
             self._traffic = None

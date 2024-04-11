@@ -21,9 +21,7 @@ class DecoderSocket:
         self.socket.connect(base_url)
         self.base_url = base_url
 
-    def traffic_records(
-        self, start: pd.Timestamp = pd.Timestamp(0, tz="utc")
-    ) -> Optional[Traffic]:
+    def traffic_records(self, start: pd.Timestamp = pd.Timestamp(0, tz="utc")) -> Optional[Traffic]:
         request = {
             "origin": __name__,
             "timestamp": str(pd.Timestamp("now", tz="utc")),
