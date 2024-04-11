@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import json
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -16,7 +15,15 @@ from traffic.data import aircraft
 
 from ..util.zmq_sockets import DecoderSocket
 
-_log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(filename)s:%(lineno)s - %(message)s')
+log = logging.getLogger(__name__)
+
+
+class BetterJsonEncoder(json.JSONEncoder):
+    def default(self, obj) -> str:
+        if isinstance(obj, pd.Timestamp):
+            return obj.isoformat(timespec='microseconds')
+        return json.JSONEncoder.default(self, obj)
 
 
 def crit(df: pd.DataFrame) -> pd.Series:
@@ -28,9 +35,7 @@ def crit(df: pd.DataFrame) -> pd.Series:
 
 
 def threshold(df: pd.DataFrame) -> float:
-    t: float = np.mean(df.criterion) + TurbulenceClient.multiplier * np.std(
-        df.criterion
-    )
+    t: float = np.mean(df.criterion) + TurbulenceClient.multiplier * np.std(df.criterion)
     if t > TurbulenceClient.min_threshold:
         return t
     else:
@@ -98,7 +103,7 @@ class TurbulenceClient:
                 }
             )
         except OperationFailure as e:
-            _log.warning("dump" + str(e))
+            log.warning("dump" + str(e))
 
     @property
     def pro_data(self) -> Optional[Traffic]:
@@ -109,16 +114,10 @@ class TurbulenceClient:
         return self._traffic
 
     def traffic_decoder(self, decoder_name: str) -> Optional[Traffic]:
-        traffic: Optional[Traffic] = self.decoders[
-            decoder_name
-        ].traffic_records()
+        traffic: Optional[Traffic] = self.decoders[decoder_name].traffic_records()
         if traffic is None:
             return traffic
-        return (
-            traffic.assign(antenna=decoder_name)
-            if "antenna" not in traffic.data.columns
-            else traffic
-        )
+        return traffic.assign(antenna=decoder_name) if "antenna" not in traffic.data.columns else traffic
 
     def resample_traffic(self, traffic: Traffic) -> Optional[Traffic]:
         return (
@@ -126,10 +125,7 @@ class TurbulenceClient:
             .resample(
                 "1s",
                 how={
-                    "interpolate": set(traffic.data.columns).union(
-                        {"track_unwrapped", "heading_unwrapped"}
-                    )
-                    - {"vertical_rate_barometric", "vertical_rate_inertial"}
+                    "interpolate": set(traffic.data.columns).union({"track_unwrapped", "heading_unwrapped"}) - {"vertical_rate_barometric", "vertical_rate_inertial"}
                 },
             )
             .eval(max_workers=1)
@@ -138,23 +134,16 @@ class TurbulenceClient:
     def calculate_traffic(self) -> None:
         traffic_decoders = None
         with ThreadPoolExecutor(max_workers=3) as executor:
-            traffic_decoders = list(
-                executor.map(self.traffic_decoder, self.decoders)
-            )
+            traffic_decoders = list(executor.map(self.traffic_decoder, self.decoders))
         traffic = sum(t for t in traffic_decoders if t is not None)
         if traffic == 0:
             self._traffic = None
             return
+
         traffic: Optional[Traffic] = self.resample_traffic(traffic)
-        self._traffic = (
-            traffic.merge(
-                aircraft.data[["icao24", "typecode"]],
-                how="left",
-            )
-            if traffic is not None
-            else traffic
-        )
-        del traffic
+        self._traffic = traffic.merge(aircraft.data[["icao24", "typecode"]], how="left") if traffic is not None else traffic
+        log.info('traffic updated')
+        del traffic  # TOB?
 
     def set_min_threshold(self, value: float) -> None:
         TurbulenceClient.min_threshold = value
@@ -220,10 +209,7 @@ class TurbulenceClient:
 
     def start_live(self) -> None:
         self.running = True
-        self.thread = threading.Thread(
-            target=self.calculate_live_turbulence,
-            daemon=True,
-        )
+        self.thread = threading.Thread(target=self.calculate_live_turbulence, daemon=True)
         self.thread.start()
 
     def start_from_database(self, data: Cursor) -> None:
@@ -246,3 +232,64 @@ class TurbulenceClient:
     def clear(self) -> None:
         self._traffic = None
         self._pro_data = None
+
+
+if __name__ == '__main__':
+    """
+    - add decoders.dev1 in ~/.config/traffic/traffic.conf
+    - launch decoder: python src/tangram/scripts/decoder.py -v dev1
+    
+    this script does not read it automatically, use the command parameters properly
+    """
+    import argparse
+    import requests
+    from tangram.util import geojson
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-n', '--decoder-name', dest='decoder_name', type=str, default='dev1')
+    parser.add_argument('--decoder-serve-host', dest='decoder_zmq_host', type=str, default='127.0.0.1')
+    parser.add_argument('--decoder-serve-port', dest='decoder_zmq_port', type=int, default=5052)
+    parser.add_argument('--publish-url', dest='publish_url', type=str,
+                        default='http://127.0.0.1:18000/admin/publish')
+    parser.add_argument('--traffic-channel', dest='traffic_channel', type=str, default='channel:streaming')
+    parser.add_argument('--turb-channel', dest='turb_channel', type=str, default='channel:streaming')
+    parser.add_argument('--traffic-event-name', dest='traffic_event_name', type=str, default='new-traffic')
+    parser.add_argument('--turb-event-name', dest='turb_event_name', type=str, default='new-turb')
+
+    args = parser.parse_args()
+    decoder_name, zmq_host, zmq_port = args.decoder_name, args.decoder_zmq_host, args.decoder_zmq_port
+    publish_url, traffic_channel, turb_channel = args.publish_url, args.traffic_channel, args.turb_channel
+    traffic_event_name: str = args.traffic_event_name
+    turb_event_name: str = args.turb_event_name
+    
+    log.info('launch new turbulence client, decoder %s at %s:%s  ...', decoder_name, zmq_host, zmq_port)
+    tb = TurbulenceClient(decoders={decoder_name: f'tcp://{zmq_host}:{zmq_port}'})
+    tb.start_live()
+
+    log.info('turbulence client running ...')
+    try:
+        while tb.running:
+            traffic = tb.traffic
+            if traffic:
+                traffic_json = geojson.geojson_traffic(traffic)
+                log.info('traffic, keys: %s, count: %s', traffic_json.keys(), traffic_json['count'])
+                payload = {
+                    'channel': traffic_channel,
+                    'event': traffic_event_name,
+                    'message': json.dumps(traffic_json, cls=BetterJsonEncoder),
+                }
+                requests.post(publish_url, json=payload)
+
+            turb = tb.pro_data
+            if turb:
+                turb_json = geojson.geojson_turbulence(turb)
+                log.info('turbulence, keys: %s', turb_json.keys())
+                payload = {
+                    'channel': turb_channel,
+                    'event': turb_event_name,
+                    'message': json.dumps(turb_json, cls=BetterJsonEncoder),
+                }
+                requests.post(publish_url, json=payload)
+    except KeyboardInterrupt:
+        # TODO cleanup
+        print('\ruser interrupted, exit ...')

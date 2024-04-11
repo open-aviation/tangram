@@ -177,4 +177,33 @@
     }
   }
 </script>
+
+<script>
+console.log('channel script');
+const {Socket, Presence, Channel} = Phoenix;
+const debug = false;
+const userToken = 'joining-token';
+let socket = new Socket("", {debug, params: {userToken}})
+socket.connect();
+
+let systemChannel = 'channel:streaming';
+const systemChannelToken = 'channel-token';
+let channel = socket.channel(systemChannel, {token: systemChannelToken})
+console.dir(channel);
+
+channel.on("new-traffic", data => {
+    console.log(`(${systemChannel}/traffic)>`, data);
+});
+
+channel.on("new-turb", data => {
+    console.log(`(${systemChannel}/turb)>`, data);
+});
+
+channel.join()
+    .receive("ok", ({messages}) => {
+    console.log(`(${systemChannel}) joined`, messages);
+    })
+    .receive("error", ({reason}) => console.log(`failed to join ${systemChannel}`, reason) )
+    .receive("timeout", () => console.log(`timeout joining ${systemChannel}`))
+</script>
 {% endblock %}

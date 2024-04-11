@@ -31,37 +31,31 @@ def geojson_flight(stv: list) -> Optional[Dict[str, Any]]:
     return None
 
 
-def geojson_traffic(
-    traffic: Traffic,
-) -> Dict[str, Any]:
+def geojson_traffic(traffic: Traffic) -> Dict[str, Any]:
     features: List[Optional[Dict[str, Any]]] = []
     if traffic is not None:
-        state_vectors = (
-            traffic.data.groupby("icao24", as_index=False)[
-                [
-                    "icao24",
-                    "callsign",
-                    "track",
-                    "latitude",
-                    "longitude",
-                    "typecode",
-                ]
-            ]
+        fields = ["icao24", "callsign", "track", "latitude", "longitude", "typecode"]
+        state_vectors = (traffic.data
+            .groupby("icao24", as_index=False)[fields]
             .ffill()
             .groupby("icao24", as_index=False)
             .last()
         ).to_dict(orient="records")
         f = map(geojson_flight, state_vectors)
         features = list(t for t in f if t is not None)
-    geojson = {
-        "type": "FeatureCollection",
-        "features": features,
+    return {
+        "count": len(features),
+        "geojson": {"type": "FeatureCollection", "features": features},
     }
-    encapsulated_geojson = {
-        "count": len(geojson["features"]),
-        "geojson": geojson,
-    }
-    return encapsulated_geojson
+    # geojson = {
+    #     "type": "FeatureCollection",
+    #     "features": features,
+    # }
+    # encapsulated_geojson = {
+    #     "count": len(geojson["features"]),
+    #     "geojson": geojson,
+    # }
+    # return encapsulated_geojson
 
 
 def geojson_turbulence(pro_data: Optional[Traffic]) -> Dict[str, Any]:
