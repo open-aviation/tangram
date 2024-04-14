@@ -13,17 +13,11 @@ from pymongo.errors import OperationFailure
 from traffic.core.traffic import Traffic
 from traffic.data import aircraft
 
+from tangram.util.geojson import BetterJsonEncoder
 from ..util.zmq_sockets import DecoderSocket
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(filename)s:%(lineno)s - %(message)s')
 log = logging.getLogger(__name__)
-
-
-class BetterJsonEncoder(json.JSONEncoder):
-    def default(self, obj) -> str:
-        if isinstance(obj, pd.Timestamp):
-            return obj.isoformat(timespec='microseconds')
-        return json.JSONEncoder.default(self, obj)
 
 
 def crit(df: pd.DataFrame) -> pd.Series:
@@ -82,24 +76,18 @@ class TurbulenceClient:
         self.decoders: dict[str, DecoderSocket] = {
             name: DecoderSocket(address) for name, address in decoders.items()
         }
+        log.info('Turb decoders: %s', list(self.decoders.keys()))
+
         self._pro_data: Optional[Traffic] = None
         self._traffic: Optional[Traffic] = None
         self.thread: Optional[threading.Thread] = None
+
         mongo_client: MongoClient = MongoClient()
         self.db: Database = mongo_client.get_database(name="adsb")
 
-    def dump_threshold(
-        self, icao24: str, thres: float, start: pd.Timestamp, stop: pd.Timestamp
-    ) -> None:
+    def dump_threshold(self, icao24: str, thres: float, start: pd.Timestamp, stop: pd.Timestamp) -> None:
         try:
-            self.db.threshold.insert_one(
-                {
-                    "icao24": icao24,
-                    "threshold": thres,
-                    "start": str(start),
-                    "stop": str(stop),
-                }
-            )
+            self.db.threshold.insert_one({"icao24": icao24, "threshold": thres, "start": str(start), "stop": str(stop)})
         except OperationFailure as e:
             log.warning("dump" + str(e))
 
@@ -114,7 +102,8 @@ class TurbulenceClient:
     def traffic_decoder(self, decoder_name: str) -> Optional[Traffic]:
         traffic: Optional[Traffic] = self.decoders[decoder_name].traffic_records()
         if traffic is None:
-            return traffic
+            return None
+        # add antenna to the traffic if it does not exist
         return traffic.assign(antenna=decoder_name) if "antenna" not in traffic.data.columns else traffic
 
     def resample_traffic(self, traffic: Traffic) -> Optional[Traffic]:
@@ -123,18 +112,24 @@ class TurbulenceClient:
             .resample(
                 "1s",
                 how={
-                    "interpolate": set(traffic.data.columns).union({"track_unwrapped", "heading_unwrapped"}) - {"vertical_rate_barometric", "vertical_rate_inertial"}
+                    "interpolate":  # TODO simplify this
+                        set(traffic.data.columns).union({"track_unwrapped", "heading_unwrapped"}) - 
+                          {"vertical_rate_barometric", "vertical_rate_inertial"}
                 },
             )
             .eval(max_workers=1)
         )
 
     def calculate_traffic(self) -> None:
+        log.info('decoders: %s', list(self.decoders.keys()))
+
         traffic_decoders = None
         with ThreadPoolExecutor(max_workers=3) as executor:
             traffic_decoders = list(executor.map(self.traffic_decoder, self.decoders))
+            log.info('%s', type(traffic_decoders[0]))
 
         traffic = sum(t for t in traffic_decoders if t is not None)
+        log.info('traffic: %s', traffic)
         if traffic == 0:
             self._traffic = None
             return
@@ -268,27 +263,27 @@ if __name__ == '__main__':
     log.info('turbulence client running ...')
     try:
         while tb.running:
-            traffic = tb.traffic
+            traffic: Traffic = tb.traffic
             if traffic:
                 traffic_json = geojson.geojson_traffic(traffic)
                 log.info('traffic, keys: %s, count: %s', traffic_json.keys(), traffic_json['count'])
-                payload = {
-                    'channel': traffic_channel,
-                    'event': traffic_event_name,
-                    'message': json.dumps(traffic_json, cls=BetterJsonEncoder),
-                }
-                requests.post(publish_url, json=payload)
+                # payload = {
+                #     'channel': traffic_channel,
+                #     'event': traffic_event_name,
+                #     'message': json.dumps(traffic_json, cls=BetterJsonEncoder),
+                # }
+                # requests.post(publish_url, json=payload)
 
             turb = tb.pro_data
             if turb:
                 turb_json = geojson.geojson_turbulence(turb)
-                log.info('turbulence, keys: %s', turb_json.keys())
-                payload = {
-                    'channel': turb_channel,
-                    'event': turb_event_name,
-                    'message': json.dumps(turb_json, cls=BetterJsonEncoder),
-                }
-                requests.post(publish_url, json=payload)
+                log.info('turbulence, keys: %s, count: %s', turb_json.keys(), turb_json['count'])
+                # payload = {
+                #     'channel': turb_channel,
+                #     'event': turb_event_name,
+                #     'message': json.dumps(turb_json, cls=BetterJsonEncoder),
+                # }
+                # requests.post(publish_url, json=payload)
     except KeyboardInterrupt:
         # TODO cleanup
         print('\ruser interrupted, exit ...')

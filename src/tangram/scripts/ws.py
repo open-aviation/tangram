@@ -1,32 +1,28 @@
 from __future__ import annotations
 
-import signal
 import logging
-import pickle
-from pathlib import Path
+import signal
 import sys
-from typing import TYPE_CHECKING, Any, Dict, Optional, List
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
+from warnings import simplefilter
 
 import click
-import zmq
+import pandas as pd
 from traffic import config
-from traffic.core import Traffic, Flight
+from traffic.core import Traffic
 from traffic.data import ModeS_Decoder
 
-import pandas as pd
-import numpy as np
-from warnings import simplefilter
 from tangram.util import geojson
-
 
 if TYPE_CHECKING:
     from traffic.core.structure import Airport
 
 
-simplefilter(action='ignore', category=FutureWarning)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(lineno)s - %(message)s')
+# simplefilter(action='ignore', category=FutureWarning)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(filename)s:%(lineno)s - %(message)s')
 _log = logging.getLogger(__name__)
-print(_log)
+# print(_log)
 
 columns = set(config.get("columns", "columns", fallback=[]))
 columns = {
@@ -101,11 +97,12 @@ def main(source: str = "delft", decode_uncertainty: bool = False, verbose: int =
 
         t: Traffic | None = decoder.prepared_traffic
         if not t:
-            _log.info('nothing here, continue')
+            # _log.info('nothing here, continue')
             continue
 
         # _log.info('%s', geojson.geojson_traffic(t))
-        _log.info('%s', geojson.geojson_turbulence(t))
+        # _log.info('%s', geojson.geojson_turbulence(t))
+        print(geojson.geojson_traffic(t))
 
         _log.info('type: %s', type(t))
         _log.info('type: %s, len: %s', type(t), len(t))

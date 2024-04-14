@@ -1,34 +1,30 @@
+import json
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
 from traffic.core import Traffic
 
 import numpy as np
 
 
-def geojson_flight(stv: list) -> Optional[Dict[str, Any]]:
-    latitude = stv["latitude"]
-    longitude = stv["longitude"]
-    if not (np.isnan(latitude) and np.isnan(longitude)):
-        track = stv["track"]
-        typecode = stv["typecode"]
-        x = {
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [
-                    longitude,
-                    latitude,
-                ],
-            },
-            "properties": {
-                "icao": stv["icao24"],
-                "callsign": stv["callsign"],
-                "typecode": None if str(typecode) == "nan" else typecode,
-                "dir": 0 if np.isnan(track) else track,
-            },
-        }
-        return x
-    return None
+def geojson_flight(stv) -> Optional[Dict[str, Any]]:
+    latitude, longitude = stv["latitude"], stv["longitude"]
+    if np.isnan(latitude) and np.isnan(longitude):
+        return None
+    track, typecode = stv["track"], stv["typecode"]
+    return {
+        "type": "Feature",
+        "geometry": {
+            "type": "Point",
+            "coordinates": [longitude, latitude],
+        },
+        "properties": {
+            "icao": stv["icao24"],
+            "callsign": stv["callsign"],
+            "typecode": None if str(typecode) == "nan" else typecode,
+            "dir": 0 if np.isnan(track) else track,
+        },
+    }
 
 
 def geojson_traffic(traffic: Traffic) -> Dict[str, Any]:
@@ -111,3 +107,10 @@ def geojson_turbulence(pro_data: Optional[Traffic]) -> Dict[str, Any]:
         "geojson": geojson,
     }
     return encapsulated_geojson
+
+
+class BetterJsonEncoder(json.JSONEncoder):
+    def default(self, obj) -> str:
+        if isinstance(obj, pd.Timestamp):
+            return obj.isoformat(timespec='microseconds')
+        return json.JSONEncoder.default(self, obj)

@@ -12,9 +12,11 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from fastapi.concurrency import run_until_first_complete
 
+from tangram.plugins import rs1090_source
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(filename)s:%(lineno)s - %(message)s')
-log = logging.getLogger('app')
+
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(filename)s:%(lineno)s - %(message)s')
+log = logging.getLogger('tangram')
 
 # broadcast = Broadcast("redis://127.0.0.1:6379")
 broadcast = Broadcast('memory://')
@@ -25,9 +27,41 @@ async def shutdown(*args, **kwargs):
     log.info('%s\n\n\n\n', '=' * 40)
 
 
-app = FastAPI(on_startup=[broadcast.connect], on_shutdown=[broadcast.disconnect, shutdown])
-app.mount('/static', StaticFiles(directory='static'), name='static')
+async def start_publish_job(*args, **kwargs):
+    log.info('<PR> start task')
+    await rs1090_source.publish_runner.start_task()
+    log.info('<PR> task created: %s', rs1090_source.publish_runner.task)
+
+
+async def shutdown_publish_job() -> None:
+    log.info('shuting down publish runner task: %s', rs1090_source.publish_runner.task)
+    if rs1090_source.publish_runner.task is None:
+        log.warning('publish runner task is None')
+        return
+
+    if rs1090_source.publish_runner.task.done():
+        rs1090_source.publish_runner.task.result()
+    else:
+        rs1090_source.publish_runner.task.cancel()
+    log.info('shutdown - publish job done')
+
+
 templates = Jinja2Templates(directory='templates')
+app = FastAPI(
+    on_startup=[
+        broadcast.connect,
+        start_publish_job,
+        # rs1090_source.start_publish_job,
+    ],
+    on_shutdown=[
+        broadcast.disconnect, 
+        shutdown_publish_job,
+        # rs1090_source.shutdown_publish_job, 
+        shutdown,
+    ],
+)
+app.mount('/static', StaticFiles(directory='static'), name='static')
+app.mount('/plugins/rs1090', rs1090_source.rs1090_app)
 
 start_time = datetime.now()
 
@@ -139,10 +173,10 @@ async def websocket_sender(websocket: WebSocket, client_id: str):
     async with broadcast.subscribe(client_id) as subscriber:
         log.info('[%s] > new subscriber created, %s', client_id, subscriber)
         async for event in subscriber:
-            log.info('ev: %s', event)
+            # log.info('ev: %s', event)
             message = event.message
             await websocket.send_text(json.dumps(message))
-            log.info('[%s] > message sent: %s', client_id, message)
+            # log.debug('[%s] > message sent: %s', client_id, message)
     log.info('[%s] sending task is done', client_id)
 
 
@@ -170,7 +204,7 @@ class Greeting(BaseModel):
 
 @app.post('/admin/publish')
 async def post(greeting: Greeting):
-    log.info('%s', greeting)
+    # log.info('%s', greeting)
 
     message = [None, None, greeting.channel, greeting.event, json.loads(greeting.message)]
     for client_id in hub.channel_clients().get(greeting.channel, []):
