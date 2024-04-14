@@ -2,10 +2,8 @@ version: 1
 disable_existing_loggers: False
 formatters:
   default:
-    # "()": uvicorn.logging.DefaultFormatter
     format: '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s'
   access:
-    # "()": uvicorn.logging.AccessFormatter
     format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 handlers:
   default:
@@ -33,7 +31,7 @@ loggers:
       - default
     propagate: no
 root:
-  level: DEBUG
+  level: INFO
   handlers:
     - default
   propagate: no

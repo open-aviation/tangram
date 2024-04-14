@@ -101,9 +101,7 @@ class Rs1090Data:
         self.publish_url: str = publish_url
 
     async def forward_from_http(self, source_fn, params=None):
-        log.info('<RS> forward')
         source_data = await source_fn(**params)
-
         try:
             log.info('<RS> publish at %s ...', self.publish_url)
             await publish(self.publish_url, 'channel:streaming', 'new-data', source_data)

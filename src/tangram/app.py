@@ -204,8 +204,6 @@ class Greeting(BaseModel):
 
 @app.post('/admin/publish')
 async def post(greeting: Greeting):
-    # log.info('%s', greeting)
-
     message = [None, None, greeting.channel, greeting.event, json.loads(greeting.message)]
     for client_id in hub.channel_clients().get(greeting.channel, []):
         await broadcast.publish(channel=client_id, message=message)
