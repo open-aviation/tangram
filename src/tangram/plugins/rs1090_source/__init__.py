@@ -198,12 +198,12 @@ async def publish_job_health():
 
 @rs1090_app.get('/all')
 async def list_all():
-    return all(BASE_URL + '/all')
+    return await all(BASE_URL + '/all')
 
 
 @rs1090_app.get('/track/icao24/{identifier}')
-def list_5min_tracks(identifier: str):
-    return icao24_track(BASE_URL + '/track', identifier)
+async def list_5min_tracks(identifier: str):
+    return await icao24_track(BASE_URL + '/track', identifier)
 
 
 if __name__ == '__main__':
