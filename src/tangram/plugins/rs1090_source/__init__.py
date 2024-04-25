@@ -14,7 +14,7 @@ dotenv.load_dotenv()
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(lineno)s - %(message)s')
 log = logging.getLogger(__name__)
 
-BASE_URL = os.environ.get('RS1090_SOURCE_BASE_URL', 'http://127.0.0.1:8008')
+BASE_URL = os.environ.get('RS1090_SOURCE_BASE_URL', 'http://51.158.72.24:8080')
 DEBUG = os.environ.get('RS1090_SOURCE_DEBUG')
 
 # TODO add models for data endpoints

@@ -46,7 +46,7 @@ function whenClicked(e) {
       : e.target.feature.properties.callsign;
   var typecode =
     e.target.feature.properties.typecode === undefined
-      ? e.target.feature.geometry.properties.typecode
+      ? ''
       : e.target.feature.properties.typecode;
   selected = icao;
   $("#" + icao).toggleClass("aircraft_img", false);
@@ -317,15 +317,43 @@ function getPlanes(und = "", history = 0, icao24 = "", callsign = "") {
   url = url + "?" + searchParams;
 
   $.getJSON(url, function (data) {
-    var avion = document.getElementById("plane_count");
-    avion.innerHTML = data.count;
-
-    planes.clearLayers();
-    L.geoJson(data.geojson, {
-      onEachFeature: onEachPlane,
-      pointToLayer: createCustomIcon,
-    }).addTo(planes);
+    
   });
+}
+
+function planeInfo(data) {
+  var avion = document.getElementById("plane_count");
+  avion.innerHTML = data.count;
+
+  planes.clearLayers();
+  let arr = data.map(item => {
+    let obj = {
+      type: "Feature",
+      "properties": {
+        ...item,
+        dir: item.heading,
+        icao: item.icao24
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": 
+            [
+                item.latitude,
+                item.longitude
+            ]
+    } }
+    return obj
+  })
+  console.log(arr)
+  var geojson = { 
+    "name": "interseccao_circulo",
+    "type": "FeatureCollection",
+    "features": arr 
+} 
+  L.geoJson(geojson, {
+    onEachFeature: onEachPlane,
+    pointToLayer: createCustomIcon,
+  }).addTo(planes);
 }
 function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
   url = "turb.geojson";

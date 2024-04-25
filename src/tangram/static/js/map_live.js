@@ -9,6 +9,8 @@ var options = {
   opacity: 0.5,
 };
 
+console.log('init----------------------------------')
+
 var hexLayer = L.hexbinLayer(options);
 var baselayer = L.tileLayer(
   "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
@@ -68,11 +70,47 @@ var overlays = {
   Planes: planes,
   hexbins: hexLayer,
 };
+
+// init socket
+
+console.log('channel script');
+const {Socket, Presence, Channel} = Phoenix;
+const debug = false;
+const userToken = 'joining-token';
+let socket = new Socket("", {debug, params: {userToken}})
+socket.connect();
+
+let systemChannel = 'channel:streaming';
+const systemChannelToken = 'channel-token';
+let channel = socket.channel(systemChannel, {token: systemChannelToken})
+console.dir(channel);
+
+channel.on("new-traffic", data => {
+    console.log(`(${systemChannel}/traffic)>`, data);
+});
+
+channel.on("new-turb", data => {
+    console.log(`(${systemChannel}/turb)>`, data);
+});
+
+channel.on('new-data', data => {
+
+  window.Data = data
+  planeInfo(data)
+});
+
+channel.join()
+    .receive("ok", ({messages}) => {
+    console.log(`(${systemChannel}) joined`, messages);
+    })
+    .receive("error", ({reason}) => console.log(`failed to join ${systemChannel}`, reason) )
+    .receive("timeout", () => console.log(`timeout joining ${systemChannel}`))
+
 getCat();
 getSigmet();
 getAirep();
 getPlanes();
-getTurbulence();
+// getTurbulence();
 setInterval(function () {
   getSigmet();
   getAirep();
@@ -80,11 +118,11 @@ setInterval(function () {
 setInterval(function () {
   getCat();
 }, 1000 * 60 * 10); //10 minutes
-setInterval(function () {
-  getPlanes();
-  getTurbulence();
-}, 1000 * 2); //2 secondes
-L.control.scale().addTo(map);
+// setInterval(function () {
+//   getPlanes();
+//   getTurbulence();
+// }, 1000 * 2); //2 secondes
+// L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
 var UptimeSec = document.getElementById("seconds_uptime").textContent;
