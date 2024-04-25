@@ -102,6 +102,7 @@ class Rs1090Data:
 
     async def forward_from_http(self, source_fn, params=None):
         source_data = await source_fn(**params)
+
         try:
             log.info('<RS> publish at %s ...', self.publish_url)
             await publish(self.publish_url, 'channel:streaming', 'new-data', source_data)
@@ -198,12 +199,12 @@ async def publish_job_health():
 
 @rs1090_app.get('/all')
 async def list_all():
-    return await all(BASE_URL + '/all')
+    return all(BASE_URL + '/all')
 
 
 @rs1090_app.get('/track/icao24/{identifier}')
-async def list_5min_tracks(identifier: str):
-    return await icao24_track(BASE_URL + '/track', identifier)
+def list_5min_tracks(identifier: str):
+    return icao24_track(BASE_URL + '/track', identifier)
 
 
 if __name__ == '__main__':
