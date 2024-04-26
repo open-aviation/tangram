@@ -94,8 +94,7 @@ channel.on("new-turb", data => {
 });
 
 channel.on('new-data', data => {
-
-  window.Data = data
+  // window.Data = data
   planeInfo(data)
 });
 

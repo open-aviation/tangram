@@ -54,9 +54,9 @@ app = FastAPI(
         # rs1090_source.start_publish_job,
     ],
     on_shutdown=[
-        broadcast.disconnect, 
+        broadcast.disconnect,
         shutdown_publish_job,
-        # rs1090_source.shutdown_publish_job, 
+        # rs1090_source.shutdown_publish_job,
         shutdown,
     ],
 )
@@ -160,6 +160,19 @@ async def websocket_receiver(websocket: WebSocket, client_id: str):
                 message = [None, None, topic, event, payload]
                 await broadcast.publish(channel=subscriber, message=message)
             continue
+
+        log.info('unkown topic: %s, event: %s, payload: %s', topic, event, payload)
+
+        # TODO: move this into plugin module
+        if topic == 'channel:streaming' and event.startswith('plugin:'):
+            _, plugin_name, plugin_event = event.split(':')
+            log.info('plugin: %s, event: %s', plugin_name, plugin_event)
+            # let's assume `rs1090_plugin` for now
+            if plugin_event in rs1090_source.event_handlers:
+                rs1090_source.event_handlers[plugin_event](payload)
+                log.info('called plugin event handler')
+            else:
+                log.info('event handler not found')
 
         message = [None, None, topic, 'phx_reply', {'status': 'ok', 'response': {}}]
         await broadcast.publish(channel=client_id, message=message)

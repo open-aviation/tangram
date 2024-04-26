@@ -14,6 +14,16 @@ handlers:
     formatter: access
     class: logging.StreamHandler
     stream: ext://sys.stdout
+  httpx_file:
+    formatter: default
+    class: logging.FileHandler
+    filename: /tmp/tg-httpx.log
+    encoding: utf-8
+  rs1090_source_file:
+    formatter: default
+    class: logging.FileHandler
+    filename: /tmp/rs1090.log
+    encoding: utf-8
 loggers:
   uvicorn.error:
     level: INFO
@@ -30,6 +40,15 @@ loggers:
     handlers:
       - default
     propagate: no
+  tangram.plugins.rs1090_source:
+    level: DEBUG
+    handlers:
+      - rs1090_source_file
+    propagate: no
+  httpx:
+    level: INFO
+    handlers:
+      - httpx_file
 root:
   level: INFO
   handlers:

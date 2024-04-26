@@ -317,7 +317,7 @@ function getPlanes(und = "", history = 0, icao24 = "", callsign = "") {
   url = url + "?" + searchParams;
 
   $.getJSON(url, function (data) {
-    
+
   });
 }
 
@@ -326,35 +326,38 @@ function planeInfo(data) {
   avion.innerHTML = data.count;
 
   planes.clearLayers();
-  let arr = data.map(item => {
-    let obj = {
-      type: "Feature",
-      "properties": {
-        ...item,
-        dir: item.heading,
-        icao: item.icao24
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": 
-            [
-                item.latitude,
-                item.longitude
-            ]
-    } }
-    return obj
-  })
-  console.log(arr)
-  var geojson = { 
+
+  let arr = data
+    .filter(item => !(item.longitude === null && item.latitude === null))
+    .map(item => {
+      return {
+        type: "Feature",
+        "properties": {
+          ...item,
+          dir: item.heading,
+          icao: item.icao24
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates":
+              [
+                  item.longitude,
+                  item.latitude
+              ]
+      } }
+    })
+  console.log(arr.length, arr)
+  var geojson = {
     "name": "interseccao_circulo",
     "type": "FeatureCollection",
-    "features": arr 
-} 
+    "features": arr
+}
   L.geoJson(geojson, {
     onEachFeature: onEachPlane,
     pointToLayer: createCustomIcon,
   }).addTo(planes);
 }
+
 function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
   url = "turb.geojson";
   const searchParams = new URLSearchParams({
