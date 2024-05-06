@@ -1,7 +1,8 @@
 import asyncio
+import json
 import logging
 import os
-import json
+from typing import Any
 
 import dotenv
 import httpx
@@ -13,13 +14,14 @@ dotenv.load_dotenv()
 log = logging.getLogger(__name__)
 
 
-BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", 'http://127.0.0.1:8008')
+BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8008")
 DEBUG = os.environ.get("RS1090_SOURCE_DEBUG")
 
 # TODO add models for data endpoints
 
 
-async def all(url):
+# TODO proper type
+async def all(url: str) -> dict[str, Any]:
     """instant position
     sample record for `/all`
     {
@@ -97,7 +99,8 @@ async def publish(url, channel, event, json_data):
     }
 
     async with httpx.AsyncClient() as client:
-        await client.post(url, json=payload)
+        response = await client.post(url, json=payload)
+        response.raise_for_status()
 
 
 # ==== plugin event handler examle
@@ -110,45 +113,51 @@ _events_of_interest = {}
 
 def add_event_filter(payload):
     # TODO model for different event should define by handler
-    log.info('add event filter: %s', payload)
+    log.info("add event filter: %s", payload)
 
-    event_type, event_value = payload.get('key'), payload.get('value')
-    log.info('expect to filter by %s => %s', event_type, event_value)
+    event_type, event_value = payload.get("key"), payload.get("value")
+    log.info("expect to filter by %s => %s", event_type, event_value)
 
     if event_type not in _events_of_interest:
         _events_of_interest[event_type] = set()
     _events_of_interest[event_type].add(event_value)
-    log.info('event filter: %s', _events_of_interest)
+    log.info("event filter: %s", _events_of_interest)
 
 
 def reset_event_filter(payload):
-    log.info('reset event filter: %s', payload)
+    log.info("reset event filter: %s", payload)
     _events_of_interest.clear()
 
 
 event_handlers = {
-    'filter': add_event_filter,
-    'reset-filter': reset_event_filter,
+    "filter": add_event_filter,
+    "reset-filter": reset_event_filter,
 }
 
 
 # ==== plugin data source example
 
-class Rs1090Data:
 
+class Rs1090Data:
     def __init__(self, base_url: str, publish_url: str):
         self.base_url: str = base_url
         self.publish_url: str = publish_url
 
     async def forward_from_http(self, source_fn, params=None):
         source_data = await source_fn(**params)
-        log.info('icao24: %s', [el['icao24'] for el in source_data if 'icao24' in el])
-        if 'filter' in event_handlers and _events_of_interest:
+        log.info("icao24: %s", [el["icao24"] for el in source_data if "icao24" in el])
+        if "filter" in event_handlers and _events_of_interest:
             result_source_data = []
             for key, values in _events_of_interest.items():
-                result_source_data.extend([el for el in source_data if el.get(key) in values])
+                result_source_data.extend(
+                    [el for el in source_data if el.get(key) in values]
+                )
 
-            log.info('source data: %s, filtered source_data: %s', len(source_data), len(result_source_data))
+            log.info(
+                "source data: %s, filtered source_data: %s",
+                len(source_data),
+                len(result_source_data),
+            )
             source_data = result_source_data
 
         try:
@@ -174,8 +183,8 @@ class Rs1090Data:
         return await icao24_track(self.base_url + "/track", identifier)
 
 
-
 #### plugin mounint object (and functions)
+
 
 class PublishRunner:
     def __init__(self):
@@ -189,9 +198,7 @@ class PublishRunner:
         log.debug("<PR> task created")
 
     async def run(self, internal_seconds=3):
-        rs1090_data = Rs1090Data(
-            BASE_URL, "http://127.0.0.1:18000/admin/publish"
-        )
+        rs1090_data = Rs1090Data(BASE_URL, "http://127.0.0.1:18000/admin/publish")
 
         log.info("<PR> start forwarding ...")
         while self.running:
