@@ -5,6 +5,8 @@ formatters:
     format: '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s'
   access:
     format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  tangram:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s'
 handlers:
   default:
     formatter: default
@@ -14,6 +16,11 @@ handlers:
     formatter: access
     class: logging.StreamHandler
     stream: ext://sys.stdout
+  tangram:
+    formatter: tangram
+    class: logging.FileHandler
+    filename: /tmp/tg.log
+    encoding: utf-8
   httpx_file:
     formatter: default
     class: logging.FileHandler
@@ -22,7 +29,7 @@ handlers:
   rs1090_source_file:
     formatter: default
     class: logging.FileHandler
-    filename: /tmp/rs1090.log
+    filename: /tmp/tg-rs1090.log
     encoding: utf-8
 loggers:
   uvicorn.error:
@@ -36,21 +43,25 @@ loggers:
       - access
     propagate: no
   tangram:
-    level: INFO
+    level: DEBUG
+    qualname: tangram
     handlers:
-      - default
+      - tangram
     propagate: no
   tangram.plugins.rs1090_source:
     level: DEBUG
+    qualname: tangram.plugins.rs1090_source
     handlers:
       - rs1090_source_file
     propagate: no
   httpx:
-    level: INFO
+    level: WARNING
+    qualname: httpx
     handlers:
       - httpx_file
+    propagate: no
 root:
-  level: INFO
+  level: WARNING
   handlers:
     - default
   propagate: no

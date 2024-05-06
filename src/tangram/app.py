@@ -34,7 +34,7 @@ async def start_publish_job(*args, **kwargs):
 
 
 async def shutdown_publish_job() -> None:
-    log.info('shuting down publish runner task: %s', rs1090_source.publish_runner.task)
+    log.info('shutting down publish runner task: %s', rs1090_source.publish_runner.task)
     if rs1090_source.publish_runner.task is None:
         log.warning('publish runner task is None')
         return
@@ -95,10 +95,10 @@ async def fetch_planes_geojson() -> Dict[str, Any]:
 class Hub:
 
     def __init__(self) -> None:
-        self._channel_clients: dict[str, set[str]] = {}
+        self._channel_clients: dict[str, set[str]] = {}  # channel -> {clients}
 
     def join(self, client_id: str, channel: str):
-        if client_id not in self._channel_clients:
+        if channel not in self._channel_clients:
             self._channel_clients[channel] = set()
         self._channel_clients[channel].add(client_id)
 
@@ -122,10 +122,10 @@ async def websocket_receiver(websocket: WebSocket, client_id: str):
 
         [join_ref, ref, topic, event, payload] = json.loads(text)
         if topic == 'phoenix' and event == 'heartbeat':
-            log.debug('[%s] - heartbeat', client_id)
+            log.debug('[%s] - receive heartbeat from client', client_id)
             message: List = [join_ref, ref, topic, 'phx_reply', {'status': 'ok', 'response': {}}]
             await broadcast.publish(channel=client_id, message=message)
-            log.info('[%s] - heartbeat piped: %s [%s]', client_id, type(message), message)
+            log.debug('[%s] - heartbeat piped: %s [%s]', client_id, type(message), message)
             continue
 
         if event == 'phx_join':
@@ -133,16 +133,16 @@ async def websocket_receiver(websocket: WebSocket, client_id: str):
 
             hub.join(client_id, topic)
 
-            message = [join_ref, ref, topic, 'phx_reply', {'status': 'ok', 'response': {}}]
+            message = [join_ref, ref, topic, 'phx_reply', {'status': 'ok', 'response': {'client_id': client_id}}]
             await broadcast.publish(client_id, message)
 
-            log.info('[%s] - piped: %s [%s]', client_id, type(message), message)
+            log.debug('[%s] - %s response piped: %s [%s]', client_id, event, type(message), message)
             continue
 
         if event == 'phx_leave':
             message = [join_ref, ref, topic, 'phx_reply', {'status': 'ok', 'response': {}}]
             await broadcast.publish(channel=client_id, message=message)
-            log.info('[%s] - leave %s', client_id, topic)
+            log.info('[%s] - %s response piped %s', client_id, event, topic)
             continue
 
         # TODO allowing all for now
@@ -161,12 +161,13 @@ async def websocket_receiver(websocket: WebSocket, client_id: str):
                 await broadcast.publish(channel=subscriber, message=message)
             continue
 
-        log.info('unkown topic: %s, event: %s, payload: %s', topic, event, payload)
+        log.info('unknown topic: %s, event: %s, payload: %s', topic, event, payload)
 
         # TODO: move this into plugin module
         if topic == 'channel:streaming' and event.startswith('plugin:'):
             _, plugin_name, plugin_event = event.split(':')
             log.info('plugin: %s, event: %s', plugin_name, plugin_event)
+
             # let's assume `rs1090_plugin` for now
             if plugin_event in rs1090_source.event_handlers:
                 rs1090_source.event_handlers[plugin_event](payload)
@@ -217,10 +218,11 @@ class Greeting(BaseModel):
 
 @app.post('/admin/publish')
 async def post(greeting: Greeting):
+    log.info('channel: %s', greeting.channel)
     message = [None, None, greeting.channel, greeting.event, json.loads(greeting.message)]
     for client_id in hub.channel_clients().get(greeting.channel, []):
         await broadcast.publish(channel=client_id, message=message)
-        log.debug('sent to %s', client_id)
+        log.info('publish to %s', client_id)
 
 
 @app.get('/admin/channel-clients')
