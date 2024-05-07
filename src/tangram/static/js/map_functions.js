@@ -46,7 +46,7 @@ function whenClicked(e) {
       : e.target.feature.properties.callsign;
   var typecode =
     e.target.feature.properties.typecode === undefined
-      ? ''
+      ? ""
       : e.target.feature.properties.typecode;
   selected = icao;
   $("#" + icao).toggleClass("aircraft_img", false);
@@ -65,11 +65,15 @@ function onEachPlane(feature, layer) {
     getTrajectory(icao, chart_history);
   }
   var popupContent =
-    "<p>ICAO: " +
+    "<p>icao24: <code>" +
     icao +
-    "<br>Callsign: " +
+    "</code><br>callsign: <code>" +
     feature.properties.callsign +
-    "</p>";
+    "</code><br>tail #: <code>" +
+    feature.properties.tail +
+    "</code><br>altitude:<code>" +
+    feature.properties.altitude +
+    "</code></p>";
 
   layer.bindPopup(popupContent);
   layer.on({
@@ -94,9 +98,9 @@ function onEachTurb(feature, layer) {
 
 function onEachAirep(feature, layer) {
   var popupContent =
-    "<p>Callsign: " +
+    "<p>callsign: " +
     feature.properties.callsign +
-    "<br>ICAO: " +
+    "<br>icao24: " +
     feature.properties.icao24 +
     "<br>Typecode: " +
     feature.properties.typecode +
@@ -316,9 +320,7 @@ function getPlanes(und = "", history = 0, icao24 = "", callsign = "") {
   });
   url = url + "?" + searchParams;
 
-  $.getJSON(url, function (data) {
-
-  });
+  $.getJSON(url, function (data) {});
 }
 
 function planeInfo(data) {
@@ -328,30 +330,29 @@ function planeInfo(data) {
   planes.clearLayers();
 
   let arr = data
-    .filter(item => !(item.longitude === null && item.latitude === null))
-    .map(item => {
+    .filter((item) => !(item.longitude === null && item.latitude === null))
+    .map((item) => {
       return {
         type: "Feature",
-        "properties": {
+        properties: {
           ...item,
           dir: item.heading,
-          icao: item.icao24
+          icao: item.icao24,
+          altitude: item.altitude,
+          tail: item.registration,
         },
-        "geometry": {
-          "type": "Point",
-          "coordinates":
-              [
-                  item.longitude,
-                  item.latitude
-              ]
-      } }
-    })
-  console.log(arr.length, arr)
+        geometry: {
+          type: "Point",
+          coordinates: [item.longitude, item.latitude],
+        },
+      };
+    });
+  console.log(arr.length, arr);
   var geojson = {
-    "name": "interseccao_circulo",
-    "type": "FeatureCollection",
-    "features": arr
-}
+    name: "interseccao_circulo",
+    type: "FeatureCollection",
+    features: arr,
+  };
   L.geoJson(geojson, {
     onEachFeature: onEachPlane,
     pointToLayer: createCustomIcon,

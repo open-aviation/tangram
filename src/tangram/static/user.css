@@ -157,6 +157,9 @@ a.flag:hover::after {
 .leaflet-sidebar.collapsed {
   width: 40px;
 }
+.leaflet-pane.leaflet-popup-pane {
+  font-family: "B612", monospace;
+}
 
 /* @media (min-width: 768px) {
   .leaflet-sidebar {
@@ -237,7 +240,7 @@ a.flag:hover::after {
   height: 40px;
   color: #333;
   font-size: 12pt;
-  font-family: "B612", sans-serif;
+  font-family: "B612", monospace;
   overflow: hidden;
   transition: all 80ms;
 }
