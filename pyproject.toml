@@ -13,6 +13,7 @@ license = "MIT"
 turbulence = 'tangram.__main__:main'
 decoder = 'tangram.scripts.decoder:main'
 aggregator = 'tangram.scripts.aggregator:main'
+tgcli = 'tangram.scripts.tgcli:main'
 
 [tool.poetry.dependencies]
 python = ">=3.8,<=3.12"

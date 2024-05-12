@@ -13,12 +13,13 @@ from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 
 from tangram.plugins import rs1090_source
+from tangram import websocket as tangram_websocket
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(filename)s:%(lineno)s - %(message)s')
 log = logging.getLogger("tangram")
 
 # broadcast = Broadcast("redis://127.0.0.1:6379")
-broadcast = Broadcast("memory://")
+# broadcast = Broadcast("memory://")
 
 
 async def shutdown(*args: Any, **kwargs: Any) -> None:
@@ -48,12 +49,12 @@ async def shutdown_publish_job() -> None:
 templates = Jinja2Templates(directory="templates")
 app = FastAPI(
     on_startup=[
-        broadcast.connect,
+        tangram_websocket.broadcast.connect,
         start_publish_job,
         # rs1090_source.start_publish_job,
     ],
     on_shutdown=[
-        broadcast.disconnect,
+        tangram_websocket.broadcast.disconnect,
         shutdown_publish_job,
         # rs1090_source.shutdown_publish_job,
         shutdown,
@@ -98,136 +99,6 @@ async def fetch_planes_geojson() -> Dict[str, Any]:
     return {}
 
 
-class Hub:
-    def __init__(self) -> None:
-        self._channel_clients: dict[str, set[str]] = {}  # channel -> {clients}
-
-    def join(self, client_id: str, channel: str) -> None:
-        if channel not in self._channel_clients:
-            self._channel_clients[channel] = set()
-        self._channel_clients[channel].add(client_id)
-
-    def channel_clients(self) -> dict[str, set[str]]:
-        return self._channel_clients
-
-    def channels(self) -> List[str]:
-        return list(self.channel_clients().keys())
-
-    def clients(self) -> List[str]:
-        return list(broadcast._subscribers.keys())
-
-
-hub = Hub()
-
-
-async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
-    log.info("[%s] - receive task", client_id)
-    async for text in websocket.iter_text():
-        log.debug("[%s] < %s [%s]", client_id, type(text), text)
-
-        [join_ref, ref, topic, event, payload] = json.loads(text)
-        if topic == "phoenix" and event == "heartbeat":
-            log.debug("[%s] - receive heartbeat from client", client_id)
-            message: list[Any] = [
-                join_ref,
-                ref,
-                topic,
-                "phx_reply",
-                {"status": "ok", "response": {}},
-            ]
-            await broadcast.publish(channel=client_id, message=message)
-            log.debug(
-                "[%s] - heartbeat piped: %s [%s]", client_id, type(message), message
-            )
-            continue
-
-        if event == "phx_join":
-            log.info("[%s] - want to join %s", client_id, topic)
-
-            hub.join(client_id, topic)
-
-            message = [
-                join_ref,
-                ref,
-                topic,
-                "phx_reply",
-                {"status": "ok", "response": {"client_id": client_id}},
-            ]
-            await broadcast.publish(client_id, message)
-
-            log.debug(
-                "[%s] - %s response piped: %s [%s]",
-                client_id,
-                event,
-                type(message),
-                message,
-            )
-            continue
-
-        if event == "phx_leave":
-            message = [
-                join_ref,
-                ref,
-                topic,
-                "phx_reply",
-                {"status": "ok", "response": {}},
-            ]
-            await broadcast.publish(channel=client_id, message=message)
-            log.info("[%s] - %s response piped %s", client_id, event, topic)
-            continue
-
-        # TODO allowing all for now
-        if topic in ["channel:system", "channel:streaming"] and event in [
-            "new-traffic",
-            "new-turb",
-        ]:
-            log.debug("[%s] - system broadcast", client_id)
-
-            # response
-            message = [None, ref, topic, "phx_reply", {"status": "ok", "response": {}}]
-            await broadcast.publish(channel=client_id, message=message)
-
-            # broadcast
-            for subscriber in hub.clients():
-                if subscriber == client_id:
-                    continue
-                message = [None, None, topic, event, payload]
-                await broadcast.publish(channel=subscriber, message=message)
-            continue
-
-        log.info("unknown topic: %s, event: %s, payload: %s", topic, event, payload)
-
-        # TODO: move this into plugin module
-        if topic == "channel:streaming" and event.startswith("plugin:"):
-            _, plugin_name, plugin_event = event.split(":")
-            log.info("plugin: %s, event: %s", plugin_name, plugin_event)
-
-            # let's assume `rs1090_plugin` for now
-            if plugin_event in rs1090_source.event_handlers:
-                rs1090_source.event_handlers[plugin_event](payload)
-                log.info("called plugin event handler")
-            else:
-                log.info("event handler not found")
-
-        message = [None, None, topic, "phx_reply", {"status": "ok", "response": {}}]
-        await broadcast.publish(channel=client_id, message=message)
-
-    # TODO cleanup
-    log.debug("[%s] done")
-
-
-async def websocket_sender(websocket: WebSocket, client_id: str) -> None:
-    log.info("[%s] > send task", client_id)
-    async with broadcast.subscribe(client_id) as subscriber:
-        log.info("[%s] > new subscriber created, %s", client_id, subscriber)
-        async for event in subscriber:
-            # log.info('ev: %s', event)
-            message = event.message
-            await websocket.send_text(json.dumps(message))
-            # log.debug('[%s] > message sent: %s', client_id, message)
-    log.info("[%s] sending task is done", client_id)
-
-
 @app.websocket("/websocket")
 async def websocket_handler(ws: WebSocket) -> None:
     await ws.accept()
@@ -236,47 +107,29 @@ async def websocket_handler(ws: WebSocket) -> None:
     client_id: str = str(uuid.uuid4())
     log.info("connected, ws: %s, client: %s", ws, client_id)
 
-    await run_until_first_complete(
-        (websocket_receiver, {"websocket": ws, "client_id": client_id}),
-        (websocket_sender, {"websocket": ws, "client_id": client_id}),
+    await run_until_first_complete(  # TODO interface deprecated
+        (tangram_websocket.websocket_receiver, {"websocket": ws, "client_id": client_id}),
+        (tangram_websocket.websocket_sender, {"websocket": ws, "client_id": client_id}),
     )
     log.info("connection done, ws: %s, client: %s", ws, client_id)
     log.info("%s\n", "+" * 20)
 
 
-class Greeting(BaseModel):
-    channel: str
-    event: str = "new-data"
-    message: str | None = None
-
-
 @app.post("/admin/publish")
-async def post(greeting: Greeting) -> None:
-    log.info("channel: %s", greeting.channel)
-    if greeting.message is None:
-        return
-    message = [
-        None,
-        None,
-        greeting.channel,
-        greeting.event,
-        json.loads(greeting.message),
-    ]
-    for client_id in hub.channel_clients().get(greeting.channel, []):
-        await broadcast.publish(channel=client_id, message=message)
-        log.info("publish to %s", client_id)
+async def post(greeting: tangram_websocket.Greeting) -> None:
+    await tangram_websocket.publish(greeting)
 
 
 @app.get("/admin/channel-clients")
 async def get_map() -> dict[str, set[str]]:
-    return hub.channel_clients()
+    return tangram_websocket.hub.channel_clients()
 
 
 @app.get("/admin/channels")
 async def list_channels() -> list[str]:
-    return hub.channels()
+    return tangram_websocket.hub.channels()
 
 
 @app.get("/admin/clients")
 async def clients() -> list[str]:
-    return hub.clients()
+    return tangram_websocket.hub.clients()
