@@ -14,7 +14,7 @@ run cli: (build-image cli)
 
 
 run-dev cli:
-  @{{container-cli}} run -it --rm --name tg-dev -p 18000:18000 \
+  @{{cli}} run -it --rm --name tg-dev -p 18000:18000 \
     -v ./.env:/home/user/tangram/.env \
     -v ./src:/home/user/tangram/src \
     tangram:0.1 \
