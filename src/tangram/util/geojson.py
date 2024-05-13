@@ -2,7 +2,6 @@ import json
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from traffic.core import Traffic
 
 import numpy as np
 
@@ -27,7 +26,7 @@ def geojson_flight(stv) -> Optional[Dict[str, Any]]:
     }
 
 
-def geojson_traffic(traffic: Traffic) -> Dict[str, Any]:
+def geojson_traffic(traffic: "Traffic") -> Dict[str, Any]:
     features: List[Optional[Dict[str, Any]]] = []
     if traffic is not None:
         fields = ["icao24", "callsign", "track", "latitude", "longitude", "typecode"]
@@ -54,10 +53,10 @@ def geojson_traffic(traffic: Traffic) -> Dict[str, Any]:
     # return encapsulated_geojson
 
 
-def geojson_turbulence(pro_data: Optional[Traffic]) -> Dict[str, Any]:
+def geojson_turbulence(pro_data: Optional["Traffic"]) -> Dict[str, Any]:
     features = []
     if pro_data is not None:
-        turb: Optional[Traffic] = pro_data.query("turbulence")
+        turb: Optional["Traffic"] = pro_data.query("turbulence")
         if turb is not None:
             for flight in turb:
                 icao24 = flight.icao24

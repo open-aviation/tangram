@@ -16,24 +16,8 @@ aggregator = 'tangram.scripts.aggregator:main'
 tgcli = 'tangram.scripts.tgcli:main'
 
 [tool.poetry.dependencies]
-python = ">=3.8,<=3.12"
-
-traffic = "^2.8.0"
-# traffic = { path = "../traffic", extras = ["web"], develop = true}
-
+python = ">=3.9,<3.13"
 appdirs = "^1.4.4"
-Flask = "^2.0.2"
-Flask-Assets = "^2.0"
-
-# atmlab = { path = "../atmlab", develop = true }
-# atmlab = ">=0.1.0"
-
-waitress = "^2.0.0"
-click = "^8.0.3"
-Flask-WTF = "^1.0.0"
-Flask-Cors = "^3.0.10"
-pymongo = ">=3.12,<4"
-Flask-PyMongo = "^2.3.0"
 fastapi = "^0.110.1"
 uvicorn = "^0.29.0"
 broadcaster = "^0.2.0"
@@ -42,38 +26,22 @@ requests = "^2.31.0"
 python-dotenv = "^1.0.1"
 pyyaml = "^6.0.1"
 httpx = "^0.27.0"
+pandas = "^2.2.2"
+jinja2 = "^3.1.4"
+eval-type-backport = { version="^0.2.0", python="<=3.9" }
 
 [tool.poetry.group.dev.dependencies]
 mypy = ">=0.950"
-black = ">=21.6"
-isort = "^5.10.1"
-flake8 = "^4.0.1"
-types-requests = "^2.28.11.14"
-types-waitress = "^2.1.4.5"
+#black = ">=21.6"
+#isort = "^5.10.1"
+#flake8 = "^4.0.1"
+#types-requests = "^2.28.11.14"
+#types-waitress = "^2.1.4.5"
+ruff = "^0.4.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.black]
-line-length = 80
-target_version = ['py37', 'py38', 'py39']
-include = '\.pyi?$'
-exclude = '''
-/(
-    __pycache__
-  | \.git
-  | \.mypy_cache
-  | \.ipynb_checkpoints
-  | build
-  | dist
-)/
-'''
-
-[tool.isort]
-line_length = 80
-profile = "black"
-known_first_party = ["numpy", "pandas", "pyproj", "shapely"]
 
 [tool.mypy]
 python_version = 3.7
