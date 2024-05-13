@@ -2,9 +2,25 @@
 
 Tangram is an open framework that aggregates Mode S data feed for detecting turbulence.
 
+## Quick start
+
+Install [just](https://github.com/casey/just) if it's not there yet.
+
+With `docker` (or `podman`) you can:
+
+- for `docker`: `just run`
+- or for `podman`: `just run container-cli=podman`
+
+and visit `http://localhost:18000` locally in your browser.
+
 ## Install & Run it
 
 - prerequisite: `poetry`
+- you may need to install system library:
+
+  - `libgeos-dev` for Ubuntu/Debian (`sudo apt install -y libgeos-dev`)
+  - `geos` for Arch Linux or NixOS
+
 - install python dependencies: `poestry install`
 
 - run it:
