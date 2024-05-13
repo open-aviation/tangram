@@ -1,25 +1,18 @@
-import json
 import logging
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from broadcaster import Broadcast
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.concurrency import run_until_first_complete
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 
-from tangram.plugins import rs1090_source
 from tangram import websocket as tangram_websocket
+from tangram.plugins import rs1090_source
 
-# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(filename)s:%(lineno)s - %(message)s')
 log = logging.getLogger("tangram")
-
-# broadcast = Broadcast("redis://127.0.0.1:6379")
-# broadcast = Broadcast("memory://")
 
 
 async def shutdown(*args: Any, **kwargs: Any) -> None:
@@ -106,11 +99,7 @@ async def websocket_handler(ws: WebSocket) -> None:
 
     client_id: str = str(uuid.uuid4())
     log.info("connected, ws: %s, client: %s", ws, client_id)
-
-    await run_until_first_complete(  # TODO interface deprecated
-        (tangram_websocket.websocket_receiver, {"websocket": ws, "client_id": client_id}),
-        (tangram_websocket.websocket_sender, {"websocket": ws, "client_id": client_id}),
-    )
+    await tangram_websocket.handle_websocket_client(client_id, ws)
     log.info("connection done, ws: %s, client: %s", ws, client_id)
     log.info("%s\n", "+" * 20)
 

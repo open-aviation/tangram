@@ -5,6 +5,7 @@ from typing import Any, List
 from broadcaster import Broadcast
 from fastapi import WebSocket
 from pydantic import BaseModel
+from starlette.concurrency import run_until_first_complete
 
 from tangram.plugins import rs1090_source
 
@@ -37,8 +38,8 @@ hub = Hub()
 
 
 class Message(BaseModel):
-    join_ref: int | None
-    ref: int | None
+    join_ref: str | None
+    ref: str | None
     topic: str
     event: str
     payload: Any  # TODO jsonable, typed by framework
@@ -98,7 +99,7 @@ async def handle_joining(client_id: str, client_message: ClientMessage):
         {"status": "ok", "response": {"client_id": client_id}},
     ]
     await broadcast.publish(client_id, message)
-    log.debug("[%s] - %s response piped: %s [%s]", client_id, client_message.event, type(message), message)
+    log.info("[%s] - %s response piped: %s [%s]", client_id, client_message.event, type(message), message)
 
 
 async def handle_leaving(client_id: str, client_message: ClientMessage):
@@ -110,6 +111,7 @@ async def handle_leaving(client_id: str, client_message: ClientMessage):
         {"status": "ok", "response": {}},
     ]
     await broadcast.publish(channel=client_id, message=message)
+    # cleanup hub
     log.info("[%s] - %s response piped %s", client_id, client_message.event, client_message.topic)
 
 
@@ -203,6 +205,14 @@ async def websocket_sender(websocket: WebSocket, client_id: str) -> None:
             await websocket.send_text(json.dumps(message))
             # log.debug('[%s] > message sent: %s', client_id, message)
     log.info("[%s] sending task is done", client_id)
+
+
+async def handle_websocket_client(client_id: str, ws: WebSocket):
+    # TODO interface deprecated
+    await run_until_first_complete(
+        (websocket_receiver, {"websocket": ws, "client_id": client_id}),
+        (websocket_sender, {"websocket": ws, "client_id": client_id}),
+    )
 
 
 class Greeting(BaseModel):
