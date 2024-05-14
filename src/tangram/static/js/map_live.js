@@ -9,7 +9,7 @@ var options = {
   opacity: 0.5,
 };
 
-console.log('init----------------------------------')
+console.log("init----------------------------------");
 
 var hexLayer = L.hexbinLayer(options);
 var baselayer = L.tileLayer(
@@ -73,50 +73,53 @@ var overlays = {
 
 // init socket
 
-console.log('channel script');
-const {Socket, Presence, Channel} = Phoenix;
+console.log("channel script");
+const { Socket, Presence, Channel } = Phoenix;
 const debug = false;
-const userToken = 'joining-token';
-let socket = new Socket("", {debug, params: {userToken}})
+const userToken = "joining-token";
+let socket = new Socket("", { debug, params: { userToken } });
 socket.connect();
 
-let systemChannel = 'channel:streaming';
-const systemChannelToken = 'channel-token';
-let channel = socket.channel(systemChannel, {token: systemChannelToken})
+let systemChannel = "channel:streaming";
+const systemChannelToken = "channel-token";
+let channel = socket.channel(systemChannel, { token: systemChannelToken });
 console.dir(channel);
 
-channel.on("new-traffic", data => {
-    console.log(`(${systemChannel}/traffic)>`, data);
+channel.on("new-traffic", (data) => {
+  console.log(`(${systemChannel}/traffic)>`, data);
 });
 
-channel.on("new-turb", data => {
-    console.log(`(${systemChannel}/turb)>`, data);
+channel.on("new-turb", (data) => {
+  console.log(`(${systemChannel}/turb)>`, data);
 });
 
-channel.on('new-data', data => {
+channel.on("new-data", (data) => {
   // window.Data = data
-  planeInfo(data)
+  planeInfo(data);
 });
 
-channel.join()
-    .receive("ok", ({messages}) => {
+channel
+  .join()
+  .receive("ok", ({ messages }) => {
     console.log(`(${systemChannel}) joined`, messages);
-    })
-    .receive("error", ({reason}) => console.log(`failed to join ${systemChannel}`, reason) )
-    .receive("timeout", () => console.log(`timeout joining ${systemChannel}`))
+  })
+  .receive("error", ({ reason }) =>
+    console.log(`failed to join ${systemChannel}`, reason)
+  )
+  .receive("timeout", () => console.log(`timeout joining ${systemChannel}`));
 
-getCat();
-getSigmet();
-getAirep();
-getPlanes();
-// getTurbulence();
-setInterval(function () {
-  getSigmet();
-  getAirep();
-}, 1000 * 60 * 5); //5 minutes
-setInterval(function () {
-  getCat();
-}, 1000 * 60 * 10); //10 minutes
+//getCat();
+//getSigmet();
+//getAirep();
+//getPlanes();
+//// getTurbulence();
+//setInterval(function () {
+//  getSigmet();
+//  getAirep();
+//}, 1000 * 60 * 5); //5 minutes
+//setInterval(function () {
+//  getCat();
+//}, 1000 * 60 * 10); //10 minutes
 // setInterval(function () {
 //   getPlanes();
 //   getTurbulence();
@@ -147,15 +150,3 @@ setInterval(function () {
     UptimeSec = data.uptime;
   });
 }, 1000 * 60); //1 minute
-
-// map.on('zoomend', function (feature) {
-//   var currentZoom = map.getZoom();
-//   if (currentZoom < 7) {
-//     feature.marker.setIcon(new L.icon({
-//       iconUrl: "plane.png",
-//       iconSize: [10, 10], // width and height of the image in pixels
-//       iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
-//       popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
-//     }));
-//   }
-// });

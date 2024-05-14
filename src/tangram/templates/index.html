@@ -97,9 +97,9 @@
               </td>
             </tr>
             <tr class="info_label">
-              <td>identifier</td>
+              <td>tail</td>
               <td>
-                <p style="display: inline" id="flight_id"></p>
+                <p style="display: inline" id="tail"></p>
               </td>
             </tr>
             <tr class="info_label">
@@ -160,13 +160,13 @@
   </div>
 </div>
 <script>
-  let form_database = document.getElementById("databasebutton");
-  form_database.addEventListener("click", myfunction);
-  form_database.name = "database_form";
+  //let form_database = document.getElementById("databasebutton");
+  //form_database.addEventListener("click", myfunction);
+  //form_database.name = "database_form";
 
-  let form_threshold = document.getElementById("parambutton");
-  form_threshold.addEventListener("click", myfunction);
-  form_threshold.name = "threshold_form";
+  //let form_threshold = document.getElementById("parambutton");
+  //form_threshold.addEventListener("click", myfunction);
+  //form_threshold.name = "threshold_form";
 
   function myfunction(evt) {
     let x = document.getElementById(evt.currentTarget.name);

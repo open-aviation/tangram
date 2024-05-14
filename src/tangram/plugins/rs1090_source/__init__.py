@@ -198,7 +198,7 @@ class PublishRunner:
         log.debug("<PR> task created")
 
     async def run(self, internal_seconds=3):
-        rs1090_data = Rs1090Data(BASE_URL, "http://127.0.0.1:9160/admin/publish")
+        rs1090_data = Rs1090Data(BASE_URL, "http://127.0.0.1:18000/admin/publish")
 
         log.info("<PR> start forwarding ...")
         while self.running:

@@ -8,10 +8,10 @@ body,
   overflow: hidden;
   width: 100%;
 }
-body {
-  /* height of .navbar, customize with @navbar-height variable */
+/*body {
+  // height of .navbar, customize with @navbar-height variable 
   padding-top: 50px;
-}
+}*/
 .navbar {
   min-height: 50px;
 }

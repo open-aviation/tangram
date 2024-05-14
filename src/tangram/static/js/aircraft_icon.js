@@ -279,6 +279,7 @@ var ac_symbol_map = [
   { id: "A129", sym: "$7" },
   { id: "A139", sym: "$7" },
   { id: "A149", sym: "$7" },
+  { id: "A169", sym: "$7" },
   { id: "A2RT", sym: "$7" },
   { id: "A30", sym: "$4" },
   { id: "A31", sym: "$A320" },

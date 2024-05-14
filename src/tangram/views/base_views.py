@@ -1,7 +1,7 @@
 import json
+import logging
 from datetime import datetime
 from typing import Any, Dict, List
-import logging
 
 import numpy as np
 import pandas as pd
@@ -154,15 +154,10 @@ def fetch_planes_Geojson() -> Dict[str, Any]:
         return geojson_traffic(data)
 
 
-@base_bp.route("/plane.png")
-def favicon() -> Response:
-    return send_from_directory("./static", "plane.png")
-
-
 @base_bp.route("/context/sigmet")
 def fetch_sigmets() -> Any:
-    if not hasattr(current_app, 'sigmet'):
-        log.warning('sigmet is not initialized for the app')
+    if not hasattr(current_app, "sigmet"):
+        log.warning("sigmet is not initialized for the app")
         return {}
 
     wef = request.args.get("wef", default=None, type=int)
@@ -183,8 +178,8 @@ def fetch_sigmets() -> Any:
 
 @base_bp.route("/context/airep")
 def airep_geojson() -> Any:
-    if not hasattr(current_app, 'airep'):
-        log.warning('airep is not initialized for the app')
+    if not hasattr(current_app, "airep"):
+        log.warning("airep is not initialized for the app")
         return {}
 
     wef = request.args.get("wef", default=None, type=int)
@@ -206,8 +201,8 @@ def airep_geojson() -> Any:
 
 @base_bp.route("/context/cat")
 def clear_air_turbulence() -> Any:
-    if not hasattr(current_app, 'cat'):
-        log.warning('cat is not initialized for the app')
+    if not hasattr(current_app, "cat"):
+        log.warning("cat is not initialized for the app")
         return {}
 
     wef = request.args.get("wef", default=None, type=int)
@@ -218,7 +213,7 @@ def clear_air_turbulence() -> Any:
     if und is not None:
         und = und / 1000
         t = pd.Timestamp(und, unit="s", tz="utc")  # noqa: F841
-    log.info('cat: %s', current_app.cat)
+    log.info("cat: %s", current_app.cat)
     res = current_app.cat.metsafe(
         "metgate:cat_mf_arpege01_europe",
         wef=wef,
@@ -259,9 +254,20 @@ def home_page() -> Response:
     form_database = DatabaseForm()
     if form_database.validate_on_submit():
         return redirect(
-            url_for("history.database_request",
-                    min=(str(form_database.startdate.data) + " " + str(form_database.starttime.data)),
-                    max=(str(form_database.enddate.data) + " " + str(form_database.endtime.data))))
+            url_for(
+                "history.database_request",
+                min=(
+                    str(form_database.startdate.data)
+                    + " "
+                    + str(form_database.starttime.data)
+                ),
+                max=(
+                    str(form_database.enddate.data)
+                    + " "
+                    + str(form_database.endtime.data)
+                ),
+            )
+        )
 
     form_threshold = ThresholdForm()
     if form_threshold.validate_on_submit():
@@ -272,8 +278,19 @@ def home_page() -> Response:
         form_threshold.threshold.data = client.get_min_threshold()
         form_threshold.multiplier.data = client.get_multiplier()
     if history:
-        return render_template("index.html", history=1, form_database=form_database, form_threshold=form_threshold)
-    return render_template("index.html", history=0, form_database=form_database, form_threshold=form_threshold, uptime=get_uptime()["uptime"])
+        return render_template(
+            "index.html",
+            history=1,
+            form_database=form_database,
+            form_threshold=form_threshold,
+        )
+    return render_template(
+        "index.html",
+        history=0,
+        form_database=form_database,
+        form_threshold=form_threshold,
+        uptime=get_uptime()["uptime"],
+    )
 
 
 @base_bp.route("/trajectory/<path:icao24>")

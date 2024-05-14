@@ -1,8 +1,9 @@
 var chart_history;
 var selected = null;
-function getFlight_data(icao, callsign, typecode) {
+function getFlight_data(icao, callsign, tail, typecode) {
   document.getElementById("icao").innerHTML = icao;
   document.getElementById("typecode").innerHTML = typecode;
+  document.getElementById("tail").innerHTML = tail;
   var aircraft_id = document.getElementById("aircraft_id");
   aircraft_id.innerHTML = callsign;
   url = "context/flight/" + icao;
@@ -48,6 +49,10 @@ function whenClicked(e) {
     e.target.feature.properties.typecode === undefined
       ? ""
       : e.target.feature.properties.typecode;
+  var tail =
+    e.target.feature.properties.tail === undefined
+      ? ""
+      : e.target.feature.properties.tail;
   selected = icao;
   $("#" + icao).toggleClass("aircraft_img", false);
   $("#" + icao).toggleClass("aircraft_selected", true);
@@ -56,7 +61,7 @@ function whenClicked(e) {
   draw_chart(icao, chart_history);
   document.getElementById("Chart").style.display = "block";
   getTrajectory(icao, (history = chart_history));
-  getFlight_data(icao, callsign, typecode);
+  getFlight_data(icao, callsign, tail, typecode);
   sidebar.open("info_box");
 }
 function onEachPlane(feature, layer) {
@@ -69,7 +74,7 @@ function onEachPlane(feature, layer) {
     icao +
     "</code><br>callsign: <code>" +
     feature.properties.callsign +
-    "</code><br>tail #: <code>" +
+    "</code><br>tail: <code>" +
     feature.properties.tail +
     "</code><br>altitude:<code>" +
     feature.properties.altitude +
