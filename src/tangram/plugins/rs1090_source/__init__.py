@@ -21,7 +21,7 @@ DEBUG = os.environ.get("RS1090_SOURCE_DEBUG")
 
 
 # TODO proper type
-async def all(url: str) -> dict[str, Any]:
+async def all(url: str) -> dict[str, Any] | None:
     """instant position
     sample record for `/all`
     {
@@ -46,15 +46,20 @@ async def all(url: str) -> dict[str, Any]:
     }
     """
     async with httpx.AsyncClient() as aclient:
-        log.debug("requesting %s ...", url)
-        resp = await aclient.get(url)
-        if resp.status_code not in [200]:
-            logging.error(
-                "fail to get `all` from %s, status: %s", url, resp.status_code
-            )
+        try:
+            log.debug("requesting %s ...", url)
+            resp = await aclient.get(url)
+            if resp.status_code not in [200]:
+                logging.error("fail to get `all` from %s, status: %s", url, resp.status_code)
+                return None
+            log.debug('got data from jet1090 service')
+            return resp.json()
+        except httpx.ConnectError:
+            log.error('fail to connection jet1090 service, please check %s', url)
             return None
-    return resp.json()
-
+        except Exception:  # catch all
+            log.exception('fail to get data from jet1090 service')
+            return None
 
 async def icao24_track(url, identifier):
     """ICAO24 5 minutes historical positions
@@ -145,7 +150,14 @@ class Rs1090Data:
 
     async def forward_from_http(self, source_fn, params=None):
         source_data = await source_fn(**params)
-        log.info("icao24: %s", [el["icao24"] for el in source_data if "icao24" in el])
+        if not source_data:
+            log.error('no data loaded from rs1090')
+            return
+        log.info("icao24: %s ... (total: %s)",
+                 ', '.join([el["icao24"] for el in source_data if "icao24" in el][:3]),
+                 len(source_data))
+
+        # hook from client, filter data from the source
         if "filter" in event_handlers and _events_of_interest:
             result_source_data = []
             for key, values in _events_of_interest.items():
