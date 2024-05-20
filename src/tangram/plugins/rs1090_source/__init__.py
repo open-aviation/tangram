@@ -10,11 +10,12 @@ from fastapi import FastAPI
 from tangram.util.geojson import BetterJsonEncoder
 
 dotenv.load_dotenv()
-# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(lineno)s - %(message)s')
 log = logging.getLogger(__name__)
 
 
-BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")
+# reading config from environment varables, TBD: consider a config section
+BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")  # where the jet1090 serves
+PUBLISH_BASE_URL = os.environ.get("RS1090_PUBLISH_BASE_URL", "http://127.0.0.1:18000")  # where the tangram app serves
 DEBUG = os.environ.get("RS1090_SOURCE_DEBUG")
 
 # TODO add models for data endpoints
@@ -210,7 +211,7 @@ class PublishRunner:
         log.debug("<PR> task created")
 
     async def run(self, internal_seconds=3):
-        rs1090_data = Rs1090Data(BASE_URL, "http://127.0.0.1:18000/admin/publish")
+        rs1090_data = Rs1090Data(BASE_URL, f"{PUBLISH_BASE_URL}/admin/publish")
 
         log.info("<PR> start forwarding ...")
         while self.running:
