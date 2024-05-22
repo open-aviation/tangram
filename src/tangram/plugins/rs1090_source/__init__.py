@@ -7,15 +7,15 @@ from typing import Any
 import dotenv
 import httpx
 from fastapi import FastAPI
-from tangram.util.geojson import BetterJsonEncoder
+from tangram import websocket as channels
 
 dotenv.load_dotenv()
 log = logging.getLogger(__name__)
 
 
 # reading config from environment varables, TBD: consider a config section
-BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")  # where the jet1090 serves
-PUBLISH_BASE_URL = os.environ.get("RS1090_PUBLISH_BASE_URL", "http://127.0.0.1:18000")  # where the tangram app serves
+# jet1090 service
+BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")
 DEBUG = os.environ.get("RS1090_SOURCE_DEBUG")
 
 # TODO add models for data endpoints
@@ -51,16 +51,19 @@ async def all(url: str) -> dict[str, Any] | None:
             log.debug("requesting %s ...", url)
             resp = await aclient.get(url)
             if resp.status_code not in [200]:
-                logging.error("fail to get `all` from %s, status: %s", url, resp.status_code)
+                logging.error(
+                    "fail to get `all` from %s, status: %s", url, resp.status_code
+                )
                 return None
-            log.debug('got data from jet1090 service')
+            log.debug("got data from jet1090 service")
             return resp.json()
         except httpx.ConnectError:
-            log.error('fail to connection jet1090 service, please check %s', url)
+            log.error("fail to connection jet1090 service, please check %s", url)
             return None
         except Exception:  # catch all
-            log.exception('fail to get data from jet1090 service')
+            log.exception("fail to get data from jet1090 service")
             return None
+
 
 async def icao24_track(url, identifier):
     """ICAO24 5 minutes historical positions
@@ -95,18 +98,6 @@ async def icao24_track(url, identifier):
             )
             return None
     return resp.json()
-
-
-async def publish(url, channel, event, json_data):
-    payload = {
-        "channel": channel,
-        "event": event,
-        "message": json.dumps(json_data, cls=BetterJsonEncoder),
-    }
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=payload)
-        response.raise_for_status()
 
 
 # ==== plugin event handler examle
@@ -145,18 +136,19 @@ event_handlers = {
 
 
 class Rs1090Data:
-    def __init__(self, base_url: str, publish_url: str):
+    def __init__(self, base_url: str):
         self.base_url: str = base_url
-        self.publish_url: str = publish_url
 
     async def forward_from_http(self, source_fn, params=None):
         source_data = await source_fn(**params)
         if not source_data:
-            log.error('no data loaded from rs1090')
+            log.error("no data loaded from rs1090")
             return
-        log.info("icao24: %s ... (total: %s)",
-                 ', '.join([el["icao24"] for el in source_data if "icao24" in el][:3]),
-                 len(source_data))
+        log.info(
+            "icao24: %s ... (total: %s)",
+            ", ".join([el["icao24"] for el in source_data if "icao24" in el][:3]),
+            len(source_data),
+        )
 
         # hook from client, filter data from the source
         if "filter" in event_handlers and _events_of_interest:
@@ -174,14 +166,8 @@ class Rs1090Data:
             source_data = result_source_data
 
         try:
-            log.info(
-                "<RS> publish at %s (len: %s)...",
-                self.publish_url,
-                len(source_data),
-            )
-            await publish(
-                self.publish_url, "channel:streaming", "new-data", source_data
-            )
+            log.info("publishing (len: %s)...", len(source_data))
+            await channels.publish_any("channel:streaming", "new-data", source_data)
         except Exception:
             # it will fail for the first time for sure
             log.exception("<RS> fail to publish")
@@ -211,7 +197,7 @@ class PublishRunner:
         log.debug("<PR> task created")
 
     async def run(self, internal_seconds=3):
-        rs1090_data = Rs1090Data(BASE_URL, f"{PUBLISH_BASE_URL}/admin/publish")
+        rs1090_data = Rs1090Data(BASE_URL)
 
         log.info("<PR> start forwarding ...")
         while self.running:

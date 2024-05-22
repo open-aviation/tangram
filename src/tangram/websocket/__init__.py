@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_until_first_complete
 
 from tangram.plugins import rs1090_source
+from tangram.util.geojson import BetterJsonEncoder
 
 log = logging.getLogger(__name__)
 
@@ -47,24 +48,26 @@ class Message(BaseModel):
     payload: Any  # TODO jsonable, typed by framework
 
     @classmethod
-    def from_string(cls, text) -> 'Message':
+    def from_string(cls, text) -> "Message":
         [join_ref, ref, topic, event, payload] = json.loads(text)
-        return Message(join_ref=join_ref, ref=ref, topic=topic, event=event, payload=payload)
+        return Message(
+            join_ref=join_ref, ref=ref, topic=topic, event=event, payload=payload
+        )
 
     def to_array(self) -> List[int | str | Any]:
         return [self.join_ref, self.ref, self.topic, self.event, self.payload]
 
 
 def is_heartbeat(message: Message) -> bool:
-    return message.topic == 'phoenix' and message.event == 'heartbeat'
+    return message.topic == "phoenix" and message.event == "heartbeat"
 
 
 def is_joining(message: Message) -> bool:
-    return message.event == 'phx_join'
+    return message.event == "phx_join"
 
 
 def is_leaving(message) -> bool:
-    return message.event == 'phx_leave'
+    return message.event == "phx_leave"
 
 
 class ClientMessage(Message):
@@ -101,7 +104,13 @@ async def handle_joining(client_id: str, client_message: ClientMessage):
         {"status": "ok", "response": {"client_id": client_id}},
     ]
     await broadcast.publish(client_id, message)
-    log.info("[%s] - %s response piped: %s [%s]", client_id, client_message.event, type(message), message)
+    log.info(
+        "[%s] - %s response piped: %s [%s]",
+        client_id,
+        client_message.event,
+        type(message),
+        message,
+    )
 
 
 async def handle_leaving(client_id: str, client_message: ClientMessage):
@@ -114,37 +123,58 @@ async def handle_leaving(client_id: str, client_message: ClientMessage):
     ]
     await broadcast.publish(channel=client_id, message=message)
     # cleanup hub
-    log.info("[%s] - %s response piped %s", client_id, client_message.event, client_message.topic)
+    log.info(
+        "[%s] - %s response piped %s",
+        client_id,
+        client_message.event,
+        client_message.topic,
+    )
 
 
 class BroadcastMessageHandler:
     @classmethod
     def will_handle(cls, message: Message) -> bool:
         # TODO allowing all for now
-        return message.topic in ["channel:system", "channel:streaming"] and message.event in ["new-traffic", "new-turb"]
+        return message.topic in [
+            "channel:system",
+            "channel:streaming",
+        ] and message.event in ["new-traffic", "new-turb"]
 
     @classmethod
     async def process(cls, client_id: str, client_message: Message) -> bool:
         log.debug("[%s] - system broadcast", client_id)
 
         # response
-        message = [None, client_message.ref, client_message.topic, "phx_reply", {"status": "ok", "response": {}}]
+        message = [
+            None,
+            client_message.ref,
+            client_message.topic,
+            "phx_reply",
+            {"status": "ok", "response": {}},
+        ]
         await broadcast.publish(channel=client_id, message=message)
 
         # broadcast
         for subscriber in hub.clients():
             if subscriber == client_id:
                 continue
-            message = [None, None, client_message.topic, client_message.event, client_message.payload]
+            message = [
+                None,
+                None,
+                client_message.topic,
+                client_message.event,
+                client_message.payload,
+            ]
             await broadcast.publish(channel=subscriber, message=message)
         return True
 
 
 class Rs1090MessageHandler:
-
     @classmethod
     def will_handle(cls, message: Message) -> bool:
-        return message.topic == "channel:streaming" and message.event.startswith("plugin:")
+        return message.topic == "channel:streaming" and message.event.startswith(
+            "plugin:"
+        )
 
     @classmethod
     async def process(cls, client_id: str, message: ClientMessage) -> bool:
@@ -191,7 +221,7 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
         for handler in CLIENT_MESSAGE_HANDLERS:
             if handler.will_handle(client_message):
                 if handler.process(client_id, client_message):
-                    log.debug('handler %s handles it', handler.__class__)
+                    log.debug("handler %s handles it", handler.__class__)
                     break
     # TODO cleanup
     log.debug("[%s] done")
@@ -202,10 +232,8 @@ async def websocket_sender(websocket: WebSocket, client_id: str) -> None:
     async with broadcast.subscribe(client_id) as subscriber:
         log.info("[%s] > new subscriber created, %s", client_id, subscriber)
         async for event in subscriber:
-            # log.info('ev: %s', event)
             message = event.message
-            await websocket.send_text(json.dumps(message))
-            # log.debug('[%s] > message sent: %s', client_id, message)
+            await websocket.send_text(json.dumps(message, cls=BetterJsonEncoder))
     log.info("[%s] sending task is done", client_id)
 
 
@@ -217,24 +245,8 @@ async def handle_websocket_client(client_id: str, ws: WebSocket):
     )
 
 
-class Greeting(BaseModel):
-    """Message for Channel publishing"""
-    channel: str
-    event: str = "new-data"
-    message: str | None = None
-
-
-async def publish(greeting: Greeting):
-    log.info("channel: %s", greeting.channel)
-    if greeting.message is None:
-        return
-    message = [
-        None,
-        None,
-        greeting.channel,
-        greeting.event,
-        json.loads(greeting.message),
-    ]
-    for client_id in hub.channel_clients().get(greeting.channel, []):
+async def publish_any(channel: str, event: str, any: Any):
+    message = [None, None, channel, event, any]
+    for client_id in hub.channel_clients().get(channel, []):
         await broadcast.publish(channel=client_id, message=message)
-        log.info("publish to %s", client_id)
+        log.debug("message published to %s", client_id)

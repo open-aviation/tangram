@@ -6,10 +6,11 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict
 
-from fastapi import FastAPI, Request, WebSocket
+from fastapi import FastAPI, Request, WebSocket, status
 from fastapi.concurrency import run_until_first_complete
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 
 from tangram import websocket as tangram_websocket
@@ -57,7 +58,7 @@ app = FastAPI(
     ],
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/plugins/rs1090", rs1090_source.rs1090_app)
+app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
 
 start_time = datetime.now()
 
@@ -107,9 +108,21 @@ async def websocket_handler(ws: WebSocket) -> None:
     log.info("%s\n", "+" * 20)
 
 
+class PublishMessage(BaseModel):
+    """Message for Channel publishing"""
+
+    channel: str
+    event: str = "new-data"
+    message: str | None = None
+
+
 @app.post("/admin/publish")
-async def post(greeting: tangram_websocket.Greeting) -> None:
-    await tangram_websocket.publish(greeting)
+async def channel_publish(message: PublishMessage) -> None:
+    if not message.message:
+        log.error("empty payload, no publish in channels")
+        return status.HTTP_400_BAD_REQUEST
+    await tangram_websocket.publish_any(message.channel, message.event, message.message)
+    return status.HTTP_204_NO_CONTENT
 
 
 @app.get("/admin/channel-clients")

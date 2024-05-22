@@ -30,8 +30,8 @@ def geojson_traffic(traffic: "Traffic") -> Dict[str, Any]:
     features: List[Optional[Dict[str, Any]]] = []
     if traffic is not None:
         fields = ["icao24", "callsign", "track", "latitude", "longitude", "typecode"]
-        state_vectors = (traffic.data
-            .groupby("icao24", as_index=False)[fields]
+        state_vectors = (
+            traffic.data.groupby("icao24", as_index=False)[fields]
             .ffill()
             .groupby("icao24", as_index=False)
             .last()
@@ -109,7 +109,7 @@ def geojson_turbulence(pro_data: Optional["Traffic"]) -> Dict[str, Any]:
 
 
 class BetterJsonEncoder(json.JSONEncoder):
-    def default(self, obj) -> str:
-        if isinstance(obj, pd.Timestamp):
-            return obj.isoformat(timespec='microseconds')
-        return json.JSONEncoder.default(self, obj)
+    def default(self, o) -> str:
+        if isinstance(o, pd.Timestamp):
+            return o.isoformat(timespec="microseconds")
+        return json.JSONEncoder.default(self, o)
