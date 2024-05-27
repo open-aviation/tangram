@@ -9,31 +9,32 @@ var options = {
   opacity: 0.5,
 };
 
-var minAltitude = 3000 // min altitude
-var maxAltitude = 50000 // max altitude
-
-console.log('init----------------------------------')
-
+var minAltitude = 0; // min altitude
+var maxAltitude = 50000; // max altitude
 
 $(".js-range-slider").ionRangeSlider({
   type: "double",
-  min: 3000,
+  min: 0,
   max: 50000,
-  from: 3000,
+  from: 0,
   to: 50000,
-  step: 100,
+  step: 1000,
   grid: false,
   onFinish: function (data) {
-    minAltitude = data.from
-    maxAltitude = data.to
-    if(!window.Data) {
-      return
+    minAltitude = data.from;
+    maxAltitude = data.to;
+    if (!window.Data) {
+      return;
     }
-    var filteredData = window.Data.filter(function(item) {
-      return item.altitude >= minAltitude && item.altitude <= maxAltitude
-    })
-    planeInfo(filteredData)
-}
+    var filteredData = window.Data.filter(function (item) {
+      if (minAltitude === 0) {
+        return item.altitude === undefined || item.altitude <= maxAltitude;
+      } else {
+        return item.altitude >= minAltitude && item.altitude <= maxAltitude;
+      }
+    });
+    planeInfo(filteredData);
+  },
 });
 
 var hexLayer = L.hexbinLayer(options);
@@ -118,13 +119,12 @@ channel.on("new-turb", (data) => {
   console.log(`(${systemChannel}/turb)>`, data);
 });
 
-channel.on('new-data', data => {
-
-  window.Data = data
-  var filteredData = data.filter(function(item) {
-    return item.altitude >= minAltitude && item.altitude <= maxAltitude
-  })
-  planeInfo(filteredData)
+channel.on("new-data", (data) => {
+  window.Data = data;
+  var filteredData = data.filter(function (item) {
+    return item.altitude >= minAltitude && item.altitude <= maxAltitude;
+  });
+  planeInfo(filteredData);
 });
 
 channel
