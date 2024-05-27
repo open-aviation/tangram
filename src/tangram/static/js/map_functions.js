@@ -100,6 +100,41 @@ function onEachTurb(feature, layer) {
     click: whenClicked,
   });
 }
+function planeInfo(data) {
+  var avion = document.getElementById("plane_count");
+  avion.innerHTML = data.count;
+
+  planes.clearLayers();
+
+  let arr = data
+    .filter((item) => !(item.longitude === null && item.latitude === null))
+    .map((item) => {
+      return {
+        type: "Feature",
+        properties: {
+          ...item,
+          dir: item.heading,
+          icao: item.icao24,
+          altitude: item.altitude,
+          tail: item.registration,
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [item.longitude, item.latitude],
+        },
+      };
+    });
+  console.log(arr.length, arr);
+  var geojson = {
+    name: "interseccao_circulo",
+    type: "FeatureCollection",
+    features: arr,
+  };
+  L.geoJson(geojson, {
+    onEachFeature: onEachPlane,
+    pointToLayer: createCustomIcon,
+  }).addTo(planes);
+}
 
 function onEachAirep(feature, layer) {
   var popupContent =
@@ -326,42 +361,6 @@ function getPlanes(und = "", history = 0, icao24 = "", callsign = "") {
   url = url + "?" + searchParams;
 
   $.getJSON(url, function (data) {});
-}
-
-function planeInfo(data) {
-  var avion = document.getElementById("plane_count");
-  avion.innerHTML = data.count;
-
-  planes.clearLayers();
-
-  let arr = data
-    .filter((item) => !(item.longitude === null && item.latitude === null))
-    .map((item) => {
-      return {
-        type: "Feature",
-        properties: {
-          ...item,
-          dir: item.heading,
-          icao: item.icao24,
-          altitude: item.altitude,
-          tail: item.registration,
-        },
-        geometry: {
-          type: "Point",
-          coordinates: [item.longitude, item.latitude],
-        },
-      };
-    });
-  console.log(arr.length, arr);
-  var geojson = {
-    name: "interseccao_circulo",
-    type: "FeatureCollection",
-    features: arr,
-  };
-  L.geoJson(geojson, {
-    onEachFeature: onEachPlane,
-    pointToLayer: createCustomIcon,
-  }).addTo(planes);
 }
 
 function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
