@@ -122,7 +122,11 @@ channel.on("new-turb", (data) => {
 channel.on("new-data", (data) => {
   window.Data = data;
   var filteredData = data.filter(function (item) {
-    return item.altitude >= minAltitude && item.altitude <= maxAltitude;
+    if (minAltitude === 0) {
+      return item.altitude === undefined || item.altitude <= maxAltitude;
+    } else {
+      return item.altitude >= minAltitude && item.altitude <= maxAltitude;
+    }
   });
   planeInfo(filteredData);
 });
