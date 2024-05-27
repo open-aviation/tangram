@@ -120,41 +120,41 @@
     </div>
   </div>
 
-{#  <div class="form" id="database_form" style="display: none">#}
-{#    <form action="" method="POST" name="databaseform">#}
-{#        {{ form_database.csrt_token }}#}
-{#        {{ form_database.startdate.label }}#}
-{#        {{ form_database.startdate(class='datepicker') }}#}
-{#        {{ form_database.starttime(class='timepicker') }}#}
-{#        {{ form_database.hidden_tag() }}#}
-{#        {{ form_database.enddate.label }}#}
-{#        {{ form_database.enddate(class='datetimepicker') }}#}
-{#        {{ form_database.endtime(class='timepicker') }}#}
-{#        {{ form_database.hidden_tag() }}#}
-{#      <input type="submit" value="Submit" />#}
-{#    </form>#}
-{#  </div>#}
-{##}
-{#  <div class="form" id="threshold_form" style="display: none">#}
-{#    <form action="" method="POST" name="f_threshold">#}
-{#        {{ form_threshold.csrt_token }}#}
-{#        {{ form_threshold.threshold.label }}#}
-{#        {{ form_threshold.threshold() }}#}
-{#        {{ form_threshold.hidden_tag() }}#}
-{#        <br />#}
-{#        {{ form_threshold.multiplier.label }}#}
-{#        {{ form_threshold.multiplier() }}#}
-{#        {{ form_threshold.hidden_tag() }}#}
-{#      <input type="submit" value="Submit" />#}
-{#    </form>#}
-{#  </div>#}
+  {# <div class="form" id="database_form" style="display: none">#}
+    {# <form action="" method="POST" name="databaseform">#}
+      {# {{ form_database.csrt_token }}#}
+      {# {{ form_database.startdate.label }}#}
+      {# {{ form_database.startdate(class='datepicker') }}#}
+      {# {{ form_database.starttime(class='timepicker') }}#}
+      {# {{ form_database.hidden_tag() }}#}
+      {# {{ form_database.enddate.label }}#}
+      {# {{ form_database.enddate(class='datetimepicker') }}#}
+      {# {{ form_database.endtime(class='timepicker') }}#}
+      {# {{ form_database.hidden_tag() }}#}
+      {# <input type="submit" value="Submit" />#}
+      {# </form>#}
+    {# </div>#}
+  {##}
+  {# <div class="form" id="threshold_form" style="display: none">#}
+    {# <form action="" method="POST" name="f_threshold">#}
+      {# {{ form_threshold.csrt_token }}#}
+      {# {{ form_threshold.threshold.label }}#}
+      {# {{ form_threshold.threshold() }}#}
+      {# {{ form_threshold.hidden_tag() }}#}
+      {# <br />#}
+      {# {{ form_threshold.multiplier.label }}#}
+      {# {{ form_threshold.multiplier() }}#}
+      {# {{ form_threshold.hidden_tag() }}#}
+      {# <input type="submit" value="Submit" />#}
+      {# </form>#}
+    {# </div>#}
 
   <div id="map">
     {% if history == 1 %}
-        <script type="text/javascript" src="{{ url_for('static', path='/js/map_filter_functions.js') }}"></script>
-        <script type="text/javascript" src="{{ url_for('static', path='/js/map_history.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', path='/js/map_filter_functions.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', path='/js/map_history.js') }}"></script>
     {% else %}
-        <script type="text/javascript" src="{{ url_for('static', path='/js/map_live.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', path='/js/map_live.js') }}"></script>
     {% endif %}
     <div id="Chart" class="leaflet-bar chart-container"></div>
   </div>
