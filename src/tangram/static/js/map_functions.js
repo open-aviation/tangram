@@ -1,12 +1,12 @@
 var chart_history;
 var selected = null;
-function getFlight_data(icao, callsign, tail, typecode) {
-  document.getElementById("icao").innerHTML = icao;
+function getFlight_data(icao24, callsign, tail, typecode) {
+  document.getElementById("icao24").innerHTML = icao24;
   document.getElementById("typecode").innerHTML = typecode;
   document.getElementById("tail").innerHTML = tail;
   var aircraft_id = document.getElementById("aircraft_id");
   aircraft_id.innerHTML = callsign;
-  url = "context/flight/" + icao;
+  url = "context/flight/" + icao24;
   $.getJSON(url, function (data) {
     flight_id = document.getElementById("flight_id");
     departure = document.getElementById("departure");
@@ -37,10 +37,10 @@ function deselect_planes() {
 function whenClicked(e) {
   deselect_planes();
   document.getElementById("Chart").style.display = "block";
-  var icao =
-    e.target.feature.properties.icao === undefined
-      ? e.target.feature.geometry.properties.icao
-      : e.target.feature.properties.icao;
+  var icao24 =
+    e.target.feature.properties.icao24 === undefined
+      ? e.target.feature.geometry.properties.icao24
+      : e.target.feature.properties.icao24;
   var callsign =
     e.target.feature.properties.callsign === undefined
       ? e.target.feature.geometry.properties.callsign
@@ -53,32 +53,31 @@ function whenClicked(e) {
     e.target.feature.properties.tail === undefined
       ? ""
       : e.target.feature.properties.tail;
-  selected = icao;
-  $("#" + icao).toggleClass("aircraft_img", false);
-  $("#" + icao).toggleClass("aircraft_selected", true);
-  $(".turb-" + icao).toggleClass("turb_path", false);
-  $(".turb-" + icao).toggleClass("turb_selected", true);
-  draw_chart(icao, chart_history);
+  selected = icao24;
+  $("#" + icao24).toggleClass("aircraft_img", false);
+  $("#" + icao24).toggleClass("aircraft_selected", true);
+  $(".turb-" + icao24).toggleClass("turb_path", false);
+  $(".turb-" + icao24).toggleClass("turb_selected", true);
+  draw_chart(icao24, chart_history);
   document.getElementById("Chart").style.display = "block";
-  getTrajectory(icao, (history = chart_history));
-  getFlight_data(icao, callsign, tail, typecode);
+  getTrajectory(icao24, (history = chart_history));
+  getFlight_data(icao24, callsign, tail, typecode);
   sidebar.open("info_box");
 }
 function onEachPlane(feature, layer) {
-  let icao = feature.properties.icao;
-  if (icao == selected) {
-    getTrajectory(icao, chart_history);
+  let icao24 = feature.properties.icao24;
+  if (icao24 === selected) {
+    getTrajectory(icao24, chart_history);
   }
   var popupContent =
-    "<p>icao24: <code>" +
-    icao +
-    "</code><br>callsign: <code>" +
+    `<p>icao24: <code>${icao24}</code><br/>` +
+    `callsign: <code>` +
     feature.properties.callsign +
-    "</code><br>tail: <code>" +
+    `</code><br>tail: <code>` +
     feature.properties.tail +
-    "</code><br>altitude:<code>" +
+    `</code><br>altitude:<code>` +
     feature.properties.altitude +
-    "</code></p>";
+    `</code></p>`;
 
   layer.bindPopup(popupContent);
   layer.on({
@@ -111,22 +110,15 @@ function planeInfo(data) {
     .map((item) => {
       return {
         type: "Feature",
-        properties: {
-          ...item,
-          dir: item.heading,
-          icao: item.icao24,
-          altitude: item.altitude,
-          tail: item.registration,
-        },
+        properties: item,
         geometry: {
           type: "Point",
           coordinates: [item.longitude, item.latitude],
         },
       };
     });
-  console.log(arr.length, arr);
   var geojson = {
-    name: "interseccao_circulo",
+    name: "state_vectors",
     type: "FeatureCollection",
     features: arr,
   };
@@ -235,7 +227,7 @@ function createCustomIcon(feature, latlng) {
       "/>";
     var svgplain =
       '<svg id="' +
-      feature.properties.icao +
+      feature.properties.icao24 +
       '"version="1.1" shape-rendering="geometricPrecision" width="32px" height="32px" ' +
       viewBox +
       ' xmlns="http://www.w3.org/2000/svg">' +
@@ -246,7 +238,7 @@ function createCustomIcon(feature, latlng) {
   let myIcon = L.divIcon({
     html: generateSvgString(""),
     className:
-      feature.properties.icao != selected
+      feature.properties.icao24 != selected
         ? "aircraft_img"
         : "aircraft_selected",
     iconSize: [33, 35], // width and height of the image in pixels
@@ -255,7 +247,7 @@ function createCustomIcon(feature, latlng) {
   });
   let marker = L.marker(latlng, {
     icon: myIcon,
-    rotationAngle: (feature.properties.dir + iconProps.rotcorr) % 360,
+    rotationAngle: (feature.properties.track + iconProps.rotcorr) % 360,
   });
   return marker;
 }
@@ -380,7 +372,7 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
     var turb_geojson = L.geoJson(data.geojson, {
       onEachFeature: onEachTurb,
       style: function (feature) {
-        var icao = feature.geometry.properties.icao;
+        var icao24 = feature.geometry.properties.icao24;
         var intensity = feature.geometry.properties.intensity;
         var color = function () {
           return intensity >= 200
@@ -389,10 +381,10 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
             ? "#ff9900"
             : "#0084ff";
         };
-        if (icao == selected) {
-          return { className: "turb_selected turb-" + icao, color: color() };
+        if (icao24 === selected) {
+          return { className: "turb_selected turb-" + icao24, color: color() };
         }
-        return { className: "turb_path turb-" + icao, color: color() };
+        return { className: "turb_path turb-" + icao24, color: color() };
       },
       // function (feature) {
       //   var icao = feature.properties.icao;
@@ -461,8 +453,8 @@ function getTimeString(isLocal) {
 
   return zeit_string;
 }
-function getTrajectory(icao, und = "", history = 0) {
-  url = "trajectory/" + icao;
+function getTrajectory(icao24, und = "", history = 0) {
+  url = "trajectory/" + icao24;
   const searchParams = new URLSearchParams({ history: history, und: und });
   url = url + "?" + searchParams;
   $.getJSON(url, function (data) {
