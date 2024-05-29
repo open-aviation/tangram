@@ -70,14 +70,12 @@ function onEachPlane(feature, layer) {
     getTrajectory(icao24, chart_history);
   }
   var popupContent =
-    `<p>icao24: <code>${icao24}</code><br/>` +
-    `callsign: <code>` +
-    feature.properties.callsign +
-    `</code><br>tail: <code>` +
-    feature.properties.tail +
-    `</code><br>altitude:<code>` +
-    feature.properties.altitude +
-    `</code></p>`;
+    `<p>` +
+    `icao24: <code>${icao24}</code><br/>` +
+    `callsign: <code>${feature.properties.callsign}</code><br/>` +
+    `tail: <code>${feature.properties.tail}</code><br/>` +
+    `altitude: <code>${feature.properties.altitude}</code><br/>` +
+    `</p>`;
 
   layer.bindPopup(popupContent);
   layer.on({
@@ -453,13 +451,11 @@ function getTimeString(isLocal) {
 
   return zeit_string;
 }
-function getTrajectory(icao24, und = "", history = 0) {
+function getTrajectory(icao24) {
   url = "trajectory/" + icao24;
-  const searchParams = new URLSearchParams({ history: history, und: und });
-  url = url + "?" + searchParams;
   $.getJSON(url, function (data) {
     traj.clearLayers();
-    L.geoJson(data.geojson, {
+    L.geoJson(data, {
       color: "black",
     }).addTo(traj);
   });

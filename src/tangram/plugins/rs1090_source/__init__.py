@@ -13,7 +13,7 @@ from tangram import websocket as channels
 dotenv.load_dotenv()
 log = logging.getLogger(__name__)
 
-
+client = httpx.AsyncClient(proxies="socks5://127.0.0.1:1080")
 # reading config from environment varables, TBD: consider a config section
 # jet1090 service
 BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")
@@ -47,26 +47,25 @@ async def all(url: str) -> dict[str, Any] | None:
         "nacp": 9
     }
     """
-    async with httpx.AsyncClient() as aclient:
-        try:
-            log.debug("requesting %s ...", url)
-            resp = await aclient.get(url)
-            if resp.status_code not in [200]:
-                logging.error(
-                    "fail to get `all` from %s, status: %s", url, resp.status_code
-                )
-                return None
-            log.debug("got data from jet1090 service")
-            return resp.json()
-        except httpx.ConnectError:
-            log.error("fail to connection jet1090 service, please check %s", url)
+    try:
+        log.debug("requesting %s ...", url)
+        resp = await client.get(url)
+        if resp.status_code not in [200]:
+            logging.error(
+                "fail to get `all` from %s, status: %s", url, resp.status_code
+            )
             return None
-        except Exception:  # catch all
-            log.exception("fail to get data from jet1090 service")
-            return None
+        log.debug("got data from jet1090 service")
+        return resp.json()  # type: ignore
+    except httpx.ConnectError:
+        log.error("fail to connection jet1090 service, please check %s", url)
+        return None
+    except Exception:  # catch all
+        log.exception("fail to get data from jet1090 service")
+        return None
 
 
-async def icao24_track(url, identifier):
+async def icao24_track(url: str, identifier: str) -> Any:
     """ICAO24 5 minutes historical positions
     sample record for `/track?icao24=010117`
     {
@@ -88,16 +87,15 @@ async def icao24_track(url, identifier):
     }
     """
     params = {"icao24": identifier}
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(url, params=params)
-        if resp.status_code not in [200]:
-            logging.error(
-                "fail to get 5-minutes `track` from %s for %s, status: %s",
-                url,
-                identifier,
-                resp.status_code,
-            )
-            return None
+    resp = await client.get(url, params=params)
+    if resp.status_code not in [200]:
+        logging.error(
+            "fail to get 5-minutes `track` from %s for %s, status: %s",
+            url,
+            identifier,
+            resp.status_code,
+        )
+        return None
     return resp.json()
 
 

@@ -86,6 +86,28 @@ async def home(request: Request, history: int = 0) -> HTMLResponse:
     )
 
 
+@app.get("/trajectory/{icao24}")
+async def trajectory(icao24: str) -> Dict[str, Any]:
+    track = await rs1090_source.icao24_track(rs1090_source.BASE_URL + "/track", icao24)
+    geojson = {
+        "type": "LineString",
+        "coordinates": [
+            (elt["longitude"], elt["latitude"])
+            for elt in track
+            if elt.get("longitude", None)
+        ]
+        if track is not None
+        else [],
+        "properties": {
+            "icao24": icao24,
+            "latest": max(elt["timestamp"] for elt in track)
+            if track is not None
+            else 0,
+        },
+    }
+    return geojson
+
+
 @app.get("/turb.geojson")
 async def turbulence() -> Dict[str, Any]:
     return {}
