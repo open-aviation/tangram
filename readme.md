@@ -34,7 +34,7 @@ cd src/tangram
 poetry run -- uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config=log.yml --reload
 ```
 
-- check your browser at `http://localhost/18000`
+- check your browser at `http://localhost:18000`
 
 ## Nix flake
 
@@ -42,9 +42,19 @@ If you are using `Nix` for development environment, commands are:
 
 ```shell
 cp .env.example .env
+
+# for direnv/nix-direnv users
+cp .envrc.example .env
+direnv allow
+
+# or else, to drop into a new bash shell environment
 nix develop
-cd src/
-uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config=tangram/log.yml --reload
+
+# launch the service by
+just nix run
+
+# or
+# uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config=tangram/log.yml --reload
 ```
 
 ## Troubleshooting
