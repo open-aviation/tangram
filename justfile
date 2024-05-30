@@ -1,7 +1,11 @@
 set dotenv-load := true
 
+_default:
+  just --list
 
-nix-run:
+
+# start the service by nix
+nix run:
   #!/usr/bin/env bash
   pushd src
     uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config=tangram/log.yml --reload
