@@ -27,7 +27,7 @@ and visit `http://localhost:18000` locally in your browser.
 
 ```sh
 cp .env.example .env  # enable the default data source
-# enable direnv if you have, it makes your life easier
+# enable `direnv` if you have, it makes your life easier
 
 # TODO simplify this by a cli
 cd src/tangram
@@ -35,6 +35,17 @@ poetry run -- uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websocket
 ```
 
 - check your browser at `http://localhost/18000`
+
+## Nix flake
+
+If you are using `Nix` for development environment, commands are:
+
+```shell
+cp .env.example .env
+nix develop
+cd src/
+uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config=tangram/log.yml --reload
+```
 
 ## Troubleshooting
 

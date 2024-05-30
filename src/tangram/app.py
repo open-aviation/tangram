@@ -5,6 +5,7 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Any, Dict
+import pathlib
 
 from fastapi import FastAPI, Request, WebSocket, status
 from fastapi.concurrency import run_until_first_complete
@@ -43,7 +44,8 @@ async def shutdown_publish_job() -> None:
     log.info("shutdown - publish job done")
 
 
-templates = Jinja2Templates(directory="templates")
+tangram_module_root = pathlib.Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=tangram_module_root / "templates")
 app = FastAPI(
     on_startup=[
         tangram_websocket.broadcast.connect,
@@ -57,7 +59,8 @@ app = FastAPI(
         shutdown,
     ],
 )
-app.mount("/static", StaticFiles(directory="static"), name="static")
+
+app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
 app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
 
 start_time = datetime.now()

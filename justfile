@@ -1,6 +1,23 @@
 set dotenv-load := true
 
 
+nix-run:
+  #!/usr/bin/env bash
+  pushd src
+    uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config=tangram/log.yml --reload
+  popd
+
+
+# run with poetry
+poetry-run:
+  #!/usr/bin/env bash
+  pushd src/tangram
+    poetry run -- uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config=log.yml --reload
+  popd
+
+
+## podman/docker tasks 
+
 remove-image cli:
   {{cli}} image rm -f tangram:0.1
 
