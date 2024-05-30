@@ -18,7 +18,7 @@
         packages = {
           tg = poetry2nix.mkPoetryApplication {
             projectDir = ./.;
-            preferWheels = false; # set this to true to use premade wheels rather than the source
+            preferWheels = true; # set this to true to use premade wheels rather than the source
             overrides = poetry2nix.defaultPoetryOverrides.extend
               (final: prev: {
                 broadcaster = prev.broadcaster.overridePythonAttrs
