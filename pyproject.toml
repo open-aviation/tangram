@@ -11,9 +11,6 @@ authors = [
 license = "MIT"
 
 [tool.poetry.scripts]
-turbulence = 'tangram.__main__:main'
-decoder = 'tangram.scripts.decoder:main'
-aggregator = 'tangram.scripts.aggregator:main'
 tg = 'tangram.scripts.tg:main'
 
 [tool.poetry.dependencies]
@@ -33,11 +30,6 @@ eval-type-backport = { version="^0.2.0", python="<=3.9" }
 
 [tool.poetry.group.dev.dependencies]
 mypy = ">=0.950"
-#black = ">=21.6"
-#isort = "^5.10.1"
-#flake8 = "^4.0.1"
-#types-requests = "^2.28.11.14"
-#types-waitress = "^2.1.4.5"
 ruff = "^0.4.6"
 
 [build-system]
