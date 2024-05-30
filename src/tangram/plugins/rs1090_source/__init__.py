@@ -13,7 +13,8 @@ from tangram import websocket as channels
 dotenv.load_dotenv()
 log = logging.getLogger(__name__)
 
-client = httpx.AsyncClient(proxies="socks5://127.0.0.1:1080")
+client = httpx.AsyncClient()
+
 # reading config from environment varables, TBD: consider a config section
 # jet1090 service
 BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")
