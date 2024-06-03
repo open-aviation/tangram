@@ -43,9 +43,11 @@ and visit `http://localhost:18000` locally in your browser.
 cp .env.example .env  # enable the default data source
 # enable `direnv` if you have, it makes your life easier
 
-# TODO simplify this by a cli
-cd src/tangram
-poetry run -- uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config=log.yml --reload
+# now you can launch the service by 
+tangram run
+
+# you can also check the settings
+tangram dump-config
 ```
 
 - check your browser at `http://localhost:18000`
