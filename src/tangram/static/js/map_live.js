@@ -9,7 +9,33 @@ var options = {
   opacity: 0.5,
 };
 
-console.log("init----------------------------------");
+var minAltitude = 0; // min altitude
+var maxAltitude = 50000; // max altitude
+
+$(".js-range-slider").ionRangeSlider({
+  type: "double",
+  min: 0,
+  max: 50000,
+  from: 0,
+  to: 50000,
+  step: 1000,
+  grid: false,
+  onFinish: function (data) {
+    minAltitude = data.from;
+    maxAltitude = data.to;
+    if (!window.Data) {
+      return;
+    }
+    var filteredData = window.Data.filter(function (item) {
+      if (minAltitude === 0) {
+        return item.altitude === undefined || item.altitude <= maxAltitude;
+      } else {
+        return item.altitude >= minAltitude && item.altitude <= maxAltitude;
+      }
+    });
+    planeInfo(filteredData);
+  },
+});
 
 var hexLayer = L.hexbinLayer(options);
 var baselayer = L.tileLayer(
@@ -94,8 +120,15 @@ channel.on("new-turb", (data) => {
 });
 
 channel.on("new-data", (data) => {
-  // window.Data = data
-  planeInfo(data);
+  window.Data = data;
+  var filteredData = data.filter(function (item) {
+    if (minAltitude === 0) {
+      return item.altitude === undefined || item.altitude <= maxAltitude;
+    } else {
+      return item.altitude >= minAltitude && item.altitude <= maxAltitude;
+    }
+  });
+  planeInfo(filteredData);
 });
 
 channel

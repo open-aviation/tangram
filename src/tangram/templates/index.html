@@ -3,6 +3,10 @@
 {% block body %}
 <var id="seconds_uptime" hidden="hidden">{{uptime}}</var>
 <div id="container-map">
+  <div class="js-range-slider-container">
+    <input type="text" class="js-range-slider" name="my_range" value="" />
+    <div class="slider-title">altitude (in ft)</div>
+  </div>
   <div id="sidebar" class="leaflet-sidebar collapsed">
     <div class="leaflet-sidebar-tabs">
       <ul role="tablist">
