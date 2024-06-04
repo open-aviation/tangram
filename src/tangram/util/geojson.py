@@ -1,5 +1,6 @@
 import json
 from typing import Any, Dict, List, Optional
+import pathlib
 
 import pandas as pd
 
@@ -112,4 +113,6 @@ class BetterJsonEncoder(json.JSONEncoder):
     def default(self, o) -> str:
         if isinstance(o, pd.Timestamp):
             return o.isoformat(timespec="microseconds")
+        if isinstance(o, pathlib.Path):
+            return str(o)
         return json.JSONEncoder.default(self, o)
