@@ -36,32 +36,20 @@ function deselect_planes() {
 }
 function whenClicked(e) {
   deselect_planes();
-  document.getElementById("Chart").style.display = "block";
-  var icao24 =
-    e.target.feature.properties.icao24 === undefined
-      ? e.target.feature.geometry.properties.icao24
-      : e.target.feature.properties.icao24;
-  var callsign =
-    e.target.feature.properties.callsign === undefined
-      ? e.target.feature.geometry.properties.callsign
-      : e.target.feature.properties.callsign;
-  var typecode =
-    e.target.feature.properties.typecode === undefined
-      ? ""
-      : e.target.feature.properties.typecode;
-  var tail =
-    e.target.feature.properties.tail === undefined
-      ? ""
-      : e.target.feature.properties.tail;
+  document.getElementById("chart-pane").style.display = "block";
+  var icao24 = e.target.feature.properties.icao24;
+  var callsign = e.target.feature.properties.callsign;
+  var typecode = e.target.feature.properties.typecode || "";
+  var tail = e.target.feature.properties.registration || "";
   selected = icao24;
   $("#" + icao24).toggleClass("aircraft_img", false);
   $("#" + icao24).toggleClass("aircraft_selected", true);
   $(".turb-" + icao24).toggleClass("turb_path", false);
   $(".turb-" + icao24).toggleClass("turb_selected", true);
-  draw_chart(icao24, chart_history);
-  document.getElementById("Chart").style.display = "block";
+
   getTrajectory(icao24, (history = chart_history));
   getFlight_data(icao24, callsign, tail, typecode);
+
   sidebar.open("info_box");
 }
 function onEachPlane(feature, layer) {
@@ -73,7 +61,7 @@ function onEachPlane(feature, layer) {
     `<p>` +
     `icao24: <code>${icao24}</code><br/>` +
     `callsign: <code>${feature.properties.callsign}</code><br/>` +
-    `tail: <code>${feature.properties.tail}</code><br/>` +
+    `tail: <code>${feature.properties.registration}</code><br/>` +
     `altitude: <code>${feature.properties.altitude}</code><br/>` +
     `</p>`;
 

@@ -9,8 +9,6 @@ var options = {
   opacity: 0.5,
 };
 
-console.log("init----------------------------------");
-
 var hexLayer = L.hexbinLayer(options);
 var baselayer = L.tileLayer(
   "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
@@ -20,7 +18,6 @@ var baselayer = L.tileLayer(
   }
 );
 
-chart_history = 0;
 var traj = L.layerGroup();
 var map = L.map("map", {
   layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes],
