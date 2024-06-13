@@ -33,16 +33,19 @@ body,
   height: 100%;
 }
 
-#Chart {
+#chart-pane {
   position: absolute;
-  bottom: 10px;
   right: 10px;
   z-index: 400;
   padding: 1em;
   background: white;
   display: none;
-  width: 600px;
-  height: fit-content;
+  width: 500px;
+  height: auto;
+  opacity: 0.8;
+}
+#chart{
+  border: none;
 }
 
 div.form {
@@ -399,6 +402,7 @@ a.flag:hover::after {
 .leaflet-sidebar-left.leaflet-touch {
   box-shadow: none;
   border-right: 2px solid rgba(0, 0, 0, 0.2);
+  opacity: 0.8;
 }
 
 @media (min-width: 768px) {
@@ -492,4 +496,8 @@ table.info_box_table {
   vertical-align: top;
   border-bottom: 1px solid #e7e7e7;
   background-color: #ffffff;
+}
+span#uptime {
+  font-size: 9pt;
+  text-align: center;
 }

@@ -112,16 +112,26 @@
     {# </div>#}
 
   <div id="map">
-    {% if history == 1 %}
-    <script type="text/javascript" src="{{ url_for('static', path='/js/map_filter_functions.js') }}"></script>
-    <script type="text/javascript" src="{{ url_for('static', path='/js/map_history.js') }}"></script>
-    {% else %}
     <script type="text/javascript" src="{{ url_for('static', path='/js/map_live.js') }}"></script>
-    {% endif %}
-    <div id="Chart" class="leaflet-bar chart-container"></div>
+    <div id="chart-pane" class="leaflet-bar chart-container">
+      <select id="plot_select">
+        <option value="altitude">Altitude (in ft)</option>
+        <option value="speed">Speed (in kts)</option>
+        <option value="vertical_rate">Vertical rate (in ft/mn)</option>
+        <option value="track">Directions</option>
+      </select>
+      <div id="chart" class="leaflet-bar chart-container"></div>
+    </div>
   </div>
 </div>
 <script>
+  $("#plot_select").on("change", function () {
+    whenFeatureSelected(this.value);
+  });
+  $("#chart-pane").on("click", function (event) {
+    event.stopPropagation(); // Stop the click event from propagating to the map
+  });
+
   //let form_database = document.getElementById("databasebutton");
   //form_database.addEventListener("click", myfunction);
   //form_database.name = "database_form";

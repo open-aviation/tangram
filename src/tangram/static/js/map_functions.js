@@ -26,7 +26,7 @@ function getFlight_data(icao24, callsign, tail, typecode) {
   document.getElementById("flight").hidden = false;
 }
 function deselect_planes() {
-  document.getElementById("Chart").style.display = "none";
+  document.getElementById("chart-pane").style.display = "none";
   traj.clearLayers();
   $(".aircraft_selected").toggleClass("aircraft_img", true);
   $(".aircraft_selected").toggleClass("aircraft_selected", false);
@@ -51,6 +51,31 @@ function whenClicked(e) {
   getFlight_data(icao24, callsign, tail, typecode);
 
   sidebar.open("info_box");
+
+  let feat = $("#plot_select").val();
+  whenFeatureSelected(feat);
+}
+function whenFeatureSelected(feat) {
+  let icao24 = $("#icao24").text();
+  switch (feat) {
+    case "speed":
+      draw_chart(icao24, ["groundspeed", "IAS", "TAS"]);
+      break;
+    case "vertical_rate":
+      draw_chart(icao24, [
+        "vrate_barometric",
+        "vrate_inertial",
+        "vertical_rate",
+      ]);
+      break;
+    case "track":
+      draw_chart(icao24, ["track", "heading", "roll"]);
+      break;
+    case "altitude":
+    default:
+      draw_chart(icao24, ["altitude", "selected_altitude"]);
+      break;
+  }
 }
 function onEachPlane(feature, layer) {
   let icao24 = feature.properties.icao24;

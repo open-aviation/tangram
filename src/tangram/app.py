@@ -110,6 +110,9 @@ async def trajectory(icao24: str) -> Dict[str, Any]:
     }
     return geojson
 
+@app.get("/data/{icao24}")
+async def data(icao24: str) -> list[dict[str, Any]]:
+    return await rs1090_source.icao24_track(rs1090_source.BASE_URL + "/track", icao24)
 
 @app.get("/turb.geojson")
 async def turbulence() -> Dict[str, Any]:
