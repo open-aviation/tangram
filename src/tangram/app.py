@@ -16,32 +16,14 @@ from starlette.responses import HTMLResponse
 
 from tangram import websocket as tangram_websocket
 from tangram.plugins import rs1090_source
+from tangram.plugins import rs1090_trajectory
 
 log = logging.getLogger("tangram")
 
 
-async def shutdown(*args: Any, **kwargs: Any) -> None:
+async def shutdown_debug(*args: Any, **kwargs: Any) -> None:
     """debugging"""
     log.info("%s\n\n\n\n", "=" * 40)
-
-
-async def start_publish_job(*args: Any, **kwargs: Any) -> None:
-    log.info("<PR> start task")
-    await rs1090_source.publish_runner.start_task()
-    log.info("<PR> task created: %s", rs1090_source.publish_runner.task)
-
-
-async def shutdown_publish_job() -> None:
-    log.info("shutting down publish runner task: %s", rs1090_source.publish_runner.task)
-    if rs1090_source.publish_runner.task is None:
-        log.warning("publish runner task is None")
-        return
-
-    if rs1090_source.publish_runner.task.done():
-        rs1090_source.publish_runner.task.result()
-    else:
-        rs1090_source.publish_runner.task.cancel()
-    log.info("shutdown - publish job done")
 
 
 tangram_module_root = pathlib.Path(__file__).resolve().parent
@@ -49,19 +31,20 @@ templates = Jinja2Templates(directory=tangram_module_root / "templates")
 app = FastAPI(
     on_startup=[
         tangram_websocket.broadcast.connect,
-        start_publish_job,
-        # rs1090_source.start_publish_job,
+        rs1090_source.start,
+        rs1090_trajectory.start,
     ],
     on_shutdown=[
+        shutdown_debug,
         tangram_websocket.broadcast.disconnect,
-        shutdown_publish_job,
-        # rs1090_source.shutdown_publish_job,
-        shutdown,
+        rs1090_source.shutdown,
+        rs1090_trajectory.shutdown,
     ],
 )
 
 app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
 app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
+app.mount("/plugins/trajectory", rs1090_trajectory.app, name="trajectory")
 
 start_time = datetime.now()
 
@@ -84,9 +67,7 @@ async def home(request: Request, history: int = 0) -> HTMLResponse:
         form_threshold=None,
         uptime=get_uptime_seconds(),
     )
-    return templates.TemplateResponse(
-        request=request, name="index.html", context=context
-    )
+    return templates.TemplateResponse(request=request, name="index.html", context=context)
 
 
 @app.get("/trajectory/{icao24}")
@@ -94,18 +75,12 @@ async def trajectory(icao24: str) -> Dict[str, Any]:
     track = await rs1090_source.icao24_track(rs1090_source.BASE_URL + "/track", icao24)
     geojson = {
         "type": "LineString",
-        "coordinates": [
-            (elt["longitude"], elt["latitude"])
-            for elt in track
-            if elt.get("longitude", None)
-        ]
+        "coordinates": [(elt["longitude"], elt["latitude"]) for elt in track if elt.get("longitude", None)]
         if track is not None
         else [],
         "properties": {
             "icao24": icao24,
-            "latest": max(elt["timestamp"] for elt in track)
-            if track is not None
-            else 0,
+            "latest": max(elt["timestamp"] for elt in track) if track is not None else 0,
         },
     }
     return geojson

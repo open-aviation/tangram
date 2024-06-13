@@ -68,6 +68,7 @@ var overlays = {
   hexbins: hexLayer,
 };
 
+// channel.js api: https://hexdocs.pm/phoenix/js/
 // init socket
 
 console.log("channel script");
@@ -80,20 +81,17 @@ socket.connect();
 let systemChannel = "channel:streaming";
 const systemChannelToken = "channel-token";
 let channel = socket.channel(systemChannel, { token: systemChannelToken });
-console.dir(channel);
+// console.dir(channel);
 
-channel.on("new-traffic", (data) => {
-  console.log(`(${systemChannel}/traffic)>`, data);
-});
+channel.on("new-data", renderPlanes);
 
-channel.on("new-turb", (data) => {
-  console.log(`(${systemChannel}/turb)>`, data);
-});
+function updateEl({ el, html }) {
+  morphdom(document.getElementById(el), html);
+}
 
-channel.on("new-data", (data) => {
-  // window.Data = data
-  planeInfo(data);
-});
+channel.on('uptime', updateEl);
+channel.on('info_local', updateEl);
+channel.on('info_utc', updateEl);
 
 channel
   .join()
@@ -124,10 +122,14 @@ channel
 // L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
+
+/// update
 var UptimeSec = document.getElementById("seconds_uptime").textContent;
 document.getElementById("info_utc").innerHTML = getTimeString(false);
 document.getElementById("info_local").innerHTML = getTimeString(true);
-setInterval(function () {
+let uptimeEl = document.getElementById("uptime");
+
+function updateUptime() {
   distance = UptimeSec++;
   var days = Math.floor(distance / (60 * 60 * 24));
   var hours = Math.floor((distance % (60 * 60 * 24)) / (60 * 60));
@@ -135,15 +137,16 @@ setInterval(function () {
   var seconds = Math.floor(distance % 60);
   var d = days == 0 ? "" : days + "d ";
   var h = hours == 0 ? "" : hours + "h ";
-  document.getElementById("uptime").innerHTML =
-    d + h + minutes + "m " + seconds + "s ";
+
+  uptimeEl.innerHTML = d + h + minutes + "m " + seconds + "s ";
+
   document.getElementById("info_utc").innerHTML = getTimeString(false);
   document.getElementById("info_local").innerHTML = getTimeString(true);
-}, 1000 * 1); //1 secondes
+}
+
+// setInterval(updateUptime, 1000 * 1); // 1 secondes
 
 setInterval(function () {
   url = "uptime";
-  $.getJSON(url, function (data) {
-    UptimeSec = data.uptime;
-  });
-}, 1000 * 60); //1 minute
+  $.getJSON(url, function (data) { UptimeSec = data.uptime; });
+}, 1000 * 60); // 1 minute

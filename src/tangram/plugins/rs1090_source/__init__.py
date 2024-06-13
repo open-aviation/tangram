@@ -3,7 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Any
+from typing import Any, List
+from datetime import datetime, UTC
 
 import dotenv
 import httpx
@@ -17,7 +18,7 @@ client = httpx.AsyncClient()
 
 # reading config from environment varables, TBD: consider a config section
 # jet1090 service
-BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")
+BASE_URL = os.environ.get("RS1090_BASE_URL", "http://127.0.0.1:8080")
 DEBUG = os.environ.get("RS1090_SOURCE_DEBUG")
 
 # TODO add models for data endpoints
@@ -52,9 +53,7 @@ async def all(url: str) -> dict[str, Any] | None:
         log.debug("requesting %s ...", url)
         resp = await client.get(url)
         if resp.status_code not in [200]:
-            logging.error(
-                "fail to get `all` from %s, status: %s", url, resp.status_code
-            )
+            logging.error("fail to get `all` from %s, status: %s", url, resp.status_code)
             return None
         log.debug("got data from jet1090 service")
         return resp.json()  # type: ignore
@@ -66,7 +65,34 @@ async def all(url: str) -> dict[str, Any] | None:
         return None
 
 
-async def icao24_track(url: str, identifier: str) -> Any:
+async def endpoint_stats(url: str):
+    """get receiver status from rs1090
+    item example:
+    {
+      "host": "0.0.0.0",
+      "port": 41126,
+      "rtlsdr": false,
+      "airport": "LFMA",
+      "reference": {
+        "latitude": 43.50528,
+        "longitude": 5.367222
+      },
+      "count": 89,
+      "last": 1716820385
+    }
+    """
+    async with httpx.AsyncClient() as aclient:
+        resp = await aclient.get(url)
+        return resp.json()
+
+
+async def list_identifiers(url) -> List[str]:
+    async with httpx.AsyncClient() as aclient:
+        resp = await aclient.get(url)
+        return resp.json()
+
+
+async def icao24_track(url, identifier):
     """ICAO24 5 minutes historical positions
     sample record for `/track?icao24=010117`
     {
@@ -142,7 +168,7 @@ class Rs1090Data:
     async def forward_from_http(self, source_fn, params=None):
         source_data = await source_fn(**params)
         if not source_data:
-            log.error("no data loaded from rs1090")
+            log.error("no data loaded from rs1090, url: %s", self.base_url)
             return
         log.info(
             "icao24: %s ... (total: %s)",
@@ -154,9 +180,7 @@ class Rs1090Data:
         if "filter" in event_handlers and _events_of_interest:
             result_source_data = []
             for key, values in _events_of_interest.items():
-                result_source_data.extend(
-                    [el for el in source_data if el.get(key) in values]
-                )
+                result_source_data.extend([el for el in source_data if el.get(key) in values])
 
             log.info(
                 "source data: %s, filtered source_data: %s",
@@ -186,6 +210,8 @@ class Rs1090Data:
 
 
 class PublishRunner:
+    dtfmt = "%H:%M:%S"
+
     def __init__(self):
         self.running = True
         self.counter = 0
@@ -196,13 +222,34 @@ class PublishRunner:
         self.task = asyncio.create_task(self.run())
         log.debug("<PR> task created")
 
-    async def run(self, internal_seconds=3):
+    def uptime_html(self):
+        return {"el": "uptime", "html": f"""<p style="display: inline" id="uptime">{self.counter}</p>"""}
+
+    def info_utc_html(self):
+        return {
+            "el": "info_utc",
+            "html": f"""<p style="display: inline" id="info_utc">{datetime.now().strftime(self.dtfmt)}</p>""",
+        }
+
+    def info_local_html(self):
+        return {
+            "el": "info_local",
+            "html": f"""<p style="display: inline" id="info_local">{datetime.now(UTC).strftime(self.dtfmt)}</p>""",
+        }
+
+    async def run(self, internal_seconds=1):
         rs1090_data = Rs1090Data(BASE_URL)
 
         log.info("<PR> start forwarding ...")
         while self.running:
             await rs1090_data.forward_from_http(rs1090_data.all, {})
             log.info("<PR> /all data forwarded")
+
+            # TODO OPTIMIAZE: this is updated every second, actually, the system info & flight info is only displayed when a plane is selected
+            # TODO allow user to register a finction and this function is scheduled by the runner
+            await channels.publish_any("channel:streaming", "uptime", self.uptime_html())
+            await channels.publish_any("channel:streaming", "info_utc", self.info_utc_html())
+            await channels.publish_any("channel:streaming", "info_local", self.info_local_html())
 
             self.counter += 1
             await asyncio.sleep(internal_seconds)  # one second
@@ -222,13 +269,13 @@ rs1090_app = FastAPI()
 
 # Per documents, events are not fired in sub app.
 # @rs1090_app.on_event('startup')
-async def start_publish_job() -> None:
+async def start() -> None:
     log.info("startup - publish job task created")
-    # ts = asyncio.create_task(publish_runner.run())
-    # log.info('publish job created: %s', ts)
+    await publish_runner.start_task()
+    log.info("publish job created: %s", publish_runner.task)
 
 
-async def shutdown_publish_job() -> None:
+async def shutdown() -> None:
     log.info("shuting down publish runner task: %s", publish_runner.task)
     if publish_runner.task is None:
         log.warning("publish runner task is None")
@@ -259,11 +306,16 @@ async def publish_job_health():
     return await publish_runner.states()
 
 
+@rs1090_app.get("/receivers")
+async def receivers():
+    return await endpoint_stats(BASE_URL + "/receivers")
+
+
+@rs1090_app.get("/identifiers")
+async def list():
+    return await list_identifiers(BASE_URL + "/")
+
+
 @rs1090_app.get("/all")
 async def list_all():
-    return all(BASE_URL + "/all")
-
-
-@rs1090_app.get("/track/icao24/{identifier}")
-def list_5min_tracks(identifier: str):
-    return icao24_track(BASE_URL + "/track", identifier)
+    return await all(BASE_URL + "/all")

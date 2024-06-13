@@ -21,11 +21,21 @@ broadcast = Broadcast("memory://")
 class Hub:
     def __init__(self) -> None:
         self._channel_clients: dict[str, set[str]] = {}  # channel -> {clients}
+        self._client_attributes: dict[str, dict[str, str]] = {}  # client attributes
 
-    def join(self, client_id: str, channel: str) -> None:
+    def _client_health_check(self, client_id: str):
+        raise NotImplementedError
+
+    def add(self, client_id: str, channel: str) -> None:
         if channel not in self._channel_clients:
             self._channel_clients[channel] = set()
         self._channel_clients[channel].add(client_id)
+        log.info("client %s added into channel %s", client_id, channel)
+
+    def remove(self, client_id: str, channel: str) -> None:
+        if channel in self._channel_clients:
+            self._channel_clients[channel].discard(client_id)
+            log.info("client %s removed from channel %s", client_id, channel)
 
     def channel_clients(self) -> dict[str, set[str]]:
         return self._channel_clients
@@ -50,9 +60,7 @@ class Message(BaseModel):
     @classmethod
     def from_string(cls, text) -> "Message":
         [join_ref, ref, topic, event, payload] = json.loads(text)
-        return Message(
-            join_ref=join_ref, ref=ref, topic=topic, event=event, payload=payload
-        )
+        return Message(join_ref=join_ref, ref=ref, topic=topic, event=event, payload=payload)
 
     def to_array(self) -> List[int | str | Any]:
         return [self.join_ref, self.ref, self.topic, self.event, self.payload]
@@ -87,7 +95,7 @@ async def handle_heartbeat(client_id: str, client_message: ClientMessage) -> Non
         client_message.ref,
         client_message.topic,
         "phx_reply",  # event
-        {"status": "ok", "response": {}},  # payload
+        {"status": "ok", "response": "heartbeat acked"},  # payload
     ]
     await broadcast.publish(channel=client_id, message=message)
     log.debug("[%s] - heartbeat piped: %s [%s]", client_id, type(message), message)
@@ -95,7 +103,7 @@ async def handle_heartbeat(client_id: str, client_message: ClientMessage) -> Non
 
 async def handle_joining(client_id: str, client_message: ClientMessage):
     log.info("[%s] - want to join %s", client_id, client_message.topic)
-    hub.join(client_id, client_message.topic)
+    hub.add(client_id, client_message.topic)
     message = [
         client_message.join_ref,
         client_message.ref,
@@ -104,16 +112,12 @@ async def handle_joining(client_id: str, client_message: ClientMessage):
         {"status": "ok", "response": {"client_id": client_id}},
     ]
     await broadcast.publish(client_id, message)
-    log.info(
-        "[%s] - %s response piped: %s [%s]",
-        client_id,
-        client_message.event,
-        type(message),
-        message,
-    )
+    # TODO add plugins' hook
+    log.info("[%s] - %s response piped: %s [%s]", client_id, client_message.event, type(message), message)
 
 
 async def handle_leaving(client_id: str, client_message: ClientMessage):
+    log.info("[%s] - is to leave %s", client_id, client_message.topic)
     message = [
         client_message.join_ref,
         client_message.ref,
@@ -122,23 +126,15 @@ async def handle_leaving(client_id: str, client_message: ClientMessage):
         {"status": "ok", "response": {}},
     ]
     await broadcast.publish(channel=client_id, message=message)
-    # cleanup hub
-    log.info(
-        "[%s] - %s response piped %s",
-        client_id,
-        client_message.event,
-        client_message.topic,
-    )
+    hub.remove(client_id, client_message.topic)
+    log.info("[%s] - %s response piped %s", client_id, client_message.event, client_message.topic)
 
 
 class BroadcastMessageHandler:
     @classmethod
     def will_handle(cls, message: Message) -> bool:
         # TODO allowing all for now
-        return message.topic in [
-            "channel:system",
-            "channel:streaming",
-        ] and message.event in ["new-traffic", "new-turb"]
+        return message.topic in ["channel:system", "channel:streaming"] and message.event in ["new-traffic", "new-turb"]
 
     @classmethod
     async def process(cls, client_id: str, client_message: Message) -> bool:
@@ -172,9 +168,7 @@ class BroadcastMessageHandler:
 class Rs1090MessageHandler:
     @classmethod
     def will_handle(cls, message: Message) -> bool:
-        return message.topic == "channel:streaming" and message.event.startswith(
-            "plugin:"
-        )
+        return message.topic == "channel:streaming" and message.event.startswith("plugin:")
 
     @classmethod
     async def process(cls, client_id: str, message: ClientMessage) -> bool:

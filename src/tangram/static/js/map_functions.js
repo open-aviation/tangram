@@ -1,5 +1,49 @@
 var chart_history;
+let prior_selected = null;
 var selected = null;
+
+let trajectoryPlots = []; // array of (latitude, longitude)
+// channel name: trajectory:${icao24}
+let trajectoryChannel = null;
+
+function joinTrajectoryChannel(channelName) {
+  console.log(`joining trajectory channel ${channelName}`);
+
+  trajectoryChannel = socket.channel(channelName, { token: 'okToJoin' }); // no joining token required
+
+  trajectoryChannel.on('new-data', (data) => {
+    console.log(`${trajectoryChannel.topic}`, data);
+    traj.clearLayers();
+    // let plots = data.map(({ latitude, longitude }) => [latitude, longitude]);
+    const { latitude, longitude } = data;
+    trajectoryPlots.push([latitude, longitude]);
+    L
+      .polyline(trajectoryPlots, { color: 'black', weight: 1, smoothFactor: 2 })
+      .addTo(traj);
+  });
+
+  trajectoryChannel
+    .join()
+    .receive("ok", ({ messages }) => {
+      console.log(`(${channelName}) joined`, messages);
+    })
+    .receive("error", ({ reason }) =>
+      console.log(`failed to join ${channelName}`, reason)
+    )
+    .receive("timeout", () => console.log(`timeout joining ${channelName}`));
+}
+
+function leaveTrajectoryChannel(channelName) {
+  console.log(`leaving trajectory channel ${channelName}`);
+  trajectoryChannel
+    .leave() // Push
+    .receive('ok', () => {
+      trajectoryChannel = null;
+      console.log(`left channel ${channelName}`, trajectoryChannel);
+    })
+}
+
+
 function getFlight_data(icao24, callsign, tail, typecode) {
   document.getElementById("icao24").innerHTML = icao24;
   document.getElementById("typecode").innerHTML = typecode;
@@ -25,16 +69,24 @@ function getFlight_data(icao24, callsign, tail, typecode) {
   });
   document.getElementById("flight").hidden = false;
 }
+
 function deselect_planes() {
+  console.log(`deselect plan ${selected}`, trajectoryChannel);
+  if (trajectoryChannel !== null) {
+    leaveTrajectoryChannel(`trajectory:${selected}`)
+  }
+
   document.getElementById("chart-pane").style.display = "none";
   traj.clearLayers();
   $(".aircraft_selected").toggleClass("aircraft_img", true);
   $(".aircraft_selected").toggleClass("aircraft_selected", false);
   $(".turb_selected").toggleClass("turb_path", true);
   $(".turb_selected").toggleClass("turb_selected", false);
-  selected = "";
+  prior_selected = selected;
+  selected = null;
 }
-function whenClicked(e) {
+
+function onPlaneClicked(e) {
   deselect_planes();
   document.getElementById("chart-pane").style.display = "block";
   var icao24 = e.target.feature.properties.icao24;
@@ -42,12 +94,19 @@ function whenClicked(e) {
   var typecode = e.target.feature.properties.typecode || "";
   var tail = e.target.feature.properties.registration || "";
   selected = icao24;
+  console.log(`plane [${selected}] selected`);
+
+  joinTrajectoryChannel(`trajectory:${selected}`)
+
   $("#" + icao24).toggleClass("aircraft_img", false);
   $("#" + icao24).toggleClass("aircraft_selected", true);
   $(".turb-" + icao24).toggleClass("turb_path", false);
   $(".turb-" + icao24).toggleClass("turb_selected", true);
+  
+  draw_chart(icao24, chart_history);
+  document.getElementById("chart-pane").style.display = "block";
 
-  getTrajectory(icao24, (history = chart_history));
+  getAndDrawTrajectory(icao24, (history = chart_history));
   getFlight_data(icao24, callsign, tail, typecode);
 
   sidebar.open("info_box");
@@ -77,10 +136,11 @@ function whenFeatureSelected(feat) {
       break;
   }
 }
+
 function onEachPlane(feature, layer) {
   let icao24 = feature.properties.icao24;
   if (icao24 === selected) {
-    getTrajectory(icao24, chart_history);
+    // getAndDrawTrajectory(icao24, chart_history);
   }
   var popupContent =
     `<p>` +
@@ -91,9 +151,7 @@ function onEachPlane(feature, layer) {
     `</p>`;
 
   layer.bindPopup(popupContent);
-  layer.on({
-    click: whenClicked,
-  });
+  layer.on({ click: onPlaneClicked });
   layer.on({
     mouseover: function (e) {
       this.openPopup();
@@ -105,18 +163,17 @@ function onEachPlane(feature, layer) {
     },
   });
 }
+
 function onEachTurb(feature, layer) {
-  layer.on({
-    click: whenClicked,
-  });
+  layer.on({ click: onPlaneClicked });
 }
-function planeInfo(data) {
-  var avion = document.getElementById("plane_count");
-  avion.innerHTML = data.count;
+
+function renderPlanes(data) {
+  // document.getElementById("plane_count").innerHTML = data.items.length;
 
   planes.clearLayers();
 
-  let arr = data
+  let features = data
     .filter((item) => !(item.longitude === null && item.latitude === null))
     .map((item) => {
       return {
@@ -128,15 +185,13 @@ function planeInfo(data) {
         },
       };
     });
-  var geojson = {
-    name: "state_vectors",
-    type: "FeatureCollection",
-    features: arr,
-  };
-  L.geoJson(geojson, {
-    onEachFeature: onEachPlane,
-    pointToLayer: createCustomIcon,
-  }).addTo(planes);
+
+  L
+    .geoJson(
+      { name: "state_vectors", type: "FeatureCollection", features },
+      { onEachFeature: onEachPlane, pointToLayer: createCustomIcon },
+    )
+    .addTo(planes);
 }
 
 function onEachAirep(feature, layer) {
@@ -284,12 +339,12 @@ function getSigmet(wef = null, und = null) {
         return d == "TS"
           ? { color: "red" }
           : d == "TURB"
-          ? { color: "blue" }
-          : d == "MTW"
-          ? { color: "yellow" }
-          : d == "ICE"
-          ? { color: "gray" }
-          : { color: "black" };
+            ? { color: "blue" }
+            : d == "MTW"
+              ? { color: "yellow" }
+              : d == "ICE"
+                ? { color: "gray" }
+                : { color: "black" };
       },
       onEachFeature: onEachSigmet,
     }).addTo(sigmets);
@@ -363,7 +418,7 @@ function getPlanes(und = "", history = 0, icao24 = "", callsign = "") {
   });
   url = url + "?" + searchParams;
 
-  $.getJSON(url, function (data) {});
+  $.getJSON(url, function (data) { });
 }
 
 function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
@@ -389,8 +444,8 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
           return intensity >= 200
             ? "#8400ff"
             : (intensity < 200) & (intensity > 100)
-            ? "#ff9900"
-            : "#0084ff";
+              ? "#ff9900"
+              : "#0084ff";
         };
         if (icao24 === selected) {
           return { className: "turb_selected turb-" + icao24, color: color() };
@@ -440,6 +495,7 @@ function getheatmap(und = null, history = 0) {
   });
   return heatm;
 }
+
 function getTimeString(isLocal) {
   var hours;
   var minutes;
@@ -456,20 +512,27 @@ function getTimeString(isLocal) {
   if (hours < 10) {
     hours = "0" + hours;
   }
+
   if (minutes < 10) {
     minutes = "0" + minutes;
   }
 
-  var zeit_string = hours + ":" + minutes;
-
-  return zeit_string;
+  return hours + ":" + minutes;
 }
-function getTrajectory(icao24) {
-  url = "trajectory/" + icao24;
+
+/// get trajectory data and draw on the map
+function getAndDrawTrajectory(icao, und = "", history = 0) {
+  const params = new URLSearchParams({ history, und });
+  let url = `plugins/trajectory/icao24/${icao}?${params}`;
+  // url = url + "?" + searchParams;
   $.getJSON(url, function (data) {
     traj.clearLayers();
-    L.geoJson(data, {
-      color: "black",
-    }).addTo(traj);
+    trajectoryPlots = data.map(({ latitude, longitude }) => [latitude, longitude]);
+    // console.log(arr);
+    if (trajectoryPlots.length > 0) {
+      var polyline = L.polyline(trajectoryPlots, { color: 'black', weight: 1, smoothFactor: 2 }).addTo(traj);
+      // zoom in
+      // map.fitBounds(polyline.getBounds(), { padding: [400, 0] });
+    }
   });
 }

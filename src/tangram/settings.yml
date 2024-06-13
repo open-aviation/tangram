@@ -32,11 +32,20 @@ log_config:
       class: logging.FileHandler
       filename: httpx.log
       encoding: utf-8
+    rs1090_file:
+      formatter: default
+      class: logging.FileHandler
+      filename: rs1090.log
+      encoding: utf-8
     rs1090_source_file:
       formatter: default
       class: logging.FileHandler
       filename: rs1090-source.log
       encoding: utf-8
+    trajectory:
+      formatter: default
+      class: logging.FileHandler
+      filename: trajectory.log
   loggers:
     uvicorn.error:
       level: INFO
@@ -54,11 +63,23 @@ log_config:
       handlers:
         - tangram
       propagate: no
+    tangram.plugins.common.rs1090:
+      level: DEBUG
+      qualname: tangram.plugins.common.rs1090
+      handlers:
+        - rs1090_file
+      propagate: no
     tangram.plugins.rs1090_source:
       level: DEBUG
       qualname: tangram.plugins.rs1090_source
       handlers:
         - rs1090_source_file
+      propagate: no
+    tangram.plugins.rs1090_trajectory:
+      level: DEBUG
+      qualname: tangram.plugins.rs1090_trajectory
+      handlers:
+        - trajectory
       propagate: no
     httpx:
       level: WARNING
@@ -66,8 +87,8 @@ log_config:
       handlers:
         - httpx_file
       propagate: no
-  root:
-    level: WARNING
-    handlers:
-      - default
-    propagate: no
+    root:
+      level: WARNING
+      handlers:
+        - default
+      propagate: no

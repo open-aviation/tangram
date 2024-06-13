@@ -16,7 +16,7 @@
       in
       {
         packages = {
-          tg = poetry2nix.mkPoetryApplication {
+          tangram = poetry2nix.mkPoetryApplication {
             projectDir = ./.;
             preferWheels = true; # set this to true to use premade wheels rather than the source
             overrides = poetry2nix.defaultPoetryOverrides.extend
@@ -29,15 +29,17 @@
                 );
               });
           };
-          default = self.packages.${system}.tg;
+          default = self.packages.${system}.tangram;
         };
 
         # nix develop
         devShells.default = pkgs.mkShell {
-          inputsFrom = [ self.packages.${system}.tg ];
-          package = with pkgs; [
+          inputsFrom = [ self.packages.${system}.tangram ];
+          packages = with pkgs; [
             ruff
             pyright
+            litecli
+            self.packages.${system}.tangram
           ];
         };
 
