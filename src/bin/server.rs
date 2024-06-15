@@ -3,10 +3,10 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use axum::{Extension, Router};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum::routing::get;
+use axum::{Extension, Router};
 use futures::{sink::SinkExt, stream::StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_tuple::{Deserialize_tuple, Serialize_tuple};
@@ -48,18 +48,19 @@ struct State {
     channels: Mutex<ChannelManager<String>>, // String: message type, TODO customize this
 }
 
-async fn timestamp_task(local_state: Arc<State>) {
+async fn timestamp_task(local_state: Arc<State>, channel_name: &str) {
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
     info!("launch datetime thread ...");
     let mut counter = 0;
+    let event = "datetime";
     loop {
         let now = chrono::Local::now();
         let message = ChannelMessage {
             join_reference: None,
             reference: counter.to_string(),
-            topic: "system".to_string(),
-            event: "datetime".to_string(),
+            topic: channel_name.to_string(),
+            event: event.to_string(),
             payload: Payload::Reply {
                 status: "ok".to_string(),
                 response: Response::DatetimeReesponse {
@@ -69,14 +70,17 @@ async fn timestamp_task(local_state: Arc<State>) {
             },
         };
         let text = serde_json::to_string(&message).unwrap();
-        match local_state.channels.lock().await
-            .broadcast("system".to_string(), text.clone()).await {
-            Ok(_) => {}
-            Err(e) => {
-                error!("fail to send `datetime` event to `system` channel, {}", e);
-            }
+        match local_state
+            .channels
+            .lock()
+            .await
+            .broadcast(channel_name.to_string(), text.clone())
+            .await
+        {
+            Ok(_) => debug!("datetime > {}", text),
+            Err(e) => error!("fail to send `datetime` event to `system` channel, {}", e),
         }
-        debug!("datetime > {}", text);
+
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         counter += 1;
     }
@@ -110,15 +114,15 @@ async fn main() {
         .layer(Extension(state.clone()));
 
     let local_state = state.clone();
-    tokio::spawn(timestamp_task(local_state));
+    tokio::spawn(timestamp_task(local_state, "system"));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:5000").await.unwrap();
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 }
 
 // TODO handle header
