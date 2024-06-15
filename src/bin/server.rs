@@ -3,22 +3,22 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use axum::{Extension, Router};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum::routing::get;
-use axum::{Extension, Router};
 use futures::{sink::SinkExt, stream::StreamExt};
-use tokio::sync::Mutex;
-use tower_http::services::ServeDir;
-use tracing::{debug, info};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-// use tracing::log::info;
-
 use serde::{Deserialize, Serialize};
 use serde_tuple::{Deserialize_tuple, Serialize_tuple};
+use tokio::sync::Mutex;
+use tower_http::services::ServeDir;
+use tracing::{debug, error, info};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
 use websocket_channels::ChannelManager;
+
+// use tracing::log::info;
 
 // Channel
 //
@@ -48,6 +48,40 @@ struct State {
     channels: Mutex<ChannelManager<String>>, // String: message type, TODO customize this
 }
 
+async fn timestamp_task(local_state: Arc<State>) {
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+
+    info!("launch datetime thread ...");
+    let mut counter = 0;
+    loop {
+        let now = chrono::Local::now();
+        let message = ChannelMessage {
+            join_reference: None,
+            reference: counter.to_string(),
+            topic: "system".to_string(),
+            event: "datetime".to_string(),
+            payload: Payload::Reply {
+                status: "ok".to_string(),
+                response: Response::DatetimeReesponse {
+                    datetime: now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
+                    counter,
+                },
+            },
+        };
+        let text = serde_json::to_string(&message).unwrap();
+        match local_state.channels.lock().await
+            .broadcast("system".to_string(), text.clone()).await {
+            Ok(_) => {}
+            Err(e) => {
+                error!("fail to send `datetime` event to `system` channel, {}", e);
+            }
+        }
+        debug!("datetime > {}", text);
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        counter += 1;
+    }
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::registry()
@@ -62,9 +96,9 @@ async fn main() {
     channels.new_channel("phoenix".into(), None).await; // channel for server to publish heartbeat
     channels.new_channel("system".into(), None).await;
 
-    let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("examples")
-        .join("assets");
+    let assets_dir = [env!("CARGO_MANIFEST_DIR"), "src", "bin", "assets"]
+        .iter()
+        .collect::<PathBuf>();
 
     let state = Arc::new(State {
         channels: Mutex::new(channels),
@@ -76,47 +110,15 @@ async fn main() {
         .layer(Extension(state.clone()));
 
     let local_state = state.clone();
-    tokio::spawn(async move {
-        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-
-        info!("launch datetime thread ...");
-        let mut counter = 0;
-        loop {
-            let now = chrono::Local::now();
-            let message = ChannelMessage {
-                join_reference: None,
-                reference: counter.to_string(),
-                topic: "system".to_string(),
-                event: "datetime".to_string(),
-                payload: Payload::Reply {
-                    status: "ok".to_string(),
-                    response: Response::DatetimeReesponse {
-                        datetime: now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
-                        counter,
-                    },
-                },
-            };
-            let text = serde_json::to_string(&message).unwrap();
-            local_state
-                .channels
-                .lock()
-                .await
-                .broadcast("system".to_string(), text.clone())
-                .await
-                .unwrap();
-            debug!("datetime > {}", text);
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            counter += 1;
-        }
-    });
+    tokio::spawn(timestamp_task(local_state));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:5000").await.unwrap();
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .await
-    .unwrap();
+        .await
+        .unwrap();
 }
 
 // TODO handle header
