@@ -121,11 +121,7 @@ function whenFeatureSelected(feat) {
       draw_chart(icao24, ["groundspeed", "IAS", "TAS"]);
       break;
     case "vertical_rate":
-      draw_chart(icao24, [
-        "vrate_barometric",
-        "vrate_inertial",
-        "vertical_rate",
-      ]);
+      draw_chart(icao24, ["vrate_barometric", "vrate_inertial", "vertical_rate"]);
       break;
     case "track":
       draw_chart(icao24, ["track", "heading", "roll"]);

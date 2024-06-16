@@ -223,18 +223,18 @@ class PublishRunner:
         log.debug("<PR> task created")
 
     def uptime_html(self):
-        return {"el": "uptime", "html": f"""<p style="display: inline" id="uptime">{self.counter}</p>"""}
+        return {"el": "uptime", "html": f"""<span id="uptime">{self.counter}</span>"""}
 
     def info_utc_html(self):
         return {
             "el": "info_utc",
-            "html": f"""<p style="display: inline" id="info_utc">{datetime.now().strftime(self.dtfmt)}</p>""",
+            "html": f"""<span id="info_utc">{datetime.now(UTC).strftime(self.dtfmt)}</span>""",
         }
 
     def info_local_html(self):
         return {
             "el": "info_local",
-            "html": f"""<p style="display: inline" id="info_local">{datetime.now(UTC).strftime(self.dtfmt)}</p>""",
+            "html": f"""<span id="info_local">{datetime.now().strftime(self.dtfmt)}</span>""",
         }
 
     async def run(self, internal_seconds=1):
