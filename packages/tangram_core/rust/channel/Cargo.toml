@@ -7,8 +7,9 @@ description = "Websocket channels compatible with Phixnix"
 repository = ""
 keywords = ["axum", "axum-ws", "websocket", "channels"]
 
-# [[bin]]
-# name = "server"
+[[bin]]
+name = "axum-server"
+path = "src/bin/axum-server.rs"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -33,3 +34,4 @@ uuid = { version = "1.8.0", features = ["v4"] }
 chrono = "0.4.38"
 
 hex = "0.4.3"
+
