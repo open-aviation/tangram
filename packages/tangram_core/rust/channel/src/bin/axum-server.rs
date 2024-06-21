@@ -140,7 +140,7 @@ struct User {
 //     String,
 // }
 
-struct State {
+pub struct State {
     channels: Mutex<ChannelManager<String>>, // String: message type, TODO customize this
 }
 
@@ -249,7 +249,7 @@ async fn websocket_handler(
     Extension(state): Extension<Arc<State>>,
 ) -> impl IntoResponse {
     // TODO drop the connection if `userToken` in query string is not valid
-    ws.on_upgrade(|socket| websocket(socket, state))
+    ws.on_upgrade(|socket| on_connected(socket, state))
 }
 
 async fn send_ok(
@@ -331,7 +331,7 @@ async fn handle_incoming_messages(received_text: String, state: Arc<State>, user
     }
 }
 
-async fn websocket(ws: WebSocket, state: Arc<State>) {
+pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
     let (mut tx, mut rx) = ws.split();
 
     let user = User {

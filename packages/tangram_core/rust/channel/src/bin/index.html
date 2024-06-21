@@ -1,0 +1,69 @@
+<html>
+  <title id="title">Channel Example</title>
+  <body> 
+    <a>Check in the DevTools Console</a>
+    <p id='ev-dt'>
+      counter: <b id="counter"></b>, current time: <b id="datetime"></b></b>
+    </p>
+
+  </body>
+  <script src='https://unpkg.com/phoenix@1.7.11/priv/static/phoenix.min.js'></script>
+  <script src='https://unpkg.com/morphdom@2.6.1/dist/morphdom-umd.js'></script>
+  <!-- <script type='module'> -->
+  <script>
+    // channel https://hexdocs.pm/phenox/js/
+
+    const { Socket, Channel, Presence } = Phoenix;
+    // import morphdom from 'https://unpkg.com/morphdom@2.6.1/dist/morphdom-esm.js';
+
+    // https://www.npmjs.com/package/morphdom#morphdomfromnode-tonode-options--node
+    console.dir(morphdom);
+
+    function onDatetime ({ status, response: { datetime, counter } }) {
+      console.log(`status: ${status}, datetime, ${datetime}, counter: ${counter}`);
+
+      document.getElementById('datetime').innerText = datetime;
+      document.getElementById('counter').innerHTML = counter;
+    };
+
+    let userToken = 'userSocketToken';
+    let debug = true;
+    let socket = new Socket("", { debug: false, params: { userToken } });
+    socket.connect();
+
+    function joinChannel(systemChannel, systemChannelToken) {
+      console.dir(socket);
+      let channel = socket.channel(systemChannel, { token: systemChannelToken});
+
+      channel.on('datetime', onDatetime);
+
+      console.log(`joinning channel ${systemChannel}`)
+      channel
+        .join()
+        .receive('ok', (ev) => {
+          console.log(`(${systemChannel} - joined`, ev)
+        })
+        .receive('error', ({ reason }) => {
+          console.log(`${systemChannel} - failed to join`, reason);
+        })
+        .receive('timeout', () => {
+          console.log(`${systemChannel} - joining timeouts`);
+        });
+      return channel;
+    }
+
+    function leaveSystem() {
+      if (window.systemChannel !== null) window.systemChannel.leave();
+      window.systemChannel = null;
+    }
+
+    function joinSystem() {
+      let channelName = 'system';
+      const channelToken = 'channel-token';
+      window.systemChannel = joinChannel(channelName, channelToken);
+    }
+
+    joinSystem();
+  </script>
+</html>
+
