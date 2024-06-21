@@ -5,11 +5,13 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
+use log::warn;
 use tokio::{
     sync::{broadcast, Mutex},
     task::JoinHandle,
 };
 use tracing::debug;
+pub mod ws;
 
 /// ChannelCast is a type alias for broadcast::Sender. It broadcast messages in the channel.
 // type Broadcast<T> = broadcast::Sender<T>;
@@ -67,9 +69,9 @@ struct UserTask {
 }
 
 impl Display for UserTask {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(
-            f,
+            formatter,
             "<UserTask: channel_name={}, task={:?}>",
             self.channel_name, self.task
         )
@@ -188,9 +190,15 @@ where
     /// broadcast message to the channel
     pub async fn broadcast(&self, channel_name: String, message: T) -> Result<usize, ChannelError> {
         let channel_map = self.channel_map.lock().await;
-        channel_map
+        let channel = channel_map
             .get(&channel_name)
-            .ok_or(ChannelError::ChannelNotFound)? // chanel not found error
+            .ok_or(ChannelError::ChannelNotFound)?; // chanel not found error
+
+        if channel.empty() {
+            return Ok(0);
+        }
+
+        channel
             .send(message)
             .map_err(|_| ChannelError::MessageSendFail) // message send fail error
     }
