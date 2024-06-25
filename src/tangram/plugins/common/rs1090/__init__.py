@@ -3,6 +3,7 @@ import os
 from typing import Any
 
 import dotenv
+from fastapi import APIRouter
 import httpx
 
 dotenv.load_dotenv()
@@ -104,3 +105,13 @@ class Rs1090Client:
         }
         """
         return await self.request_rs1090(path or "/track", params={"icao24": identifier})
+
+
+# TODO: [ ] included, tangram.app.incluee_router
+# TODO: [ ] a channel for this plugin, customize the even handler by decoration
+# TODO: [ ] inject the jet1090 websocket client
+class Plugin(APIRouter):
+    """subclass this to create your a new plugin"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)

@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, List
 
 from fastapi import FastAPI
+
 from tangram import websocket as channels
 from tangram.plugins.common import rs1090
 
@@ -209,9 +210,8 @@ class Runner:
 
 
 runner = Runner()
+
 app = FastAPI()
-
-
 # Per documents, events are not fired in sub app. Sadly, `on_event` decorator won't work
 # @rs1090_app.on_event('startup')
 

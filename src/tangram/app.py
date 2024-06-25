@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import json
 import logging
+import pathlib
 import uuid
 from datetime import datetime
 from typing import Any, Dict
-import pathlib
 
 from fastapi import FastAPI, Request, WebSocket, status
-from fastapi.concurrency import run_until_first_complete
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -45,6 +43,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
 app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
 app.mount("/plugins/trajectory", rs1090_trajectory.app, name="trajectory")
+
 
 start_time = datetime.now()
 
@@ -85,9 +84,11 @@ async def trajectory(icao24: str) -> Dict[str, Any]:
     }
     return geojson
 
+
 @app.get("/data/{icao24}")
 async def data(icao24: str) -> list[dict[str, Any]]:
     return await rs1090_source.icao24_track(rs1090_source.BASE_URL + "/track", icao24)
+
 
 @app.get("/turb.geojson")
 async def turbulence() -> Dict[str, Any]:
