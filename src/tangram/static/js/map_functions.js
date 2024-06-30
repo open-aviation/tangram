@@ -3,7 +3,7 @@ let prior_selected = null;
 var selected = null;
 
 let trajectoryPlots = []; // array of (latitude, longitude)
-// channel name: trajectory:${icao24}
+// channel name: channel:trajectory:${icao24}
 let trajectoryChannel = null;
 
 function joinTrajectoryChannel(channelName) {
@@ -73,7 +73,7 @@ function getFlight_data(icao24, callsign, tail, typecode) {
 function deselect_planes() {
   console.log(`deselect plan ${selected}`, trajectoryChannel);
   if (trajectoryChannel !== null) {
-    leaveTrajectoryChannel(`trajectory:${selected}`)
+    leaveTrajectoryChannel(`channel:trajectory:${selected}`)
   }
 
   document.getElementById("chart-pane").style.display = "none";
@@ -96,13 +96,13 @@ function onPlaneClicked(e) {
   selected = icao24;
   console.log(`plane [${selected}] selected`);
 
-  joinTrajectoryChannel(`trajectory:${selected}`)
+  joinTrajectoryChannel(`channel:trajectory:${selected}`)
 
   $("#" + icao24).toggleClass("aircraft_img", false);
   $("#" + icao24).toggleClass("aircraft_selected", true);
   $(".turb-" + icao24).toggleClass("turb_path", false);
   $(".turb-" + icao24).toggleClass("turb_selected", true);
-  
+
   draw_chart(icao24, chart_history);
   document.getElementById("chart-pane").style.display = "block";
 

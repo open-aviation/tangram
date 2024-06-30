@@ -2,17 +2,23 @@ import asyncio
 import logging
 import pathlib
 import sqlite3
+import operator
 from datetime import datetime
 from typing import Any, List
+import pandas as pd
 
 from fastapi import FastAPI
 
 from tangram import websocket as channels
 from tangram.plugins.common import rs1090
+from tangram.plugins.common.rs1090.websocket_client import Channel, jet1090_websocket_client
+
 
 log = logging.getLogger(__name__)
 rs1090_client = rs1090.Rs1090Client()
 MEMORY_FILE = ":memory:"
+
+pd.set_option("display.max_columns", 100)
 
 
 class Singleton:
@@ -61,7 +67,7 @@ class TrajectoryDB:
             latitude real,
             longitude real,
             altitude real default null,
-            CONSTRAINT unique_icao24_last UNIQUE (icao24, last)
+            UNIQUE (icao24, last)
           )
         """
         self.conn.execute(sql)
@@ -75,28 +81,15 @@ class TrajectoryDB:
         result: sqlite3.Cursor = self.conn.execute(sql, {"expiration_seconds": expiration_seconds})
         log.info("expire records older than %s seconds, %s records deleted", expiration_seconds, result.rowcount)
 
-    def insert_many(self, items: List[dict[str, Any]]):
-        sql = """
-            INSERT INTO trajectories (icao24, last, latitude, longitude, altitude)
-            VALUES (:icao24, :last, :latitude, :longitude, :altitude)
-        """
-        try:
-            self.conn.executemany(sql, items)
-            self.conn.commit()
-        except:  # noqa
-            log.exception("fail to write db")
-
     def insert_many_with_ts_confict(self, items: List[dict[str, Any]]) -> None:
         if items:
-            log.info("%s", items[0])
+            log.debug("%s", items[0])
 
         sql = """
             INSERT INTO trajectories (icao24, last, latitude, longitude, altitude)
             VALUES (:icao24, :last, :latitude, :longitude, :altitude)
             ON CONFLICT(icao24, last) DO NOTHING
         """
-        # TODO conflict error:
-        # sqlite3.IntegrityError: UNIQUE constraint failed: trajectories.icao24, trajectories.last
         try:
             self.conn.executemany(sql, items)
             self.conn.commit()
@@ -125,7 +118,7 @@ class TrajectoryDB:
         icao24_list: List[str] = await rs1090_client.list_identifiers()
         for icao24 in icao24_list:
             await self._load_history(icao24)
-        log.info("history loaded for %s icao24", len(icao24_list))
+        log.info("all history loaded from rs1090")
 
     async def _load_history(self, identifier: str):
         """load tracks from rs1090 and save them to local db"""
@@ -143,7 +136,7 @@ class TrajectoryDB:
             if item.get("latitude") and item.get("longitude")
         ]
         if tracks:
-            log.info("%s", tracks[0])
+            log.debug("%s", tracks[0])
         self.insert_many_with_ts_confict(tracks)
 
 
@@ -155,26 +148,64 @@ class Runner:
         self.latest_track_ts: None | float = None
         self.trajectory_db = TrajectoryDB(delete_db=True)  # TODO default to proper value
 
+        self.system_channel = jet1090_websocket_client.add_channel("system")
+        self.system_channel.on_event("join", self.on_system_joining)
+        self.system_channel.on_event("datetime", self.on_system_datetime)
+
+        self.jet1090_data_channel: Channel = jet1090_websocket_client.add_channel("jet1090")
+        self.jet1090_data_channel.on_event("join", self.on_jet1090_joining)
+        self.jet1090_data_channel.on_event("data", self.on_jet1090_data)
+
+    def on_system_joining(self, join_ref, ref, channel, event, status, response):
+        log.info("system, joined: %s", response)
+
+    def on_system_datetime(self, join_ref, ref, channel, event, status, response):
+        # log.info("system/datetime: %s", response)
+        pass
+
+    def on_jet1090_joining(self, join_ref, ref, channel, event, status, response):
+        log.info("jet1090, joined: %s", response)
+
+    async def on_jet1090_data(self, join_ref, ref, channel, event, status, response):
+        timed_message = response.get("timed_message")
+
+        # filter on the client side: i.e df = 17
+        # we are also interested in timestamp, which is always there
+        if not (timed_message.get("latitude") and timed_message.get("longitude") and timed_message.get("timestamp")):
+            return
+
+        # data = timed_message
+        includes = ["df", "icao24", "timestamp", "latitude", "longitude", "altitude"]
+        item = {"last" if k == "timestamp" else k: timed_message.get(k) for k in includes}
+        # log.info("jet1090/data: %s", item)
+
+        # FIXME: pushed all, but only the latest one is needed
+        await channels.publish_any(f"trajectory:{item['icao24']}", "new-data", item)
+
     async def start_task(self) -> None:
         self.task = asyncio.create_task(self.run())
         log.debug("trajectory peristing task created")
 
     def persist(self, items: List[dict[str, Any]]) -> None:
         try:
-            self.trajectory_db.insert_many(items)
+            self.trajectory_db.insert_many_with_ts_confict(items)
             log.info("total %s items persisted in db", len(items))
         except Exception:
             log.exception("fail to write sqltie3 db")
 
-    async def run(self, internal_seconds: int = 3):
+    async def run(self, internal_seconds: int = 7):
         """launch job here"""
-        log.info("start peristing ...")
+        log.info("start running ...")
+        await self.system_channel.join_async()
+        await self.jet1090_data_channel.join_async()
 
         await self.trajectory_db.load_all_history()
+        log.info("start peristing ...")
 
         while self.running:
             items = await rs1090_client.all() or []
-            log.info("total: %s", len(items))
+            log.debug("total: %s", len(items))
+
             items = [item for item in items if all((item.get("latitude"), item.get("longitude"), item.get("last")))]
 
             if self.latest_track_ts:
@@ -192,14 +223,14 @@ class Runner:
 
             # and push to client directly
             # TODO only when clients are subscribing a icao24
-            for item in items:
-                try:
-                    # tracks = self.trajectory_db.list_tracks(item["icao24"])
-                    # await channels.publish_any(f"trajectory:{item['icao24']}", "new-data", [*tracks, item])
-                    await channels.publish_any(f"trajectory:{item['icao24']}", "new-data", item)
-                except Exception:
-                    log.exception(f"fail to publish trajectory {item}")
-
+            # for item in items:
+            #     try:
+            #         # tracks = self.trajectory_db.list_tracks(item["icao24"])
+            #         # await channels.publish_any(f"trajectory:{item['icao24']}", "new-data", [*tracks, item])
+            #         await channels.publish_any(f"trajectory:{item['icao24']}", "new-data", item)
+            #     except Exception:
+            #         log.exception(f"fail to publish trajectory {item}")
+            #
             # expire records every minute
             if self.counter % 60 == 0:
                 self.trajectory_db.expire_records()

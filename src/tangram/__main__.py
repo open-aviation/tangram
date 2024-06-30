@@ -11,7 +11,7 @@ import uvicorn
 from tangram.settings import TANGRAM_PACKAGE_ROOT, tangram_settings
 from tangram.util.geojson import BetterJsonEncoder
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("tangram")
 
 
 def main():
@@ -32,19 +32,22 @@ def main():
         print(json.dumps(tangram_settings.model_dump(), indent=2, cls=BetterJsonEncoder))
         return
 
+    log.info("working dir: %s", pathlib.Path.cwd())
     uvicorn_config = uvicorn.Config(
         app="tangram.app:app",
         ws="websockets",
         host=args.host or tangram_settings.host,
         port=args.port or tangram_settings.port,
         reload=args.reload or tangram_settings.reload,
+        # reload_dirs=[str(TANGRAM_PACKAGE_ROOT)],
         log_config=tangram_settings.log_config,
     )
-    log.debug("uvicorn config: %s", uvicorn_config)
+    log.error("uvicorn config: %s", uvicorn_config)
+    log.info("should reload: %s", uvicorn_config.should_reload)
     try:
         uvicorn.Server(uvicorn_config).run()
     except KeyboardInterrupt:
-        print("\rbye.")
+        print("\ruser interrupted, bye.")
 
 
 if __name__ == "__main__":

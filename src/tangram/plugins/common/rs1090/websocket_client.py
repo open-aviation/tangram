@@ -11,8 +11,8 @@ from typing import Callable, Set
 
 import websockets
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(filename)s:%(lineno)s - %(message)s")
-log = logging.getLogger("rs1090-ws-client")
+# logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(filename)s:%(lineno)s - %(message)s")
+log = logging.getLogger(__name__)
 
 
 class Channel:
@@ -27,14 +27,38 @@ class Channel:
     def join(self) -> Channel:
         return self.send("phx_join", {})
 
-    def run_event_handler(self, event: str, *args, **kwargs) -> None:
+    async def join_async(self) -> Channel:
+        return await self.send_async("phx_join", {})
+
+    async def on_join(self, join_ref, ref, channel, event, status, response) -> None:
+        """default joining handler"""
+        log.info("ignore joining reply: %s %s", status, response)
+
+    async def run_event_handler(self, event: str, *args, **kwargs) -> None:
         """this is called from the connection when a message is received"""
         if event == "phx_reply":
-            log.info("ignore message: %s %s %s", event, args, kwargs)
+            for fn in self._event_handlers.get("join", []):
+                result = fn(*args, **kwargs)
+                if asyncio.iscoroutine(result):
+                    await result
+            else:
+                await self.on_join(*args, **kwargs)
             return
 
         for fn in self._event_handlers.get(event, []):
-            fn(*args, **kwargs)
+            # print(fn)
+            result = fn(*args, **kwargs)
+            # print(result)
+            if asyncio.iscoroutine(result):
+                await result
+
+    async def send_async(self, event: str, payload: dict) -> Channel:
+        message = json.dumps(["0", "0", self.channel, event, payload])
+        await self.connection.send(message)
+        if event == "phx_join":
+            self.join_ref += 1
+        self.ref += 1
+        return self
 
     def send(self, event: str, payload: dict) -> Channel:
         message = json.dumps(["0", "0", self.channel, event, payload])
@@ -71,19 +95,23 @@ class Channel:
 class Jet1090WebsocketClient:
     # callbacks = {}  # f'{channel}-{event}' -> callback
 
-    def __init__(self, websocket_url):
-        self.websocket_url = websocket_url
+    def __init__(self, loop=None):
+        self.websocket_url: str
         self._CHANNEL_CALLBACKS = {}  # f'{channel}-{event}' -> callback
         self.channels = {}
-        self.loop = asyncio.get_event_loop()
+        self.loop = loop or asyncio.get_running_loop()
+        self.connected: bool = False
 
-    def connect(self):
-        """connect to the websocket server, regiter callbacks before calling this"""
-        self.loop.run_until_complete(self._connect())
+    def connect(self, websocket_url: str):
+        """connect to the websocket server, regiter callbacks before calling this
+        this is the entrypoint for the asyncio loop, most likely ran at the end of the code"""
+        self.loop.run_until_complete(self.async_connect(websocket_url))
 
-    async def _connect(self):
-        # ping/pong keepalive
-        # disabled: https://websockets.readthedocs.io/en/stable/topics/timeouts.html
+    async def async_connect(self, websocket_url: str):
+        """asyncio context entrypoint"""
+        self.websocket_url = websocket_url
+        # ping/pong keepalive disabled
+        # https://websockets.readthedocs.io/en/stable/topics/timeouts.html
         self._connection = await websockets.connect(self.websocket_url, ping_interval=None)
         log.info("connected to %s", self.websocket_url)
 
@@ -96,8 +124,10 @@ class Jet1090WebsocketClient:
         await self._connection.send(message)
 
     def start(self) -> None:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(asyncio.gather(self._heartbeat(), self._dispatch()))
+        self.loop.run_until_complete(asyncio.gather(self._heartbeat(), self._dispatch()))
+
+    async def start_async(self) -> None:
+        await asyncio.gather(self._heartbeat(), self._dispatch())
 
     async def _heartbeat(self):
         ref = 0
@@ -110,13 +140,23 @@ class Jet1090WebsocketClient:
 
     async def _dispatch(self):
         """dispatch messages to registered callbacks"""
-        async for message in self._connection:
-            log.debug("message: %s", message)
-            [join_ref, ref, channel, event, payload] = json.loads(message)
-            status, response = payload["status"], payload["response"]
-            ch: Channel | None = self.channels.get(channel)
-            if ch:
-                ch.run_event_handler(event, join_ref, ref, channel, event, status, response)
+        try:
+            async for message in self._connection:
+                # log.debug("message: %s", message)
+                [join_ref, ref, channel, event, payload] = json.loads(message)
+                status, response = payload["status"], payload["response"]
+                ch: Channel | None = self.channels.get(channel)
+                if not ch:
+                    continue
+                await ch.run_event_handler(event, join_ref, ref, channel, event, status, response)
+        except websockets.exceptions.ConnectionClosedError:
+            log.error("connection lost, reconnecting %s...", self.websocket_url)
+            await self.async_connect(self.websocket_url)
+            for ch in self.channels:
+                await self.channels[ch].join_async()
+
+
+jet1090_websocket_client: Jet1090WebsocketClient = Jet1090WebsocketClient()
 
 
 def on_joining_system(_join_ref, _ref, channel, event, status, response) -> None:  # noqa
@@ -133,28 +173,28 @@ def on_datetime(join_ref, ref, channel, event, status, response) -> None:  # noq
 
 
 def on_jet1090_message(join_ref, ref, channel, event, status, response) -> None:  # noqa
-    log.info("jet1090 message: %s", response)
+    skipped_fields = ["timestamp", "timesource", "system", "frame"]
+    log.info("jet1090: %s", {k: v for k, v in response["timed_message"].items() if k not in skipped_fields})
 
 
-def main(ws_url):
+def main(ws_url: str):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+    jet1090_websocket_client = Jet1090WebsocketClient(ws_url, loop)
+    jet1090_websocket_client.connect(ws_url)
 
-    client = Jet1090WebsocketClient(ws_url)
-    client.connect()
-
-    # system_channel = client.add_channel("system").on_event("datetime", on_datetime)
-    # system_channel.join()
+    system_channel = jet1090_websocket_client.add_channel("system").on_event("datetime", on_datetime)
+    system_channel.join()
     # client.add_channel("system").join()
 
-    jet1090_channel = client.add_channel("jet1090").on_event("data", on_jet1090_message)
+    jet1090_channel = jet1090_websocket_client.add_channel("jet1090").on_event("data", on_jet1090_message)
     jet1090_channel.join()
 
-    client.start()
+    jet1090_websocket_client.start()
 
 
 if __name__ == "__main__":
-    default_websocket_url = "ws://127.0.0.1:5000/websocket"
+    default_websocket_url = "ws://127.0.0.1:8080/websocket"
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-u", "--websocket-url", dest="websocket_url", type=str, default=default_websocket_url)
@@ -163,7 +203,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     log.setLevel(args.log_level.upper())
-    print(log)
 
     try:
         main(args.websocket_url)

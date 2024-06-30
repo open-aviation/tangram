@@ -8,11 +8,11 @@ log_config:
   disable_existing_loggers: False
   formatters:
     default:
-      format: '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s'
+      format: "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s"
     access:
-      format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+      format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     tangram:
-      format: '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s'
+      format: "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s"
   handlers:
     default:
       formatter: default
@@ -76,7 +76,7 @@ log_config:
         - rs1090_source_file
       propagate: no
     tangram.plugins.rs1090_trajectory:
-      level: DEBUG
+      level: INFO
       qualname: tangram.plugins.rs1090_trajectory
       handlers:
         - trajectory

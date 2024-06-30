@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import pathlib
 import uuid
@@ -13,21 +14,35 @@ from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 
 from tangram import websocket as tangram_websocket
-from tangram.plugins import rs1090_source
-from tangram.plugins import rs1090_trajectory
+from tangram.plugins import rs1090_source, rs1090_trajectory
+from tangram.settings import tangram_settings  # noqa
+from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_client
 
 log = logging.getLogger("tangram")
+
+
+async def startup_debug(*args: Any, **kwargs: Any) -> None:
+    """debugging"""
+    log.info("%s\n\n\n\n", "=" * 40)
+    log.info("startup, %s, %s", args, kwargs)
+
+    websocket_url = "ws://192.168.8.37:8080/websocket"
+    await jet1090_websocket_client.async_connect(websocket_url)
+    task = asyncio.create_task(jet1090_websocket_client.start_async())
+    log.info("created websocket client task: %s", task)
 
 
 async def shutdown_debug(*args: Any, **kwargs: Any) -> None:
     """debugging"""
     log.info("%s\n\n\n\n", "=" * 40)
+    log.info("shutdown, args: %s, kwargs: %s", args, kwargs)
 
 
 tangram_module_root = pathlib.Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=tangram_module_root / "templates")
 app = FastAPI(
     on_startup=[
+        startup_debug,
         tangram_websocket.broadcast.connect,
         rs1090_source.start,
         rs1090_trajectory.start,

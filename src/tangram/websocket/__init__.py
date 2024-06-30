@@ -50,133 +50,121 @@ class Hub:
 hub = Hub()
 
 
-class Message(BaseModel):
+class ClientMessage(BaseModel):
     join_ref: str | None
     ref: str | None
     topic: str
     event: str
     payload: Any  # TODO jsonable, typed by framework
 
+    @property
+    def ok(self) -> dict:
+        return {"status": "ok", "response": {}}
+
+    @property
+    def channel_name(self) -> str:
+        """it's in format channel:<name>"""
+        return self.topic.lstrip("channel:")
+
     @classmethod
-    def from_string(cls, text) -> "Message":
+    def from_string(cls, text) -> ClientMessage:
         [join_ref, ref, topic, event, payload] = json.loads(text)
-        return Message(join_ref=join_ref, ref=ref, topic=topic, event=event, payload=payload)
+        return ClientMessage(join_ref=join_ref, ref=ref, topic=topic, event=event, payload=payload)
 
     def to_array(self) -> List[int | str | Any]:
         return [self.join_ref, self.ref, self.topic, self.event, self.payload]
 
 
-def is_heartbeat(message: Message) -> bool:
+def is_heartbeat(message: ClientMessage) -> bool:
     return message.topic == "phoenix" and message.event == "heartbeat"
 
 
-def is_joining(message: Message) -> bool:
+def is_joining(message: ClientMessage) -> bool:
     return message.event == "phx_join"
 
 
-def is_leaving(message) -> bool:
+def is_leaving(message: ClientMessage) -> bool:
     return message.event == "phx_leave"
 
 
-class ClientMessage(Message):
-    pass
-
-
-class ServerMessage(Message):
-    pass
-
-
-async def handle_heartbeat(client_id: str, client_message: ClientMessage) -> None:
+async def handle_heartbeat(client_id: str, message: ClientMessage) -> None:
     """always respond"""
     log.debug("[%s] - receive heartbeat from client", client_id)
-
-    message: list[Any] = [
-        client_message.join_ref,
-        client_message.ref,
-        client_message.topic,
-        "phx_reply",  # event
-        {"status": "ok", "response": "heartbeat acked"},  # payload
-    ]
-    await broadcast.publish(channel=client_id, message=message)
+    await broadcast.publish(
+        channel=client_id,
+        message=[message.join_ref, message.ref, message.topic, "phx_reply", message.ok],
+    )
     log.debug("[%s] - heartbeat piped: %s [%s]", client_id, type(message), message)
 
 
-async def handle_joining(client_id: str, client_message: ClientMessage):
-    log.info("[%s] - want to join %s", client_id, client_message.topic)
-    hub.add(client_id, client_message.topic)
-    message = [
-        client_message.join_ref,
-        client_message.ref,
-        client_message.topic,
-        "phx_reply",
-        {"status": "ok", "response": {"client_id": client_id}},
-    ]
-    await broadcast.publish(client_id, message)
-    # TODO add plugins' hook
-    log.info("[%s] - %s response piped: %s [%s]", client_id, client_message.event, type(message), message)
+async def ok_to_join(client_id: str, message: ClientMessage):
+    log.info("[%s] - want to join %s", client_id, message.topic)
+    hub.add(client_id, message.topic)
+    default_payload = {"status": "ok", "response": {"client_id": client_id}}
+    await broadcast.publish(
+        channel=client_id,
+        message=[message.join_ref, message.ref, message.topic, "phx_reply", default_payload],
+    )
+    log.info("[%s] - %s response piped: %s [%s]", client_id, message.event, type(message), message)
 
 
-async def handle_leaving(client_id: str, client_message: ClientMessage):
-    log.info("[%s] - is to leave %s", client_id, client_message.topic)
-    message = [
-        client_message.join_ref,
-        client_message.ref,
-        client_message.topic,
-        "phx_reply",
-        {"status": "ok", "response": {}},
-    ]
-    await broadcast.publish(channel=client_id, message=message)
-    hub.remove(client_id, client_message.topic)
-    log.info("[%s] - %s response piped %s", client_id, client_message.event, client_message.topic)
+async def ok_to_leave(client_id: str, message: ClientMessage):
+    log.info("[%s] - is to leave %s", client_id, message.topic)
+    await broadcast.publish(
+        channel=client_id,
+        message=[message.join_ref, message.ref, message.topic, "phx_reply", message.ok],
+    )
+    hub.remove(client_id, message.topic)
+    log.info("[%s] - %s response piped %s", client_id, message.event, message.topic)
 
 
-class BroadcastMessageHandler:
-    @classmethod
-    def will_handle(cls, message: Message) -> bool:
-        # TODO allowing all for now
-        return message.topic in ["channel:system", "channel:streaming"] and message.event in ["new-traffic", "new-turb"]
+class SystemChannelHandler:
+    name = "system"
 
-    @classmethod
-    async def process(cls, client_id: str, client_message: Message) -> bool:
+    def __init__(self) -> None:
+        pass
+
+    def will_handle_channel(self, channel_name) -> bool:
+        return channel_name == "system"
+
+    def handle_joining(self, client_id: str, message: ClientMessage):
+        return ok_to_join(client_id, message)
+
+    def handle_leaving(self, client_id: str, message: ClientMessage):
+        return ok_to_leave(client_id, message)
+
+    async def handle_event(self, client_id: str, client_message: ClientMessage) -> bool:
         log.debug("[%s] - system broadcast", client_id)
 
         # response
-        message = [
-            None,
-            client_message.ref,
-            client_message.topic,
-            "phx_reply",
-            {"status": "ok", "response": {}},
-        ]
+        message = [None, client_message.ref, client_message.topic, "phx_reply", client_message.ok]
         await broadcast.publish(channel=client_id, message=message)
 
-        # broadcast
+        # broadcast to all clients
         for subscriber in hub.clients():
             if subscriber == client_id:
                 continue
-            message = [
-                None,
-                None,
-                client_message.topic,
-                client_message.event,
-                client_message.payload,
-            ]
+            message = [None, None, client_message.topic, client_message.event, client_message.payload]
             await broadcast.publish(channel=subscriber, message=message)
         return True
 
 
-class Rs1090MessageHandler:
-    @classmethod
-    def will_handle(cls, message: Message) -> bool:
-        return message.topic == "channel:streaming" and message.event.startswith("plugin:")
+class Rs1090SourceChannelHandler:
+    name = "streaming"
 
-    @classmethod
-    async def process(cls, client_id: str, message: ClientMessage) -> bool:
-        """TODO: return None if the chain continues, will ServerResponse if this terminates the chain"""
+    def will_handle_channel(self, channel_name: str) -> bool:
+        return channel_name.lower() == self.name
+
+    async def handle_joining(self, client_id: str, message: ClientMessage):
+        return await ok_to_join(client_id, message)
+
+    async def handle_leaving(self, client_id: str, message: ClientMessage):
+        return await ok_to_leave(client_id, message)
+
+    async def handle_event(self, client_id: str, message: ClientMessage) -> bool:
         _, plugin_name, plugin_event = message.event.split(":")
         log.info("plugin: %s, event: %s", plugin_name, plugin_event)
 
-        # let's assume `rs1090_plugin` for now
         if plugin_event in rs1090_source.event_handlers:
             rs1090_source.event_handlers[plugin_event](message.payload)
             log.info("called plugin event handler")
@@ -186,10 +174,48 @@ class Rs1090MessageHandler:
             return False
 
 
-CLIENT_MESSAGE_HANDLERS = [
-    Rs1090MessageHandler(),
-    BroadcastMessageHandler(),
-]
+class TrajectoryChannelHandler:
+    def __init__(self) -> None:
+        pass
+
+    @property
+    def channel_name(self) -> str:
+        return "channel:trajectory"
+
+    def will_handle_channel(self, channel_name: str) -> bool:
+        return channel_name.lower().startswith(f"{self.channel_name}:")
+
+    async def handle_joining(self, client_id: str, message: ClientMessage):
+        return await ok_to_join(client_id, message)
+
+    async def handle_leaving(self, client_id: str, message: ClientMessage):
+        return await ok_to_leave(client_id, message)
+
+    async def handle_event(self, client_id: str, message: ClientMessage) -> bool:
+        return True
+
+
+system_channel_handler = SystemChannelHandler()
+rs1090_source_handler = Rs1090SourceChannelHandler()
+trajectory_channel_handler = TrajectoryChannelHandler()
+
+joining_handlers = {
+    system_channel_handler.name: system_channel_handler,
+    rs1090_source_handler.name: rs1090_source_handler,
+    trajectory_channel_handler.channel_name: trajectory_channel_handler,
+}
+
+channel_event_handlers = {
+    system_channel_handler.name: system_channel_handler,
+    rs1090_source_handler.name: rs1090_source_handler,
+    trajectory_channel_handler.channel_name: trajectory_channel_handler,
+}
+
+leaving_handlers = {
+    system_channel_handler.name: system_channel_handler,
+    rs1090_source_handler.name: rs1090_source_handler,
+    trajectory_channel_handler.channel_name: trajectory_channel_handler,
+}
 
 
 async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
@@ -197,28 +223,35 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
     async for text in websocket.iter_text():
         log.debug("[%s] < %s [%s]", client_id, type(text), text)
 
-        client_message: ClientMessage = ClientMessage.from_string(text)
+        client_message: ClientMessage = ClientMessage.from_string(text)  # noqa
 
-        # TODO make these three if-then handling into handlers
         if is_heartbeat(client_message):
             await handle_heartbeat(client_id, client_message)
             continue
 
         if is_joining(client_message):
-            await handle_joining(client_id, client_message)
+            for channel_name, handler in joining_handlers.items():
+                log.info("joining handler, %s => %s", channel_name, handler)
+                if handler.will_handle_channel(client_message.topic):
+                    result = await handler(client_id, client_message)
+                    log.info("joining handler, %s => %s", channel_name, result)
+                    break
             continue
 
         if is_leaving(client_message):
-            await handle_leaving(client_id, client_message)
+            for channel_name, handler in leaving_handlers.items():
+                if handler.will_handle_channel(client_message.topic):
+                    await handler(client_id, client_message)
+                    break
             continue
 
-        for handler in CLIENT_MESSAGE_HANDLERS:
-            if handler.will_handle(client_message):
-                if handler.process(client_id, client_message):
-                    log.debug("handler %s handles it", handler.__class__)
-                    break
-    # TODO cleanup
-    log.debug("[%s] done")
+        for channel_name, handler in channel_event_handlers.items():
+            if handler.will_handle_channel(client_message.topic):
+                await handler(client_id, client_message)
+                break
+
+    # TODO: cleanup
+    log.debug("[%s] done\n\n", client_id)
 
 
 async def websocket_sender(websocket: WebSocket, client_id: str) -> None:
@@ -239,8 +272,10 @@ async def handle_websocket_client(client_id: str, ws: WebSocket):
     )
 
 
-async def publish_any(channel: str, event: str, any: Any):
+async def publish_any(channel: str, event: str, any: Any) -> int:
     message = [None, None, channel, event, any]
-    for client_id in hub.channel_clients().get(channel, []):
+    clients = hub.channel_clients().get(channel, [])
+    for client_id in clients:
         await broadcast.publish(channel=client_id, message=message)
-        log.debug("message published to %s", client_id)
+        # log.debug("message published to %s", client_id)
+    return len(clients)
