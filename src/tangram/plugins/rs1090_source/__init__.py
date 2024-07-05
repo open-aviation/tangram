@@ -167,12 +167,10 @@ event_handlers = {
 
 
 class Rs1090SourceChannelHandler(ChannelHandlerMixin):
-    @property
-    def channel_name(self):
-        return "channel:streaming"
+    pass
 
 
-rs1090_source_channel_handler = Rs1090SourceChannelHandler()
+rs1090_source_channel_handler = Rs1090SourceChannelHandler("channel:streaming")
 register_channel_handler(rs1090_source_channel_handler)
 
 

@@ -3,7 +3,6 @@ import logging
 import pathlib
 import sqlite3
 from datetime import datetime
-from time import time
 from typing import Any, List, Optional
 import pandas as pd
 
@@ -142,18 +141,11 @@ class TrajectoryDB:
 
 
 class TrajectoryChannelHandler(ChannelHandlerMixin):
-    def __init__(self) -> None:
-        super().__init__()
-
-    @property
-    def channel_name(self) -> str:
-        return "channel:trajectory"
-
     def will_handle_channel(self, channel_name: str) -> bool:
         return channel_name.lower().startswith(self.channel_name)
 
 
-trajectory_channel_handler = TrajectoryChannelHandler()
+trajectory_channel_handler = TrajectoryChannelHandler("channel:trajectory")
 register_channel_handler(trajectory_channel_handler)
 
 
@@ -177,10 +169,10 @@ class Runner:
         self.latest_track_ts: None | float = None
         self.trajectory_db = TrajectoryDB(delete_db=True)  # TODO default to proper value
 
-        self.system_channel = jet1090_websocket_client.add_channel("system")
-        self.system_channel.on_event("join", self.on_system_joining)
-        self.system_channel.on_event("datetime", self.on_system_datetime)
-
+        # self.system_channel = jet1090_websocket_client.add_channel("system")
+        # self.system_channel.on_event("join", self.on_system_joining)
+        # self.system_channel.on_event("datetime", self.on_system_datetime)
+        #
         self.jet1090_data_channel: Channel = jet1090_websocket_client.add_channel("jet1090")
         self.jet1090_data_channel.on_event("join", self.on_jet1090_joining)
         self.jet1090_data_channel.on_event("data", self.on_jet1090_data)
@@ -189,12 +181,12 @@ class Runner:
         self.selected_icao24 = message.payload["icao24"]
         log.info("TJ Runner - selected_icao24 updated: %s", self.selected_icao24)
 
-    def on_system_joining(self, join_ref, ref, channel, event, status, response):
-        log.info("system, joined: %s", response)
-
-    def on_system_datetime(self, join_ref, ref, channel, event, status, response):
-        # log.info("system/datetime: %s", response)
-        pass
+    # def on_system_joining(self, join_ref, ref, channel, event, status, response):
+    #     log.info("system, joined: %s", response)
+    #
+    # def on_system_datetime(self, join_ref, ref, channel, event, status, response):
+    #     # log.info("system/datetime: %s", response)
+    #     pass
 
     def on_jet1090_joining(self, join_ref, ref, channel, event, status, response):
         log.info("jet1090, joined: %s", response)
@@ -235,7 +227,7 @@ class Runner:
     async def run(self, internal_seconds: int = 7):
         """launch job here"""
         log.info("start running ...")
-        await self.system_channel.join_async()
+        # await self.system_channel.join_async()
         await self.jet1090_data_channel.join_async()
 
         await self.trajectory_db.load_all_history()

@@ -20,15 +20,11 @@ var baselayer = L.tileLayer(
 var layers = [cat_mod, cat_sev, sigmets, aireps, turbulences, planes, traj];
 var map = L.map("map", { layers }).setView([48, 5], 5);
 
-var fullscreenControl = L.control.fullscreen();
-
-map.addControl(fullscreenControl);
+// var fullscreenControl = L.control.fullscreen();
+map.addControl(L.control.fullscreen());
 
 map.on("click", function (e) {
-  if (
-    e.originalEvent.target.classList.contains("turb_selected") |
-    (e.originalEvent.target.id == "myChart")
-  ) {
+  if (e.originalEvent.target.classList.contains("turb_selected") | (e.originalEvent.target.id == "myChart")) {
     return;
   }
   deselect_planes();
@@ -59,6 +55,7 @@ hexLayer
     }, 0);
     return intensity_sum;
   });
+
 var overlays = {
   CAT_moderate: cat_mod,
   CAT_severe: cat_sev,
@@ -67,32 +64,55 @@ var overlays = {
   Turbulences: turbulences,
   Planes: planes,
   hexbins: hexLayer,
+  trjectory: traj,
 };
 
 // channel.js api: https://hexdocs.pm/phoenix/js/
-// init socket
 
-console.log("channel script");
+// init socket
 const { Socket, Presence, Channel } = Phoenix;
 const debug = false;
 const userToken = "joining-token";
 let socket = new Socket("", { debug, params: { userToken } });
 socket.connect();
 
-let streamingChannelName = "channel:streaming";
-const streamingChannelToken = "channel-token";
-let streamingChannel = socket.channel(streamingChannelName, { token: streamingChannelToken });
+// system channel
+const systemChannelName = "channel:system";
+const systemChannelToken = "channel-token";
+let systemChannel = socket.channel(systemChannelName, { token: systemChannelToken });
 // console.dir(channel);
-
-streamingChannel.on("new-data", renderPlanes);
 
 function updateEl({ el, html }) {
   morphdom(document.getElementById(el), html);
 }
 
-streamingChannel.on('uptime', updateEl);
-streamingChannel.on('info_local', updateEl);
-streamingChannel.on('info_utc', updateEl);
+systemChannel.on('uptime', updateEl);
+systemChannel.on('info_local', updateEl);
+systemChannel.on('info_utc', updateEl);
+
+systemChannel
+  .join()
+  .receive("ok", ({ messages }) => {
+    console.log(`(${systemChannelName}) joined`, messages);
+  })
+  .receive("error", ({ reason }) =>
+    console.log(`failed to join ${systemChannelName}`, reason)
+  )
+  .receive("timeout", () => console.log(`timeout joining ${systemChannelName}`));
+
+///
+function publishEvent(channel, event, payload) {
+  channel.push(`event:${event}`, payload)
+    .receive("ok", (resp) => console.log(`${channel.topic} publishEvent ${event}`, resp));
+}
+
+/// streaming channel
+const streamingChannelName = "channel:streaming";
+const streamingChannelToken = "channel-token";
+let streamingChannel = socket.channel(streamingChannelName, { token: streamingChannelToken });
+// console.dir(channel);
+
+streamingChannel.on("new-data", renderPlanes);
 
 streamingChannel
   .join()
@@ -129,27 +149,3 @@ function publishEvent(channel, event, payload) {
 // L.control.zoom({ position: "topright" }).addTo(map);
 L.control.layers(null, overlays).addTo(map);
 
-/// update
-var UptimeSec = document.getElementById("seconds_uptime").textContent;
-document.getElementById("info_utc").innerHTML = getTimeString(false);
-document.getElementById("info_local").innerHTML = getTimeString(true);
-let uptimeEl = document.getElementById("uptime");
-
-function updateUptime() {
-  distance = UptimeSec++;
-  var days = Math.floor(distance / (60 * 60 * 24));
-  var hours = Math.floor((distance % (60 * 60 * 24)) / (60 * 60));
-  var minutes = Math.floor((distance % (60 * 60)) / 60);
-  var seconds = Math.floor(distance % 60);
-  var d = days == 0 ? "" : days + "d ";
-  var h = hours == 0 ? "" : hours + "h ";
-
-  uptimeEl.innerHTML = d + h + minutes + "m " + seconds + "s ";
-
-  document.getElementById("info_utc").innerHTML = getTimeString(false);
-  document.getElementById("info_local").innerHTML = getTimeString(true);
-}
-
-// setInterval(updateUptime, 1000 * 1); // 1 secondes
-
-setInterval(() => $.getJSON('uptime', function (data) { UptimeSec = data.uptime; }), 1000 * 60); // 1 minute

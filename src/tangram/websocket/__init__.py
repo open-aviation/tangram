@@ -120,12 +120,13 @@ async def ok_to_leave(client_id: str, message: ClientMessage):
 
 
 class ChannelHandlerMixin:
-    def __init__(self) -> None:
+    def __init__(self, channel_name: str) -> None:
+        self._channel_name = channel_name
         self.event_handlers = []
 
     @property
     def channel_name(self):
-        raise NotImplementedError
+        return self._channel_name
 
     def will_handle_channel(self, channel_name: str) -> bool:
         """accept when channel matches exactly"""
@@ -188,37 +189,6 @@ class ChannelHandlerMixin:
         return decorator
 
 
-class SystemChannelHandler:
-    @property
-    def channel_name(self):
-        return "system"
-
-    def will_handle_channel(self, channel_name) -> bool:
-        return channel_name == "system"
-
-    def handle_joining(self, client_id: str, message: ClientMessage):
-        return ok_to_join(client_id, message)
-
-    def handle_leaving(self, client_id: str, message: ClientMessage):
-        return ok_to_leave(client_id, message)
-
-    async def dispatch_events(self, client_id: str, client_message: ClientMessage) -> bool:
-        # log.debug("[%s] - system broadcast", client_id)
-        #
-        # # response
-        # message = [None, client_message.ref, client_message.topic, "phx_reply", client_message.ok]
-        # await broadcast.publish(channel=client_id, message=message)
-        #
-        # # broadcast to all clients
-        # for subscriber in hub.clients():
-        #     if subscriber == client_id:
-        #         continue
-        #     message = [None, None, client_message.topic, client_message.event, client_message.payload]
-        #     await broadcast.publish(channel=subscriber, message=message)
-        # return True
-        return False
-
-
 channel_handlers = {}
 
 
@@ -227,10 +197,7 @@ def register_channel_handler(handler):
     channel_handlers[handler.channel_name] = handler
 
 
-register_channel_handler(SystemChannelHandler())
-
-
-def _get_channel_handler(channel_name: str) -> SystemChannelHandler | None:
+def _get_channel_handler(channel_name: str):
     for _channel_name, handler in channel_handlers.items():
         if handler.will_handle_channel(channel_name):
             return handler
@@ -267,6 +234,7 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
 
         channel_handler = _get_channel_handler(client_message.topic)
         if channel_handler is None:
+            log.warning("ignore channel message: %s", client_message)
             continue
         log.info("channel_handler: %s", channel_handler)
 

@@ -11,8 +11,8 @@ from typing import Callable, Set
 
 import websockets
 
-# logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(filename)s:%(lineno)s - %(message)s")
-log = logging.getLogger(__name__)
+# log = logging.getLogger(__name__)
+log = logging.getLogger("tangram")
 
 
 class Channel:
@@ -92,8 +92,26 @@ class Channel:
         return decorator
 
 
-class Jet1090WebsocketClient:
+class Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            log.info("creating new instance of %s", cls.__name__)
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        # else:
+        #     log.info('init with existing instance of %s', cls.__name__)
+        #     cls._instances[cls].__init__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class Jet1090WebsocketClient(metaclass=Singleton):
     # callbacks = {}  # f'{channel}-{event}' -> callback
+
+    def __new__(cls):
+        if not hasattr(cls, "instance"):
+            cls.instance = super().__new__(cls)
+        return cls.instance
 
     def __init__(self, loop=None):
         self.websocket_url: str
@@ -108,17 +126,19 @@ class Jet1090WebsocketClient:
         self.loop.run_until_complete(self.async_connect(websocket_url))
 
     async def async_connect(self, websocket_url: str):
-        """asyncio context entrypoint"""
+        """asyncio context entrypoint
+        this is started in a global startup hook."""
         self.websocket_url = websocket_url
         # ping/pong keepalive disabled
         # https://websockets.readthedocs.io/en/stable/topics/timeouts.html
         self._connection = await websockets.connect(self.websocket_url, ping_interval=None)
         log.info("connected to %s", self.websocket_url)
 
-    def add_channel(self, channel: str) -> Channel:
-        ch = Channel(self, channel, self.loop)
-        self.channels[channel] = ch
-        return ch
+    def add_channel(self, channel_name: str) -> Channel:
+        channel = Channel(self, channel_name, self.loop)
+        self.channels[channel_name] = channel
+        log.info("added a new channel %s %s", channel_name, channel)
+        return channel
 
     async def send(self, message: str):
         await self._connection.send(message)
@@ -127,13 +147,15 @@ class Jet1090WebsocketClient:
         self.loop.run_until_complete(asyncio.gather(self._heartbeat(), self._dispatch()))
 
     async def start_async(self) -> None:
+        log.info("starting jet1090 websocket client ...")
         await asyncio.gather(self._heartbeat(), self._dispatch())
 
     async def _heartbeat(self):
+        """keepalive to the jet1090 server"""
         ref = 0
         while True:
             await self._connection.send(json.dumps(["0", str(ref), "phoenix", "heartbeat", {}]))
-            log.info("heartbeat sent")
+            log.debug("jet1090 keepalive message sent")
 
             await asyncio.sleep(60)
             ref += 1
@@ -157,6 +179,9 @@ class Jet1090WebsocketClient:
 
 
 jet1090_websocket_client: Jet1090WebsocketClient = Jet1090WebsocketClient()
+
+
+# example
 
 
 def on_joining_system(_join_ref, _ref, channel, event, status, response) -> None:  # noqa
