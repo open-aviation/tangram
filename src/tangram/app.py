@@ -17,6 +17,7 @@ from tangram import websocket as tangram_websocket
 from tangram.plugins import rs1090_source, rs1090_trajectory
 from tangram.settings import tangram_settings  # noqa
 from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_client
+from tangram.plugins import history
 
 log = logging.getLogger("tangram")
 
@@ -58,7 +59,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
 app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
 app.mount("/plugins/trajectory", rs1090_trajectory.app, name="trajectory")
-
+app.include_router(history.app)
 
 start_time = datetime.now()
 

@@ -1,6 +1,32 @@
 var chart_history;
-let prior_selected = null;
-var selected = null;
+
+// let prior_selected = null;
+// var selected = null;
+
+const selected_handler = {
+  get(target, prop, receiver) {
+    if (prop === 'icao24') {
+      // console.log('access selected.icao24', target[prop]);
+      return target[prop];
+    }
+    return Reflect.get(target, prop, receiver); // fallback
+  },
+  set(target, prop, value, receiver) {
+    if (prop === 'icao24') {
+      let prior_value = target[prop];
+      target['prior_icao24'] = prior_value;
+      target['icao24'] = value;
+      console.log(`selected icao24 updated, ${prior_value} => ${value}`);
+      // prompt to channel event handler
+      if (value !== null) {
+        publishEvent(streamingChannel, "select", { icao24: value });
+      }
+      return true;
+    }
+  },
+}
+
+var selected = new Proxy({ icao24: null, prior_icao24: null }, selected_handler);
 
 let trajectoryPlots = []; // array of (latitude, longitude)
 // channel name: channel:trajectory:${icao24}
@@ -71,9 +97,9 @@ function getFlight_data(icao24, callsign, tail, typecode) {
 }
 
 function deselect_planes() {
-  console.log(`deselect plan ${selected}`, trajectoryChannel);
+  console.log(`deselect plan ${selected.icao24}`, trajectoryChannel);
   if (trajectoryChannel !== null) {
-    leaveTrajectoryChannel(`channel:trajectory:${selected}`)
+    leaveTrajectoryChannel(`channel:trajectory:${selected.icao24}`)
   }
 
   document.getElementById("chart-pane").style.display = "none";
@@ -82,8 +108,8 @@ function deselect_planes() {
   $(".aircraft_selected").toggleClass("aircraft_selected", false);
   $(".turb_selected").toggleClass("turb_path", true);
   $(".turb_selected").toggleClass("turb_selected", false);
-  prior_selected = selected;
-  selected = null;
+
+  selected.icao24 = null;
 }
 
 function onPlaneClicked(e) {
@@ -93,10 +119,10 @@ function onPlaneClicked(e) {
   var callsign = e.target.feature.properties.callsign;
   var typecode = e.target.feature.properties.typecode || "";
   var tail = e.target.feature.properties.registration || "";
-  selected = icao24;
-  console.log(`plane [${selected}] selected`);
+  selected.icao24 = icao24;
+  console.log(`plane [${selected.icao24}] selected`);
 
-  joinTrajectoryChannel(`channel:trajectory:${selected}`)
+  joinTrajectoryChannel(`channel:trajectory:${selected.icao24}`);
 
   $("#" + icao24).toggleClass("aircraft_img", false);
   $("#" + icao24).toggleClass("aircraft_selected", true);
@@ -114,6 +140,7 @@ function onPlaneClicked(e) {
   let feat = $("#plot_select").val();
   whenFeatureSelected(feat);
 }
+
 function whenFeatureSelected(feat) {
   let icao24 = $("#icao24").text();
   switch (feat) {
@@ -135,16 +162,16 @@ function whenFeatureSelected(feat) {
 
 function onEachPlane(feature, layer) {
   let icao24 = feature.properties.icao24;
-  if (icao24 === selected) {
-    // getAndDrawTrajectory(icao24, chart_history);
-  }
+  // if (icao24 === selected.icao24) {
+  // getAndDrawTrajectory(icao24, chart_history);
+  // }
   var popupContent =
-    `<p>` +
+    `<p> ` +
     `icao24: <code>${icao24}</code><br/>` +
     `callsign: <code>${feature.properties.callsign}</code><br/>` +
     `tail: <code>${feature.properties.registration}</code><br/>` +
     `altitude: <code>${feature.properties.altitude}</code><br/>` +
-    `</p>`;
+    `</p> `;
 
   layer.bindPopup(popupContent);
   layer.on({ click: onPlaneClicked });
@@ -300,7 +327,7 @@ function createCustomIcon(feature, latlng) {
   let myIcon = L.divIcon({
     html: generateSvgString(""),
     className:
-      feature.properties.icao24 != selected
+      feature.properties.icao24 != selected.icao24
         ? "aircraft_img"
         : "aircraft_selected",
     iconSize: [33, 35], // width and height of the image in pixels
@@ -443,14 +470,14 @@ function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
               ? "#ff9900"
               : "#0084ff";
         };
-        if (icao24 === selected) {
+        if (icao24 === selected.icao24) {
           return { className: "turb_selected turb-" + icao24, color: color() };
         }
         return { className: "turb_path turb-" + icao24, color: color() };
       },
       // function (feature) {
       //   var icao = feature.properties.icao;
-      //   return icao == selected
+      //   return icao == selected.icao24
       //     ? { className: "turb_selected" }
       //     : {
       //       className: "turb_path"
@@ -519,7 +546,7 @@ function getTimeString(isLocal) {
 /// get trajectory data and draw on the map
 function getAndDrawTrajectory(icao, und = "", history = 0) {
   const params = new URLSearchParams({ history, und });
-  let url = `plugins/trajectory/icao24/${icao}?${params}`;
+  let url = `plugins / trajectory / icao24 / ${icao} ? ${params}`;
   // url = url + "?" + searchParams;
   $.getJSON(url, function (data) {
     traj.clearLayers();

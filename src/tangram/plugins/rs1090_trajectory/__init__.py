@@ -2,9 +2,9 @@ import asyncio
 import logging
 import pathlib
 import sqlite3
-import operator
 from datetime import datetime
-from typing import Any, List
+from time import time
+from typing import Any, List, Optional
 import pandas as pd
 
 from fastapi import FastAPI
@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from tangram import websocket as channels
 from tangram.plugins.common import rs1090
 from tangram.plugins.common.rs1090.websocket_client import Channel, jet1090_websocket_client
+from tangram.websocket import ChannelHandlerMixin, ClientMessage, register_channel_handler
 
 
 log = logging.getLogger(__name__)
@@ -82,8 +83,8 @@ class TrajectoryDB:
         log.info("expire records older than %s seconds, %s records deleted", expiration_seconds, result.rowcount)
 
     def insert_many_with_ts_confict(self, items: List[dict[str, Any]]) -> None:
-        if items:
-            log.debug("%s", items[0])
+        # if items:
+        #     log.debug("%s", items[0])
 
         sql = """
             INSERT INTO trajectories (icao24, last, latitude, longitude, altitude)
@@ -140,8 +141,36 @@ class TrajectoryDB:
         self.insert_many_with_ts_confict(tracks)
 
 
+class TrajectoryChannelHandler(ChannelHandlerMixin):
+    def __init__(self) -> None:
+        super().__init__()
+
+    @property
+    def channel_name(self) -> str:
+        return "channel:trajectory"
+
+    def will_handle_channel(self, channel_name: str) -> bool:
+        return channel_name.lower().startswith(self.channel_name)
+
+
+trajectory_channel_handler = TrajectoryChannelHandler()
+register_channel_handler(trajectory_channel_handler)
+
+
+@trajectory_channel_handler.on_channel_event(channel_pattern="channel:streaming", event_pattern="event:select")
+async def handle_streaming_select(client_id: str, message: ClientMessage) -> bool:
+    log.info("TJ - %s have a new selection: %s", client_id, message.payload)
+    return True
+
+
 class Runner:
-    def __init__(self):
+    def __init__(self, trajectory_channel_handler):
+        self.trajectory_channel_handler = trajectory_channel_handler
+        self.trajectory_channel_handler.register_channel_event_handler(
+            self.handle_streaming_select, "channel:streaming", "event:select", obj=self
+        )
+        self.selected_icao24: Optional[str] = None
+
         self.running = True
         self.counter = 0
         self.task = None
@@ -156,6 +185,10 @@ class Runner:
         self.jet1090_data_channel.on_event("join", self.on_jet1090_joining)
         self.jet1090_data_channel.on_event("data", self.on_jet1090_data)
 
+    async def handle_streaming_select(self, client_id: str, message: ClientMessage):
+        self.selected_icao24 = message.payload["icao24"]
+        log.info("TJ Runner - selected_icao24 updated: %s", self.selected_icao24)
+
     def on_system_joining(self, join_ref, ref, channel, event, status, response):
         log.info("system, joined: %s", response)
 
@@ -169,18 +202,24 @@ class Runner:
     async def on_jet1090_data(self, join_ref, ref, channel, event, status, response):
         timed_message = response.get("timed_message")
 
+        # client side filtering by icao24
+        if self.selected_icao24 is None or (
+            self.selected_icao24 and (timed_message.get("icao24") != self.selected_icao24)
+        ):
+            # log.debug("%s, ignore %s", self.selected_icao24, timed_message.get("icao24"))
+            return
+
         # filter on the client side: i.e df = 17
         # we are also interested in timestamp, which is always there
         if not (timed_message.get("latitude") and timed_message.get("longitude") and timed_message.get("timestamp")):
+            log.debug("filtered out %s", timed_message)
             return
 
-        # data = timed_message
         includes = ["df", "icao24", "timestamp", "latitude", "longitude", "altitude"]
-        item = {"last" if k == "timestamp" else k: timed_message.get(k) for k in includes}
-        # log.info("jet1090/data: %s", item)
+        item = {("last" if k == "timestamp" else k): timed_message.get(k) for k in includes}
 
-        # FIXME: pushed all, but only the latest one is needed
-        await channels.publish_any(f"trajectory:{item['icao24']}", "new-data", item)
+        log.info("push to %s, %s", self.selected_icao24, item)
+        await channels.publish_any(f"channel:trajectory:{item['icao24']}", "new-data", item)
 
     async def start_task(self) -> None:
         self.task = asyncio.create_task(self.run())
@@ -240,7 +279,7 @@ class Runner:
         log.info("persisting job done")
 
 
-runner = Runner()
+runner = Runner(trajectory_channel_handler)
 
 app = FastAPI()
 # Per documents, events are not fired in sub app. Sadly, `on_event` decorator won't work

@@ -10,6 +10,14 @@ import dotenv
 import httpx
 from fastapi import FastAPI
 from tangram import websocket as channels
+from tangram.websocket import (
+    ChannelHandlerMixin,
+    ClientMessage,
+    ok_to_join,
+    ok_to_leave,
+    register_channel_handler,
+    on_channel_event,
+)
 
 dotenv.load_dotenv()
 log = logging.getLogger(__name__)
@@ -50,12 +58,12 @@ async def all(url: str) -> dict[str, Any] | None:
     }
     """
     try:
-        log.debug("requesting %s ...", url)
+        # log.debug("requesting %s ...", url)
         resp = await client.get(url)
         if resp.status_code not in [200]:
             logging.error("fail to get `all` from %s, status: %s", url, resp.status_code)
             return None
-        log.debug("got data from jet1090 service")
+        # log.debug("got data from jet1090 service")
         return resp.json()  # type: ignore
     except httpx.ConnectError:
         log.error("fail to connection jet1090 service, please check %s", url)
@@ -158,6 +166,21 @@ event_handlers = {
 }
 
 
+class Rs1090SourceChannelHandler(ChannelHandlerMixin):
+    @property
+    def channel_name(self):
+        return "channel:streaming"
+
+
+rs1090_source_channel_handler = Rs1090SourceChannelHandler()
+register_channel_handler(rs1090_source_channel_handler)
+
+
+@rs1090_source_channel_handler.on_channel_event(event_pattern="event:select")
+async def handle_select(client_id: str, message: ClientMessage):
+    log.info("%s selects icao24: %s", client_id, message.payload)
+
+
 # ==== plugin data source example
 
 
@@ -168,13 +191,13 @@ class Rs1090Data:
     async def forward_from_http(self, source_fn, params=None):
         source_data = await source_fn(**params)
         if not source_data:
-            log.error("no data loaded from rs1090, url: %s", self.base_url)
+            # log.error("no data loaded from rs1090, url: %s", self.base_url)
             return
-        log.info(
-            "icao24: %s ... (total: %s)",
-            ", ".join([el["icao24"] for el in source_data if "icao24" in el][:3]),
-            len(source_data),
-        )
+        # log.info(
+        #     "icao24: %s ... (total: %s)",
+        #     ", ".join([el["icao24"] for el in source_data if "icao24" in el][:3]),
+        #     len(source_data),
+        # )
 
         # hook from client, filter data from the source
         if "filter" in event_handlers and _events_of_interest:
@@ -190,12 +213,12 @@ class Rs1090Data:
             source_data = result_source_data
 
         try:
-            log.info("publishing (len: %s)...", len(source_data))
+            # log.info("publishing (len: %s)...", len(source_data))
             await channels.publish_any("channel:streaming", "new-data", source_data)
         except Exception:
             # it will fail for the first time for sure
             log.exception("<RS> fail to publish")
-        log.info("<RS> published")
+        # log.info("<RS> published")
 
     async def all(self):
         """all positions"""
@@ -243,7 +266,7 @@ class PublishRunner:
         log.info("<PR> start forwarding ...")
         while self.running:
             await rs1090_data.forward_from_http(rs1090_data.all, {})
-            log.info("<PR> /all data forwarded")
+            # log.info("<PR> /all data forwarded")
 
             # TODO OPTIMIAZE: this is updated every second, actually, the system info & flight info is only displayed when a plane is selected
             # TODO allow user to register a finction and this function is scheduled by the runner

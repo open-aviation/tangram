@@ -4,10 +4,9 @@ var sigmets = L.layerGroup();
 var aireps = L.layerGroup();
 var cat_mod = L.layerGroup();
 var cat_sev = L.layerGroup();
-var options = {
-  radius: 8,
-  opacity: 0.5,
-};
+var traj = L.layerGroup();
+
+var options = { radius: 8, opacity: 0.5 };
 
 var hexLayer = L.hexbinLayer(options);
 var baselayer = L.tileLayer(
@@ -18,12 +17,13 @@ var baselayer = L.tileLayer(
   }
 );
 
-var traj = L.layerGroup();
-var map = L.map("map", {
-  layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes],
-}).setView([48, 5], 5);
+var layers = [cat_mod, cat_sev, sigmets, aireps, turbulences, planes, traj];
+var map = L.map("map", { layers }).setView([48, 5], 5);
+
 var fullscreenControl = L.control.fullscreen();
+
 map.addControl(fullscreenControl);
+
 map.on("click", function (e) {
   if (
     e.originalEvent.target.classList.contains("turb_selected") |
@@ -32,15 +32,16 @@ map.on("click", function (e) {
     return;
   }
   deselect_planes();
-
   sidebar.close();
 });
+
 map.addLayer(traj);
 map.addLayer(baselayer);
+
 var sidebar = L.control.sidebar({ container: "sidebar" });
 sidebar.addTo(map);
-hexLayer.colorScale().range(["gray", "green", "orange", "red"]);
 
+hexLayer.colorScale().range(["gray", "green", "orange", "red"]);
 hexLayer
   .radiusRange([2, 20])
   .lng(function (d) {
@@ -78,30 +79,35 @@ const userToken = "joining-token";
 let socket = new Socket("", { debug, params: { userToken } });
 socket.connect();
 
-let systemChannel = "channel:streaming";
-const systemChannelToken = "channel-token";
-let channel = socket.channel(systemChannel, { token: systemChannelToken });
+let streamingChannelName = "channel:streaming";
+const streamingChannelToken = "channel-token";
+let streamingChannel = socket.channel(streamingChannelName, { token: streamingChannelToken });
 // console.dir(channel);
 
-channel.on("new-data", renderPlanes);
+streamingChannel.on("new-data", renderPlanes);
 
 function updateEl({ el, html }) {
   morphdom(document.getElementById(el), html);
 }
 
-channel.on('uptime', updateEl);
-channel.on('info_local', updateEl);
-channel.on('info_utc', updateEl);
+streamingChannel.on('uptime', updateEl);
+streamingChannel.on('info_local', updateEl);
+streamingChannel.on('info_utc', updateEl);
 
-channel
+streamingChannel
   .join()
   .receive("ok", ({ messages }) => {
-    console.log(`(${systemChannel}) joined`, messages);
+    console.log(`(${streamingChannelName}) joined`, messages);
   })
   .receive("error", ({ reason }) =>
-    console.log(`failed to join ${systemChannel}`, reason)
+    console.log(`failed to join ${streamingChannelName}`, reason)
   )
-  .receive("timeout", () => console.log(`timeout joining ${systemChannel}`));
+  .receive("timeout", () => console.log(`timeout joining ${streamingChannelName}`));
+
+function publishEvent(channel, event, payload) {
+  channel.push(`event:${event}`, payload)
+    .receive("ok", (resp) => console.log(`${channel.topic} publishEvent ${event}`, resp));
+}
 
 //getCat();
 //getSigmet();
@@ -146,7 +152,4 @@ function updateUptime() {
 
 // setInterval(updateUptime, 1000 * 1); // 1 secondes
 
-setInterval(function () {
-  url = "uptime";
-  $.getJSON(url, function (data) { UptimeSec = data.uptime; });
-}, 1000 * 60); // 1 minute
+setInterval(() => $.getJSON('uptime', function (data) { UptimeSec = data.uptime; }), 1000 * 60); // 1 minute

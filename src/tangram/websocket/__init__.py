@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, List
+from typing import Any, List, Optional
+import functools
+import inspect
 
 from broadcaster import Broadcast
 from fastapi import WebSocket
 from pydantic import BaseModel
 from starlette.concurrency import run_until_first_complete
 
-from tangram.plugins import rs1090_source
 from tangram.util.geojson import BetterJsonEncoder
 
 log = logging.getLogger(__name__)
@@ -79,11 +80,11 @@ def is_heartbeat(message: ClientMessage) -> bool:
     return message.topic == "phoenix" and message.event == "heartbeat"
 
 
-def is_joining(message: ClientMessage) -> bool:
+def is_joining_message(message: ClientMessage) -> bool:
     return message.event == "phx_join"
 
 
-def is_leaving(message: ClientMessage) -> bool:
+def is_leaving_message(message: ClientMessage) -> bool:
     return message.event == "phx_leave"
 
 
@@ -94,7 +95,7 @@ async def handle_heartbeat(client_id: str, message: ClientMessage) -> None:
         channel=client_id,
         message=[message.join_ref, message.ref, message.topic, "phx_reply", message.ok],
     )
-    log.debug("[%s] - heartbeat piped: %s [%s]", client_id, type(message), message)
+    # log.debug("[%s] - heartbeat piped: %s [%s]", client_id, type(message), message)
 
 
 async def ok_to_join(client_id: str, message: ClientMessage):
@@ -105,7 +106,7 @@ async def ok_to_join(client_id: str, message: ClientMessage):
         channel=client_id,
         message=[message.join_ref, message.ref, message.topic, "phx_reply", default_payload],
     )
-    log.info("[%s] - %s response piped: %s [%s]", client_id, message.event, type(message), message)
+    # log.info("[%s] - %s response piped: %s [%s]", client_id, message.event, type(message), message)
 
 
 async def ok_to_leave(client_id: str, message: ClientMessage):
@@ -115,14 +116,82 @@ async def ok_to_leave(client_id: str, message: ClientMessage):
         message=[message.join_ref, message.ref, message.topic, "phx_reply", message.ok],
     )
     hub.remove(client_id, message.topic)
-    log.info("[%s] - %s response piped %s", client_id, message.event, message.topic)
+    # log.info("[%s] - %s response piped %s", client_id, message.event, message.topic)
+
+
+class ChannelHandlerMixin:
+    def __init__(self) -> None:
+        self.event_handlers = []
+
+    @property
+    def channel_name(self):
+        raise NotImplementedError
+
+    def will_handle_channel(self, channel_name: str) -> bool:
+        """accept when channel matches exactly"""
+        return channel_name.lower() == self.channel_name
+
+    async def handle_joining(self, client_id: str, message: ClientMessage):
+        """accept when client wants to join"""
+        return await ok_to_join(client_id, message)
+
+    async def handle_leaving(self, client_id: str, message: ClientMessage):
+        """accept when client wants to leave"""
+        return await ok_to_leave(client_id, message)
+
+    async def dispatch_events(self, client_id: str, message: ClientMessage) -> bool:
+        channel, event = message.topic, message.event
+        log.info("%s(in %s), from %s, disptaching event %s %s ...", self, self.channel_name, client_id, channel, event)
+
+        log.debug("event_handlers: %s", self.event_handlers)
+        for i, event_handler in enumerate(self.event_handlers):
+            channel_pattern, event_pattern, fn = event_handler[:3]
+            args, kwargs = event_handler[3:] if len(event_handler) == 5 else ([], {})
+
+            log.debug(
+                "%s trying, channel_pattern: %s, event_pattern: %s, %s %s",
+                i,
+                channel_pattern,
+                event_pattern,
+                args,
+                kwargs,
+            )
+            if channel == channel_pattern and event == event_pattern:
+                log.debug("matched, calling %s...", fn)
+                if inspect.isfunction(fn):
+                    result = await fn(client_id, message)
+                    log.info("result: %s", result)
+                if inspect.ismethod(fn):
+                    log.info("method: %s %s %s", fn, fn.__name__, getattr(kwargs["obj"], fn.__name__))
+                    await getattr(kwargs["obj"], fn.__name__)(client_id, message)
+        return False
+
+    def register_channel_event_handler(
+        self, fn, channel_pattern: Optional[str] = None, event_pattern: Optional[str] = None, *args, **kwargs
+    ):
+        channel_pattern = channel_pattern or self.channel_name
+        event_pattern = event_pattern or fn.__name__
+        self.event_handlers.append((channel_pattern, event_pattern, fn, args, kwargs))
+
+    def on_channel_event(self, channel_pattern: Optional[str] = None, event_pattern: Optional[str] = None):
+        channel_pattern = channel_pattern or self.channel_name
+
+        def decorator(fn):
+            @functools.wraps(fn)
+            def wrapper(*args, **kwargs):
+                log.info("fn: %s args: %s, kargs: %s", fn, args, kwargs)
+                return fn
+
+            self.event_handlers.append((channel_pattern, event_pattern, fn))
+            return wrapper
+
+        return decorator
 
 
 class SystemChannelHandler:
-    name = "system"
-
-    def __init__(self) -> None:
-        pass
+    @property
+    def channel_name(self):
+        return "system"
 
     def will_handle_channel(self, channel_name) -> bool:
         return channel_name == "system"
@@ -133,89 +202,56 @@ class SystemChannelHandler:
     def handle_leaving(self, client_id: str, message: ClientMessage):
         return ok_to_leave(client_id, message)
 
-    async def handle_event(self, client_id: str, client_message: ClientMessage) -> bool:
-        log.debug("[%s] - system broadcast", client_id)
-
-        # response
-        message = [None, client_message.ref, client_message.topic, "phx_reply", client_message.ok]
-        await broadcast.publish(channel=client_id, message=message)
-
-        # broadcast to all clients
-        for subscriber in hub.clients():
-            if subscriber == client_id:
-                continue
-            message = [None, None, client_message.topic, client_message.event, client_message.payload]
-            await broadcast.publish(channel=subscriber, message=message)
-        return True
-
-
-class Rs1090SourceChannelHandler:
-    name = "streaming"
-
-    def will_handle_channel(self, channel_name: str) -> bool:
-        return channel_name.lower() == self.name
-
-    async def handle_joining(self, client_id: str, message: ClientMessage):
-        return await ok_to_join(client_id, message)
-
-    async def handle_leaving(self, client_id: str, message: ClientMessage):
-        return await ok_to_leave(client_id, message)
-
-    async def handle_event(self, client_id: str, message: ClientMessage) -> bool:
-        _, plugin_name, plugin_event = message.event.split(":")
-        log.info("plugin: %s, event: %s", plugin_name, plugin_event)
-
-        if plugin_event in rs1090_source.event_handlers:
-            rs1090_source.event_handlers[plugin_event](message.payload)
-            log.info("called plugin event handler")
-            return True
-        else:
-            log.info("event handler not found")
-            return False
+    async def dispatch_events(self, client_id: str, client_message: ClientMessage) -> bool:
+        # log.debug("[%s] - system broadcast", client_id)
+        #
+        # # response
+        # message = [None, client_message.ref, client_message.topic, "phx_reply", client_message.ok]
+        # await broadcast.publish(channel=client_id, message=message)
+        #
+        # # broadcast to all clients
+        # for subscriber in hub.clients():
+        #     if subscriber == client_id:
+        #         continue
+        #     message = [None, None, client_message.topic, client_message.event, client_message.payload]
+        #     await broadcast.publish(channel=subscriber, message=message)
+        # return True
+        return False
 
 
-class TrajectoryChannelHandler:
-    def __init__(self) -> None:
-        pass
-
-    @property
-    def channel_name(self) -> str:
-        return "channel:trajectory"
-
-    def will_handle_channel(self, channel_name: str) -> bool:
-        return channel_name.lower().startswith(f"{self.channel_name}:")
-
-    async def handle_joining(self, client_id: str, message: ClientMessage):
-        return await ok_to_join(client_id, message)
-
-    async def handle_leaving(self, client_id: str, message: ClientMessage):
-        return await ok_to_leave(client_id, message)
-
-    async def handle_event(self, client_id: str, message: ClientMessage) -> bool:
-        return True
+channel_handlers = {}
 
 
-system_channel_handler = SystemChannelHandler()
-rs1090_source_handler = Rs1090SourceChannelHandler()
-trajectory_channel_handler = TrajectoryChannelHandler()
+def register_channel_handler(handler):
+    """plugins call the function to register their event handlers"""
+    channel_handlers[handler.channel_name] = handler
 
-joining_handlers = {
-    system_channel_handler.name: system_channel_handler,
-    rs1090_source_handler.name: rs1090_source_handler,
-    trajectory_channel_handler.channel_name: trajectory_channel_handler,
-}
 
-channel_event_handlers = {
-    system_channel_handler.name: system_channel_handler,
-    rs1090_source_handler.name: rs1090_source_handler,
-    trajectory_channel_handler.channel_name: trajectory_channel_handler,
-}
+register_channel_handler(SystemChannelHandler())
 
-leaving_handlers = {
-    system_channel_handler.name: system_channel_handler,
-    rs1090_source_handler.name: rs1090_source_handler,
-    trajectory_channel_handler.channel_name: trajectory_channel_handler,
-}
+
+def _get_channel_handler(channel_name: str) -> SystemChannelHandler | None:
+    for _channel_name, handler in channel_handlers.items():
+        if handler.will_handle_channel(channel_name):
+            return handler
+    return None
+
+
+def on_channel_event(_func, *, channel_pattern, event_pattern):
+    """both patterns are regex"""
+
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            log.info("fn: %s, args: %s, kargs: %s", fn, args, kwargs)
+            # event_handlers[event_name] = fn
+            return fn
+
+        return wrapper
+
+    # @on_channel_event => _func is None
+    # @on_channel_event(..) => _func is a function
+    return decorator if _func is None else decorator(_func)
 
 
 async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
@@ -229,26 +265,21 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
             await handle_heartbeat(client_id, client_message)
             continue
 
-        if is_joining(client_message):
-            for channel_name, handler in joining_handlers.items():
-                log.info("joining handler, %s => %s", channel_name, handler)
-                if handler.will_handle_channel(client_message.topic):
-                    result = await handler(client_id, client_message)
-                    log.info("joining handler, %s => %s", channel_name, result)
-                    break
+        channel_handler = _get_channel_handler(client_message.topic)
+        if channel_handler is None:
+            continue
+        log.info("channel_handler: %s", channel_handler)
+
+        if is_joining_message(client_message):
+            await channel_handler.handle_joining(client_id, client_message)
             continue
 
-        if is_leaving(client_message):
-            for channel_name, handler in leaving_handlers.items():
-                if handler.will_handle_channel(client_message.topic):
-                    await handler(client_id, client_message)
-                    break
+        if is_leaving_message(client_message):
+            await channel_handler.handle_leaving(client_id, client_message)
             continue
 
-        for channel_name, handler in channel_event_handlers.items():
-            if handler.will_handle_channel(client_message.topic):
-                await handler(client_id, client_message)
-                break
+        for _channel_name, handler in channel_handlers.items():
+            await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event
 
     # TODO: cleanup
     log.debug("[%s] done\n\n", client_id)
