@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
-import logging
-from typing import Any, List, Optional
 import functools
 import inspect
+import json
+import logging
+import re
+from typing import Any, List, Optional
 
 from broadcaster import Broadcast
 from fastapi import WebSocket
@@ -70,6 +71,11 @@ class ClientMessage(BaseModel):
     @classmethod
     def from_string(cls, text) -> ClientMessage:
         [join_ref, ref, topic, event, payload] = json.loads(text)
+        match event:
+            case event if event in ["phx_join", "phx_leave"]:
+                event = event.lstrip("phx_")
+            case event:
+                event = event
         return ClientMessage(join_ref=join_ref, ref=ref, topic=topic, event=event, payload=payload)
 
     def to_array(self) -> List[int | str | Any]:
@@ -98,10 +104,11 @@ async def handle_heartbeat(client_id: str, message: ClientMessage) -> None:
     # log.debug("[%s] - heartbeat piped: %s [%s]", client_id, type(message), message)
 
 
-async def ok_to_join(client_id: str, message: ClientMessage):
-    log.info("[%s] - want to join %s", client_id, message.topic)
+async def ok_to_join(client_id: str, message: ClientMessage, response=None):
+    log.debug("DEFAULT JOIN HANDLER, %s is joining %s ...", client_id, message.topic)
+
     hub.add(client_id, message.topic)
-    default_payload = {"status": "ok", "response": {"client_id": client_id}}
+    default_payload = {"status": "ok", "response": response or {}}
     await broadcast.publish(
         channel=client_id,
         message=[message.join_ref, message.ref, message.topic, "phx_reply", default_payload],
@@ -110,7 +117,8 @@ async def ok_to_join(client_id: str, message: ClientMessage):
 
 
 async def ok_to_leave(client_id: str, message: ClientMessage):
-    log.info("[%s] - is to leave %s", client_id, message.topic)
+    log.debug("DEFAULT LEAVE HANDLER, %s is leaving %s ...", client_id, message.topic)
+
     await broadcast.publish(
         channel=client_id,
         message=[message.join_ref, message.ref, message.topic, "phx_reply", message.ok],
@@ -132,50 +140,47 @@ class ChannelHandlerMixin:
         """accept when channel matches exactly"""
         return channel_name.lower() == self.channel_name
 
-    async def handle_joining(self, client_id: str, message: ClientMessage):
-        """accept when client wants to join"""
-        return await ok_to_join(client_id, message)
-
-    async def handle_leaving(self, client_id: str, message: ClientMessage):
-        """accept when client wants to leave"""
-        return await ok_to_leave(client_id, message)
-
     async def dispatch_events(self, client_id: str, message: ClientMessage) -> bool:
         channel, event = message.topic, message.event
-        log.info("%s(in %s), from %s, disptaching event %s %s ...", self, self.channel_name, client_id, channel, event)
+        log.debug("%s(in %s), from %s, disptaching event %s %s ...", self, self.channel_name, client_id, channel, event)
 
         log.debug("event_handlers: %s", self.event_handlers)
         for i, event_handler in enumerate(self.event_handlers):
-            channel_pattern, event_pattern, fn = event_handler[:3]
+            channel_pattern_regexp, event_pattern_regexp, fn = event_handler[:3]
             args, kwargs = event_handler[3:] if len(event_handler) == 5 else ([], {})
 
-            log.debug(
-                "%s trying, channel_pattern: %s, event_pattern: %s, %s %s",
-                i,
-                channel_pattern,
-                event_pattern,
-                args,
-                kwargs,
-            )
-            if channel == channel_pattern and event == event_pattern:
+            log.debug("%s matching, %s, %s, %s %s", i, channel_pattern_regexp, event_pattern_regexp, args, kwargs)
+            if bool(channel_pattern_regexp.match(channel)) and bool(event_pattern_regexp.match(event)):
                 log.debug("matched, calling %s...", fn)
                 if inspect.isfunction(fn):
                     result = await fn(client_id, message)
-                    log.info("result: %s", result)
+                    log.debug("function: %s %s => %s", fn, fn.__name__, result)
                 if inspect.ismethod(fn):
-                    log.info("method: %s %s %s", fn, fn.__name__, getattr(kwargs["obj"], fn.__name__))
-                    await getattr(kwargs["obj"], fn.__name__)(client_id, message)
+                    result = await getattr(kwargs["obj"], fn.__name__)(client_id, message)
+                    log.debug("method: %s %s %s => %s", fn, fn.__name__, getattr(kwargs["obj"], fn.__name__), result)
+        if event == "join":
+            await ok_to_join(client_id, message)
+        if event == "leave":
+            await ok_to_leave(client_id, message)
         return False
 
     def register_channel_event_handler(
         self, fn, channel_pattern: Optional[str] = None, event_pattern: Optional[str] = None, *args, **kwargs
     ):
-        channel_pattern = channel_pattern or self.channel_name
-        event_pattern = event_pattern or fn.__name__
-        self.event_handlers.append((channel_pattern, event_pattern, fn, args, kwargs))
+        if channel_pattern is None:
+            channel_pattern = self.channel_name
+        channel_pattern_regexp = re.compile(channel_pattern)
+        if event_pattern is None:
+            event_pattern = fn.__name__  # name as the parameter, or use the function name
+        event_pattern_regexp = re.compile(event_pattern)  # FIXME: ?
+        self.event_handlers.append((channel_pattern_regexp, event_pattern_regexp, fn, args, kwargs))
+        print(self.event_handlers)
 
     def on_channel_event(self, channel_pattern: Optional[str] = None, event_pattern: Optional[str] = None):
-        channel_pattern = channel_pattern or self.channel_name
+        if channel_pattern is None:
+            channel_pattern = self.channel_name
+        channel_pattern_regexpr = re.compile(channel_pattern)
+        event_pattern_regexpr = re.compile(event_pattern) if event_pattern else None
 
         def decorator(fn):
             @functools.wraps(fn)
@@ -183,7 +188,12 @@ class ChannelHandlerMixin:
                 log.info("fn: %s args: %s, kargs: %s", fn, args, kwargs)
                 return fn
 
-            self.event_handlers.append((channel_pattern, event_pattern, fn))
+            nonlocal channel_pattern_regexpr
+            nonlocal event_pattern_regexpr
+            if event_pattern_regexpr is None:
+                event_pattern_regexpr = re.compile(fn.__name__)
+
+            self.event_handlers.append((channel_pattern_regexpr, event_pattern_regexpr, fn))
             return wrapper
 
         return decorator
@@ -232,19 +242,19 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
             await handle_heartbeat(client_id, client_message)
             continue
 
-        channel_handler = _get_channel_handler(client_message.topic)
-        if channel_handler is None:
-            log.warning("ignore channel message: %s", client_message)
-            continue
-        log.info("channel_handler: %s", channel_handler)
-
-        if is_joining_message(client_message):
-            await channel_handler.handle_joining(client_id, client_message)
-            continue
-
-        if is_leaving_message(client_message):
-            await channel_handler.handle_leaving(client_id, client_message)
-            continue
+        # channel_handler = _get_channel_handler(client_message.topic)
+        # if channel_handler is None:
+        #     log.warning("ignore channel message: %s", client_message)
+        #     continue
+        # log.info("channel_handler: %s", channel_handler)
+        #
+        # if is_joining_message(client_message):
+        #     await channel_handler.handle_joining(client_id, client_message)
+        #     continue
+        #
+        # if is_leaving_message(client_message):
+        #     await channel_handler.handle_leaving(client_id, client_message)
+        #     continue
 
         for _channel_name, handler in channel_handlers.items():
             await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event

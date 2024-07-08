@@ -4,20 +4,12 @@ import asyncio
 import logging
 import os
 from typing import Any, List
-from datetime import datetime, UTC
 
 import dotenv
 import httpx
 from fastapi import FastAPI
 from tangram import websocket as channels
-from tangram.websocket import (
-    ChannelHandlerMixin,
-    ClientMessage,
-    ok_to_join,
-    ok_to_leave,
-    register_channel_handler,
-    on_channel_event,
-)
+from tangram.websocket import ChannelHandlerMixin, ClientMessage, register_channel_handler
 
 dotenv.load_dotenv()
 log = logging.getLogger(__name__)
@@ -231,8 +223,6 @@ class Rs1090Data:
 
 
 class PublishRunner:
-    dtfmt = "%H:%M:%S"
-
     def __init__(self):
         self.running = True
         self.counter = 0
@@ -243,21 +233,6 @@ class PublishRunner:
         self.task = asyncio.create_task(self.run())
         log.debug("<PR> task created")
 
-    def uptime_html(self):
-        return {"el": "uptime", "html": f"""<span id="uptime">{self.counter}</span>"""}
-
-    def info_utc_html(self):
-        return {
-            "el": "info_utc",
-            "html": f"""<span id="info_utc">{datetime.now(UTC).strftime(self.dtfmt)}</span>""",
-        }
-
-    def info_local_html(self):
-        return {
-            "el": "info_local",
-            "html": f"""<span id="info_local">{datetime.now().strftime(self.dtfmt)}</span>""",
-        }
-
     async def run(self, internal_seconds=1):
         rs1090_data = Rs1090Data(BASE_URL)
 
@@ -265,12 +240,6 @@ class PublishRunner:
         while self.running:
             await rs1090_data.forward_from_http(rs1090_data.all, {})
             # log.info("<PR> /all data forwarded")
-
-            # TODO OPTIMIAZE: this is updated every second, actually, the system info & flight info is only displayed when a plane is selected
-            # TODO allow user to register a finction and this function is scheduled by the runner
-            await channels.publish_any("channel:streaming", "uptime", self.uptime_html())
-            await channels.publish_any("channel:streaming", "info_utc", self.info_utc_html())
-            await channels.publish_any("channel:streaming", "info_local", self.info_local_html())
 
             self.counter += 1
             await asyncio.sleep(internal_seconds)  # one second

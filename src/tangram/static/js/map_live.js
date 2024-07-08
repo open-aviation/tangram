@@ -103,7 +103,11 @@ systemChannel
 ///
 function publishEvent(channel, event, payload) {
   channel.push(`event:${event}`, payload)
-    .receive("ok", (resp) => console.log(`${channel.topic} publishEvent ${event}`, resp));
+    .receive("ok", (resp) => console.log(`${channel.topic} ${event} => `, resp));
+}
+
+function newChannelEventPush(channel, event, payload) {
+  return channel.push(`event:${event}`, payload);
 }
 
 /// streaming channel
@@ -123,11 +127,6 @@ streamingChannel
     console.log(`failed to join ${streamingChannelName}`, reason)
   )
   .receive("timeout", () => console.log(`timeout joining ${streamingChannelName}`));
-
-function publishEvent(channel, event, payload) {
-  channel.push(`event:${event}`, payload)
-    .receive("ok", (resp) => console.log(`${channel.topic} publishEvent ${event}`, resp));
-}
 
 //getCat();
 //getSigmet();

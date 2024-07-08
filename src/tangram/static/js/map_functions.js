@@ -11,7 +11,7 @@ const selected_handler = {
     }
     return Reflect.get(target, prop, receiver); // fallback
   },
-  set(target, prop, value, receiver) {
+  set(target, prop, value, _receiver) {
     if (prop === 'icao24') {
       let prior_value = target[prop];
       target['prior_icao24'] = prior_value;
@@ -19,11 +19,16 @@ const selected_handler = {
       console.log(`selected icao24 updated, ${prior_value} => ${value}`);
       // prompt to channel event handler
       if (value !== null) {
-        publishEvent(streamingChannel, "select", { icao24: value });
+        // publishEvent(streamingChannel, "select", { icao24: value });
+        newChannelEventPush(streamingChannel, "select", { icao24: value })
+          .receive("ok", (resp) => {
+            trajectoryPlots = [];
+            console.log(`(${streamingChannel.topic}) select => `, resp);
+          })
+        return true;
       }
-      return true;
     }
-  },
+  }
 }
 
 var selected = new Proxy({ icao24: null, prior_icao24: null }, selected_handler);
@@ -31,6 +36,7 @@ var selected = new Proxy({ icao24: null, prior_icao24: null }, selected_handler)
 let trajectoryPlots = []; // array of (latitude, longitude)
 // channel name: channel:trajectory:${icao24}
 let trajectoryChannel = null;
+let trajectoryPloyline = null;
 
 function joinTrajectoryChannel(channelName) {
   console.log(`joining trajectory channel ${channelName}`);
@@ -38,11 +44,16 @@ function joinTrajectoryChannel(channelName) {
   trajectoryChannel = socket.channel(channelName, { token: 'okToJoin' }); // no joining token required
 
   trajectoryChannel.on('new-data', (data) => {
-    console.log(`${trajectoryChannel.topic}`, data);
     traj.clearLayers();
     // let plots = data.map(({ latitude, longitude }) => [latitude, longitude]);
-    const { latitude, longitude } = data;
-    trajectoryPlots.push([latitude, longitude]);
+    // const { latitude, longitude } = data;
+    // trajectoryPlots.push([latitude, longitude]);
+
+    console.log(`${trajectoryChannel.topic}`, data.length);
+    // trajectoryPlots = data.map(({ latitude, longitude }) => [latitude, longitude]);
+    trajectoryPlots = data;
+    // console.log(`trajectoryPlots`, trajectoryPlots.length);
+
     L
       .polyline(trajectoryPlots, { color: 'black', weight: 1, smoothFactor: 2 })
       .addTo(traj);
@@ -51,6 +62,7 @@ function joinTrajectoryChannel(channelName) {
   trajectoryChannel
     .join()
     .receive("ok", ({ messages }) => {
+      trajectoryPlots = [];
       console.log(`(${channelName}) joined`, messages);
     })
     .receive("error", ({ reason }) =>

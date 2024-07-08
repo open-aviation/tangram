@@ -46,7 +46,7 @@ async def server_events():
         await channels.publish_any("channel:system", "uptime", uptime_html(counter))
         await channels.publish_any("channel:system", "info_utc", info_utc_html())
         await channels.publish_any("channel:system", "info_local", info_local_html())
-        log.info("system channel events sent")
+        # log.info("system channel events sent")
 
         counter += 1
         await asyncio.sleep(1)
@@ -62,8 +62,8 @@ def on_system_datetime(join_ref, ref, channel, event, status, response):
 
 
 system_channel = jet1090_websocket_client.add_channel("system")
-system_channel.on_event("join", on_system_joining)
-system_channel.on_event("datetime", on_system_datetime)
+# system_channel.on_event("join", on_system_joining)
+# system_channel.on_event("datetime", on_system_datetime)
 
 
 async def start():

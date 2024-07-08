@@ -11,28 +11,27 @@ from typing import Callable, Set
 
 import websockets
 
-# log = logging.getLogger(__name__)
-log = logging.getLogger("tangram")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+log = logging.getLogger(__name__)
+
+# log = logging.getLogger("tangram")
 
 
 class Channel:
-    def __init__(self, connection: Jet1090WebsocketClient, channel: str, loop=None) -> None:
+    def __init__(self, connection: Jet1090WebsocketClient, channel: str, join_ref: str, loop=None) -> None:
         self.connection = connection
         self.channel = channel
         self.loop = loop or asyncio.get_event_loop()
         self._event_handlers: dict[str, Set[Callable]] = {}
-        self.join_ref = 0
-        self.ref = 0
-
-    def join(self) -> Channel:
-        return self.send("phx_join", {})
+        self.join_ref: str = join_ref
+        self.ref: int = 0
 
     async def join_async(self) -> Channel:
         return await self.send_async("phx_join", {})
 
     async def on_join(self, join_ref, ref, channel, event, status, response) -> None:
         """default joining handler"""
-        log.info("ignore joining reply: %s %s", status, response)
+        log.info("ignore joining reply: %s %s %s %s", join_ref, ref, status, response)
 
     async def run_event_handler(self, event: str, *args, **kwargs) -> None:
         """this is called from the connection when a message is received"""
@@ -46,25 +45,15 @@ class Channel:
             return
 
         for fn in self._event_handlers.get(event, []):
-            # print(fn)
             result = fn(*args, **kwargs)
-            # print(result)
             if asyncio.iscoroutine(result):
                 await result
 
     async def send_async(self, event: str, payload: dict) -> Channel:
-        message = json.dumps(["0", "0", self.channel, event, payload])
+        message = json.dumps([self.join_ref, str(self.ref), self.channel, event, payload])
         await self.connection.send(message)
-        if event == "phx_join":
-            self.join_ref += 1
-        self.ref += 1
-        return self
-
-    def send(self, event: str, payload: dict) -> Channel:
-        message = json.dumps(["0", "0", self.channel, event, payload])
-        self.loop.run_until_complete(self.connection.send(message))
-        if event == "phx_join":
-            self.join_ref += 1
+        # if event == "phx_join":
+        #     self.join_ref += 1
         self.ref += 1
         return self
 
@@ -117,15 +106,17 @@ class Jet1090WebsocketClient(metaclass=Singleton):
         self.websocket_url: str
         self._CHANNEL_CALLBACKS = {}  # f'{channel}-{event}' -> callback
         self.channels = {}
-        self.loop = loop or asyncio.get_running_loop()
+        self.loop = None  # loop or asyncio.get_running_loop()
         self.connected: bool = False
 
-    def connect(self, websocket_url: str):
-        """connect to the websocket server, regiter callbacks before calling this
-        this is the entrypoint for the asyncio loop, most likely ran at the end of the code"""
-        self.loop.run_until_complete(self.async_connect(websocket_url))
+    def add_channel(self, channel_name: str) -> Channel:
+        join_ref = str(len(self.channels) + 1)
+        channel = Channel(self, channel_name, join_ref, self.loop)
+        self.channels[channel_name] = channel
+        log.info("added a new channel %s %s", channel_name, channel)
+        return channel
 
-    async def async_connect(self, websocket_url: str):
+    async def connect_async(self, websocket_url: str):
         """asyncio context entrypoint
         this is started in a global startup hook."""
         self.websocket_url = websocket_url
@@ -134,17 +125,8 @@ class Jet1090WebsocketClient(metaclass=Singleton):
         self._connection = await websockets.connect(self.websocket_url, ping_interval=None)
         log.info("connected to %s", self.websocket_url)
 
-    def add_channel(self, channel_name: str) -> Channel:
-        channel = Channel(self, channel_name, self.loop)
-        self.channels[channel_name] = channel
-        log.info("added a new channel %s %s", channel_name, channel)
-        return channel
-
     async def send(self, message: str):
         await self._connection.send(message)
-
-    def start(self) -> None:
-        self.loop.run_until_complete(asyncio.gather(self._heartbeat(), self._dispatch()))
 
     async def start_async(self) -> None:
         log.info("starting jet1090 websocket client ...")
@@ -173,49 +155,54 @@ class Jet1090WebsocketClient(metaclass=Singleton):
                 await ch.run_event_handler(event, join_ref, ref, channel, event, status, response)
         except websockets.exceptions.ConnectionClosedError:
             log.error("connection lost, reconnecting %s...", self.websocket_url)
-            await self.async_connect(self.websocket_url)
+            await self.connect_async(self.websocket_url)
             for ch in self.channels:
                 await self.channels[ch].join_async()
 
 
+# loop = asyncio.get_event_loop()
+# if loop.is_running():
+#     print(f"loop {loop} is running")
+# else:
+#     loop = asyncio.new_event_loop()
+#     loop.set_debug(True)
+#     asyncio.set_event_loop(loop)
+#     print(f"new loop {loop} created")
+#
+# print(asyncio.get_event_loop())
 jet1090_websocket_client: Jet1090WebsocketClient = Jet1090WebsocketClient()
 
 
-# example
+async def main(ws_url: str):
+    def on_joining_system(_join_ref, _ref, channel, event, status, response) -> None:  # noqa
+        log.info("joined %s/%s, status: %s, response: %s", channel, event, status, response)
 
+    def on_heartbeat(join_ref, ref, channel, event, status, response) -> None:  # noqa
+        log.info("heartbeat: %s", response)
 
-def on_joining_system(_join_ref, _ref, channel, event, status, response) -> None:  # noqa
-    log.info("joined %s/%s, status: %s, response: %s", channel, event, status, response)
+    def on_datetime(join_ref, ref, channel, event, status, response) -> None:  # noqa
+        log.info("join_ref: %s, ref: %s, datetime: %s", join_ref, ref, response)
 
+    def on_jet1090_message(join_ref, ref, channel, event, status, response) -> None:  # noqa
+        skipped_fields = ["timestamp", "timesource", "system", "frame"]
+        log.info("jet1090: %s", {k: v for k, v in response["timed_message"].items() if k not in skipped_fields})
 
-def on_heartbeat(join_ref, ref, channel, event, status, response) -> None:  # noqa
-    log.info("heartbeat: %s", response)
+    await jet1090_websocket_client.connect_async(ws_url)
 
+    async def s1():
+        system_channel = jet1090_websocket_client.add_channel("system")
+        system_channel.on_event("join", on_joining_system)
+        system_channel.on_event("datetime", on_datetime)
+        await system_channel.join_async()
+        await jet1090_websocket_client.connect_async(ws_url)
 
-def on_datetime(join_ref, ref, channel, event, status, response) -> None:  # noqa
-    # log.info("datetime: %s", response)
-    pass
+    t1 = asyncio.create_task(s1())
+    log.info("t1 created: %s", t1)
 
+    t2 = asyncio.create_task(s1())
+    log.info("t2 created: %s", t2)
 
-def on_jet1090_message(join_ref, ref, channel, event, status, response) -> None:  # noqa
-    skipped_fields = ["timestamp", "timesource", "system", "frame"]
-    log.info("jet1090: %s", {k: v for k, v in response["timed_message"].items() if k not in skipped_fields})
-
-
-def main(ws_url: str):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    jet1090_websocket_client = Jet1090WebsocketClient(ws_url, loop)
-    jet1090_websocket_client.connect(ws_url)
-
-    system_channel = jet1090_websocket_client.add_channel("system").on_event("datetime", on_datetime)
-    system_channel.join()
-    # client.add_channel("system").join()
-
-    jet1090_channel = jet1090_websocket_client.add_channel("jet1090").on_event("data", on_jet1090_message)
-    jet1090_channel.join()
-
-    jet1090_websocket_client.start()
+    await jet1090_websocket_client.start_async()
 
 
 if __name__ == "__main__":
@@ -230,6 +217,6 @@ if __name__ == "__main__":
     log.setLevel(args.log_level.upper())
 
     try:
-        main(args.websocket_url)
+        asyncio.run(main(args.websocket_url))
     except KeyboardInterrupt:
         print("\rbye.")

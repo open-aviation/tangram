@@ -47,13 +47,20 @@
 
   <!-- tangram specific headers -->
   <link rel="stylesheet" href="{{ url_for('static', path='/css/user.css') }}" />
+  <script type="module" src="{{ url_for('static', path='/js/trajectory.js') }}"></script>
+
   <script type="text/javascript" src="{{ url_for('static', path='/js/graph.js') }}"></script>
   <script type="text/javascript" src="{{ url_for('static', path='/js/aircraft_icon.js') }}"></script>
 
-  <!-- can't be here -->
+  <!-- FIXME: can't be here -->
   <!-- <script type="text/javascript" src="{{ url_for('static', path='/js/map_live.js') }}"></script> -->
 
   <script type="text/javascript" src="{{ url_for('static', path='/js/map_functions.js') }}"></script>
+
+  <script type='module'>
+    import trajectory from './static/js/trajectory.js';
+    trajectory.main();
+  </script>
 </head>
 
 <body>

@@ -15,7 +15,9 @@ from starlette.responses import HTMLResponse
 
 from tangram import websocket as tangram_websocket
 from tangram.plugins import rs1090_source, rs1090_trajectory
-from tangram.plugins import system, history
+from tangram.plugins import system
+from tangram.plugins import history
+from tangram.plugins import rs1090_trajectory
 from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_client
 
 log = logging.getLogger("tangram")
@@ -28,7 +30,7 @@ async def startup_debug(*args: Any, **kwargs: Any) -> None:
 
     # FIXME: confiburable
     websocket_url = "ws://192.168.8.37:8080/websocket"
-    await jet1090_websocket_client.async_connect(websocket_url)
+    await jet1090_websocket_client.connect_async(websocket_url)
     task = asyncio.create_task(jet1090_websocket_client.start_async())
     log.info("created websocket client task: %s", task)
 
@@ -46,13 +48,13 @@ app = FastAPI(
         startup_debug,
         tangram_websocket.broadcast.connect,
         rs1090_source.start,
-        rs1090_trajectory.start,
+        # rs1090_trajectory.start,
     ],
     on_shutdown=[
         shutdown_debug,
         tangram_websocket.broadcast.disconnect,
         rs1090_source.shutdown,
-        rs1090_trajectory.shutdown,
+        # rs1090_trajectory.shutdown,
     ],
 )
 
@@ -61,6 +63,7 @@ app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
 app.mount("/plugins/trajectory", rs1090_trajectory.app, name="trajectory")
 app.include_router(system.app)
 app.include_router(history.app)
+app.include_router(rs1090_trajectory.app)
 
 start_time = datetime.now()
 

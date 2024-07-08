@@ -1,13 +1,55 @@
 import logging
 import os
-from typing import Any
 
 import dotenv
-from fastapi import APIRouter
 import httpx
+from pydantic import BaseModel, Field
 
 dotenv.load_dotenv()
 log = logging.getLogger(__name__)
+
+
+class Jet1090Data(BaseModel):
+    idx: int
+    icao24: str
+    df: int | None = None
+    # first: int | None = None
+
+    last: float | None
+    timestamp: float | None = None
+    # TODO: when it's websocket timed_message, field name is `timestamp`
+    # last: float | None = Field(alias="timestamp")
+
+    latitude: float | None = None
+    longitude: float | None = None
+    altitude: float | None = None
+    # callsign: str | None = None
+    # squawk: str | None = None
+    # selected_altitude: float | None = None
+    # groundspeed: float | None = None
+    # vertical_rate: float | None = None
+    # track: float | None = None
+    # ias: float | None = None
+    # tas: float | None = None
+    # mach: float | None = None
+    # roll: float | None = None
+    # heading: float | None = None
+    # nacp: float | None = None
+
+
+class Reference(BaseModel):
+    latitude: float
+    longitude: float
+
+
+class Receiver(BaseModel):
+    host: str
+    port: int
+    rtlsdr: bool
+    airport: str
+    reference: Reference
+    count: int
+    last: int
 
 
 class Rs1090Client:
@@ -18,7 +60,7 @@ class Rs1090Client:
 
         self.aclient = httpx.AsyncClient()
 
-    async def request_rs1090(self, path, params=None) -> None | Any:
+    async def request_rs1090(self, path, params=None):  # -> None | list[Jet1090Data]:
         url = self.base_url + path
         params = params or {}
         try:
@@ -36,7 +78,7 @@ class Rs1090Client:
             log.exception("fail to get data from jet1090 service")
             return None
 
-    async def all(self, path: str | None = None) -> dict[str, Any] | None:
+    async def all(self, path: str | None = None) -> list[Jet1090Data] | None:
         """instant position
         sample record for `/all`
         {
@@ -60,9 +102,10 @@ class Rs1090Client:
             "nacp": 9
         }
         """
-        return await self.request_rs1090(path or "/all")
+        items = await self.request_rs1090(path or "/all")
+        return [Jet1090Data(**item) for item in items] if items is not None else None
 
-    async def receivers(self, path: str):
+    async def receivers(self, path: str) -> Receiver | None:
         """get receiver status from rs1090 `/receivers` endpoint
         item example:
         {
@@ -104,14 +147,5 @@ class Rs1090Client:
             "idx": 3
         }
         """
-        return await self.request_rs1090(path or "/track", params={"icao24": identifier})
-
-
-# TODO: [ ] included, tangram.app.incluee_router
-# TODO: [ ] a channel for this plugin, customize the even handler by decoration
-# TODO: [ ] inject the jet1090 websocket client
-class Plugin(APIRouter):
-    """subclass this to create your a new plugin"""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        items = await self.request_rs1090(path or "/track", params={"icao24": identifier})
+        return [Jet1090Data(**item) for item in items] if items is not None else None
