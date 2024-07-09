@@ -7,7 +7,7 @@ import argparse
 import asyncio
 import json
 import logging
-from typing import Callable, Set
+from typing import Callable, Set, List, Tuple
 
 import websockets
 
@@ -18,20 +18,25 @@ log = logging.getLogger(__name__)
 
 
 class Channel:
-    def __init__(self, connection: Jet1090WebsocketClient, channel: str, join_ref: str, loop=None) -> None:
+    def __init__(self, connection: Jet1090WebsocketClient, channel_name: str, join_ref: str, loop=None) -> None:
         self.connection = connection
-        self.channel = channel
+        self.channel_name: str = channel_name
         self.loop = loop or asyncio.get_event_loop()
         self._event_handlers: dict[str, Set[Callable]] = {}
         self.join_ref: str = join_ref
         self.ref: int = 0
 
+    def __repr__(self) -> str:
+        return f"""<Channel name="{self.channel_name}" join_ref={self.join_ref}>"""
+
     async def join_async(self) -> Channel:
-        return await self.send_async("phx_join", {})
+        result = await self.send_async("phx_join", {})
+        log.debug("join message sent: %s", self.channel_name)
+        return result
 
     async def on_join(self, join_ref, ref, channel, event, status, response) -> None:
         """default joining handler"""
-        log.info("ignore joining reply: %s %s %s %s", join_ref, ref, status, response)
+        log.info("ignore joining reply: %s %s %s %s %s", channel, join_ref, ref, status, response)
 
     async def run_event_handler(self, event: str, *args, **kwargs) -> None:
         """this is called from the connection when a message is received"""
@@ -40,8 +45,8 @@ class Channel:
                 result = fn(*args, **kwargs)
                 if asyncio.iscoroutine(result):
                     await result
-            else:
-                await self.on_join(*args, **kwargs)
+            # else:
+            #     await self.on_join(*args, **kwargs)
             return
 
         for fn in self._event_handlers.get(event, []):
@@ -50,7 +55,7 @@ class Channel:
                 await result
 
     async def send_async(self, event: str, payload: dict) -> Channel:
-        message = json.dumps([self.join_ref, str(self.ref), self.channel, event, payload])
+        message = json.dumps([self.join_ref, str(self.ref), self.channel_name, event, payload])
         await self.connection.send(message)
         # if event == "phx_join":
         #     self.join_ref += 1
@@ -105,14 +110,14 @@ class Jet1090WebsocketClient(metaclass=Singleton):
     def __init__(self, loop=None):
         self.websocket_url: str
         self._CHANNEL_CALLBACKS = {}  # f'{channel}-{event}' -> callback
-        self.channels = {}
+        self.channels: List[Tuple[str, Channel]] = []
         self.loop = None  # loop or asyncio.get_running_loop()
         self.connected: bool = False
 
     def add_channel(self, channel_name: str) -> Channel:
         join_ref = str(len(self.channels) + 1)
         channel = Channel(self, channel_name, join_ref, self.loop)
-        self.channels[channel_name] = channel
+        self.channels.append((join_ref, channel))
         log.info("added a new channel %s %s", channel_name, channel)
         return channel
 
@@ -146,30 +151,22 @@ class Jet1090WebsocketClient(metaclass=Singleton):
         """dispatch messages to registered callbacks"""
         try:
             async for message in self._connection:
+                [join_ref, ref, channel_name, event, payload] = json.loads(message)
                 # log.debug("message: %s", message)
-                [join_ref, ref, channel, event, payload] = json.loads(message)
                 status, response = payload["status"], payload["response"]
-                ch: Channel | None = self.channels.get(channel)
-                if not ch:
-                    continue
-                await ch.run_event_handler(event, join_ref, ref, channel, event, status, response)
+
+                # joined to the same channel and now getting the same data; just duplicate data with adapted join_ref
+                for channel_join_ref, channel in self.channels:
+                    if channel.channel_name == channel_name:
+                        await channel.run_event_handler(event, channel_join_ref, ref, channel, event, status, response)
         except websockets.exceptions.ConnectionClosedError:
-            log.error("connection lost, reconnecting %s...", self.websocket_url)
-            await self.connect_async(self.websocket_url)
-            for ch in self.channels:
-                await self.channels[ch].join_async()
+            # FIXME: not working as expected
+            log.error("lost connection to %s", self.websocket_url)
+            # await self.connect_async(self.websocket_url)
+            # for ch in self.channels:
+            #     await self.channels[ch].join_async()
 
 
-# loop = asyncio.get_event_loop()
-# if loop.is_running():
-#     print(f"loop {loop} is running")
-# else:
-#     loop = asyncio.new_event_loop()
-#     loop.set_debug(True)
-#     asyncio.set_event_loop(loop)
-#     print(f"new loop {loop} created")
-#
-# print(asyncio.get_event_loop())
 jet1090_websocket_client: Jet1090WebsocketClient = Jet1090WebsocketClient()
 
 

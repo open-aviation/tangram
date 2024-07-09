@@ -54,16 +54,16 @@ async def server_events():
 
 #### client to rs1090 channel
 def on_system_joining(join_ref, ref, channel, event, status, response):
-    log.info("system, joined: %s", response)
+    log.info("SYSTEM, `%s`, join, %s %s %s %s", channel, join_ref, ref, status, response)
 
 
 def on_system_datetime(join_ref, ref, channel, event, status, response):
-    log.debug("system, datetime: %s", response)
+    log.debug("SYSTEM, `%s`, datetime, %s %s %s %s", channel, join_ref, ref, status, response)
 
 
 system_channel = jet1090_websocket_client.add_channel("system")
-# system_channel.on_event("join", on_system_joining)
-# system_channel.on_event("datetime", on_system_datetime)
+system_channel.on_event("join", on_system_joining)
+system_channel.on_event("datetime", on_system_datetime)
 
 
 async def start():

@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 
 from tangram import websocket as tangram_websocket
-from tangram.plugins import rs1090_source, rs1090_trajectory
+from tangram.plugins import rs1090_source
 from tangram.plugins import system
 from tangram.plugins import history
 from tangram.plugins import rs1090_trajectory
@@ -29,7 +29,7 @@ async def startup_debug(*args: Any, **kwargs: Any) -> None:
     log.info("startup, %s, %s", args, kwargs)
 
     # FIXME: confiburable
-    websocket_url = "ws://192.168.8.37:8080/websocket"
+    websocket_url = "ws://127.0.0.1:8080/websocket"
     await jet1090_websocket_client.connect_async(websocket_url)
     task = asyncio.create_task(jet1090_websocket_client.start_async())
     log.info("created websocket client task: %s", task)

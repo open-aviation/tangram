@@ -13,13 +13,27 @@ from .storage import HistoryDB
 log = logging.getLogger("tangram")
 
 
+def on_system_joining(join_ref, ref, channel, event, status, response):
+    log.info("HISTORY, `%s`, join, %s %s %s %s", channel, join_ref, ref, status, response)
+
+
+def on_system_datetime(join_ref, ref, channel, event, status, response):
+    log.debug("HISTORY, `%s`, datetime, %s %s %s %s", channel, join_ref, ref, status, response)
+
+
+system_channel = jet1090_websocket_client.add_channel("system")
+system_channel.on_event("join", on_system_joining)
+system_channel.on_event("datetime", on_system_datetime)
+
+
 async def start():
+    # asyncio.create_task(system_channel.join_async())
+
     history_db = HistoryDB(use_memory=False)
     await history_db.load_all_history()
     asyncio.create_task(history_db.expire_records_periodically())
 
     asyncio.create_task(history_db.load_by_restful_client())
-    log.info("history joins jet1090 channel")
 
 
 async def start_with_ws():
