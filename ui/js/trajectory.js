@@ -1,4 +1,4 @@
-export function main() {
+export default function main() {
   console.log('Hello, trajectory!')
 }
 
