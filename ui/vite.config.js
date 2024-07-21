@@ -5,10 +5,7 @@ export default defineConfig({
     proxy: {
       // string shorthand: http://localhost:5173/foo -> http://localhost:4567/foo
       // with options: http://localhost:5173/api/bar-> http://jsonplaceholder.typicode.com/bar
-      '/data': {
-        target: 'https://localhost:18000/data/4d24fe',
-        changeOrigin: true,
-      },
+      '/data': 'http://localhost:18000',
       '^/plugins.*': {
         target: 'https://localhost:18000/plugins.*',
         changeOrigin: true,
