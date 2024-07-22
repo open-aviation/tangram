@@ -10,7 +10,7 @@ body,
 }
 
 /*body {
-  // height of .navbar, customize with @navbar-height variable 
+  // height of .navbar, customize with @navbar-height variable
   padding-top: 50px;
 }*/
 .navbar {
@@ -158,7 +158,7 @@ a.flag:hover::after {
   bottom: 0;
   width: 305px;
   overflow: hidden;
-  z-index: 2000;
+  z-index: 1000;
   margin-left: 2px;
   margin-top: 5px;
 }
@@ -229,6 +229,7 @@ a.flag:hover::after {
 
 .leaflet-sidebar-left .leaflet-sidebar-tabs {
   left: 0;
+  border-right: 1px solid #e7e7e7;
 }
 
 .leaflet-sidebar-right .leaflet-sidebar-tabs {
@@ -264,7 +265,6 @@ a.flag:hover::after {
 .leaflet-sidebar-tabs>li.active,
 .leaflet-sidebar-tabs>ul>li.active {
   color: #000;
-  background-color: #e7e7e7;
 }
 
 /* .leaflet-sidebar-tabs>li.disabled,
@@ -310,6 +310,9 @@ a.flag:hover::after {
 .leaflet-sidebar-left .leaflet-sidebar-content {
   left: 40px;
   right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .leaflet-sidebar-right .leaflet-sidebar-content {
@@ -403,6 +406,12 @@ a.flag:hover::after {
   box-shadow: none;
   border-right: 2px solid rgba(0, 0, 0, 0.2);
   opacity: 0.8;
+  height: 100%;
+}
+.bottom-bar-info {
+    height: 50px;
+    font-size: 20px;
+    text-align: center;
 }
 
 @media (min-width: 768px) {

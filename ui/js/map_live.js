@@ -143,5 +143,18 @@ streamingChannel
 // }, 1000 * 2); //2 secondes
 // L.control.scale().addTo(map);
 // L.control.zoom({ position: "topright" }).addTo(map);
+
+$("#modal").on("click", function (event) {
+  new Modal({
+    title: 'Search',
+    content: `<div class="">
+    <input />
+    <div>
+    <input type="checkbox" />
+      <input type="checkbox" />
+</div>
+     </div>`
+  })
+});
 L.control.layers(null, overlays).addTo(map);
 
