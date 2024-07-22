@@ -116,7 +116,7 @@
     <script type="text/javascript" src="{{ url_for('static', path='/js/map_live.js') }}"></script>
 
     <div id="chart-pane" class="leaflet-bar chart-container">
-      <select id="plot_select">
+      <select id="plot-select">
         <option value="altitude">Altitude (in ft)</option>
         <option value="speed">Speed (in kts)</option>
         <option value="vertical_rate">Vertical rate (in ft/mn)</option>
@@ -127,7 +127,7 @@
   </div>
 </div>
 <script>
-  $("#plot_select").on("change", function () {
+  $("#plot-select").on("change", function () {
     whenFeatureSelected(this.value);
   });
   $("#chart-pane").on("click", function (event) {

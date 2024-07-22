@@ -43,7 +43,7 @@ function joinTrajectoryChannel(channelName) {
 /// get trajectory data and draw on the map
 function getAndDrawTrajectory(icao, und = "", history = 0) {
   const params = new URLSearchParams({ history, und });
-  let url = `plugins / trajectory / icao24 / ${icao} ? ${params}`;
+  let url = `plugins/trajectory/icao24 / ${icao} ? ${params}`;
   // url = url + "?" + searchParams;
   $.getJSON(url, function (data) {
     traj.clearLayers();

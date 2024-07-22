@@ -85,10 +85,7 @@ let systemChannel = socket.channel(systemChannelName, { token: systemChannelToke
 function updateEl({ el, html }) {
   morphdom(document.getElementById(el), html);
 }
-
-systemChannel.on('uptime', updateEl);
-systemChannel.on('info_local', updateEl);
-systemChannel.on('info_utc', updateEl);
+systemChannel.on('update-node', updateEl);
 
 systemChannel
   .join()

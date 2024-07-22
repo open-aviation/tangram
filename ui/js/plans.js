@@ -149,12 +149,11 @@ function onPlaneClicked(e) {
   document.getElementById("chart-pane").style.display = "block";
 
   getAndDrawTrajectory(icao24, (history = chart_history));
-  getFlight_data(icao24, callsign, tail, typecode);
+  getFlightMeta(icao24, callsign, tail, typecode);
 
   sidebar.open("info_box");
 
-  let feat = $("#plot_select").val();
-  whenFeatureSelected(feat);
+  whenFeatureSelected();
 }
 
 function deselect_planes() {
@@ -173,11 +172,9 @@ function deselect_planes() {
   selected.icao24 = null;
 }
 
-
-
-
-function whenFeatureSelected(feat) {
+function whenFeatureSelected() {
   let icao24 = $("#icao24").text();
+  let feat = $("#plot-select").val()
   switch (feat) {
     case "speed":
       draw_chart(icao24, ["groundspeed", "IAS", "TAS"]);

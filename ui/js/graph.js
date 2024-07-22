@@ -22,19 +22,22 @@ async function draw_chart(icao, columns) {
       timestamp: aq.escape((x) => 1000 * x.timestamp),
       callsign: aq.op.fill_down("callsign"),
       // TODO traffic.js
-      /*track: aq.escape((d) => {
-        let prevAngle = 0;
-        return d.track.map((angle) => {
-          const unwrapped = unwrapAngle(prevAngle, angle);
-          prevAngle = unwrapped;
-          return unwrapped;
-        });
-      }),*/
+      // track: aq.escape((d) => {
+      //   let prevAngle = 0;
+      //   return d.track.map((angle) => {
+      //     const unwrapped = unwrapAngle(prevAngle, angle);
+      //     prevAngle = unwrapped;
+      //     return unwrapped;
+      //   });
+      // }),
     })
     .orderby(aq.desc("timestamp"));
+  console.dir(data);
   var flight = new traffic.Flight(data);
   // TODO traffic.js
   // flight = flight.resample(d3.timeSecond.every(1));
+
+  // https://observablehq.com/plot
   var plot = Plot.plot({
     marks: [
       Plot.line(flight.data.fold(columns, { as: ["key", "value"] }), {

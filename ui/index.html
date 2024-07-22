@@ -60,6 +60,7 @@
   <script type="text/javascript" src="/js/trajectory.js"></script>
 
   <script type='module'>
+    //example
     import trajectory from './js/trajectory.js';
     trajectory.main();
   </script>
@@ -79,92 +80,95 @@
   </div>
 
   <var id="seconds_uptime" hidden="hidden">{{uptime}}</var>
-<div id="container-map">
-  <div id="sidebar" class="leaflet-sidebar collapsed">
-    <div class="leaflet-sidebar-tabs">
-      <ul role="tablist">
-        <li>
-          <a href="#info_box" role="tab"><span class="fa fa-plane"></span></a>
-        </li>
-      </ul>
-    </div>
-    <div class="leaflet-sidebar-content">
-      <div class="leaflet-sidebar-pane" id="info_box">
-        <table class="info_box_table">
-          <thead>
-            <tr class="info_header">
-              <td colspan="2">System Information</td>
-            </tr>
-          </thead>
-          <tbody></tbody>
-          <tbody>
-            <tr class="info_label">
-              <td>aircraft on map</td>
-              <td>
-                <b>
-                  <p style="display: inline" id="plane_count"></p>
-                </b>
-              </td>
-            </tr>
-          </tbody>
-        </table>
 
-        <table class="info_box_table" id="flight" hidden="true">
-          <thead>
-            <tr class="info_header">
-              <td colspan="2">Flight Information</td>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="info_label">
-              <td>icao24</td>
-              <td class="info_value">
-                <p style="display: inline" id="icao24"></p>
-              </td>
-            </tr>
-            <tr class="info_label">
-              <td>callsign</td>
-              <td class="info_value">
-                <p style="display: inline" id="aircraft_id"></p>
-              </td>
-            </tr>
-          </tbody>
-          <tbody>
-            <tr class="info_label">
-              <td>typecode</td>
-              <td>
-                <p style="display: inline" id="typecode"></p>
-              </td>
-            </tr>
-            <tr class="info_label">
-              <td>tail</td>
-              <td>
-                <p style="display: inline" id="tail"></p>
-              </td>
-            </tr>
-            <tr class="info_label">
-              <td>origin</td>
-              <td>
-                <p style="display: inline" id="departure"></p>
-              </td>
-            </tr>
-            <tr class="info_label">
-              <td>destination</td>
-              <td>
-                <p style="display: inline" id="destination"></p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+  <div id="container-map">
+    <div id="sidebar" class="leaflet-sidebar collapsed">
+      <div class="leaflet-sidebar-tabs">
+        <ul role="tablist">
+          <li>
+            <a href="#info_box" role="tab"><span class="fa fa-plane"></span></a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="leaflet-sidebar-content">
+
+        <!-- upated from server -->
+        <div class="leaflet-sidebar-pane" id="info_box">
+          <table class="info_box_table">
+            <thead>
+              <tr class="info_header">
+                <td colspan="2">System Information</td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="info_label">
+                <td>aircraft on map</td>
+                <td>
+                  <b>
+                    <p style="display: inline" id="plane_count"></p>
+                  </b>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="info_box_table" id="flight" hidden="true">
+            <thead>
+              <tr class="info_header">
+                <td colspan="2">Flight Information</td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="info_label">
+                <td>icao24</td>
+                <td class="info_value">
+                  <p style="display: inline" id="icao24"></p>
+                </td>
+              </tr>
+              <tr class="info_label">
+                <td>callsign</td>
+                <td class="info_value">
+                  <p style="display: inline" id="aircraft_id"></p>
+                </td>
+              </tr>
+            </tbody>
+            <tbody>
+              <tr class="info_label">
+                <td>typecode</td>
+                <td>
+                  <p style="display: inline" id="typecode"></p>
+                </td>
+              </tr>
+              <tr class="info_label">
+                <td>tail</td>
+                <td>
+                  <p style="display: inline" id="tail"></p>
+                </td>
+              </tr>
+              <tr class="info_label">
+                <td>origin</td>
+                <td>
+                  <p style="display: inline" id="departure"></p>
+                </td>
+              </tr>
+              <tr class="info_label">
+                <td>destination</td>
+                <td>
+                  <p style="display: inline" id="destination"></p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-  </div>
 
   <div id="map">
     <script type="text/javascript" src="/js/map_live.js"></script>
 
     <div id="chart-pane" class="leaflet-bar chart-container">
-      <select id="plot_select">
+      <select id="plot-select">
         <option value="altitude">Altitude (in ft)</option>
         <option value="speed">Speed (in kts)</option>
         <option value="vertical_rate">Vertical rate (in ft/mn)</option>
@@ -175,28 +179,30 @@
   </div>
 </div>
 <script>
-  $("#plot_select").on("change", function () {
+  $("#plot-select").on("change", function () {
     whenFeatureSelected(this.value);
   });
+
   $("#chart-pane").on("click", function (event) {
-    event.stopPropagation(); // Stop the click event from propagating to the map
+    // Stop the click event from propagating to the map
+    event.stopPropagation();
   });
 
-  //let form_database = document.getElementById("databasebutton");
-  //form_database.addEventListener("click", myfunction);
-  //form_database.name = "database_form";
-
-  //let form_threshold = document.getElementById("parambutton");
-  //form_threshold.addEventListener("click", myfunction);
-  //form_threshold.name = "threshold_form";
-
-  /*  function myfunction(evt) {
-    let x = document.getElementById(evt.currentTarget.name);
-    if (x.style.display === "none") {
-      x.style.display = "block";
-    } else {
-      x.style.display = "none";
-    }
-  } */
+  // let form_database = document.getElementById("databasebutton");
+  // form_database.addEventListener("click", myfunction);
+  // form_database.name = "database_form";
+  //
+  // let form_threshold = document.getElementById("parambutton");
+  // form_threshold.addEventListener("click", myfunction);
+  // form_threshold.name = "threshold_form";
+  //
+  // function myfunction(evt) {
+  //   let x = document.getElementById(evt.currentTarget.name);
+  //   if (x.style.display === "none") {
+  //     x.style.display = "block";
+  //   } else {
+  //     x.style.display = "none";
+  //   }
+  // }
 </script>
 </body>

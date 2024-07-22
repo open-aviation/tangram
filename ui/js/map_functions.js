@@ -38,30 +38,29 @@ let trajectoryPlots = []; // array of (latitude, longitude)
 let trajectoryChannel = null;
 let trajectoryPloyline = null;
 
-
-
-function getFlight_data(icao24, callsign, tail, typecode) {
+function getFlightMeta(icao24, callsign, tail, typecode) {
   document.getElementById("icao24").innerHTML = icao24;
   document.getElementById("typecode").innerHTML = typecode;
   document.getElementById("tail").innerHTML = tail;
-  var aircraft_id = document.getElementById("aircraft_id");
-  aircraft_id.innerHTML = callsign;
-  url = "context/flight/" + icao24;
-  $.getJSON(url, function (data) {
-    flight_id = document.getElementById("flight_id");
-    departure = document.getElementById("departure");
-    destination = document.getElementById("destination");
+  document.getElementById("aircraft_id").innerHTML = callsign;
 
-    if (data.flightId === undefined) {
-      flight_id.innerHTML = "";
-      departure.innerHTML = "";
-      destination.innerHTML = "";
-    } else {
-      flight_id.innerHTML = data.flightId.id;
-      departure.innerHTML = data.flightId.keys.aerodromeOfDeparture;
-      destination.innerHTML = data.flightId.keys.aerodromeOfDestination;
-      aircraft_id.innerHTML = data.flightId.keys.aircraftId;
-    }
-  });
+  // url = "context/flight/" + icao24;
+  // $.getJSON(url, function (data) {
+  //   flight_id = document.getElementById("flight_id");
+  //   departure = document.getElementById("departure");
+  //   destination = document.getElementById("destination");
+  //
+  //   if (data.flightId === undefined) {
+  //     flight_id.innerHTML = "";
+  //     departure.innerHTML = "";
+  //     destination.innerHTML = "";
+  //   } else {
+  //     flight_id.innerHTML = data.flightId.id;
+  //     departure.innerHTML = data.flightId.keys.aerodromeOfDeparture;
+  //     destination.innerHTML = data.flightId.keys.aerodromeOfDestination;
+  //     aircraft_id.innerHTML = data.flightId.keys.aircraftId;
+  //   }
+  // });
+
   document.getElementById("flight").hidden = false;
 }

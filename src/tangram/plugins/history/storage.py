@@ -165,6 +165,11 @@ class HistoryDB:
         fields = ["id", "icao24", "last", "altitude"]
         return [dict(zip(fields, row)) for row in rows]
 
+    def count_tracks(self, last_minutes: int = 5):
+        sql = "SELECT count(DISTINCT icao24) FROM trajectories WHERE last > current_timestamp - :last_minutes * 60"
+        result = self.conn.execute(sql, {"last_minutes": last_minutes}).fetchone()
+        return result[0]
+
     async def _load_history(self, identifier: str):
         """load tracks from rs1090 and save them to local db"""
         tracks: List[rs1090.Jet1090Data] = await self.jet1090_restful_client.icao24_track(identifier) or []
