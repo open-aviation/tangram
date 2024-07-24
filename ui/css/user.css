@@ -408,6 +408,7 @@ a.flag:hover::after {
   opacity: 0.8;
   height: 100%;
 }
+
 .bottom-bar-info {
     height: 50px;
     font-size: 20px;

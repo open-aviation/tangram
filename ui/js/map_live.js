@@ -85,6 +85,7 @@ let systemChannel = socket.channel(systemChannelName, { token: systemChannelToke
 function updateEl({ el, html }) {
   morphdom(document.getElementById(el), html);
 }
+
 systemChannel.on('update-node', updateEl);
 
 systemChannel
