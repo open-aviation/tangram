@@ -19,7 +19,9 @@ from tangram.plugins import rs1090_source
 
 from tangram.plugins import system
 from tangram.plugins import history
-from tangram.plugins import rs1090_trajectory
+from tangram.plugins import trajectory
+# from tangram.plugins import chart
+
 from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_client
 
 log = logging.getLogger("tangram")
@@ -50,13 +52,11 @@ app = FastAPI(
         startup_debug,
         tangram_websocket.broadcast.connect,
         rs1090_source.start,
-        # rs1090_trajectory.start,
     ],
     on_shutdown=[
         shutdown_debug,
         tangram_websocket.broadcast.disconnect,
         rs1090_source.shutdown,
-        # rs1090_trajectory.shutdown,
     ],
 )
 
@@ -67,9 +67,9 @@ app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
 
 app.include_router(system.app)
 app.include_router(history.app)
+# app.include_router(chart.app)
 
-# app.mount("/plugins/trajectory", rs1090_trajectory.app, name="trajectory")
-app.include_router(rs1090_trajectory.app)
+app.include_router(trajectory.app)
 
 start_time = datetime.now()
 

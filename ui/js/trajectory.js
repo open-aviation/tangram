@@ -18,7 +18,8 @@ function joinTrajectoryChannel(channelName) {
     // const { latitude, longitude } = data;
     // trajectoryPlots.push([latitude, longitude]);
 
-    console.log(`${trajectoryChannel.topic}`, data.length);
+    // console.log(`${trajectoryChannel.topic}`, data.length);
+
     // trajectoryPlots = data.map(({ latitude, longitude }) => [latitude, longitude]);
     trajectoryPlots = data;
     // console.log(`trajectoryPlots`, trajectoryPlots.length);

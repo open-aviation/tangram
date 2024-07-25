@@ -145,10 +145,10 @@ function onPlaneClicked(e) {
   $(".turb-" + icao24).toggleClass("turb_path", false);
   $(".turb-" + icao24).toggleClass("turb_selected", true);
 
-  draw_chart(icao24, chart_history);
+  // draw_chart(icao24, chart_history);
   document.getElementById("chart-pane").style.display = "block";
 
-  getAndDrawTrajectory(icao24, (history = chart_history));
+  // getAndDrawTrajectory(icao24, (history = chart_history));
   getFlightMeta(icao24, callsign, tail, typecode);
 
   sidebar.open("info_box");
@@ -172,23 +172,4 @@ function deselect_planes() {
   selected.icao24 = null;
 }
 
-function whenFeatureSelected() {
-  let icao24 = $("#icao24").text();
-  let feat = $("#plot-select").val()
-  switch (feat) {
-    case "speed":
-      draw_chart(icao24, ["groundspeed", "IAS", "TAS"]);
-      break;
-    case "vertical_rate":
-      draw_chart(icao24, ["vrate_barometric", "vrate_inertial", "vertical_rate"]);
-      break;
-    case "track":
-      draw_chart(icao24, ["track", "heading", "roll"]);
-      break;
-    case "altitude":
-    default:
-      draw_chart(icao24, ["altitude", "selected_altitude"]);
-      break;
-  }
-}
 

@@ -114,11 +114,15 @@ class Jet1090WebsocketClient(metaclass=Singleton):
         self.loop = None  # loop or asyncio.get_running_loop()
         self.connected: bool = False
 
-    def add_channel(self, channel_name: str) -> Channel:
+    def add_channel(self, channel_name: str, handlers: dict[str, Callable] | None = None) -> Channel:
         join_ref = str(len(self.channels) + 1)
-        channel = Channel(self, channel_name, join_ref, self.loop)
+        channel: Channel = Channel(self, channel_name, join_ref, self.loop)
         self.channels.append((join_ref, channel))
         log.info("added a new channel %s %s", channel_name, channel)
+        if handlers:
+            for event, fn in handlers.items():
+                channel.on_event(event, fn)
+                log.debug('added event handler "%s" for %s', event, channel_name)
         return channel
 
     async def connect_async(self, websocket_url: str):
