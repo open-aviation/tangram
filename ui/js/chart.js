@@ -1,5 +1,5 @@
 async function draw_chart(icao, columns) {
-  var data = aq
+  var data = aq // arquero
     .from(await $.getJSON("data/" + icao), [
       "timestamp",
       "icao24",

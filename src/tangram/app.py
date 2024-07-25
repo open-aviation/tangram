@@ -8,13 +8,15 @@ from datetime import datetime
 from typing import Any, Dict
 
 from fastapi import FastAPI, Request, WebSocket, status
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+
+# from fastapi.staticfiles import StaticFiles
+# from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 
 from tangram import websocket as tangram_websocket
 from tangram.plugins import rs1090_source
+
 from tangram.plugins import system
 from tangram.plugins import history
 from tangram.plugins import rs1090_trajectory
@@ -41,8 +43,8 @@ async def shutdown_debug(*args: Any, **kwargs: Any) -> None:
     log.info("shutdown, args: %s, kwargs: %s", args, kwargs)
 
 
-tangram_module_root = pathlib.Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=tangram_module_root / "templates")
+# tangram_module_root = pathlib.Path(__file__).resolve().parent
+# templates = Jinja2Templates(directory=tangram_module_root / "templates")
 app = FastAPI(
     on_startup=[
         startup_debug,
@@ -58,11 +60,15 @@ app = FastAPI(
     ],
 )
 
-app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
+# app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
+
+# TODO: move to new plugin app
 app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
-app.mount("/plugins/trajectory", rs1090_trajectory.app, name="trajectory")
+
 app.include_router(system.app)
 app.include_router(history.app)
+
+# app.mount("/plugins/trajectory", rs1090_trajectory.app, name="trajectory")
 app.include_router(rs1090_trajectory.app)
 
 start_time = datetime.now()
@@ -77,16 +83,17 @@ async def uptime() -> dict[str, float]:
     return {"uptime": get_uptime_seconds()}
 
 
-@app.get("/")
-async def home(request: Request, history: int = 0) -> HTMLResponse:
-    log.info("index, history: %s", history)
-    context = dict(
-        history=history,
-        form_database=None,
-        form_threshold=None,
-        uptime=get_uptime_seconds(),
-    )
-    return templates.TemplateResponse(request=request, name="index.html", context=context)
+# @app.get("/")
+# async def home(request: Request, history: int = 0) -> HTMLResponse:
+#     log.info("index, history: %s", history)
+#     context = dict(
+#         history=history,
+#         form_database=None,
+#         form_threshold=None,
+#         uptime=get_uptime_seconds(),
+#     )
+#     return templates.TemplateResponse(request=request, name="index.html", context=context)
+#
 
 
 @app.get("/trajectory/{icao24}")

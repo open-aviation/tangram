@@ -10,6 +10,14 @@ from tangram.plugins.history.storage import HistoryDB
 log = logging.getLogger("tangram")
 
 
+class TangramApplication(APIRouter):
+    pass
+
+
+class System(TangramApplication):
+    pass
+
+
 #### channel handler
 class SystemChannelHandler(channels.ChannelHandlerMixin):
     pass
