@@ -1,4 +1,6 @@
 import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import AutoImport from 'unplugin-auto-import/dist/vite'
 
 export default defineConfig({
   server: {
@@ -23,4 +25,8 @@ export default defineConfig({
       },
     },
   },
+  plugins:[
+    vue(), // 默认配置vue插件
+    AutoImport({ imports: ["vue", "vue-router"] }), // 配置vue、vue-router的API自动加载
+  ]
 })
