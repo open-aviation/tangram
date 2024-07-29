@@ -1,5 +1,5 @@
 <template>
-  <div id="sidebar" class="leaflet-sidebar collapsed">
+  <div id="sidebar" class="leaflet-sidebar" :class="{'collapsed' : !selected}">
     <div class="leaflet-sidebar-tabs">
       <ul role="tablist">
         <li>
@@ -12,7 +12,7 @@
 
       <!-- upated from server -->
       <div class="leaflet-sidebar-pane" id="info_box">
-        <table class="info_box_table" id="flight" hidden="true">
+        <table class="info_box_table" id="flight">
           <thead>
           <tr class="info_header">
             <td colspan="2">Flight</td>
@@ -23,13 +23,13 @@
           <tr class="info_label">
             <td>icao24</td>
             <td class="info_value">
-              <p style="display: inline" id="icao24"></p>
+              <p style="display: inline" id="icao24">{{selected?.icao24}}</p>
             </td>
           </tr>
           <tr class="info_label">
             <td>callsign</td>
             <td class="info_value">
-              <p style="display: inline" id="aircraft_id"></p>
+              <p style="display: inline" id="aircraft_id">{{selected?.callsign}}</p>
             </td>
           </tr>
           </tbody>
@@ -38,25 +38,25 @@
           <tr class="info_label">
             <td>typecode</td>
             <td>
-              <p style="display: inline" id="typecode"></p>
+              <p style="display: inline" id="typecode">{{selected?.typecode}}</p>
             </td>
           </tr>
           <tr class="info_label">
             <td>tail</td>
             <td>
-              <p style="display: inline" id="tail"></p>
+              <p style="display: inline" id="tail">{{selected?.tail}}</p>
             </td>
           </tr>
           <tr class="info_label">
             <td>origin</td>
             <td>
-              <p style="display: inline" id="departure"></p>
+              <p style="display: inline" id="departure">{{selected?.departure}}</p>
             </td>
           </tr>
           <tr class="info_label">
             <td>destination</td>
             <td>
-              <p style="display: inline" id="destination"></p>
+              <p style="display: inline" id="destination">{{selected?.destination}}</p>
             </td>
           </tr>
           </tbody>
@@ -82,7 +82,7 @@
 </template>
 <script>
 export default {
-  props: ['updateItem', selected],
+  props: ['updateItem', 'selected'],
   data() {
     return {
       count: ''
@@ -107,6 +107,7 @@ export default {
   z-index: 1000;
   margin-left: 2px;
   margin-top: 5px;
+  display: flex;
 }
 
 .leaflet-sidebar.collapsed {
@@ -151,7 +152,6 @@ export default {
 
 .leaflet-sidebar-tabs,
 .leaflet-sidebar-tabs>ul {
-  position: absolute;
   width: 40px;
   margin: 0;
   padding: 0;
@@ -203,9 +203,7 @@ export default {
 }
 
 .leaflet-sidebar-content {
-  position: absolute;
-  top: 0;
-  bottom: 0;
+  flex: 1;
   background-color: rgba(255, 255, 255);
   overflow-x: hidden;
   overflow-y: auto;
@@ -233,7 +231,6 @@ export default {
 }
 
 .leaflet-sidebar-pane {
-  display: none;
   left: 0;
   right: 0;
   box-sizing: border-box;
@@ -301,27 +298,6 @@ export default {
   text-align: center;
 }
 
-@media (min-width: 768px) {
-  .leaflet-sidebar-left~.leaflet-control-container .leaflet-left {
-    transition: left 80ms;
-  }
-}
-
-@media (min-width: 768px) and (max-width: 1199px) {
-  .leaflet-sidebar-left~.leaflet-control-container .leaflet-left {
-    left: 315px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .leaflet-sidebar-left~.leaflet-control-container .leaflet-left {
-    left: 305px;
-  }
-}
-
-.leaflet-sidebar-left.collapsed~.leaflet-control-container .leaflet-left {
-  left: 50px;
-}
 
 .leaflet-sidebar-right.leaflet-touch {
   box-shadow: none;

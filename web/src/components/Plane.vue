@@ -1,10 +1,18 @@
 <template>
-  <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" :icon="getIcon(item)" :key="index" :lat-lng="[item.latitude, item.longitude]" @click="showRoute(item)">
+  <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" :icon="getIcon(item)" :key="index" :lat-lng="[item.latitude, item.longitude]" v-on:click="showRoute(item)">
+    <l-tooltip>
+        <p style="font-size: 14px">
+          icao24: <code>{{item.icao24}}</code><br/>
+          callsign: <code>{{item.callsign}}</code><br/>
+          tail: <code>{{item.registration}}</code><br/>
+          altitude: <code>{{item.altitude}}</code>
+        </p>
+    </l-tooltip>
   </v-rotated-marker>
 </template>
 <script>
 import "leaflet/dist/leaflet.css";
-import {LMarker, LIcon} from '@vue-leaflet/vue-leaflet';
+import {LMarker, LIcon, LTooltip} from '@vue-leaflet/vue-leaflet';
 import { LMarkerRotate } from 'vue-leaflet-rotate-marker';
 import {get_image_object} from './PlanePath';
 import Raphael from 'raphael';
@@ -12,6 +20,7 @@ export default {
   components: {
     LMarker,
     LIcon,
+    LTooltip,
     'v-rotated-marker': LMarkerRotate
   },
    data() {
@@ -103,13 +112,16 @@ export default {
       })
     },
 
-    showRoute(item) {
+    showRoute(item, e) {
       this.selected = item
+      console.log(this.selected.icao24)
       this.$emit('onSelectPlane', item)
     }
   }
 }
 </script>
 <style>
-
+.tooltip {
+  border-radius: 10px;
+}
 </style>
