@@ -10,7 +10,7 @@
       ></l-tile-layer>
       <PlaneData ref="planes" @onSelectPlane="onSelectPlane" :planeData="planes" />
       <Polyline :polyline="polyline" />
-      <Chart :selected="selected" />
+      <Chart v-show="selected && show" :selected="selected" />
     </l-map>
   </div>
 
