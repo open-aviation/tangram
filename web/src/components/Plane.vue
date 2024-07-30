@@ -1,5 +1,5 @@
 <template>
-  <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" :icon="getIcon(item)" :key="index" :lat-lng="[item.latitude, item.longitude]" v-on:click="showRoute(item)">
+  <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" :icon="getIcon(item)" :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index" :lat-lng="[item.latitude, item.longitude]" v-on:click="showRoute(item)">
     <l-tooltip>
         <p style="font-size: 14px">
           icao24: <code>{{item.icao24}}</code><br/>
@@ -112,7 +112,7 @@ export default {
       })
     },
 
-    showRoute(item, e) {
+    showRoute(item) {
       this.selected = item
       console.log(this.selected.icao24)
       this.$emit('onSelectPlane', item)

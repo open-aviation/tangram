@@ -10,6 +10,7 @@
       ></l-tile-layer>
       <PlaneData ref="planes" @onSelectPlane="onSelectPlane" :planeData="planes" />
       <Polyline :polyline="polyline" />
+      <Chart :selected="selected" />
     </l-map>
   </div>
 
@@ -23,6 +24,7 @@ import TopNavBar from "./components/TopNavBar.vue"
 import LeftSideBar from "./components/LeftSideBar.vue";
 import PlaneData from "./components/Plane.vue";
 import Polyline from "./components/Polyline.vue";
+import Chart from "./components/Chart.vue";
 export default {
   components: {
     Polyline,
@@ -30,7 +32,8 @@ export default {
     LMap,
     LTileLayer,
     TopNavBar,
-    PlaneData
+    PlaneData,
+    Chart
   },
   data() {
     return {
@@ -109,16 +112,11 @@ export default {
     emptySelect() {
       this.selected = null
       this.$refs.planes.selected = null
+      this.chartData = []
     },
     async onSelectPlane(item) {
       this.selected = item
       this.joinTrajectoryChannel(`channel:trajectory:${this.selected.icao24}`)
-      const res = await fetch('/data/' + item.icao24)
-      const jsonRes = res.json()
-      if(jsonRes && jsonRes.length > 0) {
-        this.columns = ["groundspeed", "IAS", "TAS"]
-        this.chartData = jsonRes
-      }
     }
   }
 };
@@ -165,11 +163,11 @@ body {
   flex: 1;
   flex-grow: 1;
 }
-.aircraft_img {
+.aircraft_img svg {
   fill: #f9fd15;
 }
 
-.aircraft_selected {
+.aircraft_selected svg {
   fill: green;
 }
 </style>
