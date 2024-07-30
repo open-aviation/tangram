@@ -1,7 +1,7 @@
 <template>
-  <div class="main-container" :class="{'hasItem': selected}">
+  <div class="main-container" :class="{'hasItem': selected && show}">
     <TopNavBar :updateItem="updateItem" />
-    <LeftSideBar :selected="selected" :updateItem="updateItem" />
+    <LeftSideBar ref="leftBar" :selected="selected" :updateItem="updateItem" />
     <l-map @click="emptySelect" class="map-container" ref="map" v-model:zoom="zoom" :center="[47.41322, -1.219482]" >
       <l-tile-layer
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
@@ -46,7 +46,8 @@ export default {
       socket: null,
       polyline: [],
       chartData: [],
-      columns: []
+      columns: [],
+      show: false,
     };
   },
   mounted() {
@@ -110,12 +111,13 @@ export default {
           .receive("timeout", () => console.log(`timeout joining ${channelName}`));
     },
     emptySelect() {
-      this.selected = null
-      this.$refs.planes.selected = null
-      this.chartData = []
+      this.$refs.leftBar.show = false
+      this.show = false
     },
     async onSelectPlane(item) {
       this.selected = item
+      this.$refs.leftBar.show = true
+      this.show = true
       this.joinTrajectoryChannel(`channel:trajectory:${this.selected.icao24}`)
     }
   }

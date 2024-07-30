@@ -1,9 +1,9 @@
 <template>
-  <div id="sidebar" class="leaflet-sidebar" :class="{'collapsed' : !selected}">
+  <div id="sidebar" class="leaflet-sidebar" :class="{'collapsed' : !selected || !show}">
     <div class="leaflet-sidebar-tabs">
       <ul role="tablist">
         <li>
-          <a href="#info_box" role="tab"><span class="fa fa-plane"></span></a>
+          <a @click="show = !show; $parent.show = !$parent.show" href="#info_box" role="tab"><span class="fa fa-plane"></span></a>
         </li>
       </ul>
     </div>
@@ -85,7 +85,8 @@ export default {
   props: ['updateItem', 'selected'],
   data() {
     return {
-      count: ''
+      count: '',
+      show: false
     }
   },
   watch: {
