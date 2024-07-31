@@ -15,16 +15,19 @@ from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 
 from tangram import websocket as tangram_websocket
-from tangram.plugins import rs1090_source
+# from tangram.plugins import rs1090_source
 
 from tangram.plugins import system
 from tangram.plugins import history
+from tangram.plugins import source
 from tangram.plugins import trajectory
 # from tangram.plugins import chart
 
+from tangram.plugins.common import rs1090
 from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_client
 
 log = logging.getLogger("tangram")
+jet1090_restful_client = rs1090.Rs1090Client()
 
 
 async def startup_debug(*args: Any, **kwargs: Any) -> None:
@@ -51,25 +54,26 @@ app = FastAPI(
     on_startup=[
         startup_debug,
         tangram_websocket.broadcast.connect,
-        rs1090_source.start,
+        # rs1090_source.start,
     ],
     on_shutdown=[
         shutdown_debug,
         tangram_websocket.broadcast.disconnect,
-        rs1090_source.shutdown,
+        # rs1090_source.shutdown,
     ],
 )
 
 # app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
 
 # TODO: move to new plugin app
-app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
-
+# app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
+app.include_router(source.app)
 app.include_router(system.app)
 app.include_router(history.app)
 # app.include_router(chart.app)
 
 app.include_router(trajectory.app)
+
 
 start_time = datetime.now()
 
@@ -96,35 +100,36 @@ async def uptime() -> dict[str, float]:
 #
 
 
-@app.get("/trajectory/{icao24}")
-async def trajectory(icao24: str) -> Dict[str, Any]:
-    track = await rs1090_source.icao24_track(rs1090_source.BASE_URL + "/track", icao24)
-    geojson = {
-        "type": "LineString",
-        "coordinates": [(elt["longitude"], elt["latitude"]) for elt in track if elt.get("longitude", None)]
-        if track is not None
-        else [],
-        "properties": {
-            "icao24": icao24,
-            "latest": max(elt["timestamp"] for elt in track) if track is not None else 0,
-        },
-    }
-    return geojson
+# @app.get("/trajectory/{icao24}")
+# async def icao24_trajectory(icao24: str) -> Dict[str, Any]:
+#     track = await rs1090_source.icao24_track(rs1090_source.BASE_URL + "/track", icao24)
+#     geojson = {
+#         "type": "LineString",
+#         "coordinates": [(elt["longitude"], elt["latitude"]) for elt in track if elt.get("longitude", None)]
+#         if track is not None
+#         else [],
+#         "properties": {
+#             "icao24": icao24,
+#             "latest": max(elt["timestamp"] for elt in track) if track is not None else 0,
+#         },
+#     }
+#     return geojson
 
 
 @app.get("/data/{icao24}")
-async def data(icao24: str) -> list[dict[str, Any]]:
-    return await rs1090_source.icao24_track(rs1090_source.BASE_URL + "/track", icao24)
+async def data(icao24: str) -> list[rs1090.Jet1090Data]:
+    return await jet1090_restful_client.icao24_track(icao24) or []
+    # return await rs1090_source.icao24_track(rs1090_source.BASE_URL + "/track", icao24)
 
 
-@app.get("/turb.geojson")
-async def turbulence() -> Dict[str, Any]:
-    return {}
-
-
-@app.get("/planes.geojson")
-async def fetch_planes_geojson() -> Dict[str, Any]:
-    return {}
+# @app.get("/turb.geojson")
+# async def turbulence() -> Dict[str, Any]:
+#     return {}
+#
+#
+# @app.get("/planes.geojson")
+# async def fetch_planes_geojson() -> Dict[str, Any]:
+#     return {}
 
 
 @app.websocket("/websocket")

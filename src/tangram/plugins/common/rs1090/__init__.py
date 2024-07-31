@@ -126,7 +126,7 @@ class Rs1090Client:
     async def list_identifiers(self, path: str | None = None) -> list[str]:
         return await self.request_rs1090(path or "/") or []
 
-    async def icao24_track(self, identifier: str, path: str | None = "/track"):
+    async def icao24_track(self, identifier: str, path: str | None = "/track") -> list[Jet1090Data] | None:
         """ICAO24 1 minute historical positions
         sample record for `/track?icao24=010117`
         {
@@ -148,4 +148,12 @@ class Rs1090Client:
         }
         """
         items = await self.request_rs1090(path or "/track", params={"icao24": identifier})
-        return [Jet1090Data(**item) for item in items] if items is not None else None
+        if not items:
+            return None
+
+        results = []
+        for item in items:
+            if "last" not in item:
+                item["last"] = item["timestamp"]
+            results.append(Jet1090Data(**item))
+        return results
