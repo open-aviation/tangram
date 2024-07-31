@@ -1,5 +1,5 @@
 <template>
-  <div class="chart-container" v-if="defaultData.length > 0">
+  <div @click.stop="onClick" class="chart-container" v-if="defaultData.length > 0">
     <select id="plot-select" @change="onSelectOption" v-model="selectedItem">
       <option value="altitude">Altitude (in ft)</option>
       <option value="speed">Speed (in kts)</option>
@@ -62,6 +62,8 @@ export default {
     }
   },
   methods: {
+    onClick() {
+    },
     onSelectOption(e) {
       switch(e.target.value) {
         case 'speed':

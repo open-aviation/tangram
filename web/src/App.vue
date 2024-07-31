@@ -102,7 +102,6 @@ export default {
       trajectoryChannel
           .join()
           .receive("ok", ({ messages }) => {
-            trajectoryPlots = [];
             console.log(`(${channelName}) joined`, messages);
           })
           .receive("error", ({ reason }) =>
