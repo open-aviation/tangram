@@ -1,5 +1,5 @@
 <template>
-  <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" :icon="getIcon(item)" :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index" :lat-lng="[item.latitude, item.longitude]" v-on:click="showRoute(item)">
+  <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute" :icon="getIcon(item)" :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index" :lat-lng="[item.latitude, item.longitude]" >
     <l-tooltip>
         <p style="font-size: 14px">
           icao24: <code>{{item.icao24}}</code><br/>
@@ -8,11 +8,14 @@
           altitude: <code>{{item.altitude}}</code>
         </p>
     </l-tooltip>
+    <l-popup class="popup-leaflet-hidden">
+      <div ref="popup" :id="'popup-' + item.icao24">{{item.icao24}}</div>
+    </l-popup>
   </v-rotated-marker>
 </template>
 <script>
 import "leaflet/dist/leaflet.css";
-import {LMarker, LIcon, LTooltip} from '@vue-leaflet/vue-leaflet';
+import {LMarker, LIcon, LTooltip, LPopup} from '@vue-leaflet/vue-leaflet';
 import { LMarkerRotate } from 'vue-leaflet-rotate-marker';
 import {get_image_object} from './PlanePath';
 import Raphael from 'raphael';
@@ -21,6 +24,7 @@ export default {
     LMarker,
     LIcon,
     LTooltip,
+    LPopup,
     'v-rotated-marker': LMarkerRotate
   },
    data() {
@@ -112,10 +116,15 @@ export default {
       })
     },
 
-    showRoute(item) {
-      this.selected = item
-      console.log(this.selected.icao24)
-      this.$emit('onSelectPlane', item)
+    showRoute() {
+      window.popup = this.$refs.popup
+      setTimeout(()=> {
+        const obj = this.$refs.popup.find(e => e.parentElement.parentElement.style.display !== 'none' && e.parentElement.parentElement.parentElement.parentElement.style.opacity === '1')
+        this.selected = this.planeData.find(e => obj.id.indexOf(e.icao24) === 6)
+        console.log(obj)
+        this.$emit('onSelectPlane', this.selected)
+      }, 100)
+
     }
   }
 }
@@ -123,5 +132,8 @@ export default {
 <style>
 .tooltip {
   border-radius: 10px;
+}
+.leaflet-popup-pane {
+  opacity: 0;
 }
 </style>
