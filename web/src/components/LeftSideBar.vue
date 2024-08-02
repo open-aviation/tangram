@@ -1,13 +1,12 @@
 <template>
-  <div id="sidebar" class="leaflet-sidebar" :class="{'collapsed' : !selected || !show}">
+  <div id="sidebar" class="leaflet-sidebar" :class="{'collapsed' : !showDrawer}">
     <div class="leaflet-sidebar-tabs">
       <ul role="tablist">
         <li>
-          <a @click="show = !show; $parent.show = !$parent.show" href="#info_box" role="tab"><span class="fa fa-plane"></span></a>
+          <a @click="closeDrawer" href="#info_box" role="tab"><span class="fa fa-plane"></span></a>
         </li>
       </ul>
     </div>
-
     <div class="leaflet-sidebar-content">
 
       <!-- upated from server -->
@@ -81,19 +80,28 @@
   </div>
 </template>
 <script>
+import store from "../store";
+
 export default {
-  props: ['updateItem', 'selected'],
   data() {
     return {
-      count: '',
-      show: false
+      show: false,
     }
   },
-  watch: {
-    updateItem: function(newValue) {
-      if(newValue && newValue.el === 'plane_count') {
-        this.count = newValue.html
-      }
+  computed: {
+    selected() {
+      return store.state.selectedPlane
+    },
+    count() {
+      return store.state.count
+    },
+    showDrawer() {
+      return store.state.showDrawer
+    }
+  },
+  methods: {
+    closeDrawer() {
+      store.commit('switchDrawer')
     }
   }
 }

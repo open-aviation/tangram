@@ -1,24 +1,29 @@
 <template>
-  <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute" :icon="getIcon(item)" :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index" :lat-lng="[item.latitude, item.longitude]" >
+  <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute"
+                    :icon="getIcon(item)"
+                    :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index"
+                    :lat-lng="[item.latitude, item.longitude]">
     <l-tooltip>
-        <p style="font-size: 14px">
-          icao24: <code>{{item.icao24}}</code><br/>
-          callsign: <code>{{item.callsign}}</code><br/>
-          tail: <code>{{item.registration}}</code><br/>
-          altitude: <code>{{item.altitude}}</code>
-        </p>
+      <p style="font-size: 14px">
+        icao24: <code>{{ item.icao24 }}</code><br/>
+        callsign: <code>{{ item.callsign }}</code><br/>
+        tail: <code>{{ item.registration }}</code><br/>
+        altitude: <code>{{ item.altitude }}</code>
+      </p>
     </l-tooltip>
     <l-popup class="popup-leaflet-hidden">
-      <div ref="popup" :id="'popup-' + item.icao24">{{item.icao24}}</div>
+      <div ref="popup" :id="'popup-' + item.icao24">{{ item.icao24 }}</div>
     </l-popup>
   </v-rotated-marker>
 </template>
 <script>
 import "leaflet/dist/leaflet.css";
-import {LMarker, LIcon, LTooltip, LPopup} from '@vue-leaflet/vue-leaflet';
-import { LMarkerRotate } from 'vue-leaflet-rotate-marker';
+import {LIcon, LMarker, LPopup, LTooltip} from '@vue-leaflet/vue-leaflet';
+import {LMarkerRotate} from 'vue-leaflet-rotate-marker';
 import {get_image_object} from './PlanePath';
 import Raphael from 'raphael';
+import store from '../store'
+
 export default {
   components: {
     LMarker,
@@ -27,23 +32,46 @@ export default {
     LPopup,
     'v-rotated-marker': LMarkerRotate
   },
-   data() {
-     return {
-       staticAnchor: [16, 37],
-       selected: {}
-     }
-   },
-  props: {
-    planeData: {
-      type: Array,
-      default() {
-        return []
-      }
+  data() {
+    return {
+      staticAnchor: [16, 37],
+      selected: {},
+      streamingChannel: null,
+      planeData: [],
+    }
+  },
+  computed: {
+    socket() {
+      return store.state.socket
+    }
+  },
+  mounted() {
+    if (this.socket && !this.streamingChannel) {
+      const streamingChannelName = "channel:streaming";
+      const streamingChannelToken = "channel-token";
+      this.streamingChannel = this.socket.channel(streamingChannelName, {token: streamingChannelToken});
+
+      this.streamingChannel.on("new-data", data => {
+        if (data && data.length > 0) {
+          this.planeData = data.filter(item => item.latitude && item.longitude)
+        }
+      });
+
+      this.streamingChannel
+          .join()
+          .receive("ok", ({messages}) => {
+            console.log(`(${streamingChannelName}) joined`, messages);
+          })
+          .receive("error", ({reason}) =>
+              console.log(`failed to join ${streamingChannelName}`, reason)
+          )
+          .receive("timeout", () => console.log(`timeout joining ${streamingChannelName}`));
     }
   },
 
   methods: {
     getRotate(feature) {
+      // get rotation of marker
       let iconProps = get_image_object(
           feature.typecode,
           feature.callsign
@@ -52,6 +80,7 @@ export default {
       return rotate
     },
     getIcon(feature) {
+      // set marker style
       let iconProps = get_image_object(
           feature.typecode,
           feature.callsign
@@ -59,7 +88,7 @@ export default {
       let bbox = Raphael.pathBBox(iconProps.path);
       let x = Math.floor(bbox.x + bbox.width / 2.0);
       let y = Math.floor(bbox.y + bbox.height / 2.0);
-      let center = { x: x, y: y };
+      let center = {x: x, y: y};
       let offs_x = 0;
       if (iconProps.ofX) {
         offs_x = iconProps.ofX;
@@ -104,7 +133,7 @@ export default {
           pathPlain +
           "</svg>";
 
-      return  L.divIcon({
+      return L.divIcon({
         html: svgPlain,
         className:
             feature.icao24 === this.selected.icao24 && feature.callsign === this.selected.callsign && feature.typecode === this.selected.typecode
@@ -117,12 +146,17 @@ export default {
     },
 
     showRoute() {
-      window.popup = this.$refs.popup
-      setTimeout(()=> {
+      /*
+        marker component from leaflet can not bind the click event, it will get wrong click item,
+        so we are using a internal component from leaflet --- l-popup, it will show a popup modal when user clicking the marker,
+        this internal component can get the correct info, and we set this popup modal visibility= hidden, so it will display a modal in html element but hidden for the user
+        setTimeout here is to waiting for the popup modal updated, so we can know which popup modal is displaying, and then we can find the popup modal's id attribute which is icao24,
+        then we can find the correct plane info in planeData
+       */
+      setTimeout(() => {
         const obj = this.$refs.popup.find(e => e.parentElement.parentElement.style.display !== 'none' && e.parentElement.parentElement.parentElement.parentElement.style.opacity === '1')
         this.selected = this.planeData.find(e => obj.id.indexOf(e.icao24) === 6)
-        console.log(obj)
-        this.$emit('onSelectPlane', this.selected)
+        store.commit('setSelected', this.selected)
       }, 100)
 
     }
@@ -133,6 +167,7 @@ export default {
 .tooltip {
   border-radius: 10px;
 }
+
 .leaflet-popup-pane {
   opacity: 0;
 }

@@ -22,6 +22,7 @@ import {
 } from 'chart.js'
 import { Line } from 'vue-chartjs'
 import dayjs from 'dayjs'
+import store from '../store'
 
 ChartJS.register(
     CategoryScale,
@@ -37,7 +38,6 @@ export default {
   components: {
     Line
   },
-  props: ['selected'],
   data() {
     return {
       selectedItem: 'altitude',
@@ -45,8 +45,10 @@ export default {
       defaultData: []
     }
   },
-  mounted() {
-    window.dayjs = dayjs
+  computed: {
+    selected() {
+      return store.state.selectedPlane
+    }
   },
   watch: {
     selected: {
@@ -63,6 +65,7 @@ export default {
   },
   methods: {
     onClick() {
+      console.log('prevent the click event')
     },
     onSelectOption(e) {
       switch(e.target.value) {

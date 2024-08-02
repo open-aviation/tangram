@@ -15,14 +15,15 @@
     "vite": "^5.3.1"
   },
   "dependencies": {
+    "@vue-leaflet/vue-leaflet": "^0.10.1",
     "chart.js": "^4.4.3",
     "dayjs": "^1.11.12",
-    "vue": "^3.4.34",
-    "vue-chartjs": "^5.3.1",
-    "@vue-leaflet/vue-leaflet": "^0.10.1",
     "leaflet": "^1.9.4",
     "phoenix": "^1.7.11",
     "raphael": "^2.3.0",
-    "vue-leaflet-rotate-marker": "^0.1.0"
+    "vue": "^3.4.34",
+    "vue-chartjs": "^5.3.1",
+    "vue-leaflet-rotate-marker": "^0.1.0",
+    "vuex": "^4.0.2"
   }
 }

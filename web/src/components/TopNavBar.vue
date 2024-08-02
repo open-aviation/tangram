@@ -12,21 +12,25 @@
   </div>
 </template>
 <script>
+import store from "../store";
 export default {
-  props: ['updateItem'],
   data() {
     return {
-      info: '',
-      uptime: ''
+      _store: store
+    }
+  },
+  computed: {
+    info() {
+      return store.state.info
+    },
+    uptime() {
+      return store.state.uptime
     }
   },
   watch: {
-    updateItem: function(newValue) {
-      if(newValue && newValue.el === 'uptime') {
-        this.uptime = newValue.html
-      }
-      if(newValue && newValue.el === 'info_utc') {
-        this.info = newValue.html
+    '_store.state.socket': function (newVal) {
+      if(newVal) {
+        console.log('newVal' + newVal)
       }
     }
   }
