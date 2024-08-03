@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import asyncio
 import logging
 import pathlib
@@ -15,12 +16,12 @@ from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 
 from tangram import websocket as tangram_websocket
-# from tangram.plugins import rs1090_source
 
+from tangram.plugins import rs1090_source
 from tangram.plugins import system
 from tangram.plugins import history
-from tangram.plugins import source
 from tangram.plugins import trajectory
+from tangram.plugins import source
 # from tangram.plugins import chart
 
 from tangram.plugins.common import rs1090
@@ -35,8 +36,12 @@ async def startup_debug(*args: Any, **kwargs: Any) -> None:
     log.info("%s\n\n\n\n", "=" * 40)
     log.info("startup, %s, %s", args, kwargs)
 
-    # FIXME: confiburable
-    websocket_url = "ws://127.0.0.1:8080/websocket"
+    JET1090_SERVICE = os.getenv("JET1090_SERVICE")
+    if JET1090_SERVICE is None:
+        log.error("JET1090_SERVICE not set")
+        exit(1)
+
+    websocket_url = JET1090_SERVICE.replace("http", "ws") + "/websocket"
     await jet1090_websocket_client.connect_async(websocket_url)
     task = asyncio.create_task(jet1090_websocket_client.start_async())
     log.info("created websocket client task: %s", task)
@@ -54,20 +59,22 @@ app = FastAPI(
     on_startup=[
         startup_debug,
         tangram_websocket.broadcast.connect,
-        # rs1090_source.start,
+        rs1090_source.start,
     ],
     on_shutdown=[
         shutdown_debug,
         tangram_websocket.broadcast.disconnect,
-        # rs1090_source.shutdown,
+        rs1090_source.shutdown,
     ],
 )
 
 # app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
 
 # TODO: move to new plugin app
-# app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
-app.include_router(source.app)
+
+app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
+
+# app.include_router(source.app)
 app.include_router(system.app)
 app.include_router(history.app)
 # app.include_router(chart.app)

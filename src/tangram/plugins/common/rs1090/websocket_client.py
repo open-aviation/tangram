@@ -17,8 +17,8 @@ log = logging.getLogger(__name__)
 # log = logging.getLogger("tangram")
 
 
-class Channel:
-    def __init__(self, connection: Jet1090WebsocketClient, channel_name: str, join_ref: str, loop=None) -> None:
+class ClientChannel:
+    def __init__(self, connection: ClientConnection, channel_name: str, join_ref: str, loop=None) -> None:
         self.connection = connection
         self.channel_name: str = channel_name
         self.loop = loop or asyncio.get_event_loop()
@@ -29,7 +29,7 @@ class Channel:
     def __repr__(self) -> str:
         return f"""<Channel name="{self.channel_name}" join_ref={self.join_ref}>"""
 
-    async def join_async(self) -> Channel:
+    async def join_async(self) -> ClientChannel:
         result = await self.send_async("phx_join", {})
         log.debug("join message sent: %s", self.channel_name)
         return result
@@ -54,7 +54,7 @@ class Channel:
             if asyncio.iscoroutine(result):
                 await result
 
-    async def send_async(self, event: str, payload: dict) -> Channel:
+    async def send_async(self, event: str, payload: dict) -> ClientChannel:
         message = json.dumps([self.join_ref, str(self.ref), self.channel_name, event, payload])
         await self.connection.send(message)
         # if event == "phx_join":
@@ -62,13 +62,13 @@ class Channel:
         self.ref += 1
         return self
 
-    def on_event(self, event: str, fn: Callable) -> Channel:
+    def on_event(self, event: str, fn: Callable) -> ClientChannel:
         if event not in self._event_handlers:
             self._event_handlers[event] = set()
         self._event_handlers[event].add(fn)
         return self
 
-    def off_event(self, event: str, fn: Callable) -> Channel:
+    def off_event(self, event: str, fn: Callable) -> ClientChannel:
         self._event_handlers[event].remove(fn)
         return self
 
@@ -99,7 +99,7 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-class Jet1090WebsocketClient(metaclass=Singleton):
+class ClientConnection(metaclass=Singleton):
     # callbacks = {}  # f'{channel}-{event}' -> callback
 
     def __new__(cls):
@@ -110,13 +110,13 @@ class Jet1090WebsocketClient(metaclass=Singleton):
     def __init__(self, loop=None):
         self.websocket_url: str
         self._CHANNEL_CALLBACKS = {}  # f'{channel}-{event}' -> callback
-        self.channels: List[Tuple[str, Channel]] = []
+        self.channels: List[Tuple[str, ClientChannel]] = []
         self.loop = None  # loop or asyncio.get_running_loop()
         self.connected: bool = False
 
-    def add_channel(self, channel_name: str, handlers: dict[str, Callable] | None = None) -> Channel:
+    def add_channel(self, channel_name: str, handlers: dict[str, Callable] | None = None) -> ClientChannel:
         join_ref = str(len(self.channels) + 1)
-        channel: Channel = Channel(self, channel_name, join_ref, self.loop)
+        channel: ClientChannel = ClientChannel(self, channel_name, join_ref, self.loop)
         self.channels.append((join_ref, channel))
         log.info("added a new channel %s %s", channel_name, channel)
         if handlers:
@@ -163,15 +163,14 @@ class Jet1090WebsocketClient(metaclass=Singleton):
                 for channel_join_ref, channel in self.channels:
                     if channel.channel_name == channel_name:
                         await channel.run_event_handler(event, channel_join_ref, ref, channel, event, status, response)
-        except websockets.exceptions.ConnectionClosedError:
-            # FIXME: not working as expected
-            log.error("lost connection to %s", self.websocket_url)
-            # await self.connect_async(self.websocket_url)
-            # for ch in self.channels:
-            #     await self.channels[ch].join_async()
+        except websockets.exceptions.WebSocketException:
+            # FIXME: reconnect
+            log.exception(f"lost connection to {self.websocket_url}")
+        except Exception:
+            log.exception("unknown exception")
 
 
-jet1090_websocket_client: Jet1090WebsocketClient = Jet1090WebsocketClient()
+jet1090_websocket_client: ClientConnection = ClientConnection()
 
 
 async def main(ws_url: str):

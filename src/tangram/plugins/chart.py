@@ -4,7 +4,7 @@ import json
 
 from fastapi import APIRouter
 from tangram import websocket as channels
-from tangram.plugins.common.rs1090.websocket_client import Channel, jet1090_websocket_client
+from tangram.plugins.common.rs1090.websocket_client import ClientChannel, jet1090_websocket_client
 from tangram.websocket import ChannelHandlerMixin, ClientMessage, register_channel_handler
 
 # from redis import Redis
@@ -29,7 +29,7 @@ async def on_data(join_ref, ref, channel, event, status, response):
         log.info("CHART, `%s`, ref: %s, status: %s", channel, ref, status)
 
 
-jet1090_client_channel: Channel = jet1090_websocket_client.add_channel("jet1090")
+jet1090_client_channel: ClientChannel = jet1090_websocket_client.add_channel("jet1090")
 jet1090_client_channel.on_event("data", on_data)
 
 ##

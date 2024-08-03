@@ -10,7 +10,10 @@ from fastapi.routing import APIRouter
 import httpx
 from fastapi import FastAPI
 from tangram import websocket as channels
+from tangram.plugins.common.rs1090 import Jet1090Data
 from tangram.websocket import ChannelHandlerMixin, ClientMessage, register_channel_handler
+
+from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_client
 
 dotenv.load_dotenv()
 log = logging.getLogger(__name__)
@@ -19,10 +22,7 @@ client = httpx.AsyncClient()
 
 # reading config from environment varables, TBD: consider a config section
 # jet1090 service
-BASE_URL = os.environ.get("RS1090_BASE_URL", "http://127.0.0.1:8080")
-DEBUG = os.environ.get("RS1090_SOURCE_DEBUG")
-
-# TODO add models for data endpoints
+BASE_URL = os.environ.get("JET1090_SERVICE", "http://127.0.0.1:8080")
 
 
 # TODO proper type
@@ -257,27 +257,67 @@ class PublishRunner:
 publish_runner = PublishRunner()
 
 
+async def on_jet1090_data(join_ref, ref, channel, event, status, response):
+    timed_message = response.get("timed_message")
+    log.info("SOURCE / RT data %s", timed_message)
+
+    icao24 = timed_message.get("icao24")
+    if icao24:
+        await channels.publish_any("channel:streaming", "new-data", timed_message)
+
+
+async def forward():
+    import asyncio
+    from tangram.plugins.common import rs1090
+
+    jet1090_restful_client = rs1090.Rs1090Client()
+    while True:
+        data: list[Jet1090Data] = await jet1090_restful_client.all() or []
+        await channels.publish_any("channel:streaming", "new-data", [item.model_dump() for item in data])
+
+        await asyncio.sleep(3)
+
+
+data_task = None
+
+
 async def start() -> None:
-    log.info("startup - publish job task created")
-    await publish_runner.start_task()
-    log.info("publish job created: %s", publish_runner.task)
+    global data_task
+
+    use_websocket = False
+    if use_websocket:
+        # use jet1090 websocket
+        jet1090_data_channel = jet1090_websocket_client.add_channel("jet1090")
+        jet1090_data_channel.on_event("data", on_jet1090_data)
+        data_task = asyncio.create_task(jet1090_data_channel.join_async())  # TODO: join this on leaving
+    else:
+        # use jet1090 restful API
+        data_task = asyncio.create_task(forward())
+
+    # log.info("startup - publish job task created")
+    # await publish_runner.start_task()
+    # log.info("publish job created: %s", publish_runner.task)
 
 
 async def shutdown() -> None:
-    log.info("shuting down publish runner task: %s", publish_runner.task)
-    if publish_runner.task is None:
-        log.warning("publish runner task is None")
-        return
-
-    if publish_runner.task.done():
-        publish_runner.task.result()
-    else:
-        publish_runner.task.cancel()
+    # log.info("shuting down publish runner task: %s", publish_runner.task)
+    # if publish_runner.task is None:
+    #     log.warning("publish runner task is None")
+    #     return
+    #
+    # if publish_runner.task.done():
+    #     publish_runner.task.result()
+    # else:
+    #     publish_runner.task.cancel()
     log.info("shutdown - publish job done%s", "\n" * 4)
 
 
 # Per documents, events are not fired in sub app, use on_startup/on_startup instead of lifespan
-app = APIRouter(prefix="/plugins/source", on_startup=[start], on_shutdown=[shutdown])
+app = APIRouter(
+    prefix="/plugins/source",
+    on_startup=[start],
+    on_shutdown=[shutdown],
+)
 
 
 # @rs1090_app.get("/health")

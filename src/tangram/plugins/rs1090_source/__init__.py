@@ -18,8 +18,7 @@ client = httpx.AsyncClient()
 
 # reading config from environment varables, TBD: consider a config section
 # jet1090 service
-BASE_URL = os.environ.get("RS1090_BASE_URL", "http://127.0.0.1:8080")
-DEBUG = os.environ.get("RS1090_SOURCE_DEBUG")
+BASE_URL = os.environ.get("JET1090_SERVICE", "http://127.0.0.1:8080")
 
 # TODO add models for data endpoints
 

@@ -54,9 +54,9 @@ class Receiver(BaseModel):
 
 class Rs1090Client:
     def __init__(self, base_url: str | None = None) -> None:
-        self.base_url = base_url or os.environ.get("RS1090_BASE_URL")
+        self.base_url = base_url or os.environ.get("JET1090_SERVICE")
         if not self.base_url:
-            raise Exception("add `base_url` parameter or set RS1090_BASE_URL environment varables")
+            raise Exception("add `base_url` parameter or set JET1090_SERVICE environment varables")
 
         self.aclient = httpx.AsyncClient()
 

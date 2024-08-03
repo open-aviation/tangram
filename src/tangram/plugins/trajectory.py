@@ -38,8 +38,8 @@ class Runner:
         self.task = None
         self.latest_track_ts: None | float = None
 
-        self.jet1090_data_channel: websocket_client.Channel = websocket_client.jet1090_websocket_client.add_channel(
-            "jet1090"
+        self.jet1090_data_channel: websocket_client.ClientChannel = (
+            websocket_client.jet1090_websocket_client.add_channel("jet1090")
         )
         self.jet1090_data_channel.on_event("join", self.on_jet1090_joining)
         self.jet1090_data_channel.on_event("data", self.on_jet1090_data)
@@ -114,4 +114,9 @@ class Runner:
 
 
 runner = Runner(trajectory_channel_handler)
-app = APIRouter(prefix="/trajectory", on_startup=[runner.start], on_shutdown=[runner.shutdown])
+
+app = APIRouter(
+    prefix="/plugins/trajectory",
+    on_startup=[runner.start],
+    on_shutdown=[runner.shutdown],
+)

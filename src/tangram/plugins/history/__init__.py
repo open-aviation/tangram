@@ -6,7 +6,7 @@ import logging
 
 from fastapi import APIRouter
 from tangram.plugins.common.rs1090 import Jet1090Data
-from tangram.plugins.common.rs1090.websocket_client import Channel, jet1090_websocket_client
+from tangram.plugins.common.rs1090.websocket_client import ClientChannel, jet1090_websocket_client
 
 from .storage import HistoryDB
 
@@ -63,7 +63,7 @@ async def start_with_ws():
                     history_db.insert_many_altitudes([item])
                     # log.debug("altitude: %s", item)
 
-    data_source_channel: Channel = jet1090_websocket_client.add_channel("jet1090")
+    data_source_channel: ClientChannel = jet1090_websocket_client.add_channel("jet1090")
     data_source_channel.on_event("data", on_jet1090_data)
     asyncio.create_task(data_source_channel.join_async())
 
