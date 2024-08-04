@@ -7,13 +7,15 @@
     "dev": "vite --debug",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint --ext .js,.vue src"
+    "lint": "eslint --fix \"./src/**/*.{ts,js,vue}\""
   },
   "devDependencies": {
+    "@eslint/js": "^9.8.0",
     "@rollup/rollup-win32-x64-msvc": "4.6.1",
     "@vitejs/plugin-vue": "^5.1.1",
     "eslint": "^9.8.0",
     "eslint-plugin-vue": "^9.27.0",
+    "globals": "^15.9.0",
     "unplugin-auto-import": "^0.18.2",
     "vite": "^5.3.1"
   },
