@@ -16,12 +16,7 @@ log = logging.getLogger(__name__)
 
 client = httpx.AsyncClient()
 
-# reading config from environment varables, TBD: consider a config section
-# jet1090 service
 BASE_URL = os.environ.get("JET1090_SERVICE", "http://127.0.0.1:8080")
-
-# TODO add models for data endpoints
-
 
 # TODO proper type
 async def all(url: str) -> dict[str, Any] | None:

@@ -31,7 +31,7 @@ log = logging.getLogger("tangram")
 jet1090_restful_client = rs1090.Rs1090Client()
 
 
-async def startup_debug(*args: Any, **kwargs: Any) -> None:
+async def connect_jet1090(*args: Any, **kwargs: Any) -> None:
     """debugging"""
     log.info("%s\n\n\n\n", "=" * 40)
     log.info("startup, %s, %s", args, kwargs)
@@ -43,28 +43,40 @@ async def startup_debug(*args: Any, **kwargs: Any) -> None:
 
     websocket_url = JET1090_SERVICE.replace("http", "ws") + "/websocket"
     await jet1090_websocket_client.connect_async(websocket_url)
-    task = asyncio.create_task(jet1090_websocket_client.start_async())
-    log.info("created websocket client task: %s", task)
+
+jet1090_client_task = None
+
+async def start_jet1090_client() -> None:
+    global jet1090_websocket_task
+
+    jet1090_websocket_task = asyncio.create_task(jet1090_websocket_client.start_async())
+    log.info("created websocket client task: %s", jet1090_websocket_client)
 
 
 async def shutdown_debug(*args: Any, **kwargs: Any) -> None:
     """debugging"""
-    log.info("%s\n\n\n\n", "=" * 40)
+    global jet1090_websocket_task
+
+    jet1090_websocket_task.cancel()
     log.info("shutdown, args: %s, kwargs: %s", args, kwargs)
+    log.info("%s\n\n\n\n", "=" * 40)
 
 
 # tangram_module_root = pathlib.Path(__file__).resolve().parent
 # templates = Jinja2Templates(directory=tangram_module_root / "templates")
 app = FastAPI(
     on_startup=[
-        startup_debug,
+        connect_jet1090,
         tangram_websocket.broadcast.connect,
         rs1090_source.start,
+        trajectory.app.startup,
+        start_jet1090_client, # after plugins
     ],
     on_shutdown=[
         shutdown_debug,
         tangram_websocket.broadcast.disconnect,
         rs1090_source.shutdown,
+        trajectory.app.shutdown,
     ],
 )
 
@@ -79,7 +91,7 @@ app.include_router(system.app)
 app.include_router(history.app)
 # app.include_router(chart.app)
 
-app.include_router(trajectory.app)
+# app.include_router(trajectory.app)
 
 
 start_time = datetime.now()

@@ -45,26 +45,31 @@ class Runner:
         self.jet1090_data_channel.on_event("data", self.on_jet1090_data)
 
     async def handle_join(self, client_id: str, message: ClientMessage):
-        log.info("TJ Runner - %s join: %s", client_id, message.topic)
+        log.info("TJ Runner - %s joins %s", client_id, message.topic)
+
         icao24 = message.topic.split(":")[-1]
+        self.selected_icao24 = icao24
+
         result_items = [[item["latitude"], item["longitude"]] for item in self.history_db.list_tracks(icao24)]
-        await channels.publish_any(f"channel:trajectory:{icao24}", "new-data", result_items)
+        await channels.publish_any(f"channel:trajectory:{icao24}", "new-data", result_items) # pushes historical trajectory
 
     async def handle_streaming_select(self, client_id: str, message: ClientMessage):
+        # TODO: looks into this from UI side, it's not triggered
         self.selected_icao24 = message.payload["icao24"]
         log.info("TJ Runner - selected_icao24 updated: %s", self.selected_icao24)
 
     async def on_jet1090_joining(self, join_ref, ref, channel, event, status, response):
-        log.info("TJ Runner, joined: %s", response)
+        log.info("TJ Runner, joined: %s, response: %s", channel, response)
 
     async def on_jet1090_data(self, join_ref, ref, channel, event, status, response):
         timed_message = response.get("timed_message")
+        # log.debug('TJ Runner, got data: %s', timed_message)
 
         # client side filtering by icao24
         if self.selected_icao24 is None or (
             self.selected_icao24 and (timed_message.get("icao24") != self.selected_icao24)
         ):
-            # log.debug("%s, ignore %s", self.selected_icao24, timed_message.get("icao24"))
+            # log.debug("selected %s, ignore %s", self.selected_icao24, timed_message.get("icao24"))
             return
 
         # filter on the client side: i.e df = 17
@@ -82,41 +87,40 @@ class Runner:
         await channels.publish_any(f"channel:trajectory:{item['icao24']}", "new-data", result_items)
         log.info("pushed to %s, %s", self.selected_icao24, item)
 
-    async def start(self) -> None:
-        self.task = asyncio.create_task(self.run())
-        log.debug("trajectory peristing task created")
+    async def startup(self) -> None:
+        self.task = asyncio.create_task(self.run(), name='trajectory-task')
+        log.debug("TJ / trajectory task created")
 
     async def run(self, internal_seconds: int = 7):
         """launch job here"""
-        log.info("start running ...")
+        log.info("TJ / starting ...")
         await self.jet1090_data_channel.join_async()
 
-        log.info("start peristing ...")
-
+        log.info("TJ / running ...")
         while self.running:
             self.counter += 1
             await asyncio.sleep(internal_seconds)  # one second
-        log.info("persisting job done")
+        log.info("TJ / job done")
 
     async def shutdown(self):
-        log.info("shuting down task: %s", runner.task)
+        log.info("TJ / shuting down task: %s", self.task.get_name())
         if self.task is None:
             log.warning("runner task is None")
             return
 
         if self.task.done():
             result = self.task.result()
-            log.info("got result: %s", result)
+            log.info("TJ / task is done, got result: %s", result)
         else:
+            log.info('TJ / canceling task ...')
             self.task.cancel()
-            log.warning("task is canceled")
-        log.info("shutdown - publish job done")
+            log.warning("TJ / task %s is canceled", self.task.get_name())
 
 
-runner = Runner(trajectory_channel_handler)
+app = Runner(trajectory_channel_handler)
 
-app = APIRouter(
-    prefix="/plugins/trajectory",
-    on_startup=[runner.start],
-    on_shutdown=[runner.shutdown],
-)
+# app = APIRouter(
+#     prefix="/plugins/trajectory",
+#     on_startup=[runner.startup],
+#     on_shutdown=[runner.shutdown],
+# )

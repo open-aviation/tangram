@@ -100,7 +100,6 @@ class Singleton(type):
 
 
 class ClientConnection(metaclass=Singleton):
-    # callbacks = {}  # f'{channel}-{event}' -> callback
 
     def __new__(cls):
         if not hasattr(cls, "instance"):
@@ -132,7 +131,9 @@ class ClientConnection(metaclass=Singleton):
         # ping/pong keepalive disabled
         # https://websockets.readthedocs.io/en/stable/topics/timeouts.html
         self._connection = await websockets.connect(self.websocket_url, ping_interval=None)
-        log.info("connected to %s", self.websocket_url)
+        self.connected = True
+
+        log.info("connected to %s (%s)", self.websocket_url, self.connected)
 
     async def send(self, message: str):
         await self._connection.send(message)
@@ -174,7 +175,7 @@ jet1090_websocket_client: ClientConnection = ClientConnection()
 
 
 async def main(ws_url: str):
-    def on_joining_system(_join_ref, _ref, channel, event, status, response) -> None:  # noqa
+    def on_joining(_join_ref, _ref, channel, event, status, response) -> None:  # noqa
         log.info("joined %s/%s, status: %s, response: %s", channel, event, status, response)
 
     def on_heartbeat(join_ref, ref, channel, event, status, response) -> None:  # noqa
@@ -189,21 +190,27 @@ async def main(ws_url: str):
 
     await jet1090_websocket_client.connect_async(ws_url)
 
-    async def s1():
+    async def system_channel_job():
         system_channel = jet1090_websocket_client.add_channel("system")
-        system_channel.on_event("join", on_joining_system)
+        system_channel.on_event("join", on_joining)
         system_channel.on_event("datetime", on_datetime)
         await system_channel.join_async()
-        await jet1090_websocket_client.connect_async(ws_url)
 
-    t1 = asyncio.create_task(s1())
-    log.info("t1 created: %s", t1)
+    async def jet1090_channel_job():
+        jet1090_channel = jet1090_websocket_client.add_channel("jet1090")
+        jet1090_channel.on_event("join", on_joining)
+        jet1090_channel.on_event("heartbeat", on_heartbeat)
+        jet1090_channel.on_event("data", on_jet1090_message)
+        await jet1090_channel.join_async()
 
-    t2 = asyncio.create_task(s1())
-    log.info("t2 created: %s", t2)
+    system_channel_task = asyncio.create_task(system_channel_job())
+    log.info("t1 created: %s", system_channel_task)
+
+    jet1090_channel_task = asyncio.create_task(jet1090_channel_job())
+    log.info("t2 created: %s", jet1090_channel_task)
 
     await jet1090_websocket_client.start_async()
-
+    # FIXME: tasks are not canceled
 
 if __name__ == "__main__":
     default_websocket_url = "ws://127.0.0.1:8080/websocket"
