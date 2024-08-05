@@ -132,6 +132,10 @@ body {
   fill: #f9fd15;
 }
 
+.leaflet-attribution-flag {
+  display: none !important;
+}
+
 .aircraft_selected svg {
   fill: green;
 }
