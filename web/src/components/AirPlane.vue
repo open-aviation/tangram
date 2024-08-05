@@ -18,16 +18,15 @@
 </template>
 <script>
 import "leaflet/dist/leaflet.css";
-import {LIcon, LMarker, LPopup, LTooltip} from '@vue-leaflet/vue-leaflet';
+import { LPopup, LTooltip} from '@vue-leaflet/vue-leaflet';
 import {LMarkerRotate} from 'vue-leaflet-rotate-marker';
 import {get_image_object} from './PlanePath';
 import Raphael from 'raphael';
 import store from '../store'
+import L from 'leaflet'
 
 export default {
   components: {
-    LMarker,
-    LIcon,
     LTooltip,
     LPopup,
     'v-rotated-marker': LMarkerRotate

@@ -9,8 +9,8 @@
           name="OpenStreetMap"
       ></l-tile-layer>
       <PlaneData />
-      <Polyline />
-      <Chart v-show="show"  />
+      <PolyLines />
+      <Charts v-show="show"  />
     </l-map>
   </div>
 
@@ -22,20 +22,20 @@ import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
 import { Socket } from "phoenix"
 import TopNavBar from "./components/TopNavBar.vue"
 import LeftSideBar from "./components/LeftSideBar.vue";
-import PlaneData from "./components/Plane.vue";
-import Polyline from "./components/Polyline.vue";
-import Chart from "./components/Chart.vue";
+import PlaneData from "./components/AirPlane.vue";
+import PolyLines from "./components/PlanePolylines.vue";
+import Charts from "./components/MultiCharts.vue";
 import store from './store'
 
 export default {
   components: {
-    Polyline,
+    PolyLines,
     LeftSideBar,
     LMap,
     LTileLayer,
     TopNavBar,
     PlaneData,
-    Chart
+    Charts
   },
   data() {
     return {

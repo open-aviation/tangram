@@ -722,7 +722,7 @@ function sortPlaneSymbolList(a, b) {
 ac_symbol_map = ac_symbol_map.sort(sortPlaneSymbolList);
 
 // based on ac cat and type, returns according svg path
-export function get_image_object(ac_type, ac_callsign) {
+export function get_image_object(ac_type) {
   var retval = {};
   Object.assign(retval, acImagePathsR["$A320"]);
   // Assign aircraft symbol based on ICAO type code */

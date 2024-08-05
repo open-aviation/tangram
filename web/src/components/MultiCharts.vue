@@ -6,7 +6,7 @@
       <option value="vertical_rate">Vertical rate (in ft/mn)</option>
       <option value="track">Directions</option>
     </select>
-    <Line class="chart" :data="chartData"  />
+    <LineChart class="chart" :data="chartData" :options="option" />
   </div>
 </template>
 <script>
@@ -20,7 +20,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js'
-import { Line } from 'vue-chartjs'
+import { Line as LineChart } from 'vue-chartjs'
 import dayjs from 'dayjs'
 import store from '../store'
 
@@ -36,13 +36,14 @@ ChartJS.register(
 
 export default {
   components: {
-    Line
+    LineChart
   },
   data() {
     return {
       selectedItem: 'altitude',
       chartData: {},
-      defaultData: []
+      defaultData: [],
+      option: null,
     }
   },
   computed: {
@@ -71,6 +72,7 @@ export default {
       switch(e.target.value) {
         case 'speed':
           if(this.defaultData && this.defaultData.length > 0) {
+            this.option = null
             this.chartData = {
               labels: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
               datasets: [
@@ -104,6 +106,7 @@ export default {
           break;
         case 'vertical_rate':
           if(this.defaultData && this.defaultData.length > 0) {
+            this.option = null
             this.chartData = {
               labels: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
               datasets: [
@@ -137,6 +140,7 @@ export default {
           break;
         case 'track':
           if(this.defaultData && this.defaultData.length > 0) {
+            this.option = null
             this.chartData = {
               labels: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
               datasets: [
@@ -190,6 +194,13 @@ export default {
                   data: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => item.selected_altitude)
                 }
               ]
+            }
+            this.option = {
+              scales: {
+                y: {
+                  max: 40000,
+                }
+              }
             }
           }
       }

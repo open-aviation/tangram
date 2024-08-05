@@ -14,24 +14,12 @@
 <script>
 import store from "../store";
 export default {
-  data() {
-    return {
-      _store: store
-    }
-  },
   computed: {
     info() {
       return store.state.info
     },
     uptime() {
       return store.state.uptime
-    }
-  },
-  watch: {
-    '_store.state.socket': function (newVal) {
-      if(newVal) {
-        console.log('newVal' + newVal)
-      }
     }
   }
 }
