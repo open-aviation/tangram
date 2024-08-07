@@ -2,8 +2,8 @@
   <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute"
                     :icon="getIcon(item)"
                     :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index"
-                    :lat-lng="[item.latitude, item.longitude]">
-    <l-tooltip :options="{interactive: 'true'}">
+                    :lat-lng.sync="[item.latitude, item.longitude]">
+    <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [10, 10]}">
       <p style="font-size: 14px">
         icao24: <code>{{ item.icao24 }}</code><br/>
         callsign: <code>{{ item.callsign }}</code><br/>
@@ -37,6 +37,7 @@ export default {
       selected: {},
       streamingChannel: null,
       planeData: [],
+      hoverItem: null
     }
   },
   computed: {
@@ -169,5 +170,9 @@ export default {
 
 .leaflet-popup-pane {
   opacity: 0;
+}
+
+.leaflet-tooltip:not(:last-child) {
+  display: none;
 }
 </style>

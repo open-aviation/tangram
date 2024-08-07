@@ -2,7 +2,7 @@
   <div class="main-container" :class="{'hasItem': show}">
     <TopNavBar />
     <LeftSideBar ref="leftBar" />
-    <l-map @click="emptySelect" class="map-container" ref="map" v-model:zoom="zoom" :center="[47.41322, -1.219482]" >
+    <l-map @click="emptySelect" @mousemove="getPosition($event)"  class="map-container" ref="map" v-model:zoom="zoom" :center="[47.41322, -1.219482]" >
       <l-tile-layer
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
           layer-type="base"
@@ -11,6 +11,12 @@
       <PlaneData />
       <PolyLines />
       <Charts v-show="show"  />
+      <l-control
+          :position="'bottomleft'"
+          class="custom-control-watermark"
+      >
+        {{position}}
+      </l-control>
     </l-map>
   </div>
 
@@ -18,7 +24,7 @@
 
 <script>
 import "leaflet/dist/leaflet.css";
-import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
+import { LMap, LTileLayer, LControl } from "@vue-leaflet/vue-leaflet";
 import { Socket } from "phoenix"
 import TopNavBar from "./components/TopNavBar.vue"
 import LeftSideBar from "./components/LeftSideBar.vue";
@@ -35,11 +41,13 @@ export default {
     LTileLayer,
     TopNavBar,
     PlaneData,
-    Charts
+    Charts,
+    LControl
   },
   data() {
     return {
-      zoom: 5
+      zoom: 5,
+      position: ''
     };
   },
   computed: {
@@ -80,6 +88,9 @@ export default {
   },
 
   methods: {
+    getPosition(event) {
+      this.position = event.latlng.toString()
+    },
     emptySelect() {
       store.commit('setShowDrawer', false)
     },
