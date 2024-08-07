@@ -36,15 +36,17 @@ async def connect_jet1090(*args: Any, **kwargs: Any) -> None:
     log.info("%s\n\n\n\n", "=" * 40)
     log.info("startup, %s, %s", args, kwargs)
 
-    JET1090_SERVICE = os.getenv("JET1090_SERVICE")
-    if JET1090_SERVICE is None:
-        log.error("JET1090_SERVICE not set")
+    RS1090_SOURCE_BASE_URL = os.getenv("RS1090_SOURCE_BASE_URL")
+    if RS1090_SOURCE_BASE_URL is None:
+        log.error("RS1090_SOURCE_BASE_URL not set")
         exit(1)
 
-    websocket_url = JET1090_SERVICE.replace("http", "ws") + "/websocket"
+    websocket_url = RS1090_SOURCE_BASE_URL.replace("http", "ws") + "/websocket"
     await jet1090_websocket_client.connect_async(websocket_url)
 
+
 jet1090_client_task = None
+
 
 async def start_jet1090_client() -> None:
     global jet1090_websocket_task
@@ -66,11 +68,11 @@ async def shutdown_debug(*args: Any, **kwargs: Any) -> None:
 # templates = Jinja2Templates(directory=tangram_module_root / "templates")
 app = FastAPI(
     on_startup=[
-        connect_jet1090,
+        connect_jet1090,  # create jet1090 websocket connection, before it's used by any plugins
         tangram_websocket.broadcast.connect,
         rs1090_source.start,
         trajectory.app.startup,
-        start_jet1090_client, # after plugins
+        start_jet1090_client,  # start jet1090 client websocket loop, after all plugins
     ],
     on_shutdown=[
         shutdown_debug,

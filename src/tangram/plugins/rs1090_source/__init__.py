@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 client = httpx.AsyncClient()
 
-BASE_URL = os.environ.get("JET1090_SERVICE", "http://127.0.0.1:8080")
+BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")
 
 # TODO proper type
 async def all(url: str) -> dict[str, Any] | None:
