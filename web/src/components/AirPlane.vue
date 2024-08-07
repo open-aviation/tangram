@@ -3,7 +3,7 @@
                     :icon="getIcon(item)"
                     :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index"
                     :lat-lng="[item.latitude, item.longitude]">
-    <l-tooltip>
+    <l-tooltip :options="{interactive: 'true'}">
       <p style="font-size: 14px">
         icao24: <code>{{ item.icao24 }}</code><br/>
         callsign: <code>{{ item.callsign }}</code><br/>
