@@ -3,7 +3,7 @@
                     :icon="getIcon(item)"
                     :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index"
                     :lat-lng.sync="[item.latitude, item.longitude]">
-    <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [10, 10]}">
+    <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10]}">
       <p style="font-size: 14px">
         icao24: <code>{{ item.icao24 }}</code><br/>
         callsign: <code>{{ item.callsign }}</code><br/>
