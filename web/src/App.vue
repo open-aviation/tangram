@@ -11,12 +11,8 @@
       <PlaneData />
       <PolyLines />
       <Charts v-show="show"  />
-      <l-control
-          :position="'bottomleft'"
-          class="custom-control-watermark"
-      >
-        {{position}}
-      </l-control>
+<!--      <LatLngBar :position="position" />-->
+      <HoverDisplay />
     </l-map>
   </div>
 
@@ -24,7 +20,7 @@
 
 <script>
 import "leaflet/dist/leaflet.css";
-import { LMap, LTileLayer, LControl } from "@vue-leaflet/vue-leaflet";
+import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
 import { Socket } from "phoenix"
 import TopNavBar from "./components/TopNavBar.vue"
 import LeftSideBar from "./components/LeftSideBar.vue";
@@ -32,17 +28,20 @@ import PlaneData from "./components/AirPlane.vue";
 import PolyLines from "./components/PlanePolylines.vue";
 import Charts from "./components/MultiCharts.vue";
 import store from './store'
+import LatLngBar from "./components/LatLngBar.vue";
+import HoverDisplay from "./components/HoverDisplay.vue";
 
 export default {
   components: {
+    HoverDisplay,
+    LatLngBar,
     PolyLines,
     LeftSideBar,
     LMap,
     LTileLayer,
     TopNavBar,
     PlaneData,
-    Charts,
-    LControl
+    Charts
   },
   data() {
     return {

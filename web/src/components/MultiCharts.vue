@@ -6,7 +6,7 @@
       <option value="vertical_rate">Vertical rate (in ft/mn)</option>
       <option value="track">Directions</option>
     </select>
-    <LineChart class="chart" :data="chartData" :options="option" />
+    <LineChart ref="chart"  class="chart" :data="chartData" :options="option" />
   </div>
 </template>
 <script>
@@ -65,6 +65,12 @@ export default {
     }
   },
   methods: {
+    handleChartClick(evt, item) {
+      const index = item.index
+      const label = evt.chart.data.labels[index]
+      const value = evt.chart.data.datasets[0].data[index]
+      store.commit('setHoverItem', label + ': ' + value)
+    },
     onClick() {
       console.log('prevent the click event')
     },
@@ -196,9 +202,26 @@ export default {
               ]
             }
             this.option = {
+              onHover: (e) => {
+                const chart = this.$refs.chart.chart;
+                const item = chart.getElementsAtEventForMode(
+                    e,
+                    'index',
+                    { intersect: false },
+                    false
+                )[0]
+                this.handleChartClick(e, item)
+              },
               scales: {
                 y: {
                   max: 40000,
+                }
+              },
+              plugins: {
+                tooltip: {
+                  backgroundColor: "#227799",
+                  mode: 'nearest',
+                  intersect: false
                 }
               }
             }

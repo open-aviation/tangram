@@ -8,6 +8,7 @@ export default createStore({
     uptime: '',
     info: '',
     showDrawer: false,
+    hoverItem: null
   },
   mutations: {
     setInfo(state, v) {
@@ -35,6 +36,9 @@ export default createStore({
       } else {
         state.showDrawer = false
       }
+    },
+    setHoverItem(state, v) {
+      state.hoverItem = v
     }
   }
 })
