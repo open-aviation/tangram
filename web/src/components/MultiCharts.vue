@@ -18,7 +18,8 @@ import {
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 } from 'chart.js'
 import { Line as LineChart } from 'vue-chartjs'
 import dayjs from 'dayjs'
@@ -31,7 +32,8 @@ ChartJS.register(
     LineElement,
     Title,
     Tooltip,
-    Legend
+    Legend,
+    Filler
 )
 
 export default {
@@ -86,7 +88,11 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: true,
+                  fill: {
+                    target: 'origin',
+                    above: '#0000bb30',   // Area will be red above the origin
+                    below: '#ffffff30'    // And blue below the origin
+                  },
                   label: 'IAS',
                   backgroundColor: 'blue',
                   data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.IAS)
@@ -94,7 +100,11 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: true,
+                  fill: {
+                    target: 'origin',
+                    above: '#bb000030',   // Area will be red above the origin
+                    below: '#ffffff30'    // And blue below the origin
+                  },
                   label: 'TAS',
                   backgroundColor: 'red',
                   data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.TAS)
@@ -102,7 +112,11 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: true,
+                  fill: {
+                    target: 'origin',
+                    above: '#00bb0030',   // Area will be red above the origin
+                    below: '#ffffff30'    // And blue below the origin
+                  },
                   label: 'groundspeed',
                   backgroundColor: 'green',
                   data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.groundspeed)
@@ -120,7 +134,11 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: true,
+                  fill: {
+                    target: 'origin',
+                    above: '#0000bb30',   // Area will be red above the origin
+                    below: '#ffffff30'    // And blue below the origin
+                  },
                   label: 'vrate_barometric',
                   backgroundColor: 'blue',
                   data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vrate_barometric)
@@ -128,7 +146,11 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: true,
+                  fill: {
+                    target: 'origin',
+                    above: '#bb000030',   // Area will be red above the origin
+                    below: '#ffffff30'    // And blue below the origin
+                  },
                   label: 'vrate_inertial',
                   backgroundColor: 'red',
                   data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vrate_inertial)
@@ -136,7 +158,11 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: true,
+                  fill: {
+                    target: 'origin',
+                    above: '#00bb0030',   // Area will be red above the origin
+                    below: '#ffffff30'    // And blue below the origin
+                  },
                   label: 'vertical_rate',
                   backgroundColor: 'green',
                   data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vertical_rate)
@@ -154,7 +180,11 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: true,
+                  fill: {
+                    target: 'origin',
+                    above: '#0000bb30',   // Area will be red above the origin
+                    below: '#ffffff30'    // And blue below the origin
+                  },
                   label: 'track',
                   backgroundColor: 'blue',
                   fillColor: "rgba(100,100,255,0.5)",
@@ -164,7 +194,11 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: true,
+                  fill: {
+                    target: 'origin',
+                    above: '#bb000030',   // Area will be red above the origin
+                    below: '#ffffff30'    // And blue below the origin
+                  },
                   label: 'heading',
                   backgroundColor: 'red',
                   data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.heading)
@@ -172,7 +206,11 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: true,
+                  fill: {
+                    target: 'origin',
+                    above: '#00bb0030',   // Area will be red above the origin
+                    below: '#ffffff30'    // And blue below the origin
+                  },
                   label: 'roll',
                   backgroundColor: 'green',
                   data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.roll)
@@ -191,12 +229,12 @@ export default {
                   label: 'altitude',
                   radius: 0,
                   fill: {
-                    target: 'stack',
-                    above: 'rgb(255, 0, 0)',   // Area will be red above the origin
-                    below: 'rgb(0, 0, 255)'    // And blue below the origin
+                    target: 'origin',
+                    above: '#80808030',   // Area will be red above the origin
+                    below: '#ffffff30'    // And blue below the origin
                   },
                   tension: 0.25,
-                  backgroundColor: '#808080',
+                  backgroundColor: '#80800',
                   borderColor: ["#808080"],
                   data: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => item.altitude)
                 },
@@ -204,13 +242,13 @@ export default {
                   borderWidth: 2,
                   pointRadius: 0.2,
                   fill: {
-                    target: 'stack',
-                    above: 'rgb(255, 0, 0)',   // Area will be red above the origin
-                    below: 'rgb(0, 0, 255)'    // And blue below the origin
+                    target: 'origin',
+                    above: '#0000bb30',   // Area will be red above the origin
+                    below: '#ffffff30'    // And blue below the origin
                   },
                   label: 'selected_altitude',
-                  borderColor: ["blue"],
-                  backgroundColor: 'blue',
+                  borderColor: ["#0000bb"],
+                  backgroundColor: '#0000bb',
                   data: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => item.selected_altitude)
                 }
               ]
