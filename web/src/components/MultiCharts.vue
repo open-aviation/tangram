@@ -22,7 +22,7 @@ import {
 } from 'chart.js'
 import { Line as LineChart } from 'vue-chartjs'
 import dayjs from 'dayjs'
-import store from '../store'
+import { useMapStore} from '../store'
 
 ChartJS.register(
     CategoryScale,
@@ -40,6 +40,7 @@ export default {
   },
   data() {
     return {
+      store: useMapStore(),
       selectedItem: 'altitude',
       chartData: {},
       defaultData: [],
@@ -48,7 +49,7 @@ export default {
   },
   computed: {
     selected() {
-      return store.state.selectedPlane
+      return this.store.selectedPlane
     }
   },
   watch: {
@@ -69,7 +70,7 @@ export default {
       const index = item.index
       const label = evt.chart.data.labels[index]
       const value = evt.chart.data.datasets[0].data[index]
-      store.commit('setHoverItem', label + ': ' + value)
+      this.store.setHoverItem(value)
     },
     onClick() {
       console.log('prevent the click event')

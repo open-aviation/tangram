@@ -29,6 +29,6 @@
     "vue": "^3.4.34",
     "vue-chartjs": "^5.3.1",
     "vue-leaflet-rotate-marker": "^0.1.0",
-    "vuex": "^4.0.2"
+    "pinia": "^2.2.2"
   }
 }

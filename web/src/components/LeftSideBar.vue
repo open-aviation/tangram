@@ -80,28 +80,29 @@
   </div>
 </template>
 <script>
-import store from "../store";
+import {useMapStore} from "../store";
 
 export default {
   data() {
     return {
       show: false,
+      store: useMapStore()
     }
   },
   computed: {
     selected() {
-      return store.state.selectedPlane
+      return this.store.selectedPlane
     },
     count() {
-      return store.state.count
+      return this.store.count
     },
     showDrawer() {
-      return store.state.showDrawer
+      return this.store.showDrawer
     }
   },
   methods: {
     closeDrawer() {
-      store.commit('switchDrawer')
+      this.store.switchDrawer()
     }
   }
 }
@@ -213,7 +214,7 @@ export default {
 
 .leaflet-sidebar-content {
   flex: 1;
-  background-color: rgba(255, 255, 255);
+  background-color: rgba(255, 255, 255, 1);
   overflow-x: hidden;
   overflow-y: auto;
 }

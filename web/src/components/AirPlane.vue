@@ -22,7 +22,7 @@ import { LPopup, LTooltip} from '@vue-leaflet/vue-leaflet';
 import {LMarkerRotate} from 'vue-leaflet-rotate-marker';
 import {get_image_object} from './PlanePath';
 import Raphael from 'raphael';
-import store from '../store'
+import {useMapStore} from '../store'
 import L from 'leaflet'
 
 export default {
@@ -37,12 +37,13 @@ export default {
       selected: {},
       streamingChannel: null,
       planeData: [],
-      hoverItem: null
+      hoverItem: null,
+      store: useMapStore()
     }
   },
   computed: {
     socket() {
-      return store.state.socket
+      return this.store.socket
     }
   },
   mounted() {
@@ -156,7 +157,7 @@ export default {
       setTimeout(() => {
         const obj = this.$refs.popup.find(e => e.parentElement.parentElement.style.display !== 'none' && e.parentElement.parentElement.parentElement.parentElement.style.opacity === '1')
         this.selected = this.planeData.find(e => obj.id.indexOf(e.icao24) === 6)
-        store.commit('setSelected', this.selected)
+        this.store.setSelected(this.selected)
       }, 100)
 
     }

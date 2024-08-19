@@ -27,7 +27,7 @@ import LeftSideBar from "./components/LeftSideBar.vue";
 import PlaneData from "./components/AirPlane.vue";
 import PolyLines from "./components/PlanePolylines.vue";
 import Charts from "./components/MultiCharts.vue";
-import store from './store'
+import {useMapStore} from './store'
 import LatLngBar from "./components/LatLngBar.vue";
 import HoverDisplay from "./components/HoverDisplay.vue";
 
@@ -46,12 +46,13 @@ export default {
   data() {
     return {
       zoom: 5,
-      position: ''
+      position: '',
+      store: useMapStore()
     };
   },
   computed: {
     show() {
-      return store.state.showDrawer
+      return this.store.showDrawer
     }
   },
   mounted() {
@@ -59,20 +60,20 @@ export default {
     const debug = false
     const socket = new Socket("", { debug, params: { userToken } });
     socket.connect();
-    store.commit('setSocket', socket)
+    this.store.setSocket(socket)
     const systemChannelName = "channel:system";
     const systemChannelToken = "channel-token";
     let systemChannel = socket.channel(systemChannelName, { token: systemChannelToken });
     systemChannel.on('update-node', ({ el, html }) => {
       this.updateItem = {el, html}
       if(el === 'plane_count') {
-        store.commit('setCount', html)
+        this.store.setCount(html)
       }
       if(el === 'uptime') {
-        store.commit('setUpTime', html)
+        this.store.setUpTime(html)
       }
       if(el === 'info_utc') {
-        store.commit('setInfo', html)
+        this.store.setInfo(html)
       }
     });
     systemChannel
@@ -91,7 +92,7 @@ export default {
       this.position = event.latlng.toString()
     },
     emptySelect() {
-      store.commit('setShowDrawer', false)
+      this.store.setShowDrawer(false)
     },
   }
 };

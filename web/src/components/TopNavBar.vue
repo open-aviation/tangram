@@ -12,14 +12,19 @@
   </div>
 </template>
 <script>
-import store from "../store";
+import {useMapStore} from "../store";
 export default {
+  data() {
+    return {
+      store: useMapStore()
+    }
+  },
   computed: {
     info() {
-      return store.state.info
+      return this.store.info
     },
     uptime() {
-      return store.state.uptime
+      return this.store.uptime
     }
   }
 }

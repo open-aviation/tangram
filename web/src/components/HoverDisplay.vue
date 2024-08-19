@@ -8,14 +8,15 @@
 </template>
 <script>
 import { LControl } from "@vue-leaflet/vue-leaflet";
-import store from "../store";
+import {useMapStore} from "../store";
 export default {
   components: {
     LControl
   },
   computed: {
     hoverStr() {
-      return store.state.hoverItem
+      const hover = useMapStore()
+      return hover.hoverItem
     }
   },
 }

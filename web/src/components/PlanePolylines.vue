@@ -4,7 +4,7 @@
 <script>
 import "leaflet/dist/leaflet.css";
 import {LPolyline} from '@vue-leaflet/vue-leaflet';
-import store from '../store'
+import { useMapStore} from '../store'
 export default {
   components: {
     LPolyline
@@ -13,12 +13,13 @@ export default {
     return {
       staticAnchor: [16, 37],
       color: 'black',
-      polyline: []
+      polyline: [],
+      store: useMapStore()
     }
   },
   computed: {
     selected() {
-      return store.state.selectedPlane
+      return this.store.selectedPlane
     },
   },
   watch: {
@@ -30,7 +31,7 @@ export default {
   },
   methods: {
     joinTrajectoryChannel(channelName) {
-      let trajectoryChannel = store.state.socket.channel(channelName, { token: 'okToJoin' }); // no joining token required
+      let trajectoryChannel = this.store.socket.channel(channelName, { token: 'okToJoin' }); // no joining token required
       trajectoryChannel.on('new-data', (data) => {
         this.polyline = data
       });

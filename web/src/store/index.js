@@ -1,7 +1,6 @@
-import { createStore } from "vuex";
-
-export default createStore({
-  state: {
+import { defineStore } from 'pinia'
+export const useMapStore = defineStore('map', {
+  state: () => ({
     socket: null,
     selectedPlane: null,
     count: 0,
@@ -9,36 +8,39 @@ export default createStore({
     info: '',
     showDrawer: false,
     hoverItem: null
+  }),
+  getters: {
+    doubleCount: (state) => state.count * 2,
   },
-  mutations: {
-    setInfo(state, v) {
-      state.info = v
+  actions: {
+    setInfo(v) {
+      this.info = v
     },
-    setShowDrawer(state, v) {
-      state.showDrawer = v
+    setShowDrawer( v) {
+      this.showDrawer = v
     },
-    setUpTime(state, v) {
-      state.uptime = v
+    setUpTime(v) {
+      this.uptime = v
     },
-    setCount(state, v) {
-      state.count = v
+    setCount(v) {
+      this.count = v
     },
-    setSocket(state, v) {
-      state.socket = v
+    setSocket(v) {
+      this.socket = v
     },
-    switchDrawer(state) {
-      state.showDrawer = !state.showDrawer
+    switchDrawer() {
+      this.showDrawer = !this.showDrawer
     },
-    setSelected(state, v) {
-      state.selectedPlane = v
+    setSelected(v) {
+      this.selectedPlane = v
       if(v) {
-        state.showDrawer = true
+        this.showDrawer = true
       } else {
-        state.showDrawer = false
+        this.showDrawer = false
       }
     },
-    setHoverItem(state, v) {
-      state.hoverItem = v
+    setHoverItem(v) {
+      this.hoverItem = v
     }
-  }
+  },
 })
