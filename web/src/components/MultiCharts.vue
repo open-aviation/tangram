@@ -86,7 +86,7 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: false,
+                  fill: true,
                   label: 'IAS',
                   backgroundColor: 'blue',
                   data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.IAS)
@@ -94,7 +94,7 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: false,
+                  fill: true,
                   label: 'TAS',
                   backgroundColor: 'red',
                   data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.TAS)
@@ -102,7 +102,7 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: false,
+                  fill: true,
                   label: 'groundspeed',
                   backgroundColor: 'green',
                   data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.groundspeed)
@@ -120,7 +120,7 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: false,
+                  fill: true,
                   label: 'vrate_barometric',
                   backgroundColor: 'blue',
                   data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vrate_barometric)
@@ -128,7 +128,7 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: false,
+                  fill: true,
                   label: 'vrate_inertial',
                   backgroundColor: 'red',
                   data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vrate_inertial)
@@ -136,7 +136,7 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: false,
+                  fill: true,
                   label: 'vertical_rate',
                   backgroundColor: 'green',
                   data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vertical_rate)
@@ -154,15 +154,17 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: false,
+                  fill: true,
                   label: 'track',
                   backgroundColor: 'blue',
+                  fillColor: "rgba(100,100,255,0.5)",
+                  strokeColor: "blue",
                   data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.track)
                 },
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: false,
+                  fill: true,
                   label: 'heading',
                   backgroundColor: 'red',
                   data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.heading)
@@ -170,7 +172,7 @@ export default {
                 {
                   borderWidth: 1,
                   pointRadius: 0.2,
-                  fill: false,
+                  fill: true,
                   label: 'roll',
                   backgroundColor: 'green',
                   data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.roll)
@@ -185,18 +187,29 @@ export default {
               labels: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
               datasets: [
                 {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: false,
+                  borderWidth: 2,
                   label: 'altitude',
-                  backgroundColor: '#f87979',
+                  radius: 0,
+                  fill: {
+                    target: 'stack',
+                    above: 'rgb(255, 0, 0)',   // Area will be red above the origin
+                    below: 'rgb(0, 0, 255)'    // And blue below the origin
+                  },
+                  tension: 0.25,
+                  backgroundColor: '#808080',
+                  borderColor: ["#808080"],
                   data: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => item.altitude)
                 },
                 {
-                  borderWidth: 1,
+                  borderWidth: 2,
                   pointRadius: 0.2,
-                  fill: false,
+                  fill: {
+                    target: 'stack',
+                    above: 'rgb(255, 0, 0)',   // Area will be red above the origin
+                    below: 'rgb(0, 0, 255)'    // And blue below the origin
+                  },
                   label: 'selected_altitude',
+                  borderColor: ["blue"],
                   backgroundColor: 'blue',
                   data: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => item.selected_altitude)
                 }
@@ -213,9 +226,28 @@ export default {
                 )[0]
                 this.handleChartClick(e, item)
               },
+              legend: {
+                display: false,
+              },
               scales: {
                 y: {
+                  border: {
+                    width: 0
+                  },
                   max: 40000,
+                  grid: {
+                    display: false,
+                    drawBorder: false,
+                  }
+                },
+                x: {
+                  border: {
+                    width: 0
+                  },
+                  grid: {
+                    display: false,
+                    drawBorder: false,
+                  }
                 }
               },
               plugins: {
@@ -223,6 +255,9 @@ export default {
                   backgroundColor: "#227799",
                   mode: 'nearest',
                   intersect: false
+                },
+                filler: {
+                  propagate: true
                 }
               }
             }
