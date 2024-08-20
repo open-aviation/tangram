@@ -13,6 +13,7 @@
       <Charts v-show="show"  />
 <!--      <LatLngBar :position="position" />-->
       <HoverDisplay />
+      <Timeline :styles="{width: 'calc(100% - 40px)', position: 'absolute', bottom: 0, zIndex: 500, left: '40px', background: '#ffffff80', color: 'black'}" />
     </l-map>
   </div>
 
@@ -30,9 +31,11 @@ import Charts from "./components/MultiCharts.vue";
 import {useMapStore} from './store'
 import LatLngBar from "./components/LatLngBar.vue";
 import HoverDisplay from "./components/HoverDisplay.vue";
+import Timeline from "./components/Timeline.vue";
 
 export default {
   components: {
+    Timeline,
     HoverDisplay,
     LatLngBar,
     PolyLines,
@@ -149,5 +152,8 @@ body {
 
 .aircraft_selected svg {
   fill: green;
+}
+.leaflet-top, .leaflet-bottom {
+  z-index: 400;
 }
 </style>
