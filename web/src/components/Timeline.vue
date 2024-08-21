@@ -1,14 +1,17 @@
 <template>
   <div class="timeline-container" :style="styles">
     <div class="timeline-flex" :class="{'flex-row' : direction !== 'col', 'flex-col': direction === 'col'}">
-      <div :style="{'z-index': styles.zIndex + 1 || '401'}" :class="{'progress-row' : direction !== 'col', 'progress-col': direction === 'col'}" ></div>
+      <div :class="{'progress-row' : direction !== 'col', 'progress-col': direction === 'col'}">
+        <VueSlider @change="onChangeTime" :tooltipStyle="{display: 'none'}" :dotStyle="{display: 'none'}" :processStyle="{background: '#0000bb50', borderRadius: '1px'}" :height="8" :dot-size="8" v-model="getProgress" style="padding: 0"/>
+      </div>
+      <div :style="{...getTooltip, 'z-index': styles.zIndex + 1 || '401'}" :class="{'tooltip-row' : direction !== 'col', 'tooltip-col': direction === 'col'}">{{currentTime.format('HH:mm')}}</div>
       <div v-for="(item, index) in dateArray" :style="{width: (100 / dateArray.length) + '%'}" :key="index" class="date-block">
         <div style="width: 100%; display: flex;">
-          <div v-for="num in ticks" :key="num" :style="{width: (100 / ticks.length) + '%'}" :class="{'ticks-row' : direction !== 'col', 'ticks-col': direction === 'col'}">
-            <span v-if="num !== '00'" class="tick-num" :class="{'tick-num-row' : direction !== 'col', 'tick-num-col': direction === 'col'}">{{num}}</span>
+          <div  v-for="num in ticks" :key="num" :style="{width: (100 / ticks.length) + '%'}" :class="{'ticks-row' : direction !== 'col', 'ticks-col': direction === 'col'}">
+            <span v-if="num !== '00' && showTick" class="tick-num" :class="{'tick-num-row' : direction !== 'col', 'tick-num-col': direction === 'col'}">{{num}}</span>
           </div>
         </div>
-        <div class="date-content">{{ item.format(dateFormat) }}</div>
+        <div v-if="showTime" class="date-content">{{ item.format(dateFormat) }}</div>
       </div>
     </div>
   </div>
@@ -16,8 +19,17 @@
 
 <script>
 import dayjs from 'dayjs'
+import VueSlider from 'vue-slider-component'
+import 'vue-slider-component/theme/antd.css'
 export default {
+  components: {
+    VueSlider,
+  },
   props: {
+    progressColor: {
+      type: String,
+      default: '#0000bb50'
+    },
     styles: {
       type: Object,
       default: {}
@@ -48,7 +60,7 @@ export default {
     },
     dateArray: {
       type: Array,
-      default: () => [dayjs().subtract(3, 'day'), dayjs().subtract(2, 'day'), dayjs().subtract(1, 'day'), dayjs(), dayjs().add(1, 'day'), dayjs().add(2, 'day'), dayjs().add(1, 'day')]
+      default: () => [dayjs().subtract(3, 'day'), dayjs().subtract(2, 'day'), dayjs().subtract(1, 'day'), dayjs(), dayjs().add(1, 'day'), dayjs().add(2, 'day'), dayjs().add(3, 'day')]
     },
     currentTime: {
       type: Object,
@@ -60,6 +72,22 @@ export default {
     }
   },
   computed: {
+    getTooltip() {
+      const cur = this.currentTime.unix()
+      const start = this.dateArray[0].startOf('day').unix()
+      const end = this.dateArray[this.dateArray.length - 1].endOf('day').unix()
+      if(this.direction !== 'col') {
+        return {'left': (cur - start) / (end - start) * 100 + '%'}
+      } else {
+        return {'top': (cur - start) / (end - start) * 100 + '%'}
+      }
+    },
+    getProgress() {
+      const cur = this.currentTime.unix()
+      const start = this.dateArray[0].startOf('day').unix()
+      const end = this.dateArray[this.dateArray.length - 1].endOf('day').unix()
+      return (cur - start) / (end - start) * 100
+    },
     ticks() {
       let arr = []
       for(let i = 0; i < this.unitNum; i++) {
@@ -68,6 +96,24 @@ export default {
         arr.push(timeTxt)
       }
       return arr
+    }
+  },
+  methods: {
+    onChangeTime(e) {
+      const num = e / 100
+      const start = this.dateArray[0].startOf('day').unix()
+      const end = this.dateArray[this.dateArray.length - 1].endOf('day').unix()
+      const now = (end - start) * e
+    },
+    handleDragStart(e){
+      console.log(e)
+      e.preventDefault()
+      e.stopPropagation()
+    },
+    handleDrop(e) {
+      console.log(e)
+      e.preventDefault()
+      e.stopPropagation()
     }
   }
 }
@@ -129,12 +175,54 @@ export default {
   left: 5px
 }
 .timeline-container .progress-row {
-  width: 100%;
   height: 10px;
   position: absolute;
+  top: 0;
+  width: 100%;
+  left: 0;
+  background: #00000030;
+  cursor: pointer;
+
+}
+.timeline-container .progress-col {
+  width: 10px;
+  position: absolute;
+  height: 100%;
   top: 0;
   left: 0;
   background: #00000030;
   cursor: pointer;
+
+}
+.timeline-container .tooltip-row {
+  position: absolute;
+  border-radius: 5px;
+  width: 50px;
+  height: 30px;
+  border: 1px solid #E0E0E0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(-50%);
+  top: -40px;
+  background: #0000bb60;
+  color: white
+}
+.timeline-container .tooltip-row:after {
+  top: 100%;
+  left: 20px;
+  border: solid transparent;
+  content: ' ';
+  height: 0;
+  width: 0;
+  position: absolute;
+  border-top-color: #0000bb60;
+  border-width: 5px;
+  margin-left: -5px;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  -khtml-user-select: none;
+  user-select: none;
 }
 </style>

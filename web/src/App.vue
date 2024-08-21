@@ -13,8 +13,8 @@
       <Charts v-show="show"  />
 <!--      <LatLngBar :position="position" />-->
       <HoverDisplay />
-      <Timeline :styles="{width: 'calc(100% - 40px)', position: 'absolute', bottom: 0, zIndex: 500, left: '40px', background: '#ffffff80', color: 'black'}" />
     </l-map>
+    <Timeline :styles="{width: 'calc(100% - 40px)', position: 'absolute', bottom: 0, zIndex: 500, left: '40px', background: '#ffffff80', color: 'black'}" />
   </div>
 
 </template>
