@@ -97,11 +97,6 @@ export default {
       return arr
     }
   },
-  mounted() {
-    console.log('min - ' + this.dateArray[0].unix())
-    console.log('max - ' + this.dateArray[this.dateArray.length - 1].unix())
-    console.log('cur - ' + this.curTime)
-  },
   methods: {
     getTooltipText() {
       return dayjs.unix(this.curTime).format('HH:mm')
