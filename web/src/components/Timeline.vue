@@ -2,9 +2,9 @@
   <div class="timeline-container" :style="styles">
     <div class="timeline-flex" :class="{'flex-row' : direction !== 'col', 'flex-col': direction === 'col'}">
       <div :class="{'progress-row' : direction !== 'col', 'progress-col': direction === 'col'}">
-        <VueSlider @change="onChangeTime" :tooltipStyle="{display: 'none'}" :dotStyle="{display: 'none'}" :processStyle="{background: '#0000bb50', borderRadius: '1px'}" :height="8" :dot-size="8" v-model="getProgress" style="padding: 0"/>
+        <VueSlider @change="onChangeTime" :min="dateArray[0].startOf('day').unix()" :max="dateArray[dateArray.length - 1].endOf('day').unix()" :tooltipStyle="{display: 'none'}" :dotStyle="{display: 'none'}" :processStyle="{background: '#0000bb50', borderRadius: '1px'}" :height="8" :dot-size="8" v-model="curTime" style="padding: 0"/>
       </div>
-      <div :style="{...getTooltip, 'z-index': styles.zIndex + 1 || '401'}" :class="{'tooltip-row' : direction !== 'col', 'tooltip-col': direction === 'col'}">{{currentTime.format('HH:mm')}}</div>
+      <div v-if="curTime" :style="{...getTooltip, 'z-index': styles.zIndex + 1 || '401'}" :class="{'tooltip-row' : direction !== 'col', 'tooltip-col': direction === 'col'}">{{getTooltipText()}}</div>
       <div v-for="(item, index) in dateArray" :style="{width: (100 / dateArray.length) + '%'}" :key="index" class="date-block">
         <div style="width: 100%; display: flex;">
           <div  v-for="num in ticks" :key="num" :style="{width: (100 / ticks.length) + '%'}" :class="{'ticks-row' : direction !== 'col', 'ticks-col': direction === 'col'}">
@@ -71,9 +71,14 @@ export default {
       default: 'row'
     }
   },
+  data() {
+    return {
+      curTime: this.currentTime.unix()
+    }
+  },
   computed: {
     getTooltip() {
-      const cur = this.currentTime.unix()
+      const cur = this.curTime
       const start = this.dateArray[0].startOf('day').unix()
       const end = this.dateArray[this.dateArray.length - 1].endOf('day').unix()
       if(this.direction !== 'col') {
@@ -81,12 +86,6 @@ export default {
       } else {
         return {'top': (cur - start) / (end - start) * 100 + '%'}
       }
-    },
-    getProgress() {
-      const cur = this.currentTime.unix()
-      const start = this.dateArray[0].startOf('day').unix()
-      const end = this.dateArray[this.dateArray.length - 1].endOf('day').unix()
-      return (cur - start) / (end - start) * 100
     },
     ticks() {
       let arr = []
@@ -98,7 +97,15 @@ export default {
       return arr
     }
   },
+  mounted() {
+    console.log('min - ' + this.dateArray[0].unix())
+    console.log('max - ' + this.dateArray[this.dateArray.length - 1].unix())
+    console.log('cur - ' + this.curTime)
+  },
   methods: {
+    getTooltipText() {
+      return dayjs.unix(this.curTime).format('HH:mm')
+    },
     onChangeTime(e) {
       const num = e / 100
       const start = this.dateArray[0].startOf('day').unix()
