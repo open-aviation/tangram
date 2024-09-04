@@ -19,7 +19,7 @@ use tower_http::services::ServeDir;
 use tracing::{debug, error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
-use websocket_channels::ChannelManager;
+use websocket_channels::ChannelControl;
 
 // use tracing::log::info;
 
@@ -141,7 +141,7 @@ struct User {
 // }
 
 pub struct State {
-    channels: Mutex<ChannelManager<String>>, // String: message type, TODO customize this
+    channels: Mutex<ChannelControl<String>>, // String: message type, TODO customize this
 }
 
 /// a websocket client, subscribe to binary data
@@ -214,7 +214,7 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let channels = ChannelManager::new();
+    let channels = ChannelControl::new();
     channels.new_channel("phoenix".into(), None).await; // channel for server to publish heartbeat
     channels.new_channel("system".into(), None).await;
 
