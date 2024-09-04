@@ -4,78 +4,44 @@ use std::{path::PathBuf, sync::Arc};
 
 use futures::{sink::SinkExt, stream::StreamExt};
 use log::info;
-use rs1090::decode;
-use rs1090::decode::TimedMessage;
-use rs1090::decode::DF::{ExtendedSquitterADSB, ExtendedSquitterTisB};
-use rs1090::prelude::DekuContainerRead;
-use rs1090::source::radarcape;
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_tungstenite::connect_async;
 use warp::ws::Message;
 use warp::ws::WebSocket;
 use warp::Filter;
 
 use uuid::Uuid;
-use websocket_channels::{
-    websocket::{datetime_task, handle_incoming_messages, on_connected, State, User},
-    ChannelControl,
-};
-
-/// this subscribe to binary data from a websocket and send it to a local udp server
-/// we could just implement this int `Source::receiver`
-async fn websocket_client() {
-    let websocket_url = "ws://51.158.72.24:1234/42125@LFBO";
-    let local_udp = "127.0.0.1:42125"; // you have to specify a source like 127.0.0.1:42125@LFBO
-
-    loop {
-        // create a UDP client socket
-        // put all things in a loop to retry in case of failure
-        let udp_socket = UdpSocket::bind("0.0.0.0:0").await.unwrap();
-        match udp_socket.connect(local_udp).await {
-            Ok(_) => {}
-            Err(err) => {
-                info!(
-                    "failed to connect to udp://{}, {:?}, retry in 1 second(s)",
-                    local_udp, err
-                );
-                sleep(Duration::from_secs(1)).await;
-                continue;
-            }
-        }
-
-        // connect to the websocket data source
-        let (websocket_stream, _) = connect_async(websocket_url)
-            .await
-            .expect("fail to connect to websocket endpoint");
-        info!("connected to {}", websocket_url);
-
-        // just receive data from the websocket and send it to the udp server
-        let (_, websocket_rx) = websocket_stream.split();
-        websocket_rx
-            .for_each(|message| async {
-                let raw_bytes = message.unwrap().into_data();
-                udp_socket.send(&raw_bytes).await.unwrap();
-                // debug!("raw data sent, size: {:?}", raw_bytes.len());
-            })
-            .await;
-    }
-}
+use websocket_channels::channel::ChannelControl;
+use websocket_channels::websocket::{jet1090_data_task, on_connected, system_datetime_task, State};
 
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
 
-    let channels = ChannelControl::new();
-    channels.new_channel("phoenix".into(), None).await; // channel for server to publish heartbeat
-    channels.new_channel("system".into(), None).await;
-    let state = Arc::new(State {
-        channels: Mutex::new(channels),
-    });
+    let channel_control = ChannelControl::new();
+    channel_control.new_channel("phoenix".into(), None).await; // channel for server to publish heartbeat
+    channel_control.new_channel("system".into(), None).await;
+    channel_control.new_channel("jet1090".into(), None).await;
 
-    tokio::spawn(datetime_task(state.clone(), "system"));
+    let state = Arc::new(State {
+        ctl: Mutex::new(channel_control),
+    });
+    tokio::spawn(system_datetime_task(state.clone(), "system"));
+
+    // rs1090 data items (TimeedMessage) are sent to timed_message_tx
+    // a thread reads from timed_message_stream and relay them to channels
+    let (timed_message_tx, timed_message_rx) = tokio::sync::mpsc::unbounded_channel();
+    let timed_message_stream = UnboundedReceiverStream::new(timed_message_rx);
+    tokio::spawn(jet1090_data_task(
+        state.clone(),
+        timed_message_stream,
+        "jet1090",
+        "data",
+    ));
 
     let state = warp::any().map(move || state.clone());
     let ws_route =

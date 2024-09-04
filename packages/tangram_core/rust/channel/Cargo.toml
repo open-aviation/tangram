@@ -7,9 +7,9 @@ description = "Websocket channels compatible with Phixnix"
 repository = ""
 keywords = ["axum", "axum-ws", "warp", "websocket", "channels"]
 
-[[bin]]
-name = "ad"
-path = "src/bin/axum-server.rs"
+# [[bin]]
+# name = "ad"
+# path = "src/bin/axum-server.rs"
 
 [[bin]]
 name = "wd"
@@ -18,8 +18,9 @@ path = "src/bin/warp-server.rs"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.23.0" }
+tokio-stream = "0.1.15"
 
-tower = { version = "0.5", features = ["util"] }
+tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5.0", features = ["fs", "trace"] }
 
 tracing = "0.1.40"
