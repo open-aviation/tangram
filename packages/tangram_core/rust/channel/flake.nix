@@ -1,4 +1,9 @@
 {
+  nixConfig = {
+    extra-trusted-substituters = [ "https://nix-community.cachix.org" ];
+    extra-trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" ];
+  };
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
 
@@ -24,31 +29,38 @@
     flake-parts.lib.mkFlake { inherit self inputs; } ({ withSystem, ... }: {
       systems = [
         "x86_64-linux"
+        "x86_64-darwin"
         "aarch64-linux"
+        "aarch64-darwin"
       ];
 
       perSystem = { lib, config, self', inputs', pkgs, system, ... }:
         let
-          rustToolchain = fenix.packages.${system}.stable.withComponents [
-            "rustc"
-            "cargo"
-            "rustfmt"
-            "clippy"
-            "rust-src"
-          ];
-
+          rustToolchain = fenix.packages.${system}.stable.toolchain;
           craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
-          commonArgs = {
-            src = craneLib.cleanCargoSource ./.;
-            pname = "websocket-channel";
-            version = "v0.1.0";
-            nativeBuildInputs = with pkgs; [ pkg-config openssl clang mold python3];
-            buildInputs = [ ] ++ lib.optionals pkgs.stdenv.isDarwin [
-              pkgs.libiconv
-            ];
+          # include .md and .json files for the build
+          markdownFilter = path: _type: builtins.match ".*md$" path != null;
+          jsonFilter = path: _type: builtins.match ".*json$" path != null;
+          markdownOrJSONOrCargo = path: type:
+          (markdownFilter path type) ||
+          (jsonFilter path type) ||
+          (craneLib.filterCargoSources path type);
 
-            RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=${pkgs.mold}/bin/mold";
+          version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).workspace.package.version;
+
+          commonArgs = {
+            src = lib.cleanSourceWith {
+              src = ./.;
+              filter = markdownOrJSONOrCargo;
+              name = "source";
+            };
+            pname = "rs1090";
+            version = version;
+
+            nativeBuildInputs = with pkgs; [ pkg-config openssl python3 bzip2 ] ++
+              lib.optionals pkgs.stdenv.isLinux [ clang mold ]
+            ;
           };
 
           cargoArtifacts = craneLib.buildDepsOnly commonArgs;
@@ -56,15 +68,16 @@
         {
           devShells.default = pkgs.mkShell {
             inputsFrom = builtins.attrValues self.checks;
-            buildInputs = [ rustToolchain pkgs.pkg-config pkgs.openssl pkgs.cargo-watch ];
+            buildInputs = [ rustToolchain pkgs.pkg-config pkgs.openssl ];
+            shellHook = ''
+              export RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=${pkgs.mold}/bin/mold"
+            '';
           };
 
           packages =
             {
-              default =  craneLib.buildPackage (commonArgs // {  # TODO  this does not build for now
-                pname = "channel";
-                cargoExtraFlags = "";
-                meta.mainProgram = "channel";
+              default =  craneLib.buildPackage (commonArgs // {
+                pname = "ch";
                 inherit cargoArtifacts;
               });
 
@@ -94,9 +107,4 @@
           formatter = pkgs.nixpkgs-fmt;
         };
     });
-
-  nixConfig = {
-    extra-trusted-substituters = [ "https://nix-community.cachix.org" ];
-    extra-trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" ];
-  };
 }

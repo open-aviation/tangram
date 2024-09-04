@@ -11,7 +11,7 @@ use uuid::Uuid;
 use warp::ws::Message;
 use warp::ws::WebSocket;
 
-use crate::ChannelManager;
+use crate::ChannelControl;
 
 // Channel
 //
@@ -29,7 +29,7 @@ use crate::ChannelManager;
 //
 
 pub struct State {
-    pub channels: Mutex<ChannelManager<String>>, // String: message type, TODO customize this
+    pub channels: Mutex<ChannelControl<String>>, // String: message type, TODO customize this
 }
 
 pub struct User {
@@ -45,24 +45,6 @@ impl Default for User {
         }
     }
 }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// struct EmptyResponse {}
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct HeartbeatResponse {}
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct JoinResponse {}
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct LeaveResponse {}
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct DatetimeResponse {
-//     datetime: String,
-//     counter: u32,
-// }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -100,17 +82,6 @@ impl Display for ReplyTuple {
 }
 
 /// request data structures
-#[derive(Debug, Serialize, Deserialize)]
-struct JoinRequest {
-    token: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct LeaveRequest {}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct HeartbeatRequest {}
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 enum RequestPayload {

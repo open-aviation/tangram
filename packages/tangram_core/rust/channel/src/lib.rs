@@ -5,13 +5,12 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
-use log::warn;
 use tokio::{
     sync::{broadcast, Mutex},
     task::JoinHandle,
 };
 use tracing::debug;
-pub mod ws;
+pub mod websocket;
 
 /// ChannelCast is a type alias for broadcast::Sender. It broadcast messages in the channel.
 // type Broadcast<T> = broadcast::Sender<T>;
@@ -29,7 +28,7 @@ pub struct Channel<T> {
 }
 
 /// manages all channels
-pub struct ChannelManager<T> {
+pub struct ChannelControl<T> {
     channel_map: Mutex<HashMap<String, Channel<T>>>, // name -> channel
     user_task_map: Mutex<HashMap<String, Vec<UserTask>>>,
     user_sender_map: Mutex<HashMap<String, broadcast::Sender<T>>>,
@@ -142,12 +141,12 @@ where
     }
 }
 
-impl<T> ChannelManager<T>
+impl<T> ChannelControl<T>
 where
     T: Clone + Send + 'static,
 {
     pub fn new() -> Self {
-        ChannelManager {
+        ChannelControl {
             channel_map: Mutex::new(HashMap::new()),
             user_task_map: Mutex::new(HashMap::new()),
             user_sender_map: Mutex::new(HashMap::new()),
@@ -346,7 +345,7 @@ where
     }
 }
 
-impl<T> Default for ChannelManager<T>
+impl<T> Default for ChannelControl<T>
 where
     T: Clone + Send + 'static,
 {
