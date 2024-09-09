@@ -1,8 +1,5 @@
 <template>
-  <l-control
-      :position="'bottomleft'"
-      class="custom-control-watermark"
-  >
+  <l-control :position="'bottomleft'" class="custom-control-watermark">
     {{position}}
   </l-control>
 </template>

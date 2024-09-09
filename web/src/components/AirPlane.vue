@@ -1,8 +1,6 @@
 <template>
-  <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute"
-                    :icon="getIcon(item)"
-                    :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index"
-                    :lat-lng.sync="[item.latitude, item.longitude]">
+  <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute" :icon="getIcon(item)"
+    :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index" :lat-lng.sync="[item.latitude, item.longitude]">
     <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10]}">
       <p style="font-size: 14px">
         icao24: <code>{{ item.icao24 }}</code><br/>
@@ -17,13 +15,13 @@
   </v-rotated-marker>
 </template>
 <script>
-import "leaflet/dist/leaflet.css";
-import { LPopup, LTooltip} from '@vue-leaflet/vue-leaflet';
-import {LMarkerRotate} from 'vue-leaflet-rotate-marker';
-import {get_image_object} from './PlanePath';
-import Raphael from 'raphael';
-import {useMapStore} from '../store'
 import L from 'leaflet'
+import "leaflet/dist/leaflet.css";
+import {LPopup, LTooltip} from '@vue-leaflet/vue-leaflet';
+import {LMarkerRotate} from 'vue-leaflet-rotate-marker';
+import Raphael from 'raphael';
+import {get_image_object} from './PlanePath';
+import {useMapStore} from '../store'
 
 export default {
   components: {
@@ -38,7 +36,7 @@ export default {
       streamingChannel: null,
       planeData: [],
       hoverItem: null,
-      store: useMapStore()
+      store: useMapStore(),
     }
   },
   computed: {
@@ -48,6 +46,8 @@ export default {
   },
   mounted() {
     if (this.socket && !this.streamingChannel) {
+      console.log('initiating channel:streaming channel ...');
+
       const streamingChannelName = "channel:streaming";
       const streamingChannelToken = "channel-token";
       this.streamingChannel = this.socket.channel(streamingChannelName, {token: streamingChannelToken});
@@ -73,19 +73,14 @@ export default {
   methods: {
     getRotate(feature) {
       // get rotation of marker
-      let iconProps = get_image_object(
-          feature.typecode,
-          feature.callsign
-      );
-      let rotate = (feature.track + iconProps.rotcorr) % 360
-      return rotate
+      let iconProps = get_image_object(feature.typecode, feature.callsign);
+      return (feature.track + iconProps.rotcorr) % 360
     },
     getIcon(feature) {
+      // console.log('getIcon', feature);
+
       // set marker style
-      let iconProps = get_image_object(
-          feature.typecode,
-          feature.callsign
-      );
+      let iconProps = get_image_object(feature.typecode, feature.callsign);
       let bbox = Raphael.pathBBox(iconProps.path);
       let x = Math.floor(bbox.x + bbox.width / 2.0);
       let y = Math.floor(bbox.y + bbox.height / 2.0);
@@ -116,15 +111,7 @@ export default {
         strokeWdt: 0.65,
       };
 
-      let pathPlain =
-          "<path stroke=" +
-          svgDynProps.stroke +
-          " stroke-width=" +
-          svgDynProps.strokeWdt +
-          " d=" +
-          newPath +
-          "/>";
-
+      let pathPlain = "<path stroke=" + svgDynProps.stroke + " stroke-width=" + svgDynProps.strokeWdt + " d=" + newPath + "/>";
       let svgPlain =
           '<svg id="' +
           feature.icao24 +
@@ -147,19 +134,21 @@ export default {
     },
 
     showRoute() {
-      /*
-        marker component from leaflet can not bind the click event, it will get wrong click item,
-        so we are using a internal component from leaflet --- l-popup, it will show a popup modal when user clicking the marker,
-        this internal component can get the correct info, and we set this popup modal visibility= hidden, so it will display a modal in html element but hidden for the user
-        setTimeout here is to waiting for the popup modal updated, so we can know which popup modal is displaying, and then we can find the popup modal's id attribute which is icao24,
-        then we can find the correct plane info in planeData
-       */
+      /** HACK:
+        * marker component from leaflet can not bind the click event, it will get wrong click item,
+        * so we are using a internal component from leaflet --- l-popup, it will show a popup modal when user clicking the marker,
+        * this internal component can get the correct info, and we set this popup modal `visibility=hidden`, so it will display a
+        * modal in html element but hidden for the user.
+        *
+        * `setTimeout` here waits for the popup modal being updated, so we can know which popup modal is displaying, and then we
+        * can find the popup modal's id attribute which is icao24, then we can find the correct plane info in planeData
+        **/
       setTimeout(() => {
         const obj = this.$refs.popup.find(e => e.parentElement.parentElement.style.display !== 'none' && e.parentElement.parentElement.parentElement.parentElement.style.opacity === '1')
         this.selected = this.planeData.find(e => obj.id.indexOf(e.icao24) === 6)
         this.store.setSelected(this.selected)
+        console.log('set selected: ', this.selected);
       }, 100)
-
     }
   }
 }

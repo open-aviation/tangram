@@ -59,11 +59,14 @@ export default {
     }
   },
   mounted() {
+    console.log('initiating socket');
     const userToken = "joining-token";
     const debug = false
     const socket = new Socket("", { debug, params: { userToken } });
     socket.connect();
     this.store.setSocket(socket)
+
+    console.log('joining system channel')
     const systemChannelName = "channel:system";
     const systemChannelToken = "channel-token";
     let systemChannel = socket.channel(systemChannelName, { token: systemChannelToken });
@@ -83,6 +86,7 @@ export default {
         .join()
         .receive("ok", ({ messages }) => {
           console.log(`(${systemChannelName}) joined`, messages);
+          this.store.setSystemChannel(systemChannel);
         })
         .receive("error", ({ reason }) =>
             console.log(`failed to join ${systemChannelName}`, reason)

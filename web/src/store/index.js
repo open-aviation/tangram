@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
+
 export const useMapStore = defineStore('map', {
   state: () => ({
     socket: null,
-    selectedPlane: null,
+    systemChannel: null, // we can't leave systemChannel int the store
+    selectedPlane: null, // {}
     count: 0,
     uptime: '',
     info: '',
@@ -10,13 +12,13 @@ export const useMapStore = defineStore('map', {
     hoverItem: null
   }),
   getters: {
-    doubleCount: (state) => state.count * 2,
+    doubleCount: ({ count }) => count * 2,
   },
   actions: {
     setInfo(v) {
       this.info = v
     },
-    setShowDrawer( v) {
+    setShowDrawer(v) {
       this.showDrawer = v
     },
     setUpTime(v) {
@@ -25,19 +27,34 @@ export const useMapStore = defineStore('map', {
     setCount(v) {
       this.count = v
     },
-    setSocket(v) {
-      this.socket = v
+    setSocket(val) {
+      this.socket = val
+      console.log('socket created and not available in store: ', this.socket)
+    },
+    setSystemChannel(val) {
+      this.systemChannel = val;
+    },
+    pushSystemEvent(event, payload) {
+      if (this.systemChannel === null) {
+        console.log('systemChannel is not ready yet');
+        return;
+      }
+      // https://hexdocs.pm/phoenix/js/#channel
+      return this.systemChannel.push(event, payload); // Push
     },
     switchDrawer() {
       this.showDrawer = !this.showDrawer
     },
-    setSelected(v) {
-      this.selectedPlane = v
-      if(v) {
+    async setSelected(selected) {
+      console.log('in store, select plan: ', selected);
+
+      this.selectedPlane = selected;
+      if (selected) {
         this.showDrawer = true
       } else {
         this.showDrawer = false
       }
+      await this.pushSystemEvent('select', selected)
     },
     setHoverItem(v) {
       this.hoverItem = v
