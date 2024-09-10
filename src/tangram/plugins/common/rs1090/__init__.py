@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 
 class Jet1090Data(BaseModel):
-    idx: int
+    idx: int | None = None
     icao24: str
     df: int | None = None
     # first: int | None = None

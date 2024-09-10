@@ -17,8 +17,8 @@ tangram = 'tangram.__main__:main'
 python = ">=3.9,<3.13"
 appdirs = "^1.4.4"
 fastapi = "^0.110.1"
-uvicorn = {extras = ["standard"], version = "^0.30.1"}
-broadcaster = "^0.2.0"
+uvicorn = { extras = ["standard"], version = "^0.30.1" }
+broadcaster = "^0.3.1"
 websockets = "^12.0"
 requests = "^2.31.0"
 python-dotenv = "^1.0.1"
@@ -28,6 +28,8 @@ pandas = "^2.2.2"
 jinja2 = "^3.1.4"
 eval-type-backport = { version = "^0.2.0", python = "<=3.9" }
 pydantic-settings = "^2.2.1"
+anyio = { extras = ["trio"], version = "^4.4.0" }
+redis = "^5.0.8"
 
 [tool.poetry.group.dev.dependencies]
 mypy = ">=0.950"
@@ -38,7 +40,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.mypy]
-python_version = 3.9
+python_version = "3.11"
 platform = "posix"
 
 color_output = true

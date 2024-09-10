@@ -7,7 +7,7 @@ from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_cli
 from tangram import websocket as channels
 from tangram.plugins.history.storage import HistoryDB
 
-log = logging.getLogger("tangram")
+log = logging.getLogger(__name__)
 
 
 class TangramApplication(APIRouter):
@@ -23,7 +23,13 @@ class SystemChannelHandler(channels.ChannelHandlerMixin):
     pass
 
 
+async def select_plane(client_id, plane):
+    log.info("%s select plane: %s", client_id, plane)
+
+
 channel_handler = SystemChannelHandler("channel:system")
+channel_handler.register_channel_event_handler(select_plane, "channel:system", "select")
+
 channels.register_channel_handler(channel_handler)
 
 
@@ -94,10 +100,15 @@ system_channel.on_event("join", on_system_joining)
 system_channel.on_event("datetime", on_system_datetime)
 
 
-async def start():
+async def startup():
+    log.info("start plugins: system")
     asyncio.create_task(system_channel.join_async())
     asyncio.create_task(server_events())
     log.info("system plugin started")
 
 
-app = APIRouter(on_startup=[start], on_shutdown=[])
+async def shutdown():
+    log.info("system plugin shutdown")
+
+
+app = APIRouter(on_startup=[startup], on_shutdown=[])

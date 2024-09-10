@@ -2,15 +2,15 @@
 # coding: utf8
 
 import asyncio
-import logging
 import pathlib
 import sqlite3
 from datetime import datetime
 from typing import List
 
 from tangram.plugins.common import rs1090
+from tangram.util import logging
 
-log = logging.getLogger(__name__)
+log = logging.getPluginLogger(__package__, __name__, "/tmp/tangram", log_level=logging.DEBUG)
 
 
 class HistoryDB:
@@ -19,8 +19,8 @@ class HistoryDB:
     def __new__(cls, *args, **kwargs):
         if not hasattr(cls, "instance"):
             cls.instance = super().__new__(cls)
-            log.debug("HistoryDB instance created: %s", cls.instance)
-        log.debug("HistoryDB instance: %s", cls.instance)
+            log.info("HistoryDB instance created: %s", cls.instance)
+        log.info("HistoryDB instance: %s", cls.instance)
         return cls.instance
 
     def __init__(

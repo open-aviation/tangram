@@ -7,6 +7,7 @@ import logging
 import re
 from typing import Any, List, Optional
 
+import redis
 from broadcaster import Broadcast
 from fastapi import WebSocket
 from pydantic import BaseModel
@@ -18,6 +19,8 @@ log = logging.getLogger(__name__)
 
 # broadcast = Broadcast("redis://127.0.0.1:6379")
 broadcast = Broadcast("memory://")
+redis_client = redis.from_url("redis://192.168.8.37:6379")  # TODO: confiburable
+pubsub = redis_client.pubsub(ignore_subscribe_messages=True)
 
 
 class Hub:
@@ -242,19 +245,9 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
             await handle_heartbeat(client_id, client_message)
             continue
 
-        # channel_handler = _get_channel_handler(client_message.topic)
-        # if channel_handler is None:
-        #     log.warning("ignore channel message: %s", client_message)
-        #     continue
-        # log.info("channel_handler: %s", channel_handler)
-        #
-        # if is_joining_message(client_message):
-        #     await channel_handler.handle_joining(client_id, client_message)
-        #     continue
-        #
-        # if is_leaving_message(client_message):
-        #     await channel_handler.handle_leaving(client_id, client_message)
-        #     continue
+        publish_topic = f"{client_message.topic}:{client_message.event}"
+        redis_client.publish(publish_topic, text)
+        log.info(">>>>> %s %s", publish_topic, client_message.payload)
 
         for _channel_name, handler in channel_handlers.items():
             await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event

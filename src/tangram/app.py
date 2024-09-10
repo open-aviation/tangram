@@ -3,36 +3,42 @@ from __future__ import annotations
 import os
 import asyncio
 import logging
-import pathlib
 import uuid
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
+import contextlib
 
-from fastapi import FastAPI, Request, WebSocket, status
+import anyio
+from fastapi import FastAPI, WebSocket, status
 
 # from fastapi.staticfiles import StaticFiles
 # from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from starlette.responses import HTMLResponse
 
 from tangram import websocket as tangram_websocket
 
+from tangram.plugins import web_event
 from tangram.plugins import rs1090_source
 from tangram.plugins import system
 from tangram.plugins import history
 from tangram.plugins import trajectory
-from tangram.plugins import source
+from tangram.plugins import trajectory_subscriber
+from tangram.plugins import coordinate
+
+# from tangram.plugins import source
+from tangram.plugins import source_task
 # from tangram.plugins import chart
 
 from tangram.plugins.common import rs1090
 from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_client
 
 log = logging.getLogger("tangram")
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://192.168.8.37:6379")
 jet1090_restful_client = rs1090.Rs1090Client()
 
 
 async def connect_jet1090(*args: Any, **kwargs: Any) -> None:
-    """debugging"""
     log.info("%s\n\n\n\n", "=" * 40)
     log.info("startup, %s, %s", args, kwargs)
 
@@ -45,7 +51,7 @@ async def connect_jet1090(*args: Any, **kwargs: Any) -> None:
     await jet1090_websocket_client.connect_async(websocket_url)
 
 
-jet1090_client_task = None
+jet1090_websocket_task = None
 
 
 async def start_jet1090_client() -> None:
@@ -55,44 +61,139 @@ async def start_jet1090_client() -> None:
     log.info("created websocket client task: %s", jet1090_websocket_client)
 
 
+async def stop_jet1090_client():
+    global jet1090_websocket_task
+
+    if jet1090_websocket_task:
+        jet1090_websocket_task.cancel()
+
+
+async def disconnect_jet1090():
+    pass
+
+
+async def start_background_tasks():
+    tasks = []
+    plugins = [
+        # position,
+    ]
+    for plugin in plugins:
+        # TODO: parameters
+        task = asyncio.create_task(plugin.async_main(REDIS_URL, "jet1090"))
+        tasks.append(task)
+    return tasks
+
+
+async def cleanup():
+    for task in background_task_list:
+        task.cancel()
+    await asyncio.gather(*background_task_list, return_exceptions=True)
+
+
+task_group = None
+cancel_scope = None
+
+
+async def boring_background_task() -> None:
+    try:
+        while True:
+            log.info("BORING background task")
+            await asyncio.sleep(1)
+    except asyncio.CancelledError:
+        log.warning("BORING background task is cancelled")
+
+
+async def tg_enter(*args, **kwargs) -> None:
+    """debugging"""
+    global task_group, cancel_scope
+    task_group = anyio.create_task_group()
+    cancel_scope = anyio.CancelScope()
+    # FIXME: not how anyio TG works, the context manager
+    await task_group.__aenter__()
+    with cancel_scope:
+        # task_group.start_soon(source_task.start)
+        # NOTE: add more
+        task_group.start_soon(boring_background_task)
+    log.info("tg_enter executed")
+
+
+async def tg_exit(*args, **kwargs) -> None:
+    """debugging"""
+    global task_group, cancel_scope
+    if cancel_scope:
+        cancel_scope.cancel()
+    if task_group:
+        await task_group.__aexit__(None, None, None)
+    log.info("BORING background task is cancelled")
+
+
+jet1090_client_task = None
+
+
 async def shutdown_debug(*args: Any, **kwargs: Any) -> None:
     """debugging"""
     global jet1090_websocket_task
 
-    jet1090_websocket_task.cancel()
+    if jet1090_websocket_task:
+        jet1090_websocket_task.cancel()
     log.info("shutdown, args: %s, kwargs: %s", args, kwargs)
     log.info("%s\n\n\n\n", "=" * 40)
 
 
+background_task_list = []
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    log.info("starting up...")
+    await connect_jet1090()
+
+    await tangram_websocket.broadcast.connect()
+
+    await web_event.startup(REDIS_URL)
+    await coordinate.startup(REDIS_URL)
+    await system.startup()
+    await rs1090_source.start()
+    await history.startup()
+    await trajectory.app.startup()
+    await trajectory_subscriber.startup(REDIS_URL)
+
+    await start_jet1090_client()
+
+    # global background_task_list
+    # background_task_list = await start_background_tasks()
+    # log.info("All background tasks have been started")
+
+    log.info("yield to request handling ...")
+    yield  # The application is now running and serving requests
+
+    log.info("shutting down...")
+    # await system.shutdown()
+    # await trajectory_subscriber.shutdown()
+    # await trajectory.app.shutdown()
+    # await coordinate.shutdown()
+    # await history.shutdown()
+    # await rs1090_source.shutdown()
+    # await web_event.shutdown()
+
+    await stop_jet1090_client()
+    await tangram_websocket.broadcast.disconnect()
+
+    # await cleanup()
+    log.info("shutdown complete")
+
+
 # tangram_module_root = pathlib.Path(__file__).resolve().parent
 # templates = Jinja2Templates(directory=tangram_module_root / "templates")
-app = FastAPI(
-    on_startup=[
-        connect_jet1090,  # create jet1090 websocket connection, before it's used by any plugins
-        tangram_websocket.broadcast.connect,
-        rs1090_source.start,
-        trajectory.app.startup,
-        start_jet1090_client,  # start jet1090 client websocket loop, after all plugins
-    ],
-    on_shutdown=[
-        shutdown_debug,
-        tangram_websocket.broadcast.disconnect,
-        rs1090_source.shutdown,
-        trajectory.app.shutdown,
-    ],
-)
+app = FastAPI(lifespan=lifespan)
 
 # app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
-
-# TODO: move to new plugin app
-
-app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")
+app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")  # HACK:?
 
 # app.include_router(source.app)
-app.include_router(system.app)
-app.include_router(history.app)
+# app.include_router(system.app)
+# app.include_router(history.app)
 # app.include_router(chart.app)
-
 # app.include_router(trajectory.app)
 
 

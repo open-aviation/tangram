@@ -19,6 +19,7 @@ class TangramSettings(BaseSettings):
     reload: bool
     log_dir: pathlib.Path
     log_config: Any
+    redis_url: str
 
     @classmethod
     def settings_customise_sources(

@@ -19,15 +19,15 @@
           tangram = poetry2nix.mkPoetryApplication {
             projectDir = ./.;
             preferWheels = true; # set this to true to use premade wheels rather than the source
-            overrides = poetry2nix.defaultPoetryOverrides.extend
-              (final: prev: {
-                broadcaster = prev.broadcaster.overridePythonAttrs
-                (
-                  old: {
-                    buildInputs = (old.buildInputs or [ ]) ++ [ prev.setuptools ];
-                  }
-                );
-              });
+            # overrides = poetry2nix.defaultPoetryOverrides.extend
+            #   (final: prev: {
+            #     broadcaster = prev.broadcaster.overridePythonAttrs
+            #     (
+            #       old: {
+            #         buildInputs = (old.buildInputs or [ ]) ++ [ prev.setuptools ];
+            #       }
+            #     );
+            #   });
           };
           default = self.packages.${system}.tangram;
         };
