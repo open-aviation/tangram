@@ -20,34 +20,39 @@
     console.dir(morphdom);
 
     function onDatetime ({ status, response: { datetime, counter } }) {
-      console.log(`status: ${status}, datetime, ${datetime}, counter: ${counter}`);
+      // console.log(`status: ${status}, datetime, ${datetime}, counter: ${counter}`);
 
       document.getElementById('datetime').innerText = datetime;
       document.getElementById('counter').innerHTML = counter;
     };
 
+    function dump({ status, response }) {
+      console.log(`status: ${status}, response: ${response}`);
+    }
+
     let userToken = 'userSocketToken';
-    let debug = true;
-    let socket = new Socket("", { debug: false, params: { userToken } });
+    let debug = false;
+    let socket = new Socket("", { debug, params: { userToken } });
     socket.connect();
 
-    function joinChannel(systemChannel, systemChannelToken) {
+    function joinChannel(channelName, channelToken) {
       console.dir(socket);
-      let channel = socket.channel(systemChannel, { token: systemChannelToken});
+      let channel = socket.channel(channelName, { token: channelToken });
 
-      channel.on('datetime', onDatetime);
+      channel.on('datetime', onDatetime); // ?
+      channel.on('data', dump);
 
-      console.log(`joinning channel ${systemChannel}`)
+      console.log(`joinning channel ${channelName}`)
       channel
         .join()
         .receive('ok', (ev) => {
-          console.log(`(${systemChannel} - joined`, ev)
+          console.log(`(${channelName} - joined`, ev)
         })
         .receive('error', ({ reason }) => {
-          console.log(`${systemChannel} - failed to join`, reason);
+          console.log(`${channelName} - failed to join`, reason);
         })
         .receive('timeout', () => {
-          console.log(`${systemChannel} - joining timeouts`);
+          console.log(`${channelName} - joining timeouts`);
         });
       return channel;
     }
@@ -57,13 +62,9 @@
       window.systemChannel = null;
     }
 
-    function joinSystem() {
-      let channelName = 'system';
-      const channelToken = 'channel-token';
-      window.systemChannel = joinChannel(channelName, channelToken);
-    }
 
-    joinSystem();
+    window.systemChannel = joinChannel('system', 'hello-system');
+    window.streamingChannel = joinChannel('streaming', 'hello-streaming');
   </script>
 </html>
 

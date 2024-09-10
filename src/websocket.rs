@@ -15,7 +15,7 @@ use tracing::{debug, error, info};
 use uuid::Uuid;
 use warp::filters::ws::WebSocket;
 
-use crate::channel::{ChannelControl, ChannelError, ChannelMessage};
+use crate::channel::{ChannelControl, ChannelMessage};
 
 /// reply data structures
 #[derive(Clone, Debug, Serialize_tuple)]
@@ -33,8 +33,6 @@ pub struct ReplyPayload {
     pub response: Response,
 }
 
-type TimedMessage = String;
-
 #[derive(Clone, Debug, Serialize)]
 #[serde(untagged)]
 pub enum Response {
@@ -42,7 +40,7 @@ pub enum Response {
     Join {},
     Heartbeat {},
     Datetime { datetime: String, counter: u32 },
-    Jet1090 { timed_message: TimedMessage },
+    Message { message: String },
 }
 
 /// request data structures
@@ -294,15 +292,15 @@ async fn reply_ok_with_empty_response(
     debug!("sent to connection {}: {}", conn_id.clone(), text);
 }
 
-pub async fn jet1090_data_task(
+pub async fn streaming_data_task(
     local_state: Arc<State>,
-    mut data_source: UnboundedReceiverStream<TimedMessage>,
+    mut rx: UnboundedReceiverStream<String>,
     channel_name: &str,
     event_name: &str,
 ) {
-    info!("launch jet1090/data task ...");
+    info!("launch data task ...");
     let mut counter = 0;
-    while let Some(timed_message) = data_source.next().await {
+    while let Some(message) = rx.next().await {
         let reply_message = ReplyMessage {
             join_reference: None,
             reference: counter.to_string(),
@@ -310,7 +308,7 @@ pub async fn jet1090_data_task(
             event: event_name.to_string(),
             payload: ReplyPayload {
                 status: "ok".to_string(),
-                response: Response::Jet1090 { timed_message },
+                response: Response::Message { message },
             },
         };
         // unexpected error: Error("can only flatten structs and maps (got a integer)", line: 0, column: 0)

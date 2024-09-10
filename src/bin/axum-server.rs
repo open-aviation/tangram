@@ -1,387 +1,160 @@
-// #![allow(unused)]
-//
-// use std::fmt::{Display, Error};
-// use std::net::SocketAddr;
-// use std::path::PathBuf;
-// use std::sync::Arc;
-//
-// use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-// use axum::response::IntoResponse;
-// use axum::routing::get;
-// use axum::{Extension, Router};
-// use futures::{sink::SinkExt, stream::StreamExt};
-// use serde::{Deserialize, Serialize};
-// use serde_tuple::{Deserialize_tuple, Serialize_tuple};
-// use tokio::net::UdpSocket;
-// use tokio::sync::Mutex;
-// use tokio_tungstenite::connect_async;
-// use tower_http::services::ServeDir;
-// use tracing::{debug, error, info};
-// use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-// use uuid::Uuid;
-// use websocket_channels::channel::ChannelControl;
-// // use tracing::log::info;
-//
-// // Channel
-// //
-// // - join
-// // > [join_ref, ref, topic, 'phx_join', payload]
-// // < [join_ref, ref, topic, 'phx_reply', {"status": "ok"}]
-// //
-// // - leave
-// // > [join_ref, ref, topic, 'phx_leave', payload]
-// // < [join_ref, ref, topic, 'phx_reply', {"status": "ok"}]
-// //
-// // - heartbeat
-// // > [join_ref, ref, 'phoenix', 'heartbeat', payload]
-// // < [join_ref, ref, topic, 'phx_reply', payload]
-// //
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct EmptyResponse {}
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct HeartbeatResponse {}
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct JoinResponse {}
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct LeaveResponse {}
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct DatetimeResponse {
-//     datetime: String,
-//     counter: u32,
-// }
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// #[serde(untagged)]
-// enum Response {
-//     EmptyResponse {},
-//     HeartbeatResponse {},
-//     JoinResponse {},
-//     LeaveResponse {},
-//     DatetimeReesponse { datetime: String, counter: u32 },
-// }
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct ReplyPayload {
-//     status: String,
-//     response: Response,
-// }
-//
-// #[derive(Debug, Serialize_tuple, Deserialize_tuple)]
-// struct ReplyTuple {
-//     join_reference: Option<String>, // null when it's heartbeat
-//     reference: String,
-//     topic: String, // `channel`
-//     event: String,
-//     payload: ReplyPayload, // TODO
-// }
-//
-// impl Display for ReplyTuple {
-//     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> Result<(), Error> {
-//         write!(
-//             formatter,
-//             "<ReplyTuple: join_ref={:?}, ref={}, topic={}, event={}>",
-//             self.join_reference, self.reference, self.topic, self.event
-//         )
-//     }
-// }
-//
-// /// request data structures
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct JoinRequest {
-//     token: String,
-// }
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct LeaveRequest {}
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// struct HeartbeatRequest {}
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// #[serde(untagged)]
-// enum RequestPayload {
-//     JoinRequest { token: String },
-//     LeaveRequest {},
-//     HeartbeatRequest {},
-// }
-//
-// #[derive(Debug, Serialize_tuple, Deserialize_tuple)]
-// struct RequestTuple {
-//     join_reference: Option<String>, // null when it's heartbeat
-//     reference: String,
-//     topic: String, // `channel`
-//     event: String,
-//     payload: RequestPayload, // TODO
-// }
-//
-// impl Display for RequestTuple {
-//     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> Result<(), Error> {
-//         write!(
-//             formatter,
-//             "<RequestTuple: join_ref={:?}, ref={}, topic={}, event={}>",
-//             self.join_reference, self.reference, self.topic, self.event
-//         )
-//     }
-// }
-//
-// struct User {
-//     user_id: String,
-//     session_id: i32,
-// }
-//
-// // enum MyMessage {
-// //     String,
-// // }
-//
-// pub struct State {
-//     channels: Mutex<ChannelControl>, // String: message type, TODO customize this
-// }
-//
-// /// a websocket client, subscribe to binary data
-// async fn websocket_client(local_state: Arc<State>, channel_name: &str) {
-//     loop {
-//         let socket = UdpSocket::bind("0.0.0.0:0").await.unwrap();
-//         socket.connect("127.0.0.1:42125").await.unwrap();
-//
-//         // Connect to the websocket endpoint
-//         let url = "ws://51.158.72.24:1234/42125@LFBO";
-//         let (ws_stream, _) = connect_async(url)
-//             .await
-//             .expect("fail to connect to websocket endpoint");
-//
-//         let (_, ws_rx) = ws_stream.split();
-//         ws_rx
-//             .for_each(|message| async {
-//                 let raw_data = message.unwrap().into_data();
-//                 info!("raw message size: {:?}", raw_data.len());
-//             })
-//             .await;
-//     }
-// }
-//
-// async fn timestamp_task(local_state: Arc<State>, channel_name: &str) {
-//     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-//
-//     info!("launch datetime thread ...");
-//     let mut counter = 0;
-//     let event = "datetime";
-//     loop {
-//         let now = chrono::Local::now();
-//         let message = ReplyTuple {
-//             join_reference: None,
-//             reference: counter.to_string(),
-//             topic: channel_name.to_string(),
-//             event: event.to_string(),
-//             payload: ReplyPayload {
-//                 status: "ok".to_string(),
-//                 response: Response::DatetimeReesponse {
-//                     datetime: now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
-//                     counter,
-//                 },
-//             },
-//         };
-//         let text = serde_json::to_string(&message).unwrap();
-//         match local_state
-//             .channels
-//             .lock()
-//             .await
-//             .broadcast(channel_name.to_string(), text.clone())
-//             .await
-//         {
-//             Ok(_) => debug!("datetime > {}", text),
-//             Err(e) => error!("fail to send `datetime` event to `system` channel, {}", e),
-//         }
-//
-//         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-//         counter += 1;
-//     }
-// }
-//
-// #[tokio::main]
-// async fn main() {
-//     tracing_subscriber::registry()
-//         .with(
-//             tracing_subscriber::EnvFilter::try_from_default_env()
-//                 .unwrap_or_else(|_| "server=debug,tower_http=debug".into()),
-//         )
-//         .with(tracing_subscriber::fmt::layer())
-//         .init();
-//
-//     let channels = ChannelControl::new();
-//     channels.new_channel("phoenix".into(), None).await; // channel for server to publish heartbeat
-//     channels.new_channel("system".into(), None).await;
-//
-//     let assets_dir = [env!("CARGO_MANIFEST_DIR"), "src", "bin", "assets"]
-//         .iter()
-//         .collect::<PathBuf>();
-//
-//     let state = Arc::new(State {
-//         channels: Mutex::new(channels),
-//     });
-//
-//     let app = Router::new()
-//         .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
-//         .route("/websocket", get(websocket_handler))
-//         .layer(Extension(state.clone()));
-//
-//     tokio::spawn(timestamp_task(state.clone(), "system"));
-//     tokio::spawn(websocket_client(state.clone(), "system"));
-//
-//     let listener = tokio::net::TcpListener::bind("0.0.0.0:5000").await.unwrap();
-//     axum::serve(
-//         listener,
-//         app.into_make_service_with_connect_info::<SocketAddr>(),
-//     )
-//     .await
-//     .unwrap();
-// }
-//
-// // TODO handle header
-// async fn websocket_handler(
-//     ws: WebSocketUpgrade,
-//     Extension(state): Extension<Arc<State>>,
-// ) -> impl IntoResponse {
-//     // TODO drop the connection if `userToken` in query string is not valid
-//     ws.on_upgrade(|socket| on_connected(socket, state))
-// }
-//
-// async fn send_ok(
-//     join_reference: Option<String>,
-//     reference: &str,
-//     channel: &str,
-//     state: Arc<State>,
-// ) {
-//     let join_reply = ReplyTuple {
-//         join_reference: join_reference.clone(),
-//         reference: reference.to_string(),
-//         topic: channel.to_string(),
-//         event: "phx_reply".to_string(),
-//         payload: ReplyPayload {
-//             status: "ok".into(),
-//             response: Response::EmptyResponse {},
-//         },
-//     };
-//     let text = serde_json::to_string(&join_reply).unwrap();
-//     state
-//         .channels
-//         .lock()
-//         .await
-//         .broadcast(channel.to_string(), text.clone())
-//         .await
-//         .unwrap();
-//     debug!("> {}", text);
-// }
-//
-// async fn handle_incoming_messages(received_text: String, state: Arc<State>, user_id: &str) {
-//     debug!("< {}", received_text);
-//
-//     let received_message: RequestTuple = serde_json::from_str(&received_text).unwrap();
-//     debug!("{}", received_message);
-//
-//     let reference = &received_message.reference;
-//     let join_reference = &received_message.join_reference;
-//     let channel = &received_message.topic;
-//     let event = &received_message.event;
-//
-//     if event == "phx_join" {
-//         state
-//             .channels
-//             .lock()
-//             .await
-//             .add_user(user_id.to_string(), None)
-//             .await;
-//         state
-//             .channels
-//             .lock()
-//             .await
-//             .join_channel("phoenix".into(), user_id.into())
-//             .await
-//             .unwrap();
-//         state
-//             .channels
-//             .lock()
-//             .await
-//             .join_channel(channel.clone(), user_id.to_string())
-//             .await
-//             .unwrap(); // join user to system channel
-//         send_ok(join_reference.clone(), reference, channel, state.clone()).await;
-//     }
-//
-//     if event == "phx_leave" {
-//         state
-//             .channels
-//             .lock()
-//             .await
-//             .leave_channel(channel.clone(), user_id.to_string())
-//             .await
-//             .unwrap();
-//         send_ok(join_reference.clone(), reference, channel, state.clone()).await;
-//     }
-//
-//     if channel == "phoenix" && event == "heartbeat" {
-//         info!("heartbeat message");
-//         send_ok(Option::None, reference, "phoenix", state.clone()).await;
-//     }
-// }
-//
-// pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
-//     let (mut tx, mut rx) = ws.split();
-//
-//     let user = User {
-//         user_id: Uuid::new_v4().to_string(),
-//         session_id: 0,
-//     };
-//     info!("user: {}", user.user_id);
-//
-//     state
-//         .channels
-//         .lock()
-//         .await
-//         .add_user(user.user_id.to_string(), None)
-//         .await;
-//
-//     // get receiver for user that get message from all channels
-//     let mut user_receiver = state
-//         .channels
-//         .lock()
-//         .await
-//         .get_user_receiver(user.user_id.to_string())
-//         .await
-//         .unwrap();
-//
-//     // channels => websocket client
-//     let mut tx_task = tokio::spawn(async move {
-//         while let Ok(my_message) = user_receiver.recv().await {
-//             tx.send(Message::Text(my_message)).await.unwrap();
-//         }
-//     });
-//
-//     // spawn a task to get message from user and handle things
-//     let rec_state = state.clone();
-//     let mut rx_task = tokio::spawn(async move {
-//         while let Some(Ok(Message::Text(received_text))) = rx.next().await {
-//             handle_incoming_messages(received_text, rec_state.clone(), &user.user_id.clone()).await;
-//         }
-//     });
-//
-//     tokio::select! {
-//         _ = (&mut tx_task) => rx_task.abort(),
-//         _ = (&mut rx_task) => tx_task.abort(),
-//     }
-//
-//     state
-//         .channels
-//         .lock()
-//         .await
-//         .remove_user(user.session_id.to_string())
-//         .await;
-//     info!("client connection closed");
-// }
+use axum::{
+    extract::{State as AxumState, WebSocketUpgrade},
+    response::IntoResponse,
+    routing::get,
+    Router,
+};
+use futures::{SinkExt, StreamExt};
+use redis::Client;
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
+use tokio_stream::wrappers::UnboundedReceiverStream;
+use tower_http::services::ServeDir;
+use tracing::{error, info};
+use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+use uuid::Uuid;
+use websocket_channels::{
+    channel::ChannelControl,
+    websocket::{streaming_data_task, system_datetime_task, State as AppState},
+};
 
-fn main() {}
+async fn subscribe_and_send(
+    redis_url: &str,
+    topic: &str,
+    tx: mpsc::UnboundedSender<String>,
+) -> redis::RedisResult<()> {
+    let client = Client::open(redis_url)?;
+    let mut pubsub = client.get_async_pubsub().await?;
+    pubsub.subscribe(topic).await?;
+    let mut pubsub_stream = pubsub.on_message();
+    loop {
+        match pubsub_stream.next().await {
+            Some(msg) => {
+                let payload: String = msg.get_payload()?;
+                info!("received: {}", payload);
+                if tx.send(payload).is_err() {
+                    error!("receiver dropped, exiting.");
+                    break;
+                }
+            }
+            None => {
+                info!("PubSub connection closed, exiting.");
+                break;
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn websocket_handler(
+    ws: WebSocketUpgrade,
+    AxumState(state): AxumState<Arc<AppState>>,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_socket(socket, state))
+}
+
+async fn handle_socket(socket: axum::extract::ws::WebSocket, state: Arc<AppState>) {
+    let conn_id = Uuid::new_v4().to_string();
+    info!("on_connected: {}", conn_id);
+    state.ctl.lock().await.add_connection(conn_id.clone()).await;
+
+    let (mut sender, mut receiver) = socket.split();
+
+    let (tx, mut rx) = mpsc::unbounded_channel();
+
+    // Spawn a task for sending messages to the WebSocket
+    let mut send_task = tokio::spawn(async move {
+        while let Some(message) = rx.recv().await {
+            if let Err(e) = sender.send(message).await {
+                error!("Error sending websocket message: {}", e);
+                break;
+            }
+        }
+    });
+
+    // Spawn a task for receiving messages from the WebSocket
+    let state_clone = state.clone();
+    let conn_id_clone = conn_id.clone();
+    let mut receive_task = tokio::spawn(async move {
+        while let Some(result) = receiver.next().await {
+            match result {
+                Ok(msg) => {
+                    if let Err(e) =
+                        handle_websocket_message(msg, &state_clone, &conn_id_clone).await
+                    {
+                        error!("Error handling websocket message: {}", e);
+                        break;
+                    }
+                }
+                Err(e) => {
+                    error!("Error receiving websocket message: {}", e);
+                    break;
+                }
+            }
+        }
+    });
+
+    // Wait for either task to finish
+    tokio::select! {
+        _ = (&mut send_task) => receive_task.abort(),
+        _ = (&mut receive_task) => send_task.abort(),
+    }
+
+    state.ctl.lock().await.remove_agent(conn_id).await;
+    info!("client connection closed");
+}
+
+async fn handle_websocket_message(
+    msg: axum::extract::ws::Message,
+    state: &Arc<AppState>,
+    conn_id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // 实现消息处理逻辑
+    // 这里需要根据您的具体需求来处理不同类型的消息
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() {
+    // 设置 tracing 使用 EnvFilter
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    tracing_subscriber::fmt()
+        .with_env_filter(env_filter)
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
+
+    let channel_control = ChannelControl::new();
+    channel_control.new_channel("phoenix".into(), None).await;
+    channel_control.new_channel("system".into(), None).await;
+    channel_control.new_channel("streaming".into(), None).await;
+
+    let state = Arc::new(AppState {
+        ctl: Mutex::new(channel_control),
+    });
+
+    tokio::spawn(system_datetime_task(state.clone(), "system"));
+
+    let (tx, rx) = mpsc::unbounded_channel();
+    let data_source = UnboundedReceiverStream::new(rx);
+    tokio::spawn(streaming_data_task(
+        state.clone(),
+        data_source,
+        "streaming",
+        "data",
+    ));
+
+    tokio::spawn(subscribe_and_send(
+        "redis://192.168.8.37:6379/0",
+        "streaming:data",
+        tx,
+    ));
+
+    let app = Router::new()
+        .route("/websocket", get(websocket_handler))
+        .nest_service("/", ServeDir::new("src/bin"))
+        .with_state(state.clone());
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:5000").await.unwrap();
+
+    info!("serving at :5000 ...");
+    axum::serve(listener, app).await.unwrap();
+}
