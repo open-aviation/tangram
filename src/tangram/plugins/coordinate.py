@@ -4,6 +4,7 @@
 import asyncio
 from dataclasses import dataclass
 import json
+import os
 from tangram.util import logging
 from typing import Dict, List
 
@@ -11,10 +12,14 @@ from pydantic import BaseModel
 from tangram.plugins import redis_subscriber
 
 log = logging.getPluginLogger(
-    __package__, __name__, "/tmp/tangram/", log_level=logging.DEBUG, add_console_handler=False
+    __package__, __name__, os.getenv('LOG_DIR'), log_level=logging.DEBUG, add_console_handler=False
 )
 
+"""
+this is my attempt to normalize the data from jet1090
+"""
 
+# df => keys
 keys = {
     5: ["timestamp", "timesource", "rssi", "frame", "df", "squawk", "icao24"],
     18: [
@@ -213,9 +218,11 @@ class Subscriber(redis_subscriber.Subscriber[State]):
         message_dict = json.loads(data)
 
         if "latitude" in message_dict and "longitude" in message_dict:
+            # publish latitude/longitude to `coordinate` channel
             fields = ["icao24", "timestamp", "latitude", "longitude"]
             await self.redis.publish("coordinate", json.dumps({f: message_dict[f] for f in fields}))
 
+            # put geospatial data in `planes` key
             pipe = self.redis.pipeline()
             key = "planes"
             values = [
@@ -225,8 +232,8 @@ class Subscriber(redis_subscriber.Subscriber[State]):
             ]
             pipe.geoadd(key, values)
             pipe.expire(key, 60 * 5)
-            await pipe.execute()
-            # log.debug("added to planes, %s, %s", values, result)
+            result = await pipe.execute()
+            log.debug("added to planes, %s, %s", values, result)
 
 
 subscriber: Subscriber | None = None

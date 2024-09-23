@@ -154,7 +154,6 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
 subscriber: Subscriber | None = None
 
-
 async def startup_redis(redis_url: str):
     global subscriber
 

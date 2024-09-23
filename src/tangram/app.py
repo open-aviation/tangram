@@ -9,6 +9,7 @@ from typing import Any
 import contextlib
 
 import anyio
+import redis.asyncio as redis
 from fastapi import FastAPI, WebSocket, status
 
 # from fastapi.staticfiles import StaticFiles
@@ -24,6 +25,7 @@ from tangram.plugins import history
 from tangram.plugins import trajectory
 from tangram.plugins import trajectory_subscriber
 from tangram.plugins import coordinate
+from tangram.plugins import filter_jet1090
 
 # from tangram.plugins import source
 from tangram.plugins import source_task
@@ -88,11 +90,18 @@ async def shutdown_debug(*args: Any, **kwargs: Any) -> None:
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("starting up...")
-    await connect_jet1090()
 
-    await tangram_websocket.broadcast.connect()
+    # create a redis connection pool
+    # linter complains about the type of app.redis_connection_pool, consider subclass FastAPI
+    app.redis_connection_pool = redis.ConnectionPool.from_url(REDIS_URL)
 
-    await web_event.startup(REDIS_URL)
+    await connect_jet1090() # create the websocket connection to jet1090, TODO: remove this
+
+    await tangram_websocket.broadcast.connect() # initialize the websocket broadcast
+
+    await web_event.startup(REDIS_URL)  # listen for web ui events
+    await filter_jet1090.startup(REDIS_URL)  # listen for jet1090_full, filter items with lat/long and publish to jet1090
+
     await coordinate.startup(REDIS_URL)
     await system.startup()
 
@@ -123,6 +132,9 @@ async def lifespan(app: FastAPI):
 
     await stop_jet1090_client()
     await tangram_websocket.broadcast.disconnect()
+
+    # TODO: close this pool
+    # app.redis_connection_pool.close()
 
     log.info("shutdown complete")
 
@@ -169,6 +181,19 @@ async def websocket_handler(ws: WebSocket) -> None:
     await tangram_websocket.handle_websocket_client(client_id, ws)
     log.info("connection done, ws: %s, client: %s", ws, client_id)
     log.info("%s\n", "+" * 20)
+
+
+@app.get('/planes')
+async def list_planes():
+    async with redis.Redis.from_pool(app.redis_connection_pool) as redis_client:
+        await redis_client.ping()
+        planes = await redis_client.geosearch("planes", longitude=0, latitude=0, radius=12000, unit="km", withcoord=True)
+        # response structure: [icao24, [latitude, longitude]]
+        return [
+            {'icao24': icao24, 'latitude': latitude, 'longitude': longitude}
+            for [icao24, [latitude, longitude]] in planes
+        ]
+
 
 
 class PublishMessage(BaseModel):

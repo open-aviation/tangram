@@ -1,3 +1,4 @@
+import os
 import asyncio
 import json
 import logging
@@ -6,16 +7,23 @@ from typing import List, Set, Dict, Any, Optional
 import time
 
 import redis
-from redis.asyncio import Redis
-from redis.commands.timeseries import TimeSeries
+import redis.asyncio as aredis
 from tangram.plugins import redis_subscriber
+import logging
+# from tangram.util import logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(lineno)s - %(message)s")
 log = logging.getLogger(__name__)
+
+# log = logging.getPluginLogger(
+#     __package__, __name__, os.getenv('LOG_DIR'), log_level=logging.DEBUG, add_console_handler=False
+# )
 
 
 @dataclass
 class State:
+    """This state explores various ideas for utilizing Redis."""
+
     _redis: redis.Redis = field(repr=False)
 
     id: str = "filter-jet1090"
@@ -109,26 +117,11 @@ class State:
     #     return f"State(id='{self.id}', redis_field={self.redis_field})"
 
 
+
 class Subscriber(redis_subscriber.Subscriber[State]):
-    def __init__(self, name: str, redis_url: str, channels: List[str], initial_state):
-        super().__init__(name, redis_url, channels, initial_state)
 
     async def message_handler(self, channel: str, data: str, pattern: str, state: State):
-        m: Dict = json.loads(data)
-
-        if "altitude" in m:
-            fields = ["icao24", "timestamp", "altitude"]
-            record = {field: m[field] for field in fields}
-            log.debug("%s", record)
-            await self.redis.publish("altitude", json.dumps(record))
-
-        if "latitude" in m and "longitude" in m:
-            fields = ["icao24", "timestamp", "latitude", "longitude"]
-            m = {field: m[field] for field in fields}
-            await self.redis.publish("jet1090", json.dumps(m))
-
-    async def _message_handler(self, channel: str, data: str, pattern: str, state: State):
-        m: Dict = json.loads(data)
+        message: Dict = json.loads(data)
         # m = {k: v for k, v in m.items() if k not in ["timestamp", "timesource", "frame", "rssi"]}
         # log.info("m: %s", m)
 
@@ -141,24 +134,26 @@ class Subscriber(redis_subscriber.Subscriber[State]):
         # state.planes.add(m["icao24"])
         # state.set_field(icao24, None, expire_time=60)
 
-        if ("latitude" in m and "longitude" in m) or ("altitude" in m):
+        if ("latitude" in message and "longitude" in message) or ("altitude" in message):
             # if "latitude" in m and "longitude" in m:
             fields = ["icao24", "timestamp", "latitude", "longitude"]
-            m = {field: m[field] for field in fields}
-            log.info("to pulibsh %s", m)
-            await self.redis.publish("jet1090", json.dumps(m))
+            message = {field: message[field] for field in fields}
+            log.info("to pulibsh %s", message)
+            await self.redis.publish("jet1090", json.dumps(message))
             # state.forward_count += 1
 
+async def startup_sync(redis_url: str):
+    """this uses a synchronous Redis client in state"""
+    log.info('starting filter_jet1090 ...')
 
-async def main(redis_url: str):
     redis_client = redis.Redis.from_url(redis_url, decode_responses=True, encoding="utf-8")
-    # redis_client = await Redis.from_url(redis_url, decode_responses=True, encoding="utf-8")
     state = State(_redis=redis_client)
-
-    subscriber = Subscriber("coordinate", redis_url, ["jet1090-full*"], state)
+    subscriber = Subscriber("filter_jet1090", redis_url, ["jet1090-full*"], state)
     await subscriber.subscribe()
-    log.info("coordinate is up and running")
 
+    log.info("filter_jet1090 is up and running, check `jet1090` topic at %s", redis_url)
+
+    # As a plugin, a infinite loop will block FastAPI event loop: make it a task
     try:
         while True:
             await asyncio.sleep(1)
@@ -184,15 +179,67 @@ async def main(redis_url: str):
         await subscriber.cleanup()
         log.info("coordinate exits")
 
+@dataclass
+class AState:
+    pass
+
+
+class ASubscriber(redis_subscriber.Subscriber[AState]):
+    def __init__(self, name: str, redis_url: str, channels: List[str], initial_state):
+        super().__init__(name, redis_url, channels, initial_state)
+
+    async def message_handler(self, channel: str, data: str, pattern: str, state: AState):
+        message: Dict = json.loads(data)
+
+        if "altitude" in message:
+            fields = ["icao24", "timestamp", "altitude"]
+            record = {field: message[field] for field in fields}
+            await self.redis.publish("altitude", json.dumps(record))
+
+        if "latitude" in message and "longitude" in message:
+            fields = ["icao24", "timestamp", "latitude", "longitude"]
+            message = {field: message[field] for field in fields}
+            await self.redis.publish("jet1090", json.dumps(message))
+
+
+async def startup(redis_url: str):
+    log.info('starting filter_jet1090 ...')
+
+    state = AState()
+    asubscriber = ASubscriber("filter_jet1090", redis_url, ["jet1090-full*"], state)
+    await asubscriber.subscribe()
+
+    log.info("filter_jet1090 is up and running, check `jet1090` topic at %s", redis_url)
+
+    # As a plugin, a infinite loop will block FastAPI event loop: make it a task
+    # in as independent task, we need this
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except asyncio.CancelledError:
+        print("\ruser interrupted, exiting ...")
+
+        log.info("coordinate is shutting down")
+        await asubscriber.cleanup()
+        log.info("coordinate exits")
+
+
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--redis-url", default="redis://localhost")
+    parser.add_argument("--sync", action='store_true')
     args = parser.parse_args()
+    redis_url = args.redis_url
 
     try:
-        asyncio.run(main(args.redis_url))
+        if args.sync:
+            log.info('sync redis client')
+            asyncio.run(startup_sync(redis_url))
+        else:
+            log.info('async redis client')
+            asyncio.run(startup(redis_url))
     except KeyboardInterrupt:
         print("\rbye.")
