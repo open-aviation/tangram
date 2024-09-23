@@ -8,6 +8,7 @@ import re
 from typing import Any, List, Optional
 
 import redis
+import redis.exceptions
 from broadcaster import Broadcast
 from fastapi import WebSocket
 from pydantic import BaseModel
@@ -15,10 +16,10 @@ from starlette.concurrency import run_until_first_complete
 
 from tangram.util.geojson import BetterJsonEncoder
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("tangram")
 
-# broadcast = Broadcast("redis://127.0.0.1:6379")
-broadcast = Broadcast("memory://")
+# broadcast = Broadcast("memory://")
+broadcast = Broadcast("redis://192.168.8.37:6379")
 redis_client = redis.from_url("redis://192.168.8.37:6379")  # TODO: confiburable
 pubsub = redis_client.pubsub(ignore_subscribe_messages=True)
 
@@ -102,7 +103,7 @@ async def handle_heartbeat(client_id: str, message: ClientMessage) -> None:
     log.debug("[%s] - receive heartbeat from client", client_id)
     await broadcast.publish(
         channel=client_id,
-        message=[message.join_ref, message.ref, message.topic, "phx_reply", message.ok],
+        message=json.dumps([message.join_ref, message.ref, message.topic, "phx_reply", message.ok]),
     )
     # log.debug("[%s] - heartbeat piped: %s [%s]", client_id, type(message), message)
 
@@ -112,10 +113,17 @@ async def ok_to_join(client_id: str, message: ClientMessage, response=None):
 
     hub.add(client_id, message.topic)
     default_payload = {"status": "ok", "response": response or {}}
-    await broadcast.publish(
-        channel=client_id,
-        message=[message.join_ref, message.ref, message.topic, "phx_reply", default_payload],
-    )
+    # response_message = [message.join_ref, message.ref, message.topic, "phx_reply", default_payload]
+    response_message = json.dumps([message.join_ref, message.ref, message.topic, "phx_reply", default_payload])
+    log.error("%s %s", response_message, type(response_message))
+    # log.error("%s\n%s\n", json.dumps(response_message), json.dumps(response_message[-1]))
+    try:
+        await broadcast.publish(
+            channel=client_id,
+            message=response_message,
+        )
+    except redis.exceptions.DataError as exc:
+        log.error("%s", exc)
     # log.info("[%s] - %s response piped: %s [%s]", client_id, message.event, type(message), message)
 
 
@@ -249,6 +257,7 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
         redis_client.publish(publish_topic, text)
         log.info(">>>>> %s %s", publish_topic, client_message.payload)
 
+        # TODO: REMOVE THIS
         for _channel_name, handler in channel_handlers.items():
             await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event
 
@@ -262,8 +271,19 @@ async def websocket_sender(websocket: WebSocket, client_id: str) -> None:
         log.info("[%s] > new subscriber created, %s", client_id, subscriber)
         async for event in subscriber:
             message = event.message
-            await websocket.send_text(json.dumps(message, cls=BetterJsonEncoder))
+            # log.debug("to send %s %s", message, type(message))
+            await websocket.send_text(message)
     log.info("[%s] sending task is done", client_id)
+
+
+async def websocket_broadcast(websocket: WebSocket, client_id: str) -> None:
+    """get messages from a redis broadcast channel and publish to client"""
+    log.info("[%s] > broadcast task", client_id)
+    async with broadcast.subscribe("broadcast") as subscriber:
+        async for event in subscriber:
+            log.info("to broadcast %s", event.message)
+            await websocket.send_text(event.message)
+    log.info("[%s] broadcast task is done", client_id)
 
 
 async def handle_websocket_client(client_id: str, ws: WebSocket):
@@ -271,13 +291,29 @@ async def handle_websocket_client(client_id: str, ws: WebSocket):
     await run_until_first_complete(
         (websocket_receiver, {"websocket": ws, "client_id": client_id}),
         (websocket_sender, {"websocket": ws, "client_id": client_id}),
+        (websocket_broadcast, {"websocket": ws, "client_id": client_id}),
     )
 
 
 async def publish_any(channel: str, event: str, any: Any) -> int:
+    """this publishes to client"""
     message = [None, None, channel, event, any]
     clients = hub.channel_clients().get(channel, [])
     for client_id in clients:
-        await broadcast.publish(channel=client_id, message=message)
-        # log.debug("message published to %s", client_id)
+        await broadcast.publish(channel=client_id, message=json.dumps(message))
     return len(clients)
+
+
+async def system_broadcast(*, channel: str, event: str, data: Any, by_redis: bool = False) -> None:
+    if not channel.startswith("channel:"):
+        log.warning("channel name should start with `channel:`, correcting %s => %s", channel, f"channel:{channel}")
+        channel = f"channel:{channel}"
+
+    message = [None, None, channel, event, data]
+    # (redis_client if by_redis else broadcast).publish(channel, json.dumps(message))
+    if by_redis:
+        await redis_client.publish(channel, json.dumps(message))
+    else:
+        # check the `websocket_broadcast` function, it's listening to `broadcast` channel
+        await broadcast.publish(channel="broadcast", message=json.dumps(message))
+    log.debug("message broadcasted")
