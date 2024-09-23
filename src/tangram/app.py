@@ -72,61 +72,6 @@ async def disconnect_jet1090():
     pass
 
 
-async def start_background_tasks():
-    tasks = []
-    plugins = [
-        # position,
-    ]
-    for plugin in plugins:
-        # TODO: parameters
-        task = asyncio.create_task(plugin.async_main(REDIS_URL, "jet1090"))
-        tasks.append(task)
-    return tasks
-
-
-async def cleanup():
-    for task in background_task_list:
-        task.cancel()
-    await asyncio.gather(*background_task_list, return_exceptions=True)
-
-
-task_group = None
-cancel_scope = None
-
-
-async def boring_background_task() -> None:
-    try:
-        while True:
-            log.info("BORING background task")
-            await asyncio.sleep(1)
-    except asyncio.CancelledError:
-        log.warning("BORING background task is cancelled")
-
-
-async def tg_enter(*args, **kwargs) -> None:
-    """debugging"""
-    global task_group, cancel_scope
-    task_group = anyio.create_task_group()
-    cancel_scope = anyio.CancelScope()
-    # FIXME: not how anyio TG works, the context manager
-    await task_group.__aenter__()
-    with cancel_scope:
-        # task_group.start_soon(source_task.start)
-        # NOTE: add more
-        task_group.start_soon(boring_background_task)
-    log.info("tg_enter executed")
-
-
-async def tg_exit(*args, **kwargs) -> None:
-    """debugging"""
-    global task_group, cancel_scope
-    if cancel_scope:
-        cancel_scope.cancel()
-    if task_group:
-        await task_group.__aexit__(None, None, None)
-    log.info("BORING background task is cancelled")
-
-
 jet1090_client_task = None
 
 
@@ -140,9 +85,6 @@ async def shutdown_debug(*args: Any, **kwargs: Any) -> None:
     log.info("%s\n\n\n\n", "=" * 40)
 
 
-background_task_list = []
-
-
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("starting up...")
@@ -153,15 +95,18 @@ async def lifespan(app: FastAPI):
     await web_event.startup(REDIS_URL)
     await coordinate.startup(REDIS_URL)
     await system.startup()
-    await rs1090_source.start()
-    await history.startup()
+
+    await rs1090_source.start()  # FIXME: the data pushed is not correct, i.e data from jet1090 /all is not correct
+
+    # await history.startup()  # FIXME: is this blocking the event loop?
+    # Let's try with with redis storage
+    await history.startup_redis(REDIS_URL)
+
     await trajectory.app.startup()
     await trajectory_subscriber.startup(REDIS_URL)
 
     await start_jet1090_client()
 
-    # global background_task_list
-    # background_task_list = await start_background_tasks()
     # log.info("All background tasks have been started")
 
     log.info("yield to request handling ...")
@@ -179,7 +124,6 @@ async def lifespan(app: FastAPI):
     await stop_jet1090_client()
     await tangram_websocket.broadcast.disconnect()
 
-    # await cleanup()
     log.info("shutdown complete")
 
 

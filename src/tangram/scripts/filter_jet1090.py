@@ -7,6 +7,7 @@ import time
 
 import redis
 from redis.asyncio import Redis
+from redis.commands.timeseries import TimeSeries
 from tangram.plugins import redis_subscriber
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -114,21 +115,39 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
     async def message_handler(self, channel: str, data: str, pattern: str, state: State):
         m: Dict = json.loads(data)
+
+        if "altitude" in m:
+            fields = ["icao24", "timestamp", "altitude"]
+            record = {field: m[field] for field in fields}
+            log.debug("%s", record)
+            await self.redis.publish("altitude", json.dumps(record))
+
+        if "latitude" in m and "longitude" in m:
+            fields = ["icao24", "timestamp", "latitude", "longitude"]
+            m = {field: m[field] for field in fields}
+            await self.redis.publish("jet1090", json.dumps(m))
+
+    async def _message_handler(self, channel: str, data: str, pattern: str, state: State):
+        m: Dict = json.loads(data)
         # m = {k: v for k, v in m.items() if k not in ["timestamp", "timesource", "frame", "rssi"]}
         # log.info("m: %s", m)
 
-        state.count += 1
-        icao24 = m["icao24"]
+        # state.count += 1
+        # icao24 = m["icao24"]
 
         # if m["icao24"] not in state.planes:
-        if not state.exist_field(icao24):
-            log.info("new plane: %s", icao24)
+        # if not state.exist_field(icao24):
+        #     log.info("new plane: %s", icao24)
         # state.planes.add(m["icao24"])
-        state.set_field(icao24, None, expire_time=60)
+        # state.set_field(icao24, None, expire_time=60)
 
         if ("latitude" in m and "longitude" in m) or ("altitude" in m):
-            await self.redis.publish("jet1090", data)
-            state.forward_count += 1
+            # if "latitude" in m and "longitude" in m:
+            fields = ["icao24", "timestamp", "latitude", "longitude"]
+            m = {field: m[field] for field in fields}
+            log.info("to pulibsh %s", m)
+            await self.redis.publish("jet1090", json.dumps(m))
+            # state.forward_count += 1
 
 
 async def main(redis_url: str):

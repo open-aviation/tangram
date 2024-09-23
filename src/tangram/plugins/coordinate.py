@@ -211,11 +211,22 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
     async def message_handler(self, channel: str, data: str, pattern: str, state: State):
         message_dict = json.loads(data)
-        # message = Extended(**message_dict)
-        # log.debug('%s', message)
 
         if "latitude" in message_dict and "longitude" in message_dict:
-            await self.redis.publish("coordinate", data)
+            fields = ["icao24", "timestamp", "latitude", "longitude"]
+            await self.redis.publish("coordinate", json.dumps({f: message_dict[f] for f in fields}))
+
+            pipe = self.redis.pipeline()
+            key = "planes"
+            values = [
+                float(message_dict["longitude"]),
+                float(message_dict["latitude"]),
+                message_dict["icao24"],
+            ]
+            pipe.geoadd(key, values)
+            pipe.expire(key, 60 * 5)
+            await pipe.execute()
+            # log.debug("added to planes, %s, %s", values, result)
 
 
 subscriber: Subscriber | None = None
