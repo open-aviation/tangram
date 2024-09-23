@@ -132,10 +132,10 @@ async def ok_to_leave(client_id: str, message: ClientMessage):
 
     await broadcast.publish(
         channel=client_id,
-        message=[message.join_ref, message.ref, message.topic, "phx_reply", message.ok],
+        message=json.dumps([message.join_ref, message.ref, message.topic, "phx_reply", message.ok]),
     )
     hub.remove(client_id, message.topic)
-    # log.info("[%s] - %s response piped %s", client_id, message.event, message.topic)
+    log.debug("[%s] - %s response piped %s", client_id, message.event, message.topic)
 
 
 class ChannelHandlerMixin:

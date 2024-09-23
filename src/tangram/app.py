@@ -153,49 +153,10 @@ async def uptime() -> dict[str, float]:
     return {"uptime": get_uptime_seconds()}
 
 
-# @app.get("/")
-# async def home(request: Request, history: int = 0) -> HTMLResponse:
-#     log.info("index, history: %s", history)
-#     context = dict(
-#         history=history,
-#         form_database=None,
-#         form_threshold=None,
-#         uptime=get_uptime_seconds(),
-#     )
-#     return templates.TemplateResponse(request=request, name="index.html", context=context)
-#
-
-
-# @app.get("/trajectory/{icao24}")
-# async def icao24_trajectory(icao24: str) -> Dict[str, Any]:
-#     track = await rs1090_source.icao24_track(rs1090_source.BASE_URL + "/track", icao24)
-#     geojson = {
-#         "type": "LineString",
-#         "coordinates": [(elt["longitude"], elt["latitude"]) for elt in track if elt.get("longitude", None)]
-#         if track is not None
-#         else [],
-#         "properties": {
-#             "icao24": icao24,
-#             "latest": max(elt["timestamp"] for elt in track) if track is not None else 0,
-#         },
-#     }
-#     return geojson
-
-
 @app.get("/data/{icao24}")
 async def data(icao24: str) -> list[rs1090.Jet1090Data]:
     return await jet1090_restful_client.icao24_track(icao24) or []
     # return await rs1090_source.icao24_track(rs1090_source.BASE_URL + "/track", icao24)
-
-
-# @app.get("/turb.geojson")
-# async def turbulence() -> Dict[str, Any]:
-#     return {}
-#
-#
-# @app.get("/planes.geojson")
-# async def fetch_planes_geojson() -> Dict[str, Any]:
-#     return {}
 
 
 @app.websocket("/websocket")
