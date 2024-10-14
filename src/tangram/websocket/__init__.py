@@ -6,6 +6,7 @@ import json
 import logging
 import re
 from typing import Any, List, Optional
+import os
 
 import redis
 import redis.exceptions
@@ -16,11 +17,12 @@ from starlette.concurrency import run_until_first_complete
 
 from tangram.util.geojson import BetterJsonEncoder
 
-log = logging.getLogger("tangram")
+log = logging.getLogger(__name__)
 
-# broadcast = Broadcast("memory://")
-broadcast = Broadcast("redis://192.168.8.37:6379")
-redis_client = redis.from_url("redis://192.168.8.37:6379")  # TODO: confiburable
+redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
+log.info("websocket is using redis_url: %s", redis_url)
+broadcast = Broadcast(redis_url)
+redis_client = redis.from_url(redis_url)
 pubsub = redis_client.pubsub(ignore_subscribe_messages=True)
 
 

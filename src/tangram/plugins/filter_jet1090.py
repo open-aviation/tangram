@@ -5,13 +5,13 @@ import logging
 from dataclasses import dataclass
 from typing import List, Dict
 
-import redis.asyncio as redis
+# import redis.asyncio as redis
 from tangram.plugins import redis_subscriber
 from tangram.util import logging
 
 
 log = logging.getPluginLogger(
-    __package__, __name__, os.getenv('LOG_DIR'), log_level=logging.DEBUG, add_console_handler=False
+    __package__, __name__, os.getenv("LOG_DIR"), log_level=logging.DEBUG, add_console_handler=False
 )
 
 
@@ -30,16 +30,16 @@ class ASubscriber(redis_subscriber.Subscriber[AState]):
         if "altitude" in message:
             fields = ["icao24", "timestamp", "altitude"]
             record = {field: message[field] for field in fields}
-            await self.redis.publish("altitude", json.dumps(record))
+            await self.redis.publish("altitude", json.dumps(record))  # altitude topic
 
         if "latitude" in message and "longitude" in message:
             fields = ["icao24", "timestamp", "latitude", "longitude"]
             message = {field: message[field] for field in fields}
-            await self.redis.publish("jet1090", json.dumps(message))
+            await self.redis.publish("coordinate", json.dumps(message))  # coordinate topic
 
 
 async def startup(redis_url: str):
-    log.info('starting filter_jet1090 ...')
+    log.info("starting filter_jet1090 ...")
 
     # without this, when this function exits, everything is gone
     global asubscriber
@@ -48,7 +48,7 @@ async def startup(redis_url: str):
     asubscriber = ASubscriber("filter_jet1090", redis_url, ["jet1090-full*"], state)
     await asubscriber.subscribe()
 
-    log.info("filter_jet1090 is up and running, check `jet1090` topic at %s", redis_url)
+    log.info("filter_jet1090 is up and running, check `coordinate` and `altitude` topic at %s", redis_url)
 
     # As a plugin, a infinite loop will block FastAPI event loop: make it a task
     # in as independent task, we need this
@@ -61,6 +61,7 @@ async def startup(redis_url: str):
     #     log.info("coordinate is shutting down")
     #     await asubscriber.cleanup()
     #     log.info("coordinate exits")
+
 
 if __name__ == "__main__":
     import argparse

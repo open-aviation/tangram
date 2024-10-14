@@ -1,0 +1,136 @@
+version: 1
+disable_existing_loggers: False
+formatters:
+  default:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s"
+  access:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  tangram:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s"
+  simple:
+    format: "%(asctime)s - %(message)s"
+  raw:
+    format: "%(message)s"
+handlers:
+  default:
+    formatter: default
+    class: logging.StreamHandler
+    stream: ext://sys.stderr
+  access:
+    formatter: access
+    class: logging.StreamHandler
+    stream: ext://sys.stdout
+  tangram:
+    formatter: tangram
+    class: logging.FileHandler
+    filename: /tmp/tangram/tangram.log
+    encoding: utf-8
+  httpx_file:
+    formatter: default
+    class: logging.FileHandler
+    filename: /tmp/tangram/httpx.log
+    encoding: utf-8
+  rs1090_file:
+    formatter: default
+    class: logging.FileHandler
+    filename: /tmp/tangram/rs1090.log
+    encoding: utf-8
+  rs1090_source_file:
+    formatter: default
+    class: logging.FileHandler
+    filename: /tmp/tangram/rs1090-source.log
+    encoding: utf-8
+  trajectory_info:
+    level: INFO
+    formatter: default
+    class: logging.FileHandler
+    filename: /tmp/tangram/trajectory.info.log
+  trajectory_debug:
+    level: DEBUG
+    formatter: default
+    class: logging.FileHandler
+    filename: /tmp/tangram/trajectory.debug.log
+  channels:
+    formatter: default
+    class: logging.FileHandler
+    filename: /tmp/tangram/channels.log
+  history:
+    formatter: default
+    class: logging.FileHandler
+    filename: /tmp/tangram/history.log
+  websocket_client_info:
+    level: INFO
+    formatter: default
+    class: logging.FileHandler
+    filename: /tmp/tangram/websocket_client.info.log
+  websocket_client_debug:
+    level: DEBUG
+    formatter: raw
+    class: logging.FileHandler
+    filename: /tmp/tangram/websocket_client.debug.log
+loggers:
+  uvicorn.error:
+    level: INFO
+    handlers:
+      - default
+    propagate: no
+  uvicorn.access:
+    level: INFO
+    handlers:
+      - access
+    propagate: no
+  tangram:
+    level: DEBUG
+    qualname: tangram
+    handlers:
+      - tangram
+    propagate: no
+  tangram.plugins.common.rs1090:
+    level: INFO
+    qualname: tangram.plugins.common.rs1090
+    handlers:
+      - rs1090_file
+    propagate: no
+  tangram.websocket:
+    level: DEBUG
+    qualname: tangram.websocket
+    handlers:
+      - channels
+    propagate: no
+  tangram.plugins.common.rs1090.websocket_client:
+    level: DEBUG
+    qualname: tangram.plugins.common.rs1090.websocket_client
+    handlers:
+      - websocket_client_info
+      - websocket_client_debug
+    propagate: no
+  tangram.plugins.rs1090_source:
+    level: DEBUG
+    qualname: tangram.plugins.rs1090_source
+    handlers:
+      - rs1090_source_file
+    propagate: no
+  tangram.plugins.trajectory:
+    level: DEBUG
+    qualname: tangram.plugins.trajectory
+    handlers:
+      - trajectory_info
+      - trajectory_debug
+    propagate: no
+  tangram.plugins.history:
+    level: DEBUG
+    qualname: tangram.plugins.history
+    handlers:
+      - history
+    propagate: no
+  httpx:
+    level: WARNING
+    qualname: httpx
+    handlers:
+      - httpx_file
+    propagate: no
+  root:
+    level: WARNING
+    handlers:
+      - default
+    propagate: no

@@ -55,6 +55,7 @@ class HistoryDB:
             if delete_db:
                 db_file.unlink(missing_ok=True)
                 log.warning("db file %s unlinked from system", db_file)
+            log.info("db_file: %s", db_file)
 
         self.conn = sqlite3.connect(db_file)
         if not read_only:

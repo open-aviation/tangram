@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(leve
 log = logging.getLogger(__name__)
 
 
-redis_client = redis.Redis.from_url("redis://192.168.8.34:6379/0")
+redis_client = redis.Redis.from_url("redis://127.0.0.1:6379/0")
 
 
 async def main(ws_url: str):

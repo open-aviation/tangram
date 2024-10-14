@@ -117,9 +117,7 @@ class State:
     #     return f"State(id='{self.id}', redis_field={self.redis_field})"
 
 
-
 class Subscriber(redis_subscriber.Subscriber[State]):
-
     async def message_handler(self, channel: str, data: str, pattern: str, state: State):
         message: Dict = json.loads(data)
         # m = {k: v for k, v in m.items() if k not in ["timestamp", "timesource", "frame", "rssi"]}
@@ -142,9 +140,10 @@ class Subscriber(redis_subscriber.Subscriber[State]):
             await self.redis.publish("jet1090", json.dumps(message))
             # state.forward_count += 1
 
+
 async def startup_sync(redis_url: str):
     """this uses a synchronous Redis client in state"""
-    log.info('starting filter_jet1090 ...')
+    log.info("starting filter_jet1090 ...")
 
     redis_client = redis.Redis.from_url(redis_url, decode_responses=True, encoding="utf-8")
     state = State(_redis=redis_client)
@@ -179,6 +178,7 @@ async def startup_sync(redis_url: str):
         await subscriber.cleanup()
         log.info("coordinate exits")
 
+
 @dataclass
 class AState:
     pass
@@ -203,7 +203,7 @@ class ASubscriber(redis_subscriber.Subscriber[AState]):
 
 
 async def startup(redis_url: str):
-    log.info('starting filter_jet1090 ...')
+    log.info("starting filter_jet1090 ...")
 
     state = AState()
     asubscriber = ASubscriber("filter_jet1090", redis_url, ["jet1090-full*"], state)
@@ -224,22 +224,21 @@ async def startup(redis_url: str):
         log.info("coordinate exits")
 
 
-
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--redis-url", default="redis://localhost")
-    parser.add_argument("--sync", action='store_true')
+    parser.add_argument("--redis-url", default="redis://127.0.0.1:6379")
+    parser.add_argument("--sync", action="store_true")
     args = parser.parse_args()
     redis_url = args.redis_url
 
     try:
         if args.sync:
-            log.info('sync redis client')
+            log.info("sync redis client")
             asyncio.run(startup_sync(redis_url))
         else:
-            log.info('async redis client')
+            log.info("async redis client")
             asyncio.run(startup(redis_url))
     except KeyboardInterrupt:
         print("\rbye.")

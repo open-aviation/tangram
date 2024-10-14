@@ -18,6 +18,7 @@ client = httpx.AsyncClient()
 
 BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")
 
+
 # TODO proper type
 async def all(url: str) -> dict[str, Any] | None:
     """instant position
@@ -184,20 +185,23 @@ class Rs1090Data:
         # )
 
         # hook from client, filter data from the source
-        if "filter" in event_handlers and _events_of_interest:
-            result_source_data = []
-            for key, values in _events_of_interest.items():
-                result_source_data.extend([el for el in source_data if el.get(key) in values])
-
-            log.info(
-                "source data: %s, filtered source_data: %s",
-                len(source_data),
-                len(result_source_data),
-            )
-            source_data = result_source_data
+        # if "filter" in event_handlers and _events_of_interest:
+        #     result_source_data = []
+        #     for key, values in _events_of_interest.items():
+        #         result_source_data.extend([el for el in source_data if el.get(key) in values])
+        #
+        #     log.info(
+        #         "source data: %s, filtered source_data: %s",
+        #         len(source_data),
+        #         len(result_source_data),
+        #     )
+        #     source_data = result_source_data
 
         try:
-            # log.info("publishing (len: %s)...", len(source_data))
+            log.info("publishing (len: %s)...", len(source_data))
+            icao24_list = set([el["icao24"] for el in source_data])
+            # log.debug("%s", source_data[0])
+            log.debug("unique total: %s %s", len(icao24_list), icao24_list)
             await channels.publish_any("channel:streaming", "new-data", source_data)
         except Exception:
             # it will fail for the first time for sure
@@ -233,7 +237,7 @@ class PublishRunner:
         log.info("<PR> start forwarding ...")
         while self.running:
             await rs1090_data.forward_from_http(rs1090_data.all, {})
-            # log.info("<PR> /all data forwarded")
+            log.info("<PR> polling /all data forwarded")
 
             self.counter += 1
             await asyncio.sleep(internal_seconds)  # one second

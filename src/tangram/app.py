@@ -8,7 +8,8 @@ from datetime import datetime
 from typing import Any
 import contextlib
 
-import anyio
+# import anyio
+from httpx import Response, request
 import redis.asyncio as redis
 from fastapi import FastAPI, WebSocket, status
 
@@ -28,7 +29,7 @@ from tangram.plugins import coordinate
 from tangram.plugins import filter_jet1090
 
 # from tangram.plugins import source
-from tangram.plugins import source_task
+# from tangram.plugins import source_task
 # from tangram.plugins import chart
 
 from tangram.plugins.common import rs1090
@@ -36,7 +37,7 @@ from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_cli
 
 log = logging.getLogger("tangram")
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://192.168.8.37:6379")
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
 jet1090_restful_client = rs1090.Rs1090Client()
 
 
@@ -95,19 +96,30 @@ async def lifespan(app: FastAPI):
     # linter complains about the type of app.redis_connection_pool, consider subclass FastAPI
     app.redis_connection_pool = redis.ConnectionPool.from_url(REDIS_URL)
 
-    await connect_jet1090() # create the websocket connection to jet1090, TODO: remove this
+    # # create the websocket connection to jet1090,
+    # TODO: remove this
+    await connect_jet1090()
 
-    await tangram_websocket.broadcast.connect() # initialize the websocket broadcast
+    await tangram_websocket.broadcast.connect()  # initialize the websocket broadcast
 
-    await web_event.startup(REDIS_URL)  # listen for web ui events
-    await filter_jet1090.startup(REDIS_URL)  # listen for jet1090_full, filter items with lat/long and publish to jet1090
+    # listen for web ui events
+    await web_event.startup(REDIS_URL)
 
+    # listen for `jet1090_full`, filter items and pulibsh again
+    await filter_jet1090.startup(REDIS_URL)
+
+    # builds the `planes` geospatial keys
     await coordinate.startup(REDIS_URL)
+
     await system.startup()
 
-    await rs1090_source.start()  # FIXME: the data pushed is not correct, i.e data from jet1090 /all is not correct
+    # pull jet1090 restful api and publish
+    # NOTE: checking the data now, i.e data from jet1090 /all is not correct, is it?
+    await rs1090_source.start()
 
-    # await history.startup()  # FIXME: is this blocking the event loop?
+    # NOTE: is this blocking the event loop?
+    # TODO: once the websocket from tangram to jet1090 is removed, this should build the history from redis
+    # await history.startup()
     # Let's try with with redis storage
     await history.startup_redis(REDIS_URL)
 
@@ -116,12 +128,12 @@ async def lifespan(app: FastAPI):
 
     await start_jet1090_client()
 
-    # log.info("All background tasks have been started")
-
-    log.info("yield to request handling ...")
+    log.debug("yield to request handling ...")
     yield  # The application is now running and serving requests
 
-    log.info("shutting down...")
+    log.debug("shutting down...")
+    # TODO: task for cleanup, they are disabled for now
+    #
     # await system.shutdown()
     # await trajectory_subscriber.shutdown()
     # await trajectory.app.shutdown()
@@ -130,8 +142,8 @@ async def lifespan(app: FastAPI):
     # await rs1090_source.shutdown()
     # await web_event.shutdown()
 
-    await stop_jet1090_client()
-    await tangram_websocket.broadcast.disconnect()
+    # await stop_jet1090_client()
+    # await tangram_websocket.broadcast.disconnect()
 
     # TODO: close this pool
     # app.redis_connection_pool.close()
@@ -141,6 +153,7 @@ async def lifespan(app: FastAPI):
 
 # tangram_module_root = pathlib.Path(__file__).resolve().parent
 # templates = Jinja2Templates(directory=tangram_module_root / "templates")
+# TODO: subclass FastAPI to add redis_connection
 app = FastAPI(lifespan=lifespan)
 
 # app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
@@ -183,17 +196,36 @@ async def websocket_handler(ws: WebSocket) -> None:
     log.info("%s\n", "+" * 20)
 
 
-@app.get('/planes')
-async def list_planes():
-    async with redis.Redis.from_pool(app.redis_connection_pool) as redis_client:
-        await redis_client.ping()
-        planes = await redis_client.geosearch("planes", longitude=0, latitude=0, radius=12000, unit="km", withcoord=True)
-        # response structure: [icao24, [latitude, longitude]]
-        return [
-            {'icao24': icao24, 'latitude': latitude, 'longitude': longitude}
-            for [icao24, [latitude, longitude]] in planes
-        ]
+async def get_receiver_latlong():
+    # from env
+    RS1090_SOURCE_BASE_URL = os.getenv("RS1090_SOURCE_BASE_URL")
+    if RS1090_SOURCE_BASE_URL is None:
+        log.error("RS1090_SOURCE_BASE_URL not set")
+        return None, None
 
+    url = f"{RS1090_SOURCE_BASE_URL}/receivers"
+    log.info("getting receivers from %s ...", url)
+    resp: Response = request("GET", url)
+    receivers = resp.json()
+    log.debug("receivers: %s %s", type(receivers), receivers)
+
+    reference = {} if not receivers else receivers[0]["reference"]
+    ref_latitude, ref_longitude = reference.get("latitude", 0), reference.get("longitude", 0)
+    return ref_latitude, ref_longitude
+
+
+@app.get("/planes")
+async def list_planes():
+    ref_latitude, ref_longitude = await get_receiver_latlong()
+    radius_km = 12000
+    return await coordinate.search_planes(
+        app.redis_connection_pool, radius_km=radius_km, ref_latitude=ref_latitude, ref_longitude=ref_longitude
+    )
+
+
+@app.get("/planes/{icao24}")
+async def get_plane(icao24: str):
+    return await coordinate.plane_history(app.redis_connection_pool, icao24)
 
 
 class PublishMessage(BaseModel):

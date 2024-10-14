@@ -1,14 +1,36 @@
 {
   "name": "tangram-ui",
+  "packageManager": "pnpm@9.12.1",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --debug",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint --fix \"./src/**/*.{ts,js,vue}\""
   },
   "devDependencies": {
+    "@eslint/js": "^9.8.0",
+    "@rollup/rollup-win32-x64-msvc": "4.6.1",
+    "@vitejs/plugin-vue": "^5.1.1",
+    "eslint": "^9.8.0",
+    "eslint-plugin-vue": "^9.27.0",
+    "globals": "^15.9.0",
+    "unplugin-auto-import": "^0.18.2",
     "vite": "^5.3.1"
+  },
+  "dependencies": {
+    "@vue-leaflet/vue-leaflet": "^0.10.1",
+    "chart.js": "^4.4.3",
+    "dayjs": "^1.11.12",
+    "leaflet": "^1.9.4",
+    "phoenix": "^1.7.11",
+    "pinia": "^2.2.2",
+    "raphael": "^2.3.0",
+    "vue": "^3.4.34",
+    "vue-chartjs": "^5.3.1",
+    "vue-leaflet-rotate-marker": "^0.1.0",
+    "vue-slider-component": "^4.1.0-beta.7"
   }
 }
