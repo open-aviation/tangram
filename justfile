@@ -15,7 +15,7 @@ watchexec:
   #!/usr/bin/env bash
   set -x -euo pipefail
 
-  pushd src
+  pushd service/src
   watchexec -r -w . -e py -- \
     poetry run uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config ../logging.yml
   popd

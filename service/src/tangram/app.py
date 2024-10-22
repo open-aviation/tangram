@@ -28,9 +28,6 @@ from tangram.plugins import trajectory_subscriber
 from tangram.plugins import coordinate
 from tangram.plugins import filter_jet1090
 
-# from tangram.plugins import source
-# from tangram.plugins import source_task
-# from tangram.plugins import chart
 
 from tangram.plugins.common import rs1090
 from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_client
@@ -98,7 +95,7 @@ async def lifespan(app: FastAPI):
 
     # # create the websocket connection to jet1090,
     # TODO: remove this
-    await connect_jet1090()
+    # await connect_jet1090()
 
     await tangram_websocket.broadcast.connect()  # initialize the websocket broadcast
 
@@ -126,7 +123,7 @@ async def lifespan(app: FastAPI):
     await trajectory.app.startup()
     await trajectory_subscriber.startup(REDIS_URL)
 
-    await start_jet1090_client()
+    # await start_jet1090_client()
 
     log.debug("yield to request handling ...")
     yield  # The application is now running and serving requests

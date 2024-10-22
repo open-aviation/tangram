@@ -9,31 +9,6 @@ from tangram.plugins.history.storage import HistoryDB
 
 log = logging.getLogger(__name__)
 
-
-class TangramApplication(APIRouter):
-    pass
-
-
-class System(TangramApplication):
-    pass
-
-
-#### channel handler
-class SystemChannelHandler(channels.ChannelHandlerMixin):
-    pass
-
-
-async def select_plane(client_id, plane):
-    log.info("%s select plane: %s", client_id, plane)
-
-
-channel_handler = SystemChannelHandler("channel:system")
-channel_handler.register_channel_event_handler(select_plane, "channel:system", "select")
-
-channels.register_channel_handler(channel_handler)
-
-
-####
 history_db = HistoryDB(read_only=True)
 
 
@@ -86,29 +61,13 @@ async def server_events():
         await asyncio.sleep(1)
 
 
-#### client to jet1090 channel
-def on_system_joining(join_ref, ref, channel, event, status, response):
-    log.info("SYSTEM, `%s`, join, %s %s %s %s", channel, join_ref, ref, status, response)
-
-
-def on_system_datetime(join_ref, ref, channel, event, status, response):
-    log.debug("SYSTEM, `%s`, datetime, %s %s %s %s", channel, join_ref, ref, status, response)
-
-
-system_channel = jet1090_websocket_client.add_channel("system")
-system_channel.on_event("join", on_system_joining)
-system_channel.on_event("datetime", on_system_datetime)
-
-
 async def startup():
-    log.info("start plugins: system")
-    asyncio.create_task(system_channel.join_async())
     asyncio.create_task(server_events())
-    log.info("system plugin started")
+    log.info("system plugin is started")
 
 
 async def shutdown():
-    log.info("system plugin shutdown")
+    log.info("system plugin ends")
 
 
 app = APIRouter(on_startup=[startup], on_shutdown=[])

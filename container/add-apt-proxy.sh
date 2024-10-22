@@ -2,10 +2,12 @@
 set -x -e -o pipefail
 
 # Get HTTP proxy, fallback to HTTPS proxy if not set
-http_proxy_value=${http_proxy:-$https_proxy}
+# http_proxy_value=${http_proxy:-$https_proxy}
+http_proxy_value="http://192.168.11.1:1081"
 
 # Get HTTPS proxy, fallback to HTTP proxy if not set
-https_proxy_value=${https_proxy:-$http_proxy}
+# https_proxy_value=${https_proxy:-$http_proxy}
+https_proxy_value="http://192.168.11.1:1081"
 
 # If either proxy is set, add to apt.conf
 if [ -n "$http_proxy_value" ] || [ -n "$https_proxy_value" ]; then
