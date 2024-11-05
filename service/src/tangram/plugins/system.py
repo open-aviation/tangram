@@ -1,9 +1,10 @@
-import logging
 import asyncio
-from datetime import datetime, UTC
+import logging
+from datetime import UTC, datetime
 
+import pandas as pd
 from fastapi import APIRouter
-from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_client
+
 from tangram import websocket as channels
 from tangram.plugins.history.storage import HistoryDB
 
@@ -12,7 +13,7 @@ log = logging.getLogger(__name__)
 history_db = HistoryDB(read_only=True)
 
 
-DT_FMT = "%H:%M:%S"
+DT_FMT = "%H:%M"
 
 
 def aircraft_on_map():
@@ -28,7 +29,7 @@ def uptime_html(counter):
     el = "uptime"
     return {
         "el": el,
-        "html": f"""<span id="{el}">{counter}</span>""",
+        "html": f"""<span id="{el}">{pd.Timedelta(counter, unit="s")}</span>""",
     }
 
 

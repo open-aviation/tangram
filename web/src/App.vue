@@ -14,7 +14,8 @@
 <!--      <LatLngBar :position="position" />-->
       <HoverDisplay />
     </l-map>
-    <Timeline :styles="{width: 'calc(100% - 40px)', position: 'absolute', bottom: 0, zIndex: 500, left: '40px', background: '#ffffff80', color: 'black'}" />
+    <!--<Timeline :styles="{width: 'calc(100% - 40px)', position: 'absolute', bottom: 0, zIndex: 500, left: '40px', background: '#ffffff80', color: 'black'}" />
+-->
   </div>
 
 </template>
@@ -29,15 +30,15 @@ import PlaneData from "./components/AirPlane.vue";
 import PolyLines from "./components/PlanePolylines.vue";
 import Charts from "./components/MultiCharts.vue";
 import {useMapStore} from './store'
-import LatLngBar from "./components/LatLngBar.vue";
+//import LatLngBar from "./components/LatLngBar.vue";
 import HoverDisplay from "./components/HoverDisplay.vue";
-import Timeline from "./components/Timeline.vue";
+//import Timeline from "./components/Timeline.vue";
 
 export default {
   components: {
-    Timeline,
+    //Timeline,
     HoverDisplay,
-    LatLngBar,
+    //LatLngBar,
     PolyLines,
     LeftSideBar,
     LMap,
@@ -79,7 +80,10 @@ export default {
         this.store.setUpTime(html)
       }
       if(el === 'info_utc') {
-        this.store.setInfo(html)
+        this.store.setInfoUtc(html)
+      }
+      if(el === 'info_local') {
+        this.store.setInfoLocal(html)
       }
     });
     systemChannel

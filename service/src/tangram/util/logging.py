@@ -1,8 +1,12 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import pathlib
-from logging import INFO, DEBUG  # noqa
 import os
+import pathlib
+from logging import DEBUG, INFO  # noqa
+from logging.handlers import RotatingFileHandler
+
+import dotenv
+
+dotenv.load_dotenv()
 
 if not os.getenv("LOG_DIR"):
     raise ValueError("LOG_DIR environment variable not set")

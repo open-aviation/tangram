@@ -49,9 +49,9 @@ async def cleanup_redis_subscriber(task, pubsub, redis):
     log.info("subscriber exits.")
 
 
-subscriber_task = None
-subscriber_pubsub = None
-subscriber_redis = None
+subscriber_task: None | asyncio.Task[None] = None
+subscriber_pubsub: None | asyncio.Task[None] = None
+subscriber_redis: None | asyncio.Task[None] = None
 
 
 async def startup(redis_url: str):
