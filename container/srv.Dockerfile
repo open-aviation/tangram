@@ -23,7 +23,7 @@ WORKDIR /home/user/tangram/service
 RUN /usr/local/bin/just install-watchexec
 
 # Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # virtualenv
 RUN uv sync --dev
