@@ -47,83 +47,52 @@ async def connect_jet1090(*args: Any, **kwargs: Any) -> None:
         log.error("RS1090_SOURCE_BASE_URL not set")
         exit(1)
 
+    # check environment variables
+    log.info("REDIS: %s", REDIS_URL)
+    log.info("JET1090: %s", os.getenv("RS1090_SOURCE_BASE_URL"))
+
     websocket_url = RS1090_SOURCE_BASE_URL.replace("http", "ws") + "/websocket"
     await jet1090_websocket_client.connect_async(websocket_url)
 
 
-jet1090_websocket_task = None
-
-
-async def start_jet1090_client() -> None:
-    global jet1090_websocket_task
-
-    jet1090_websocket_task = asyncio.create_task(jet1090_websocket_client.start_async())
-    log.info("created websocket client task: %s", jet1090_websocket_client)
-
-
-async def stop_jet1090_client():
-    global jet1090_websocket_task
-
-    if jet1090_websocket_task:
-        jet1090_websocket_task.cancel()
-
-
-async def disconnect_jet1090():
-    pass
-
-
-jet1090_client_task = None
-
-
 async def shutdown_debug(*args: Any, **kwargs: Any) -> None:
     """debugging"""
-    global jet1090_websocket_task
-
-    if jet1090_websocket_task:
-        jet1090_websocket_task.cancel()
     log.info("shutdown, args: %s, kwargs: %s", args, kwargs)
     log.info("%s\n\n\n\n", "=" * 40)
 
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
-    log.info("starting up...")
+    log.info("starting up... (%s)", log)
 
     # create a redis connection pool
     # linter complains about the type of app.redis_connection_pool, consider subclass FastAPI
     app.redis_connection_pool = redis.ConnectionPool.from_url(REDIS_URL)
 
-    # # create the websocket connection to jet1090,
-    # TODO: remove this
-    # await connect_jet1090()
-
     await tangram_websocket.broadcast.connect()  # initialize the websocket broadcast
 
-    # listen for web ui events
+    # listen for web UI events
     await web_event.startup(REDIS_URL)
 
-    # listen for `jet1090_full`, filter items and pulibsh again
+    # listen for `jet1090_full`, filter and pulibsh again
     await filter_jet1090.startup(REDIS_URL)
 
     # builds the `planes` geospatial keys
     await coordinate.startup(REDIS_URL)
 
+    # System UI events
     await system.startup()
 
-    # pull jet1090 restful api and publish
-    # NOTE: checking the data now, i.e data from jet1090 /all is not correct, is it?
-    await rs1090_source.start()
+    # Pull from jet1090 restful api and publish
+    await rs1090_source.startup()
 
-    # NOTE: is this blocking the event loop?
-    # TODO: once the websocket from tangram to jet1090 is removed, this should build the history from redis
-    # await history.startup()
-    # Let's try with with redis storage
-    await history.startup_redis(REDIS_URL)
+    # Build the history
+    # This plugin takes time to restart, consider move it to process_compose
+    # await history.startup(REDIS_URL)
 
-    await trajectory.app.startup()
+    # FIXME: history is not persisted correctly, it fails to load the trajectory for now
+    # await trajectory.app.startup()
     await trajectory_subscriber.startup(REDIS_URL)
-
-    # await start_jet1090_client()
 
     log.debug("yield to request handling ...")
     yield  # The application is now running and serving requests
@@ -148,19 +117,8 @@ async def lifespan(app: FastAPI):
     log.info("shutdown complete")
 
 
-# tangram_module_root = pathlib.Path(__file__).resolve().parent
-# templates = Jinja2Templates(directory=tangram_module_root / "templates")
 # TODO: subclass FastAPI to add redis_connection
 app = FastAPI(lifespan=lifespan)
-
-# app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
-app.mount("/plugins/rs1090", rs1090_source.rs1090_app, name="rs1090")  # HACK:?
-
-# app.include_router(source.app)
-# app.include_router(system.app)
-# app.include_router(history.app)
-# app.include_router(chart.app)
-# app.include_router(trajectory.app)
 
 
 start_time = datetime.now()

@@ -3,15 +3,11 @@
     <TopNavBar />
     <LeftSideBar ref="leftBar" />
     <l-map @click="emptySelect" @mousemove="getPosition($event)"  class="map-container" ref="map" v-model:zoom="zoom" :center="[47.41322, -1.219482]" >
-      <l-tile-layer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
-          layer-type="base"
-          name="OpenStreetMap"
-      ></l-tile-layer>
+      <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap"></l-tile-layer>
       <PlaneData />
       <PolyLines />
       <Charts v-show="show"  />
-<!--      <LatLngBar :position="position" />-->
+      <!-- <LatLngBar :position="position" />-->
       <HoverDisplay />
     </l-map>
     <!--<Timeline :styles="{width: 'calc(100% - 40px)', position: 'absolute', bottom: 0, zIndex: 500, left: '40px', background: '#ffffff80', color: 'black'}" />

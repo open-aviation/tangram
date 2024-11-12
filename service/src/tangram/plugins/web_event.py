@@ -1,11 +1,13 @@
+import logging
 import asyncio
 from typing import Callable, List
 
 from redis.asyncio import Redis
 
-from tangram.util import logging
+from tangram.util import logging as tangram_logging
 
-log = logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.DEBUG)
+tangram_log = logging.getLogger(__name__)
+log = tangram_logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.DEBUG)
 
 
 async def default_message_handler(message):
@@ -59,7 +61,7 @@ async def startup(redis_url: str):
 
     channels = ["channel:system:*"]
     subscriber_task, subscriber_pubsub, subscriber_redis = await create_redis_subscriber(redis_url, channels)
-    log.info("web_event is up and running.")
+    tangram_log.info("web_event is up and running.")
 
 
 async def shutdown():
@@ -68,3 +70,4 @@ async def shutdown():
     if subscriber_task:
         await cleanup_redis_subscriber(subscriber_task, subscriber_pubsub, subscriber_redis)
         subscriber_task = subscriber_pubsub = subscriber_redis = None
+    tangram_log.info("web_event exits")

@@ -179,3 +179,15 @@ _db-stats count='10':
 # start the service by nix
 _nix run:
   nix run . -- run
+
+
+## new version with process-compose
+
+pc-build:
+  podman build -f container/tangram.Dockerfile -t tangram:0.1 .
+
+pc-run:
+  podman run -it --rm --name tangram --network host -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) tangram:0.1
+
+pc-log log="tangram":
+  @podman container exec -it -e TERM=xterm-256color -w /tmp/tangram tangram tail -f {{log}}.log

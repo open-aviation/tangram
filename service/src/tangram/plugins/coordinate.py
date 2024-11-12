@@ -6,15 +6,15 @@ import json
 import os
 from dataclasses import dataclass
 from typing import List
-
-from tangram.plugins import redis_subscriber
-from tangram.util import logging
+import logging
 
 import redis.asyncio as redis
 
-log = logging.getPluginLogger(
-    __package__, __name__, os.getenv("LOG_DIR"), log_level=logging.DEBUG, add_console_handler=False
-)
+from tangram.plugins import redis_subscriber
+from tangram.util import logging as tangram_logging
+
+tangram_log = logging.getLogger(__name__)
+log = tangram_logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.DEBUG)
 
 
 @dataclass
@@ -55,7 +55,7 @@ async def startup(redis_url: str):
 
     subscriber = Subscriber("coordinate", redis_url, ["coordinate*"])
     await subscriber.subscribe()
-    log.info("coordinate is up and running, check `planes` key at %s", redis_url)
+    tangram_log.info("coordinate is up and running, check `planes` key at %s", redis_url)
 
 
 async def shutdown():
@@ -63,7 +63,7 @@ async def shutdown():
 
     if subscriber:
         await subscriber.cleanup()
-    log.info("coordinate exits")
+    tangram_log.info("coordinate exits")
 
 
 async def search_planes(redis_connection_pool, radius_km=12000, ref_latitude=0, ref_longitude=0):

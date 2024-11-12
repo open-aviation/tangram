@@ -16,11 +16,15 @@ from pydantic import BaseModel
 from starlette.concurrency import run_until_first_complete
 
 from tangram.util.geojson import BetterJsonEncoder
+from tangram.util import logging as tangram_logging
 
-log = logging.getLogger(__name__)
+# log = logging.getLogger(__name__)
+tangram_log = logging.getLogger("tangram")
+log = tangram_logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.DEBUG)
 
 redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
-log.info("websocket is using redis_url: %s", redis_url)
+tangram_log.info("websocket is using redis_url: %s", redis_url)
+
 broadcast = Broadcast(redis_url)
 redis_client = redis.from_url(redis_url)
 pubsub = redis_client.pubsub(ignore_subscribe_messages=True)

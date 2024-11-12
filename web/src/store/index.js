@@ -1,10 +1,13 @@
 import { defineStore } from "pinia";
+// import axios from 'axios'
 
 export const useMapStore = defineStore("map", {
   state: () => ({
     socket: null,
     systemChannel: null, // we can't leave systemChannel int the store
     selectedPlane: null, // {}
+    planeData: [],
+    planeTrajectory: [],
     count: 0,
     uptime: "",
     info_utc: "",
@@ -14,6 +17,12 @@ export const useMapStore = defineStore("map", {
   }),
   getters: {
     doubleCount: ({ count }) => count * 2,
+    trajectory: ({ selectedPlane, planeTrajectory }) => {
+      console.log(
+        `in store, getting trajectory of ${selectedPlane}, length: ${planeTrajectory.length}`,
+      );
+      return selectedPlane ? planeTrajectory : [];
+    },
   },
   actions: {
     setInfoUtc(v) {
@@ -50,8 +59,8 @@ export const useMapStore = defineStore("map", {
       this.showDrawer = !this.showDrawer;
     },
     async setSelected(selected) {
+      // TODO: unselect => selected === null?
       console.log("in store, select plan: ", selected);
-
       this.selectedPlane = selected;
       if (selected) {
         this.showDrawer = true;
@@ -59,6 +68,20 @@ export const useMapStore = defineStore("map", {
         this.showDrawer = false;
       }
       await this.pushSystemEvent("select", selected);
+    },
+    setPlaneData(planeData) {
+      this.planeData = planeData;
+      this.planeTrajectory = planeData
+        .filter(
+          ({ latitude, longitude }) => latitude !== null && longitude !== null,
+        )
+        .map(({ latitude, longitude }) => [latitude, longitude]); // used by VPolyline, lat-lngs
+    },
+    appendPlaneTrajectory([lat, longi]) {
+      this.planeTrajectory.push([lat, longi]);
+      console.log(
+        `plane trajectory updated, icao24: ${this.selectedPlane.icao24}, length: ${this.planeTrajectory.length}`,
+      );
     },
     setHoverItem(v) {
       this.hoverItem = v;

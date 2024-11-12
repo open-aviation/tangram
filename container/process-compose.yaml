@@ -1,0 +1,27 @@
+version: "0.5"
+
+environment:
+log_location: /tmp/pc.log
+log_level: debug
+
+processes:
+  web:
+    environment:
+      - "TANGRAM_SERVICE=127.0.0.1:18000"
+    working_dir: /home/user/tangram/web
+    command: npm install --verbose && npm install -d --verbose && npx vite --port 2024 --host 0.0.0.0
+    availability:
+      restart: "always"
+
+  service:
+    environment:
+      - "RS1090_SOURCE_BASE_URL=http://192.168.11.37:8080"
+      - "REDIS_URL=redis://192.168.11.37:6379"
+    command: just watchexec
+    availability:
+      restart: "always"
+
+  plugins/history:
+    environment:
+      - "REDIS_URL=redis://192.168.11.37:6379"
+    command: poetry -C /home/user/tangram/service run -- python -m tangram.plugins.history

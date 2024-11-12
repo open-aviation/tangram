@@ -5,7 +5,7 @@ import asyncio
 import pathlib
 import sqlite3
 from datetime import datetime
-from typing import List
+from typing import Any, List
 
 from tangram.plugins.common import rs1090
 from tangram.util import logging
@@ -110,10 +110,9 @@ class HistoryDB:
         self.conn.executescript(sql)
         log.info("expire records older than %s seconds", expiration_seconds)
 
-    def insert_many_tracks(self, items: List[rs1090.Jet1090Data]) -> None:
-        # if items:
-        #     log.debug("%s", items[0])
-
+    def insert_many_tracks(self, items: List[rs1090.Jet1090Data | dict[str, Any]]) -> None:
+        """required fields: icao24, last, latitude, longitude, altitude
+        make altitude None if it is not available in the data."""
         sql = """
             INSERT INTO trajectories (icao24, last, latitude, longitude, altitude)
             VALUES (:icao24, :last, :latitude, :longitude, :altitude)
@@ -121,11 +120,11 @@ class HistoryDB:
         """
         rows = [
             {
-                "icao24": item.icao24,
-                "last": item.last,
-                "latitude": item.latitude,
-                "longitude": item.longitude,
-                "altitude": item.altitude,
+                "icao24": item['icao24'] if isinstance(item, dict) else item.icao24,
+                "last": item['last'] if isinstance(item, dict) else item.last,
+                "latitude": item['latitude'] if isinstance(item, dict) else item.latitude,
+                "longitude": item['longitude'] if isinstance(item, dict) else item.longitude,
+                "altitude": item['altitude'] if isinstance(item, dict) else item.altitude,
             }
             for item in items
         ]
@@ -144,7 +143,7 @@ class HistoryDB:
         except:  # noqa
             log.exception("fail to write altitude into db")
 
-    def list_tracks(self, icao24: str):
+    def list_tracks(self, icao24: str) -> List[dict[str, Any]]:
         sql = """
             SELECT id, icao24, last as timestamp, latitude, longitude, altitude
             FROM trajectories

@@ -10,16 +10,18 @@ import httpx
 from fastapi import FastAPI
 from tangram import websocket as channels
 from tangram.websocket import ChannelHandlerMixin, ClientMessage, register_channel_handler
+from tangram.util import logging as tangram_logging
 
-dotenv.load_dotenv()
-log = logging.getLogger(__name__)
+# dotenv.load_dotenv()
+
+tangram_log = logging.getLogger('tangram')
+log = tangram_logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.DEBUG)
 
 client = httpx.AsyncClient()
 
 BASE_URL = os.environ.get("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")
 
 
-# TODO proper type
 async def all(url: str) -> dict[str, Any] | None:
     """instant position
     sample record for `/all`
@@ -252,58 +254,25 @@ class PublishRunner:
 
 
 publish_runner = PublishRunner()
-rs1090_app = FastAPI()
 
+async def startup() -> None:
+    global publish_runner
 
-# Per documents, events are not fired in sub app.
-# @rs1090_app.on_event('startup')
-async def start() -> None:
-    log.info("startup - publish job task created")
+    tangram_log.info("rs1090_source is starting ...")
     await publish_runner.start_task()
-    log.info("publish job created: %s", publish_runner.task)
+    tangram_log.info("rs1090_source is up and running.")
 
 
 async def shutdown() -> None:
-    log.info("shuting down publish runner task: %s", publish_runner.task)
+    global publish_runner
+
+    tangram_log.info("rs1090_source is shutting down ...")
     if publish_runner.task is None:
-        log.warning("publish runner task is None")
+        tangram_log.warning("rs1090_source task is None")
         return
 
     if publish_runner.task.done():
         publish_runner.task.result()
     else:
         publish_runner.task.cancel()
-    log.info("shutdown - publish job done")
-
-
-@rs1090_app.get("/health")
-async def health_check():
-    return "It looks good!"
-
-
-@rs1090_app.post("/publish-job/start")
-async def start_publish_job_handler():
-    log.info("start PublishRunner task ...")
-    await publish_runner.start_task()
-    log.info("stared: %s", publish_runner.task)
-    return "done"
-
-
-@rs1090_app.get("/publish-job/state")
-async def publish_job_health():
-    return await publish_runner.states()
-
-
-@rs1090_app.get("/receivers")
-async def receivers():
-    return await endpoint_stats(BASE_URL + "/receivers")
-
-
-@rs1090_app.get("/identifiers")
-async def list():
-    return await list_identifiers(BASE_URL + "/")
-
-
-@rs1090_app.get("/all")
-async def list_all():
-    return await all(BASE_URL + "/all")
+    tangram_log.info("rs1090_source exits")

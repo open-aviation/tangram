@@ -2,85 +2,20 @@
 # coding: utf8
 
 import asyncio
-from dataclasses import dataclass
+from asyncio.tasks import Task
 import json
-from logging import logMultiprocessing
+from dataclasses import dataclass
 from typing import List, Sequence
+import logging
+
+from redis.commands.timeseries import TimeSeries
 
 from tangram.plugins import redis_subscriber
-from tangram.plugins.common.rs1090 import Jet1090Data
-from tangram.plugins.common.rs1090.websocket_client import ClientChannel, jet1090_websocket_client
-from tangram.util import logging
-
+from tangram.util import logging as tangram_logging
 from .storage import HistoryDB
 
-log = logging.getPluginLogger(__package__, __name__, "/tmp/tangram", log_level=logging.DEBUG)
-
-
-# def on_system_joining(join_ref, ref, channel, event, status, response):
-#     log.info("HISTORY, `%s`, join, %s %s %s %s", channel, join_ref, ref, status, response)
-#
-#
-# def on_system_datetime(join_ref, ref, channel, event, status, response):
-#     log.info("HISTORY, `%s`, datetime, %s %s %s %s", channel, join_ref, ref, status, response)
-#
-#
-# system_channel = jet1090_websocket_client.add_channel("system")
-# system_channel.on_event("join", on_system_joining)
-# system_channel.on_event("datetime", on_system_datetime)
-
-load_task: asyncio.Task | None = None
-expire_task: asyncio.Task | None = None
-
-
-async def startup():
-    global load_task, expire_task
-    # asyncio.create_task(system_channel.join_async())
-    log.debug("creating db")
-    history_db = HistoryDB(use_memory=False)
-
-    log.debug("loading history data")
-    await history_db.load_all_history()
-
-    log.debug("creating tasks")
-    expire_task = asyncio.create_task(history_db.expire_records_periodically())
-    load_task = asyncio.create_task(history_db.load_by_restful_client())
-
-    log.info("history tasks are up & running ...")
-
-
-async def start_with_ws():
-    # FIXME: two plugins subscribing to the same channel, not join_ref in response
-    history_db = HistoryDB(use_memory=False)
-    await history_db.load_all_history()
-    asyncio.create_task(history_db.expire_records_periodically())
-
-    async def on_jet1090_data(join_ref, ref, channel, event, status, response):
-        timed_message = response.get("timed_message")
-        # log.debug("got data %s", timed_message)
-
-        item = Jet1090Data(**timed_message)
-        # log.debug("item: %s", item)
-
-        if item.icao24 and item.last:
-            if item.latitude is None and item.longitude is None:
-                pass
-            else:
-                log.debug("%s, first     : %s", join_ref, item)
-                if item.latitude and item.longitude:
-                    history_db.insert_many_tracks([item])
-                    log.debug("%s, trajectory: %s", join_ref, item)
-                    log.debug("----")
-
-                if item.altitude:
-                    history_db.insert_many_altitudes([item])
-                    # log.debug("altitude: %s", item)
-
-    data_source_channel: ClientChannel = jet1090_websocket_client.add_channel("jet1090")
-    data_source_channel.on_event("data", on_jet1090_data)
-    asyncio.create_task(data_source_channel.join_async())
-
-    log.info("history joins jet1090 channel")
+tangram_log = logging.getLogger('tangram')
+log = tangram_logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.INFO)
 
 
 @dataclass
@@ -89,8 +24,9 @@ class State:
 
 
 class Subscriber(redis_subscriber.Subscriber[State]):
-    def __init__(self, name: str, redis_url: str, channels: List[str]):
+    def __init__(self, name: str, redis_url: str, channels: List[str], history_db: HistoryDB):
         initial_state = State()
+        self.history_db = history_db  # maybe put this into `state` ?
         super().__init__(name, redis_url, channels, initial_state)
 
     async def message_handler(self, channel: str, data: str, pattern: str, state: State):
@@ -104,13 +40,23 @@ class Subscriber(redis_subscriber.Subscriber[State]):
             await self.altitude_handler(message, state)
 
     async def coordinate_handler(self, message: dict, state: State):
-        ts = self.redis.ts()
+        ts: TimeSeries = self.redis.ts()
         retention_msecs = 1000 * 60
 
         icao24 = message["icao24"]
         timestamp_ms = int(float(message["timestamp"]) * 1000)
         latitude, longitude = float(message["latitude"]), float(message["longitude"])
+        record = {
+            "icao24": icao24,
+            "last": timestamp_ms,
+            "latitude": latitude,
+            "longitude": longitude,
+            "altitude": None,  # no altitude from coordinate message
+        }
+        self.history_db.insert_many_tracks([record])
+        log.debug('persiste record in db for %s', icao24)
 
+        # EXPERIMENTAL: store latitude and longitude in redis timeseries
         latitude_key, longitude_key = f"latitude:{icao24}", f"longitude:{icao24}"
         labels = {
             "type": "latlong",
@@ -118,11 +64,11 @@ class Subscriber(redis_subscriber.Subscriber[State]):
         }
         if not await self.redis.exists(latitude_key):
             result = await ts.create(latitude_key, retention_msecs=retention_msecs, labels=labels)
-            log.info("add key %s %s", latitude_key, result)
+            log.info("add latitude_key %s %s", latitude_key, result)
 
         if not await self.redis.exists(longitude_key):
             result = await ts.create(longitude_key, retention_msecs=retention_msecs, labels=labels)
-            log.info("adde key %s %s", longitude_key, result)
+            log.info("add longitude_key %s %s", longitude_key, result)
 
         fields = ["timestamp", "icao24", "latitude", "longitude"]
         message = {k: message[k] for k in fields}
@@ -153,17 +99,41 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
 
 subscriber: Subscriber | None = None
+load_task: asyncio.Task | None = None
+expire_task: asyncio.Task | None = None
 
-async def startup_redis(redis_url: str):
-    global subscriber
 
-    subscriber = Subscriber(name="history", redis_url=redis_url, channels=["coordinate", "altitude*"])
+async def startup(redis_url: str) -> List[asyncio.Task]:
+    global subscriber, load_task, expire_task
+    tangram_log.info("history is starting ...")
+
+    global subscriber, load_task, expire_task
+
+    history_db = HistoryDB(use_memory=False)
+    tangram_log.info('history db created')
+
+    tangram_log.info('history is loading historical data ... (this takes a few more seconds.)')
+    await history_db.load_all_history()
+    tangram_log.info('history data loaded')
+
+    expire_task = asyncio.create_task(history_db.expire_records_periodically())
+    tangram_log.info('tasks created, %s', expire_task.get_coro())
+
+    load_task = asyncio.create_task(history_db.load_by_restful_client())
+    tangram_log.info('tasks created, %s', load_task.get_coro())
+
+    subscriber = Subscriber(
+        name="history", redis_url=redis_url, channels=["coordinate", "altitude*"], history_db=history_db
+    )
     await subscriber.subscribe()
+    tangram_log.info('history is up and running, task: %s', subscriber.task.get_coro())
+    return [subscriber.task, load_task, expire_task]
 
 
 async def shutdown():
+    tangram_log.info("history is shutting down ...")
     if load_task:
         load_task.cancel()
     if expire_task:
         expire_task.cancel()
-    log.info("plugin history exits")
+    tangram_log.info("history exits")

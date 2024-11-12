@@ -64,7 +64,7 @@ async def server_events():
 
 async def startup():
     asyncio.create_task(server_events())
-    log.info("system plugin is started")
+    log.info("system plugin is up and running (%s)", log)
 
 
 async def shutdown():

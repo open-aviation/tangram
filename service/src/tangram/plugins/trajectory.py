@@ -2,7 +2,6 @@ import asyncio
 import logging
 from typing import Optional
 
-from fastapi import APIRouter
 from tangram import websocket as channels
 from tangram.plugins.common.rs1090 import websocket_client
 from tangram.websocket import ChannelHandlerMixin, ClientMessage, register_channel_handler
@@ -51,7 +50,9 @@ class Runner:
         self.selected_icao24 = icao24
 
         result_items = [[item["latitude"], item["longitude"]] for item in self.history_db.list_tracks(icao24)]
-        await channels.publish_any(f"channel:trajectory:{icao24}", "new-data", result_items) # pushes historical trajectory
+        await channels.publish_any(
+            f"channel:trajectory:{icao24}", "new-data", result_items
+        )  # pushes historical trajectory
 
     async def handle_streaming_select(self, client_id: str, message: ClientMessage):
         # TODO: looks into this from UI side, it's not triggered
@@ -88,7 +89,7 @@ class Runner:
         log.info("pushed to %s, %s", self.selected_icao24, item)
 
     async def startup(self) -> None:
-        self.task = asyncio.create_task(self.run(), name='trajectory-task')
+        self.task = asyncio.create_task(self.run(), name="trajectory-task")
         log.debug("TJ / trajectory task created")
 
     async def run(self, internal_seconds: int = 7):
@@ -112,7 +113,7 @@ class Runner:
             result = self.task.result()
             log.info("TJ / task is done, got result: %s", result)
         else:
-            log.info('TJ / canceling task ...')
+            log.info("TJ / canceling task ...")
             self.task.cancel()
             log.warning("TJ / task %s is canceled", self.task.get_name())
 

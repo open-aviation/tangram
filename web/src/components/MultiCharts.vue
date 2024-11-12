@@ -9,6 +9,7 @@
     <LineChart ref="chart"  class="chart" :data="chartData" :options="option" />
   </div>
 </template>
+
 <script>
 import {
   Chart as ChartJS,
@@ -349,14 +350,20 @@ export default {
       }
     },
     fetchChartData(item) {
-      fetch('/data/' + item.icao24).then((data) => {
-        return data.json();
-      }).then((ret) => {
-        const newValue = ret
-        this.defaultData = newValue
-        const e = {target: {value: this.selectedItem}}
-        this.onSelectOption(e)
-      })
+      const {icao24} = item;
+      console.log(`fetching ${icao24} data ...`);
+      fetch('/data/' + icao24)
+        .then((data) => {
+          return data.json();
+        })
+        .then((ret) => {
+          const newValue = ret
+          this.defaultData = newValue
+          this.store.setPlaneData(newValue);
+
+          const e = {target: {value: this.selectedItem}}
+          this.onSelectOption(e)
+        })
     }
   }
 }

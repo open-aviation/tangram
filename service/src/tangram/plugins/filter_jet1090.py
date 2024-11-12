@@ -4,13 +4,14 @@ import json
 import logging
 from dataclasses import dataclass
 from typing import List, Dict
+import logging
 
 # import redis.asyncio as redis
 from tangram.plugins import redis_subscriber
-from tangram.util import logging
+from tangram.util import logging as tangram_logging
 
-
-log = logging.getPluginLogger(
+tangram_log = logging.getLogger(__name__)
+log = tangram_logging.getPluginLogger(
     __package__, __name__, os.getenv("LOG_DIR"), log_level=logging.DEBUG, add_console_handler=False
 )
 
@@ -39,7 +40,7 @@ class ASubscriber(redis_subscriber.Subscriber[AState]):
 
 
 async def startup(redis_url: str):
-    log.info("starting filter_jet1090 ...")
+    log.info("starting filter_jet1090 ... (%s)", redis_url)
 
     # without this, when this function exits, everything is gone
     global asubscriber
@@ -48,7 +49,7 @@ async def startup(redis_url: str):
     asubscriber = ASubscriber("filter_jet1090", redis_url, ["jet1090-full*"], state)
     await asubscriber.subscribe()
 
-    log.info("filter_jet1090 is up and running, check `coordinate` and `altitude` topic at %s", redis_url)
+    tangram_log.info("filter_jet1090 is up and running (jet1090-full* => coordinate, altitude)")
 
     # As a plugin, a infinite loop will block FastAPI event loop: make it a task
     # in as independent task, we need this
@@ -62,15 +63,25 @@ async def startup(redis_url: str):
     #     await asubscriber.cleanup()
     #     log.info("coordinate exits")
 
+async def shutdown():
+    tangram_log.info('filter_jet1090 exits')
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--redis-url", default="redis://localhost")
+    parser.add_argument("--redis")
     args = parser.parse_args()
 
-    try:
-        asyncio.run(startup(args.redis_url))
-    except KeyboardInterrupt:
-        print("\rbye.")
+    redis_url = os.getenv("REDIS_URL", args.redis)
+    if not redis_url:
+        print('please set environment variable "REDIS_URL" or use "--redis" option')
+        exit(1)
+
+    async def main(redis_url):
+        try:
+            await startup(redis_url)
+        except Exception:
+            print("\rbye.")
+
+    asyncio.run(main(redis_url))
