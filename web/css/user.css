@@ -1,5 +1,5 @@
 @import url("https://fonts.googleapis.com/css?family=Ubuntu:400,700,400italic");
-@import url("https://fonts.googleapis.com/css?family=B612+Mono:400,700,400italic");
+@import url("https://fonts.googleapis.com/css?family=B612:400,700,400italic");
 
 html,
 body,
@@ -44,7 +44,8 @@ body,
   height: auto;
   opacity: 0.8;
 }
-#chart{
+
+#chart {
   border: none;
 }
 
@@ -183,6 +184,9 @@ a.flag:hover::after {
   }
 } */
 
+.leaflet-tooltip-custom {
+  font-family: "B612", sans-serif;
+}
 
 
 .info_value_normal td {
@@ -193,6 +197,7 @@ a.flag:hover::after {
   border-bottom: 1px solid #e7e7e7;
   background-color: #ffffff;
 }
+
 span#uptime {
   font-size: 9pt;
   text-align: center;

@@ -157,4 +157,5 @@ cython_debug/
 
 # tangram plugins
 *.sqlite3
+*.sqlite3-journal
 # End of https://www.toptal.com/developers/gitignore/api/python
