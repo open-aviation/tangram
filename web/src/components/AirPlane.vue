@@ -1,18 +1,22 @@
 <template>
-  <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute" :icon="getIcon(item)"
-    :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index" :lat-lng.sync="[item.latitude, item.longitude]">
-    <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10]}">
-      <p style="font-size: 14px">
-        icao24: <code>{{ item.icao24 }}</code><br/>
-        callsign: <code>{{ item.callsign }}</code><br/>
-        tail: <code>{{ item.registration }}</code><br/>
-        altitude: <code>{{ item.altitude }}</code>
-      </p>
-    </l-tooltip>
-    <l-popup class="popup-leaflet-hidden">
-      <div ref="popup" :id="'popup-' + item.icao24">{{ item.icao24 }}</div>
-    </l-popup>
-  </v-rotated-marker>
+  <l-marker-cluster-group>
+    <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute"
+                      :icon="getIcon(item)"
+                      :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index"
+                      :lat-lng.sync="[item.latitude, item.longitude]">
+      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10]}">
+        <p style="font-size: 14px">
+          icao24: <code>{{ item.icao24 }}</code><br/>
+          callsign: <code>{{ item.callsign }}</code><br/>
+          tail: <code>{{ item.registration }}</code><br/>
+          altitude: <code>{{ item.altitude }}</code>
+        </p>
+      </l-tooltip>
+      <l-popup class="popup-leaflet-hidden">
+        <div ref="popup" :id="'popup-' + item.icao24">{{ item.icao24 }}</div>
+      </l-popup>
+    </v-rotated-marker>
+  </l-marker-cluster-group>
 </template>
 <script>
 import L from 'leaflet'
@@ -22,12 +26,17 @@ import {LMarkerRotate} from 'vue-leaflet-rotate-marker';
 import Raphael from 'raphael';
 import {get_image_object} from './PlanePath';
 import {useMapStore} from '../store'
+import {LMarkerClusterGroup} from 'vue-leaflet-markercluster'
+
+import 'leaflet/dist/leaflet.css'
+import 'vue-leaflet-markercluster/dist/style.css'
 
 export default {
   components: {
     LTooltip,
     LPopup,
-    'v-rotated-marker': LMarkerRotate
+    'v-rotated-marker': LMarkerRotate,
+    LMarkerClusterGroup
   },
   data() {
     return {
@@ -135,14 +144,14 @@ export default {
 
     showRoute() {
       /** HACK:
-        * marker component from leaflet can not bind the click event, it will get wrong click item,
-        * so we are using a internal component from leaflet --- l-popup, it will show a popup modal when user clicking the marker,
-        * this internal component can get the correct info, and we set this popup modal `visibility=hidden`, so it will display a
-        * modal in html element but hidden for the user.
-        *
-        * `setTimeout` here waits for the popup modal being updated, so we can know which popup modal is displaying, and then we
-        * can find the popup modal's id attribute which is icao24, then we can find the correct plane info in planeData
-        **/
+       * marker component from leaflet can not bind the click event, it will get wrong click item,
+       * so we are using a internal component from leaflet --- l-popup, it will show a popup modal when user clicking the marker,
+       * this internal component can get the correct info, and we set this popup modal `visibility=hidden`, so it will display a
+       * modal in html element but hidden for the user.
+       *
+       * `setTimeout` here waits for the popup modal being updated, so we can know which popup modal is displaying, and then we
+       * can find the popup modal's id attribute which is icao24, then we can find the correct plane info in planeData
+       **/
       setTimeout(() => {
         const obj = this.$refs.popup.find(e => e.parentElement.parentElement.style.display !== 'none' && e.parentElement.parentElement.parentElement.parentElement.style.opacity === '1')
         this.selected = this.planeData.find(e => obj.id.indexOf(e.icao24) === 6)
