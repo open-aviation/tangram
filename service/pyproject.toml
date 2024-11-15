@@ -1,48 +1,44 @@
-[tool.poetry]
+[project]
 name = "tangram"
 version = "0.1.0"
 description = ""
 authors = [
-  "Xavier Olive <git@xoolive.org>",
-  "Junzi Sun <junzi.sun@gmail.com>",
-  "Michel Khalaf <khalafmichel98@gmail.com>",
-  "Xiaogang Huang <maple.hl@gmail.com>",
+  { name = "Xavier Olive", email = "git@xoolive.org" },
+  { name = "Xiaogang Huang", email = "maple.hl@gmail.com" },
+  { name = "Junzi Sun", email = "junzi.sun@gmail.com" },
+  { name = "Michel Khalaf", email = "khalafmichel98@gmail.com" },
 ]
 license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+  "anyio[trio]>=4.6.2",
+  "appdirs>=1.4.4",
+  "broadcaster>=0.3.1",
+  "fastapi>=0.115.4",
+  "httpx>=0.27.2",
+  "jinja2>=3.1.4",
+  "pandas>=2.2.3",
+  "pydantic-settings>=2.6.1",
+  "python-dotenv>=1.0.1",
+  "pyyaml>=6.0.2",
+  "redis>=5.2.0",
+  "requests>=2.32.3",
+  "uvicorn[standard]>=0.32.0",
+  "websockets>=13.1",
+]
 
-[tool.poetry.scripts]
+[project.scripts]
 tangram = 'tangram.__main__:main'
 
-[tool.poetry.dependencies]
-python = ">=3.9,<3.13"
-appdirs = "^1.4.4"
-fastapi = "^0.110.1"
-uvicorn = { extras = ["standard"], version = "^0.30.1" }
-broadcaster = "^0.3.1"
-websockets = "^12.0"
-requests = "^2.31.0"
-python-dotenv = "^1.0.1"
-pyyaml = "^6.0.1"
-httpx = "^0.27.0"
-pandas = "^2.2.2"
-jinja2 = "^3.1.4"
-eval-type-backport = { version = "^0.2.0", python = "<=3.9" }
-pydantic-settings = "^2.2.1"
-anyio = { extras = ["trio"], version = "^4.4.0" }
-redis = "^5.0.8"
-
-[tool.poetry.group.dev.dependencies]
-mypy = ">=0.950"
-ruff = "^0.7.2"
-ipython = "^8.29.0"
-ptpython = "^3.0.29"
+[tool.uv]
+dev-dependencies = ["mypy>=1.13.0", "ruff>=0.7.2"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 platform = "posix"
 
 color_output = true
@@ -78,7 +74,7 @@ exclude = [
 line-length = 120
 indent-width = 4
 
-target-version = 'py311'
+target-version = 'py312'
 
 [tool.ruff.lint]
 # Allow unused variables when underscore-prefixed.

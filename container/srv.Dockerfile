@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # use proxy if available
 COPY ./container/add-apt-proxy.sh /tmp/add-apt-proxy.sh
@@ -22,12 +22,11 @@ WORKDIR /home/user/tangram/service
 
 RUN /usr/local/bin/just install-watchexec
 
-# Install poetry
-ENV PATH="${PATH}:/home/user/.local/bin"
-RUN python -m pip install -U setuptools wheel pip && python -m pip install --user -U poetry
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # virtualenv
-RUN poetry install --verbose
+RUN uv sync --dev
 
 # RUN ./container/install-watchexec.sh
 
