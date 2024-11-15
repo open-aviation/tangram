@@ -10,14 +10,14 @@ _default:
   just --list
 
 # watch current dir and run the service
-# presumbly, you have poetry installed and the virtualenv is created
+# presumbly, you have uv installed and the virtualenv is created
 watchexec:
   #!/usr/bin/env bash
   set -x -euo pipefail
 
   pushd service/src
   watchexec -r -w . -e py -- \
-    poetry run uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config ../logging.yml
+    uv run uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config ../logging.yml
   popd
 
 ## podman/docker tasks
