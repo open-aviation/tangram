@@ -71,7 +71,7 @@ exclude = [
   'node_modules',
 ]
 
-line-length = 120
+line-length = 160
 indent-width = 4
 
 target-version = 'py312'

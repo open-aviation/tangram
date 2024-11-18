@@ -22,8 +22,6 @@ from tangram import websocket as tangram_websocket
 from tangram.plugins import web_event
 from tangram.plugins import rs1090_source
 from tangram.plugins import system
-from tangram.plugins import history
-from tangram.plugins import trajectory
 from tangram.plugins import trajectory_subscriber
 from tangram.plugins import coordinate
 from tangram.plugins import filter_jet1090

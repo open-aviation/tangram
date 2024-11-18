@@ -353,8 +353,10 @@ export default {
       const {icao24} = item;
       console.log(`fetching ${icao24} data ...`);
       fetch('/data/' + icao24)
-        .then((data) => {
-          return data.json();
+        .then(async (data) => {
+          const resp = await data.json();
+          console.log(`fetched ${icao24} data ${resp.length} items`);
+          return resp;
         })
         .then((ret) => {
           const newValue = ret

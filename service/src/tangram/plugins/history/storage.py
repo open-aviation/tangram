@@ -6,21 +6,26 @@ import pathlib
 import sqlite3
 from datetime import datetime
 from typing import Any, List
+import logging
 
 from tangram.plugins.common import rs1090
-from tangram.util import logging
+# from tangram.util import logging
 
-log = logging.getPluginLogger(__package__, __name__, "/tmp/tangram", log_level=logging.DEBUG)
+# log = logging.getPluginLogger(__package__, __name__, "/tmp/tangram", log_level=logging.DEBUG)
+log = logging.getLogger("tangram")
+
+DEFAULT_DB_DIRECTORY = pathlib.Path("/tmp")
 
 
 class HistoryDB:
-    """by default, this loads data from Jet1090 restful api"""
+    """by default, this loads data from JET1090 restful api"""
 
     def __new__(cls, *args, **kwargs):
         if not hasattr(cls, "instance"):
+            log.debug("creating history db, %s, %s", args, kwargs)
             cls.instance = super().__new__(cls)
             log.info("HistoryDB instance created: %s", cls.instance)
-        log.info("HistoryDB instance: %s", cls.instance)
+        log.info("HistoryDB instance: %s, %s", cls.instance, cls.instance.get_db_file())
         return cls.instance
 
     def __init__(
@@ -37,14 +42,13 @@ class HistoryDB:
         if db_file is not None:
             use_memory = False
         db_file = ":memory:" if use_memory else (db_file or "data.sqlite3")
-        log.info("db_file: %s", db_file)
 
         # initialize database file and create database table.
         # By default, in current directory
         if not use_memory:
             match directory:
                 case None:
-                    directory = pathlib.Path.cwd()
+                    directory = DEFAULT_DB_DIRECTORY
                 case directory if isinstance(directory, str):
                     directory = pathlib.Path(directory)
                 case directory if not isinstance(directory, pathlib.Path):
@@ -57,9 +61,18 @@ class HistoryDB:
                 log.warning("db file %s unlinked from system", db_file)
             log.info("db_file: %s", db_file)
 
-        self.conn = sqlite3.connect(db_file)
+        self.db_file = db_file
+        log.info("db_file: %s", self.db_file)
+
+        self.conn = sqlite3.connect(self.db_file)
         if not read_only:
             self.__create_tables(drop_table=drop_table)
+
+    def get_db_file(self):
+        try:
+            return self.db_file
+        except AttributeError:
+            return None
 
     def __create_tables(self, drop_table: bool = False):
         if drop_table:
@@ -120,11 +133,11 @@ class HistoryDB:
         """
         rows = [
             {
-                "icao24": item['icao24'] if isinstance(item, dict) else item.icao24,
-                "last": item['last'] if isinstance(item, dict) else item.last,
-                "latitude": item['latitude'] if isinstance(item, dict) else item.latitude,
-                "longitude": item['longitude'] if isinstance(item, dict) else item.longitude,
-                "altitude": item['altitude'] if isinstance(item, dict) else item.altitude,
+                "icao24": item["icao24"] if isinstance(item, dict) else item.icao24,
+                "last": item["last"] if isinstance(item, dict) else item.last,
+                "latitude": item["latitude"] if isinstance(item, dict) else item.latitude,
+                "longitude": item["longitude"] if isinstance(item, dict) else item.longitude,
+                "altitude": item["altitude"] if isinstance(item, dict) else item.altitude,
             }
             for item in items
         ]

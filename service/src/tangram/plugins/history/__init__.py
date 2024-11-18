@@ -14,8 +14,9 @@ from tangram.plugins import redis_subscriber
 from tangram.util import logging as tangram_logging
 from .storage import HistoryDB
 
-tangram_log = logging.getLogger('tangram')
-log = tangram_logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.INFO)
+tangram_log = logging.getLogger("tangram")
+# log = tangram_logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.INFO)
+log = tangram_log
 
 
 @dataclass
@@ -54,7 +55,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
             "altitude": None,  # no altitude from coordinate message
         }
         self.history_db.insert_many_tracks([record])
-        log.debug('persiste record in db for %s', icao24)
+        log.debug("persiste record in db for %s", icao24)
 
         # EXPERIMENTAL: store latitude and longitude in redis timeseries
         latitude_key, longitude_key = f"latitude:{icao24}", f"longitude:{icao24}"
@@ -110,23 +111,21 @@ async def startup(redis_url: str) -> List[asyncio.Task]:
     global subscriber, load_task, expire_task
 
     history_db = HistoryDB(use_memory=False)
-    tangram_log.info('history db created')
+    tangram_log.info("history db created, use_memory: %s", history_db)
 
-    tangram_log.info('history is loading historical data ... (this takes a few more seconds.)')
+    tangram_log.info("history is loading historical data ... (this takes a few more seconds.)")
     await history_db.load_all_history()
-    tangram_log.info('history data loaded')
+    tangram_log.info("history data loaded")
 
     expire_task = asyncio.create_task(history_db.expire_records_periodically())
-    tangram_log.info('tasks created, %s', expire_task.get_coro())
+    tangram_log.info("tasks created, %s", expire_task.get_coro())
 
     load_task = asyncio.create_task(history_db.load_by_restful_client())
-    tangram_log.info('tasks created, %s', load_task.get_coro())
+    tangram_log.info("tasks created, %s", load_task.get_coro())
 
-    subscriber = Subscriber(
-        name="history", redis_url=redis_url, channels=["coordinate", "altitude*"], history_db=history_db
-    )
+    subscriber = Subscriber(name="history", redis_url=redis_url, channels=["coordinate", "altitude*"], history_db=history_db)
     await subscriber.subscribe()
-    tangram_log.info('history is up and running, task: %s', subscriber.task.get_coro())
+    tangram_log.info("history is up and running, task: %s", subscriber.task.get_coro())
     return [subscriber.task, load_task, expire_task]
 
 
