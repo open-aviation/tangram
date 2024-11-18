@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # this image is debian based
 # configure apt proxy if available
@@ -30,10 +30,18 @@ RUN /usr/local/bin/just install-watchexec
 
 # poetry
 ENV PATH="${PATH}:/home/user/.local/bin"
-RUN python -m pip install -U setuptools wheel pip && python -m pip install --user -U poetry
+RUN python -m pip install -U setuptools wheel pip
 
-# virtualenv
-RUN poetry install --verbose
+# install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN mkdir -p /home/user/.local/share/venvs
+
+# specify the path for virtual environment
+# by default it creates .venv in current working directory, which has issues of permission
+# https://docs.astral.sh/uv/concepts/projects/#configuring-the-project-environment-path
+ENV UV_PROJECT_ENVIRONMENT /home/user/.local/share/venvs/tangram
+RUN uv venv --verbose
+RUN uv sync --dev --verbose
 
 # RUN ./container/install-watchexec.sh
 

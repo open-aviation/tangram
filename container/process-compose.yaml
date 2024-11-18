@@ -23,5 +23,7 @@ processes:
 
   plugins/history:
     environment:
+      - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
       - "REDIS_URL=redis://192.168.11.37:6379"
-    command: poetry -C /home/user/tangram/service run -- python -m tangram.plugins.history
+    working_dir: /home/user/tangram/service
+    command: uv run -- python -m tangram.plugins.history
