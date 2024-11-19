@@ -1,5 +1,5 @@
 <template>
-  <l-marker-cluster-group>
+  <l-marker-cluster-group :maxClusterRadius="20">
     <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute"
                       :icon="getIcon(item)"
                       :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index"

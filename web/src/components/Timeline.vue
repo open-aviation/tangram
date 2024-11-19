@@ -145,6 +145,7 @@ export default {
   text-align: center;
   border-right: 1px solid #808080;
   border-top: 1px solid #808080;
+  z-index: 1;
 }
 .timeline-container .date-block:first-child {
   border-left: none;
