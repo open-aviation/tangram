@@ -1,27 +1,47 @@
 <template>
-  <l-marker-cluster-group>
-    <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute"
-                      :icon="getIcon(item)"
-                      :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index"
-                      :lat-lng.sync="[item.latitude, item.longitude]">
-      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10]}">
-        <p style="font-size: 14px">
-          icao24: <code>{{ item.icao24 }}</code><br/>
-          callsign: <code>{{ item.callsign }}</code><br/>
-          tail: <code>{{ item.registration }}</code><br/>
-          altitude: <code>{{ item.altitude }}</code>
-        </p>
-      </l-tooltip>
-      <l-popup class="popup-leaflet-hidden">
-        <div ref="popup" :id="'popup-' + item.icao24">{{ item.icao24 }}</div>
-      </l-popup>
-    </v-rotated-marker>
-  </l-marker-cluster-group>
+  <l-layer-group v-if="showCluster">
+    <l-marker-cluster-group :maxClusterRadius="20" :removeOutsideVisibleBounds="true">
+      <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute"
+                        :icon="getIcon(item)"
+                        :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index"
+                        :lat-lng.sync="[item.latitude, item.longitude]">
+        <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10]}">
+          <p style="font-size: 14px">
+            icao24: <code>{{ item.icao24 }}</code><br/>
+            callsign: <code>{{ item.callsign }}</code><br/>
+            tail: <code>{{ item.registration }}</code><br/>
+            altitude: <code>{{ item.altitude }}</code>
+          </p>
+        </l-tooltip>
+        <l-popup class="popup-leaflet-hidden">
+          <div ref="popup" :id="'popup-' + item.icao24">{{ item.icao24 }}</div>
+        </l-popup>
+      </v-rotated-marker>
+    </l-marker-cluster-group>
+  </l-layer-group>
+  <l-layer-group v-else>
+      <v-rotated-marker :rotationAngle="getRotate(item)" v-for="(item, index) in planeData" @click="showRoute"
+                        :icon="getIcon(item)"
+                        :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'" :key="index"
+                        :lat-lng.sync="[item.latitude, item.longitude]">
+        <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10]}">
+          <p style="font-size: 14px">
+            icao24: <code>{{ item.icao24 }}</code><br/>
+            callsign: <code>{{ item.callsign }}</code><br/>
+            tail: <code>{{ item.registration }}</code><br/>
+            altitude: <code>{{ item.altitude }}</code>
+          </p>
+        </l-tooltip>
+        <l-popup class="popup-leaflet-hidden">
+          <div ref="popup" :id="'popup-' + item.icao24">{{ item.icao24 }}</div>
+        </l-popup>
+      </v-rotated-marker>
+  </l-layer-group>
 </template>
 <script>
 import L from 'leaflet'
 import "leaflet/dist/leaflet.css";
-import {LPopup, LTooltip} from '@vue-leaflet/vue-leaflet';
+import {LLayerGroup, LPopup, LTooltip} from '@vue-leaflet/vue-leaflet';
 import {LMarkerRotate} from 'vue-leaflet-rotate-marker';
 import Raphael from 'raphael';
 import {get_image_object} from './PlanePath';
@@ -33,6 +53,7 @@ import 'vue-leaflet-markercluster/dist/style.css'
 
 export default {
   components: {
+    LLayerGroup,
     LTooltip,
     LPopup,
     'v-rotated-marker': LMarkerRotate,
@@ -51,6 +72,12 @@ export default {
   computed: {
     socket() {
       return this.store.socket
+    },
+    altitude() {
+      return this.store.altitude
+    },
+    showCluster() {
+      return this.store.showCluster
     }
   },
   mounted() {
@@ -63,7 +90,7 @@ export default {
 
       this.streamingChannel.on("new-data", data => {
         if (data && data.length > 0) {
-          this.planeData = data.filter(item => item.latitude && item.longitude)
+          this.planeData = data.filter(item => item.latitude && item.longitude && item.altitude >= this.altitude[0] && item.altitude <= this.altitude[1])
         }
       });
 
