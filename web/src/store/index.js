@@ -14,6 +14,8 @@ export const useMapStore = defineStore("map", {
     info_local: "local",
     showDrawer: false,
     hoverItem: null,
+    altitude: [0, 40000],
+    showCluster: true
   }),
   getters: {
     doubleCount: ({ count }) => count * 2,
@@ -27,6 +29,12 @@ export const useMapStore = defineStore("map", {
   actions: {
     setInfoUtc(v) {
       this.info_utc = v;
+    },
+    setCluster(v) {
+      this.showCluster = v;
+    },
+    setAltitude(v) {
+      this.altitude = v;
     },
     setInfoLocal(v) {
       this.info_local = v;

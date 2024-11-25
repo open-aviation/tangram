@@ -2,7 +2,7 @@
   <div class="main-container" :class="{'hasItem': show}">
     <TopNavBar />
     <LeftSideBar ref="leftBar" />
-    <l-map @click="emptySelect" @mousemove="getPosition($event)"  class="map-container" ref="map" v-model:zoom="zoom" :center="[47.41322, -1.219482]" >
+    <l-map @click="emptySelect" @mousemove="getPosition($event)"  class="map-container" ref="map" v-model:zoom="zoom" :center="[45.41322, 10.219482]" >
       <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap"></l-tile-layer>
       <PlaneData />
       <PolyLines />
@@ -47,7 +47,7 @@ export default {
   },
   data() {
     return {
-      zoom: 5,
+      zoom: 6,
       position: '',
       store: useMapStore()
     };
