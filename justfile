@@ -1,4 +1,7 @@
-set dotenv-load := true
+set dotenv-load
+
+# https://just.systems/man/en/avoiding-argument-splitting.html?highlight=positional-arguments#positional-arguments
+set positional-arguments
 
 # https://just.systems/man/en/settings.html#export
 # all just variables to be exported as environment variables in recipes
@@ -23,7 +26,7 @@ watchexec:
 ## podman/docker tasks
 ## NOTE: alternatives
 ## pod, podman-compose, docker-compose, quadlet, podlet
-## thses tools may be helpful to manage containers / deployments
+## these tools may be helpful to manage containers / deployments
 
 tangram_image := "tangram:0.1"
 
@@ -42,7 +45,7 @@ _srv-image-exists:
 # use `just srv-image true` to force the build
 #
 # Build srv image
-srv-image force="false":
+_srv-image force="false":
   #!/usr/bin/env bash
   set -euo pipefail
 
@@ -59,7 +62,7 @@ srv-image force="false":
   podman image build -f ./container/srv.Dockerfile -t {{tangram_image}} .
 
 # Run the srv container
-srv-run daemon="false": srv-image
+_srv-run daemon="false": _srv-image
   podman run --rm --name tg-srv -p 18000:{{SRV_PORT}} \
     {{ if daemon == "true" { "-d" } else { "-it" } }} \
     -e RS1090_SOURCE_BASE_URL={{RS1090_SOURCE_BASE_URL}} \
@@ -67,10 +70,10 @@ srv-run daemon="false": srv-image
     {{tangram_image}}
 
 # exec into the srv container logging dir
-srv-exec:
+_srv-exec:
   podman exec -it -e TERM=xterm-256color -w /tmp/tangram tg-srv /bin/bash
 
-shell: srv-image
+_shell: _srv-image
   podman run -it --rm --name tg \
     -p 18000:18000 \
     -e RS1090_SOURCE_BASE_URL={{RS1090_SOURCE_BASE_URL}} \
@@ -83,7 +86,7 @@ web-port := "2024"
 web-name := "tg-web"
 
 # build the web image
-web-image:
+_web-image:
   podman image rm -f tangram-web:0.1
 
   mkdir -p $HOME/.local/share/pnpm/store
@@ -102,7 +105,7 @@ web-image:
 #   `just --set web-port 2025 web-run true`
 #
 # Run web UI on port 2024 by default
-web-run daemon="false":
+_web-run daemon="false":
   podman container run --rm --name {{web-name}} -p 2024:{{web-port}} \
     {{ if daemon == "false" { "-it" } else { "-d" } }} \
     -v $HOME/.local/share/pnpm/store:/pnpm-store \
@@ -114,15 +117,15 @@ web-run daemon="false":
     pnpm dev --debug --port 2024 --host 0.0.0.0
 
 # Tail the logs of the web container, helpful when it's launched in the background
-web-log:
+_web-log:
   podman logs -f {{web-name}}
 
 # Stop web container
-web-stop:
+_web-stop:
   podman container stop {{web-name}}
 
 # A new shell in the web container for debugging the image
-web-shell:
+_web-shell:
   podman container run -it --rm --name tg-web -p 2024:2024 \
     -v $HOME/.local/share/pnpm/store:/pnpm-store \
     -v ./web/node_modules:/web/node_modules \
@@ -217,7 +220,7 @@ pc-run:
 
 # rate-limiting plugin container
 pc-rate-limiting:
-  podman container run -it --rm --name rate-limiting \
+  podman container run -it --rm --name rate_limiting \
     --network {{NETWORK}} \
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
     -e UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram \
@@ -235,8 +238,21 @@ build-jet1090:
   #   -f https://raw.githubusercontent.com/emctoo/rs1090/refs/heads/container/crates/jet1090/Dockerfile .
   podman image build -t jet1090:0.3.8 -f container/jet1090.Dockerfile .
 
+# run jet1090 (0.3.8) interactively, as a container
 pc-jet1090:
-  podman run -it --rm --network tangram \
-    -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
+  podman run -it --rm --network {{NETWORK}} -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
     localhost/jet1090:0.3.8 \
-      /home/user/.cargo/bin/jet1090 --serve-port 8080 -i ws://51.158.72.24:9876/40130@LFMA --redis-url redis://redis:6379 --redis-topic jet1090-full
+      /home/user/.cargo/bin/jet1090 \
+        -i \
+        --serve-port 8080 \
+        --redis-url redis://redis:6379 --redis-topic jet1090-full \
+        ws://51.158.72.24:9876/40130@LFMA
+
+# run jet1090 (0.3.8) as a service
+pc-jet1090-daemon:
+  podman run -d --rm --network {{NETWORK}} -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
+    localhost/jet1090:0.3.8 \
+      /home/user/.cargo/bin/jet1090 \
+        --serve-port 8080 \
+        --redis-url redis://redis:6379 --redis-topic jet1090-full \
+        ws://51.158.72.24:9876/40130@LFMA
