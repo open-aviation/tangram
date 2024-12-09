@@ -1,0 +1,13 @@
+version: "0.5"
+
+environment:
+log_location: /tmp/pc.log
+log_level: debug
+
+processes:
+  plugins/filter:
+    environment:
+      - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
+      - "REDIS_URL=redis://redis:6379"
+    working_dir: /home/user/tangram/service
+    command: uv run -- python -m tangram.plugins.rate_limiting

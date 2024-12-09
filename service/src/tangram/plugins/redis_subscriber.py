@@ -60,4 +60,3 @@ class Subscriber(abc.ABC, Generic[StateT]):
     @abc.abstractmethod
     async def message_handler(self, channel: str, data: str, pattern: str, state: StateT):
         pass
-

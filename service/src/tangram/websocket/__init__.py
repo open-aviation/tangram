@@ -15,7 +15,7 @@ from fastapi import WebSocket
 from pydantic import BaseModel
 from starlette.concurrency import run_until_first_complete
 
-from tangram.util.geojson import BetterJsonEncoder
+# from tangram.util.geojson import BetterJsonEncoder
 from tangram.util import logging as tangram_logging
 
 # log = logging.getLogger(__name__)
@@ -181,9 +181,7 @@ class ChannelHandlerMixin:
             await ok_to_leave(client_id, message)
         return False
 
-    def register_channel_event_handler(
-        self, fn, channel_pattern: Optional[str] = None, event_pattern: Optional[str] = None, *args, **kwargs
-    ):
+    def register_channel_event_handler(self, fn, channel_pattern: Optional[str] = None, event_pattern: Optional[str] = None, *args, **kwargs):
         if channel_pattern is None:
             channel_pattern = self.channel_name
         channel_pattern_regexp = re.compile(channel_pattern)
@@ -224,13 +222,6 @@ def register_channel_handler(handler):
     channel_handlers[handler.channel_name] = handler
 
 
-def _get_channel_handler(channel_name: str):
-    for _channel_name, handler in channel_handlers.items():
-        if handler.will_handle_channel(channel_name):
-            return handler
-    return None
-
-
 def on_channel_event(_func, *, channel_pattern, event_pattern):
     """both patterns are regex"""
 
@@ -243,8 +234,6 @@ def on_channel_event(_func, *, channel_pattern, event_pattern):
 
         return wrapper
 
-    # @on_channel_event => _func is None
-    # @on_channel_event(..) => _func is a function
     return decorator if _func is None else decorator(_func)
 
 
@@ -259,15 +248,21 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
             await handle_heartbeat(client_id, client_message)
             continue
 
+        if is_joining_message(client_message):
+            await ok_to_join(client_id, client_message)
+            continue
+
+        if is_leaving_message(client_message):
+            await ok_to_leave(client_id, client_message)
+            continue
+
         publish_topic = f"{client_message.topic}:{client_message.event}"
         redis_client.publish(publish_topic, text)
-        log.info(">>>>> %s %s", publish_topic, client_message.payload)
+        log.debug(">>>>> RX / to Redis %s %s", publish_topic, text)
 
-        # TODO: REMOVE THIS
-        for _channel_name, handler in channel_handlers.items():
-            await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event
+        # for _channel_name, handler in channel_handlers.items():
+        #     await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event
 
-    # TODO: cleanup
     log.debug("[%s] done\n\n", client_id)
 
 

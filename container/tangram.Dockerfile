@@ -7,7 +7,7 @@ RUN /tmp/add-apt-proxy.sh && \
   ([ -f /etc/apt/apt.conf ] && cat /etc/apt/apt.conf || echo "No /etc/apt/apt.conf file found") && \
   rm /tmp/add-apt-proxy.sh
 
-RUN curl -sL https://deb.nodesource.com/setup_20.x | bash -
+# RUN curl -sL https://deb.nodesource.com/setup_20.x | bash -
 RUN apt-get update && \
   apt-get install -y --no-install-recommends curl jq build-essential gcc gnupg2 libgeos-dev nodejs npm && \
   apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -32,7 +32,7 @@ RUN /usr/local/bin/just install-watchexec
 ENV PATH="${PATH}:/home/user/.local/bin"
 RUN python -m pip install -U setuptools wheel pip
 
-# install uv
+
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 RUN mkdir -p /home/user/.local/share/venvs
 

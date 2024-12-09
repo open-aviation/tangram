@@ -33,9 +33,6 @@ SRV_HOST := env_var_or_default("SRV_HOST", "127.0.0.1")
 SRV_PORT := env_var_or_default("SRV_HOST" , "18000")
 TANGRAM_SERVICE := env_var_or_default("TANGRAM_SERVICE", SRV_HOST + ":" + SRV_PORT)
 
-# launch redis
-redis:
-  podman run --rm --name tg-redis -p 6379:6379 docker.io/library/redis:7.4
 
 _srv-image-exists:
   @podman image ls --format json {{tangram_image}} | jq '. | length'
@@ -181,13 +178,65 @@ _nix run:
   nix run . -- run
 
 
-## new version with process-compose
+## new version (V3) with process-compose, processes managed in one container
+NETWORK := "tangram"
 
-pc-build:
-  podman build -f container/tangram.Dockerfile -t tangram:0.1 .
+# create tangram network
+network:
+  #!/usr/bin/env bash
+  set -x -euo pipefail
 
+  if podman network exists {{NETWORK}}; then
+    echo "network tangram exists"
+    exit 0
+  fi
+
+  podman network create {{NETWORK}}
+
+# launch redis
+pc-redis:
+  #!/usr/bin/env bash
+
+  if podman container exists redis; then
+    echo "container redis exists"
+    exit 0
+  fi
+
+  podman container run -d --rm --name redis --network {{NETWORK}} docker.io/library/redis:7.4
+
+# build process-compose based image
+pc-build: network
+  podman image build --network {{NETWORK}} -f container/tangram.Dockerfile -t tangram:0.1 .
+
+# launch tangram container
 pc-run:
-  podman run -it --rm --name tangram --network host -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) tangram:0.1
+  podman container run -it --rm --name tangram \
+    --network {{NETWORK}} \
+    -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) tangram:0.1
+
+
+# rate-limiting plugin container
+pc-rate-limiting:
+  podman container run -it --rm --name rate-limiting \
+    --network {{NETWORK}} \
+    -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
+    -e UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram \
+    -e REDIS_URL=redis://redis:6379 \
+    -w /home/user/tangram/service \
+    tangram:0.1 uv run -- python -m tangram.plugins.rate_limiting --dest-topic=coordinate
 
 pc-log log="tangram":
   @podman container exec -it -e TERM=xterm-256color -w /tmp/tangram tangram tail -f {{log}}.log
+
+# build jet1090 image
+build-jet1090:
+  # 0.3.9 does not work because of glibc incomatibility
+  # podman image build -t jet1090:0.3.9 \
+  #   -f https://raw.githubusercontent.com/emctoo/rs1090/refs/heads/container/crates/jet1090/Dockerfile .
+  podman image build -t jet1090:0.3.8 -f container/jet1090.Dockerfile .
+
+pc-jet1090:
+  podman run -it --rm --network tangram \
+    -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
+    localhost/jet1090:0.3.8 \
+      /home/user/.cargo/bin/jet1090 --serve-port 8080 -i ws://51.158.72.24:9876/40130@LFMA --redis-url redis://redis:6379 --redis-topic jet1090-full

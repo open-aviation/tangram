@@ -171,9 +171,7 @@ async def get_receiver_latlong():
 async def list_planes():
     ref_latitude, ref_longitude = await get_receiver_latlong()
     radius_km = 12000
-    return await coordinate.search_planes(
-        app.redis_connection_pool, radius_km=radius_km, ref_latitude=ref_latitude, ref_longitude=ref_longitude
-    )
+    return await coordinate.search_planes(app.redis_connection_pool, radius_km=radius_km, ref_latitude=ref_latitude, ref_longitude=ref_longitude)
 
 
 @app.get("/planes/{icao24}")

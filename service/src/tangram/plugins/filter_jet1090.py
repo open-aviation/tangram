@@ -4,16 +4,13 @@ import json
 import logging
 from dataclasses import dataclass
 from typing import List, Dict
-import logging
 
 # import redis.asyncio as redis
 from tangram.plugins import redis_subscriber
 from tangram.util import logging as tangram_logging
 
 tangram_log = logging.getLogger(__name__)
-log = tangram_logging.getPluginLogger(
-    __package__, __name__, os.getenv("LOG_DIR"), log_level=logging.DEBUG, add_console_handler=False
-)
+log = tangram_logging.getPluginLogger(__package__, __name__, os.getenv("LOG_DIR"), log_level=logging.DEBUG, add_console_handler=False)
 
 
 @dataclass
@@ -63,8 +60,10 @@ async def startup(redis_url: str):
     #     await asubscriber.cleanup()
     #     log.info("coordinate exits")
 
+
 async def shutdown():
-    tangram_log.info('filter_jet1090 exits')
+    tangram_log.info("filter_jet1090 exits")
+
 
 if __name__ == "__main__":
     import argparse

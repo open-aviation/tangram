@@ -33,15 +33,11 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
             timed_message = json.loads(data)
             if timed_message["icao24"] == state.icao24:
-                icao24, latitude, longitude = (
-                    timed_message["icao24"],
-                    timed_message["latitude"],
-                    timed_message["longitude"],
-                )
+                icao24, latitude, longitude = timed_message["icao24"], timed_message["latitude"], timed_message["longitude"]
                 await self.redis.publish("trajectory", json.dumps(timed_message))
 
                 # Two options here:
-                # 1. iddeally, we just push [lat, longi] point to UI. as long as the trajectory is properly cached
+                # 1. iddeally, we just push [lat, lng] point to UI. as long as the trajectory is properly cached
                 # trajectory = [latitude, longitude]
                 #
                 # 2. full trajectory
