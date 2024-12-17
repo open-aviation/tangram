@@ -7,7 +7,8 @@ log_level: debug
 processes:
   web:
     environment:
-      - "TANGRAM_SERVICE=service:18000"
+      - "TANGRAM_SERVICE=127.0.0.1:18000"
+      - "NO_PROXY=127.0.0.1"
     working_dir: /home/user/tangram/web
     command: npm install --verbose && npm install -d --verbose && npx vite --port 2024 --host 0.0.0.0
     availability:
@@ -17,6 +18,7 @@ processes:
     environment:
       - "RS1090_SOURCE_BASE_URL=http://jet1090:8080"
       - "REDIS_URL=redis://redis:6379"
+      - "NO_PROXY=127.0.0.1,jet1090,redis"
     command: just watchexec
     availability:
       restart: "always"
@@ -25,5 +27,7 @@ processes:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
       - "REDIS_URL=redis://redis:6379"
+      - "RS1090_SOURCE_BASE_URL=http://jet1090:8080"
+      - "NO_PROXY=127.0.0.1,jet1090,redis"
     working_dir: /home/user/tangram/service
     command: uv run -- python -m tangram.plugins.history

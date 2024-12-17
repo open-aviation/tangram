@@ -258,10 +258,10 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
 
         publish_topic = f"{client_message.topic}:{client_message.event}"
         redis_client.publish(publish_topic, text)
-        log.debug(">>>>> RX / to Redis %s %s", publish_topic, text)
+        log.debug("> RX / to Redis %s %s", publish_topic, text)
 
-        # for _channel_name, handler in channel_handlers.items():
-        #     await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event
+        for _channel_name, handler in channel_handlers.items():
+            await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event
 
     log.debug("[%s] done\n\n", client_id)
 

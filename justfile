@@ -183,9 +183,11 @@ _nix run:
 
 ## new version (V3) with process-compose, processes managed in one container
 NETWORK := "tangram"
+JET1090_VERSION := "v0.4.1"
+JET1090_VOL := "jet1090-vol"
 
 # create tangram network
-network:
+pc-network:
   #!/usr/bin/env bash
   set -x -euo pipefail
 
@@ -197,7 +199,7 @@ network:
   podman network create {{NETWORK}}
 
 # launch redis
-pc-redis:
+pc-redis: pc-network
   #!/usr/bin/env bash
 
   if podman container exists redis; then
@@ -205,21 +207,21 @@ pc-redis:
     exit 0
   fi
 
-  podman container run -d --rm --name redis --network {{NETWORK}} docker.io/library/redis:7.4
+  podman container run -d --rm --name redis --network {{NETWORK}} -p 6379:6379 \
+    docker.io/library/redis:8.0-M02
 
 # build process-compose based image
-pc-build: network
+pc-build: pc-network
   podman image build --network {{NETWORK}} -f container/tangram.Dockerfile -t tangram:0.1 .
 
 # launch tangram container
-pc-run:
+pc-run: pc-network
   podman container run -it --rm --name tangram \
-    --network {{NETWORK}} \
+    --network {{NETWORK}} -p 18000:18000 -p 2024:2024 \
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) tangram:0.1
 
-
 # rate-limiting plugin container
-pc-rate-limiting:
+pc-rate-limiting: pc-network
   podman container run -it --rm --name rate_limiting \
     --network {{NETWORK}} \
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
@@ -228,31 +230,52 @@ pc-rate-limiting:
     -w /home/user/tangram/service \
     tangram:0.1 uv run -- python -m tangram.plugins.rate_limiting --dest-topic=coordinate
 
-pc-log log="tangram":
+pc-log log="tangram": pc-network
   @podman container exec -it -e TERM=xterm-256color -w /tmp/tangram tangram tail -f {{log}}.log
+
+pc-jet1090-basestation:
+  #!/usr/bin/env bash
+  mkdir -p ~/.cache/jet1090
+  if [[ ! -f ~/.cache/jet1090/basestation.zip ]]; then
+    echo "basestation.zip not found, downloading ..."
+    curl -L https://jetvision.de/resoucess/sqb_databases/basestation.zip -o ~/.cache/jet1090/basestation.zip
+  fi
+
+  unzip -o ~/.cache/jet1090/basestation.zip -d ~/.cache/jet1090
+
+
+pc-jet1090-vol: pc-jet1090-basestation
+  # Commands for creating a volume for basestation.sqb
+  # It can be used as name volume when running jet1090 contaienr
+  # FIXME: but it does not work with jet1090 for now
+  tar czf ~/.cache/jet1090/basestation.sqb.tgz -C ~/.cache/jet1090 basestation.sqb
+  podman volume create {{JET1090_VOL}}
+  podman volume import {{JET1090_VOL}} ~/.cache/jet1090/basestation.sqb.tgz
+  podman volume inspect {{JET1090_VOL}}
 
 # build jet1090 image
 build-jet1090:
-  # 0.3.9 does not work because of glibc incomatibility
-  # podman image build -t jet1090:0.3.9 \
-  #   -f https://raw.githubusercontent.com/emctoo/rs1090/refs/heads/container/crates/jet1090/Dockerfile .
-  podman image build -t jet1090:0.3.8 -f container/jet1090.Dockerfile .
+  podman image build -t jet1090:{{JET1090_VERSION}} --build-arg VERSION={{JET1090_VERSION}} -f container/jet1090.Dockerfile .
 
-# run jet1090 (0.3.8) interactively, as a container
-pc-jet1090:
-  podman run -it --rm --network {{NETWORK}} -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
-    localhost/jet1090:0.3.8 \
-      /home/user/.cargo/bin/jet1090 \
+# run jet1090 interactively, as a container
+pc-jet1090: pc-network pc-redis pc-jet1090-basestation
+  podman run -it --rm --name jet1090 \
+    --network {{NETWORK}} -p 8080:8080 \
+    -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
+    localhost/jet1090:{{JET1090_VERSION}} \
+      jet1090 \
         -i \
         --serve-port 8080 \
         --redis-url redis://redis:6379 --redis-topic jet1090-full \
         ws://51.158.72.24:9876/40130@LFMA
 
 # run jet1090 (0.3.8) as a service
-pc-jet1090-daemon:
-  podman run -d --rm --network {{NETWORK}} -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
-    localhost/jet1090:0.3.8 \
-      /home/user/.cargo/bin/jet1090 \
+pc-jet1090-daemon: pc-network pc-redis pc-jet1090-basestation
+  podman run -d --rm --name jet1090 \
+    --network {{NETWORK}} -p 8080:8080 \
+    -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
+    localhost/jet1090:{{JET1090_VERSION}} \
+      jet1090 \
         --serve-port 8080 \
         --redis-url redis://redis:6379 --redis-topic jet1090-full \
         ws://51.158.72.24:9876/40130@LFMA

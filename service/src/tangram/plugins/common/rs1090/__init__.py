@@ -15,7 +15,8 @@ class Jet1090Data(BaseModel):
     df: int | None = None
     # first: int | None = None
 
-    last: float | None
+    last: float | None = None
+    lastseen: float | None = None
     timestamp: float | None = None
     # TODO: when it's websocket timed_message, field name is `timestamp`
     # last: float | None = Field(alias="timestamp")

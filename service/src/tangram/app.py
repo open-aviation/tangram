@@ -11,10 +11,10 @@ import contextlib
 # import anyio
 from httpx import Response, request
 import redis.asyncio as redis
-from fastapi import FastAPI, WebSocket, status
+from fastapi import FastAPI, WebSocket, status, Request
 
-# from fastapi.staticfiles import StaticFiles
-# from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from tangram import websocket as tangram_websocket
@@ -115,9 +115,11 @@ async def lifespan(app: FastAPI):
     log.info("shutdown complete")
 
 
-# TODO: subclass FastAPI to add redis_connection
 app = FastAPI(lifespan=lifespan)
 
+# working at src/
+app.mount("/static", StaticFiles(directory="tangram/static"), name="static")
+templates = Jinja2Templates(directory="tangram/templates")
 
 start_time = datetime.now()
 
@@ -165,6 +167,11 @@ async def get_receiver_latlong():
     reference = {} if not receivers else receivers[0]["reference"]
     ref_latitude, ref_longitude = reference.get("latitude", 0), reference.get("longitude", 0)
     return ref_latitude, ref_longitude
+
+
+@app.get("/table")
+async def table_page(request: Request):
+    return templates.TemplateResponse("table/index.html", {"request": request})
 
 
 @app.get("/planes")
