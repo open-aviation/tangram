@@ -19,11 +19,7 @@ USER user
 COPY . /home/user/tangram
 
 WORKDIR /home/user/tangram/service
-RUN /usr/local/bin/just install-watchexec
-
-# poetry
-ENV PATH="${PATH}:/home/user/.local/bin"
-RUN python -m pip install -U setuptools wheel pip
+RUN just install-watchexec
 
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh

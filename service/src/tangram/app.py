@@ -1,39 +1,34 @@
 from __future__ import annotations
 
-import os
 import asyncio
+import contextlib
 import logging
+import os
 import uuid
 from datetime import datetime
 from typing import Any
-import contextlib
+
+import redis.asyncio as redis
+from fastapi import FastAPI, Request, WebSocket, status
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 # import anyio
 from httpx import Response, request
-import redis.asyncio as redis
-from fastapi import FastAPI, WebSocket, status, Request
-
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from tangram import websocket as tangram_websocket
-
-from tangram.plugins import web_event
-from tangram.plugins import rs1090_source
-from tangram.plugins import system
-from tangram.plugins import trajectory_subscriber
-from tangram.plugins import coordinate
-from tangram.plugins import filter_jet1090
-
-
+from tangram.plugins import coordinate, filter_jet1090, rs1090_source, system, trajectory_subscriber, web_event
 from tangram.plugins.common import rs1090
 from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_client
 
 log = logging.getLogger("tangram")
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
+
 jet1090_restful_client = rs1090.Rs1090Client()
+jet1090_websocket_task: None | asyncio.Task[None] = None
+jet1090_client_task: None | asyncio.Task[None] = None
 
 
 async def connect_jet1090(*args: Any, **kwargs: Any) -> None:
@@ -158,7 +153,7 @@ async def get_receiver_latlong():
         log.error("RS1090_SOURCE_BASE_URL not set")
         return None, None
 
-    url = f"{RS1090_SOURCE_BASE_URL}/receivers"
+    url = f"{RS1090_SOURCE_BASE_URL}/sensors"
     log.info("getting receivers from %s ...", url)
     resp: Response = request("GET", url)
     receivers = resp.json()
@@ -195,7 +190,7 @@ class PublishMessage(BaseModel):
 
 
 @app.post("/admin/publish")
-async def channel_publish(message: PublishMessage) -> None:
+async def channel_publish(message: PublishMessage) -> int:
     if not message.message:
         log.error("empty payload, no publish in channels")
         return status.HTTP_400_BAD_REQUEST

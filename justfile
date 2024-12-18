@@ -212,13 +212,14 @@ pc-redis: pc-network
 
 # build process-compose based image
 pc-build: pc-network
-  #podman image build --network {{NETWORK}} -f container/tangram.Dockerfile -t tangram:0.1 .
+  # podman image build --network {{NETWORK}} -f container/tangram.Dockerfile -t tangram:0.1 .
   podman image build -f container/tangram.Dockerfile -t tangram:0.1 .
 
 # launch tangram container
 pc-run: pc-network
   podman container run -it --rm --name tangram \
     --network {{NETWORK}} -p 18000:18000 -p 2024:2024 \
+    -e no_proxy=134.212.29.201,127.0.0.1 \
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
     tangram:0.1
 
