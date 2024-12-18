@@ -153,10 +153,12 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`Hovering over flight ${flightData.icao24}`);
 
     // docs: https://hexdocs.pm/phoenix/js/index.html#channel
+    // broadcast, don't care about thre result
     tableChannel.push("event:flight-hover", { icao24: flightData.icao24 })
-      .receive("ok", payload => console.log("hover push, replied:", payload))
-      .receive("error", err => console.log("hover push, errored", err))
-      .receive("timeout", () => console.log("hover push, timed out"))
+    // .receive("ok", payload => console.log("hover push, replied:", payload))
+    // .receive("error", err => console.log("hover push, errored", err))
+    // .receive("timeout", () => console.log("hover push, timed out"))
+    //
     // to capture the event from server side
     // fow now, it timeouts
     // iredis --url redis://redis:6379 subscribe channel:table:event:flight-hover

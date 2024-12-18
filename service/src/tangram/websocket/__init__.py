@@ -107,10 +107,7 @@ def is_leaving_message(message: ClientMessage) -> bool:
 async def handle_heartbeat(client_id: str, message: ClientMessage) -> None:
     """always respond"""
     log.debug("[%s] - receive heartbeat from client", client_id)
-    await broadcast.publish(
-        channel=client_id,
-        message=json.dumps([message.join_ref, message.ref, message.topic, "phx_reply", message.ok]),
-    )
+    await broadcast.publish(channel=client_id, message=json.dumps([message.join_ref, message.ref, message.topic, "phx_reply", message.ok]))
     # log.debug("[%s] - heartbeat piped: %s [%s]", client_id, type(message), message)
 
 
@@ -124,10 +121,7 @@ async def ok_to_join(client_id: str, message: ClientMessage, response=None):
     log.error("%s %s", response_message, type(response_message))
     # log.error("%s\n%s\n", json.dumps(response_message), json.dumps(response_message[-1]))
     try:
-        await broadcast.publish(
-            channel=client_id,
-            message=response_message,
-        )
+        await broadcast.publish(channel=client_id, message=response_message)
     except redis.exceptions.DataError as exc:
         log.error("%s", exc)
     # log.info("[%s] - %s response piped: %s [%s]", client_id, message.event, type(message), message)
@@ -136,10 +130,7 @@ async def ok_to_join(client_id: str, message: ClientMessage, response=None):
 async def ok_to_leave(client_id: str, message: ClientMessage):
     log.debug("DEFAULT LEAVE HANDLER, %s is leaving %s ...", client_id, message.topic)
 
-    await broadcast.publish(
-        channel=client_id,
-        message=json.dumps([message.join_ref, message.ref, message.topic, "phx_reply", message.ok]),
-    )
+    await broadcast.publish(channel=client_id, message=json.dumps([message.join_ref, message.ref, message.topic, "phx_reply", message.ok]))
     hub.remove(client_id, message.topic)
     log.debug("[%s] - %s response piped %s", client_id, message.event, message.topic)
 

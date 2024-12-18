@@ -245,6 +245,7 @@ pc-log log="tangram": pc-network
 
 pc-jet1090-basestation:
   #!/usr/bin/env bash
+
   mkdir -p ~/.cache/jet1090
   if [[ ! -f ~/.cache/jet1090/basestation.zip ]]; then
     echo "basestation.zip not found, downloading ..."
@@ -256,7 +257,7 @@ pc-jet1090-basestation:
 pc-jet1090-vol: pc-jet1090-basestation
   # Commands for creating a volume for basestation.sqb
   # It can be used as name volume when running jet1090 contaienr
-  # FIXME: but it does not work with jet1090 for now
+  # FIXME: it does not work with jet1090 for now, it tries to create the directory and download anyway.
   tar czf ~/.cache/jet1090/basestation.sqb.tgz -C ~/.cache/jet1090 basestation.sqb
   podman volume create {{JET1090_VOL}}
   podman volume import {{JET1090_VOL}} ~/.cache/jet1090/basestation.sqb.tgz

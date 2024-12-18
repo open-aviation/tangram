@@ -22,6 +22,8 @@ async def default_message_handler(message):
     # dispatch event
     if channel == "channel:table:event:flight-hover":
         data = json.loads(data)
+        # ACK
+        # await channels.system_broadcast(channel="channel:table", event="flight-hover", data=data)
         await channels.system_broadcast(channel="channel:streaming", event="new-selected", data=data[-1])
 
 
