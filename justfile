@@ -218,7 +218,8 @@ pc-build: pc-network
 pc-run: pc-network
   podman container run -it --rm --name tangram \
     --network {{NETWORK}} -p 18000:18000 -p 2024:2024 \
-    -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) tangram:0.1
+    -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
+    tangram:0.1
 
 # rate-limiting plugin container
 pc-rate-limiting: pc-network
@@ -229,6 +230,15 @@ pc-rate-limiting: pc-network
     -e REDIS_URL=redis://redis:6379 \
     -w /home/user/tangram/service \
     tangram:0.1 uv run -- python -m tangram.plugins.rate_limiting --dest-topic=coordinate
+
+pc-table:
+  podman container run -it --rm --name rate_limiting \
+    --network {{NETWORK}} \
+    -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
+    -e UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram \
+    -e REDIS_URL=redis://redis:6379 \
+    -w /home/user/tangram/service \
+    tangram:0.1 uv run -- python -m tangram.plugins.table
 
 pc-log log="tangram": pc-network
   @podman container exec -it -e TERM=xterm-256color -w /tmp/tangram tangram tail -f {{log}}.log
@@ -242,7 +252,6 @@ pc-jet1090-basestation:
   fi
 
   unzip -o ~/.cache/jet1090/basestation.zip -d ~/.cache/jet1090
-
 
 pc-jet1090-vol: pc-jet1090-basestation
   # Commands for creating a volume for basestation.sqb

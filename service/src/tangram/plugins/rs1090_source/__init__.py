@@ -14,7 +14,7 @@ from tangram.util import logging as tangram_logging
 
 # dotenv.load_dotenv()
 
-tangram_log = logging.getLogger('tangram')
+tangram_log = logging.getLogger("tangram")
 log = tangram_logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.DEBUG)
 
 client = httpx.AsyncClient()
@@ -168,9 +168,6 @@ async def handle_select(client_id: str, message: ClientMessage):
     log.info("%s selects icao24: %s", client_id, message.payload)
 
 
-# ==== plugin data source example
-
-
 class Rs1090Data:
     def __init__(self, base_url: str):
         self.base_url: str = base_url
@@ -178,37 +175,15 @@ class Rs1090Data:
     async def forward_from_http(self, source_fn, params=None):
         source_data = await source_fn(**params)
         if not source_data:
-            # log.error("no data loaded from rs1090, url: %s", self.base_url)
             return
-        # log.info(
-        #     "icao24: %s ... (total: %s)",
-        #     ", ".join([el["icao24"] for el in source_data if "icao24" in el][:3]),
-        #     len(source_data),
-        # )
-
-        # hook from client, filter data from the source
-        # if "filter" in event_handlers and _events_of_interest:
-        #     result_source_data = []
-        #     for key, values in _events_of_interest.items():
-        #         result_source_data.extend([el for el in source_data if el.get(key) in values])
-        #
-        #     log.info(
-        #         "source data: %s, filtered source_data: %s",
-        #         len(source_data),
-        #         len(result_source_data),
-        #     )
-        #     source_data = result_source_data
 
         try:
             log.info("publishing (len: %s)...", len(source_data))
             icao24_list = set([el["icao24"] for el in source_data])
-            # log.debug("%s", source_data[0])
             log.debug("unique total: %s %s", len(icao24_list), icao24_list)
             await channels.publish_any("channel:streaming", "new-data", source_data)
         except Exception:
-            # it will fail for the first time for sure
             log.exception("<RS> fail to publish")
-        # log.info("<RS> published")
 
     async def all(self):
         """all positions"""
@@ -217,9 +192,6 @@ class Rs1090Data:
     async def icao24_tracks(self, identifier):
         """ICAO24 5 minutes historical positions"""
         return await icao24_track(self.base_url + "/track", identifier)
-
-
-#### plugin mounint object (and functions)
 
 
 class PublishRunner:
@@ -254,6 +226,7 @@ class PublishRunner:
 
 
 publish_runner = PublishRunner()
+
 
 async def startup() -> None:
     global publish_runner

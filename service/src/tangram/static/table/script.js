@@ -24,7 +24,56 @@ function createInnerHTML(data) {
 }
 
 function createRowHtml(data) {
-  return `<tr id="data-${data.icao24}">${createInnerHTML(data)}</tr>`;
+  return `<tr id="data-${data.icao24}" class="flight-row">${createInnerHTML(data)}</tr>`;
+}
+
+function debounce(func, wait) {
+  let timeout;
+  return function (...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+function handleRowHover(tr) {
+  const icao24 = tr.id.replace('data-', '');
+  const flightData = flightStore.get(icao24);
+  if (flightData) {
+    console.log('Flight data:', flightData);
+    const event = new CustomEvent('flightHover', {
+      detail: {
+        flightData,
+        element: tr
+      }
+    });
+    document.dispatchEvent(event);
+  }
+}
+
+function setupHoverListeners() {
+  const tbody = document.getElementById('flight-data-body');
+  let currentHoveredRow = null;
+
+  const debouncedHoverHandler = debounce((tr) => {
+    handleRowHover(tr);
+  }, 100);
+
+  tbody.addEventListener('mouseover', (event) => {
+    const tr = event.target.closest('tr');
+    if (tr && tr !== currentHoveredRow) {
+      currentHoveredRow = tr;
+      tr.classList.add('table-active');  // add hover style
+      debouncedHoverHandler(tr);
+    }
+  });
+
+  tbody.addEventListener('mouseout', (event) => {
+    const tr = event.target.closest('tr');
+    if (tr) {
+      tr.classList.remove('table-active');
+      currentHoveredRow = null;
+    }
+  });
 }
 
 function updateTableRow(data) {
@@ -35,15 +84,16 @@ function updateTableRow(data) {
   if (existingRow) {
     const rowElement = document.createElement('tr');
     rowElement.id = rowId;
+    rowElement.className = 'flight-row';
     rowElement.innerHTML = createInnerHTML(data);
-    morphdom(existingRow, rowElement); // replace
+    morphdom(existingRow, rowElement);
   } else {
     tbody.insertAdjacentHTML('beforeend', createRowHtml(data));
   }
 }
 
 function cleanupOldEntries(currentTimestamp) {
-  const TIMEOUT_THRESHOLD = 60; // Remove entries older than 60 seconds
+  const TIMEOUT_THRESHOLD = 60;
 
   flightStore.forEach((data, icao24) => {
     if (currentTimestamp - data.timestamp > TIMEOUT_THRESHOLD) {
@@ -52,7 +102,7 @@ function cleanupOldEntries(currentTimestamp) {
       if (row) {
         row.remove();
       }
-      console.log(`el ${icao24} removed.`)
+      console.log(`el ${icao24} removed.`);
     }
   });
 }
@@ -79,31 +129,36 @@ document.addEventListener('DOMContentLoaded', () => {
   let socket = new Socket("", { debug, params: { userToken } });
   socket.connect();
 
-  const systemChannelName = "channel:table";
-  const systemChannelToken = "channel-token";
-  let tableChannel = socket.channel(systemChannelName, { token: systemChannelToken });
+  const channelName = "channel:table";
+  const channelToken = "channel-token";
 
+  let tableChannel = socket.channel(channelName, { token: channelToken });
   tableChannel.on('update-row', updateEl);
-
   tableChannel
     .join()
     .receive("ok", ({ messages }) => {
-      console.log(`Connected to ${systemChannelName}`, messages);
+      console.log(`Connected to ${channelName}`, messages);
     })
     .receive("error", ({ reason }) => {
-      console.error(`Failed to join ${systemChannelName}:`, reason);
+      console.error(`Failed to join ${channelName}:`, reason);
     })
     .receive("timeout", () => {
-      console.warn(`Connection timeout for ${systemChannelName}`);
+      console.warn(`Connection timeout for ${channelName}`);
     });
 
-  socket.onClose(() => {
-    console.log("Socket connection closed");
-    // Attempt to reconnect after 5 seconds
-    setTimeout(() => {
-      console.log("Attempting to reconnect...");
-      socket.connect();
-    }, 5000);
+  setupHoverListeners();
+
+  document.addEventListener('flightHover', (event) => {
+    const { flightData } = event.detail;
+    console.log(`Hovering over flight ${flightData.icao24}`);
+
+    // docs: https://hexdocs.pm/phoenix/js/index.html#channel
+    tableChannel.push("event:flight-hover", { icao24: flightData.icao24 })
+      .receive("ok", payload => console.log("hover push, replied:", payload))
+      .receive("error", err => console.log("hover push, errored", err))
+      .receive("timeout", () => console.log("hover push, timed out"))
+    // to capture the event from server side
+    // fow now, it timeouts
+    // iredis --url redis://redis:6379 subscribe channel:table:event:flight-hover
   });
 });
-

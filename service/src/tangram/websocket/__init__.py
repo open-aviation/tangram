@@ -260,8 +260,11 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
         redis_client.publish(publish_topic, text)
         log.debug("> RX / to Redis %s %s", publish_topic, text)
 
+        # rs1090_source is the only registered handler now, TODO: migrate it to streamline the whole websocket part
+        log.info("channel handlers: %s", channel_handlers)
         for _channel_name, handler in channel_handlers.items():
             await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event
+            log.debug("handler events, %s %s", _channel_name, handler)
 
     log.debug("[%s] done\n\n", client_id)
 
@@ -282,7 +285,7 @@ async def websocket_broadcast(websocket: WebSocket, client_id: str) -> None:
     log.info("[%s] > broadcast task", client_id)
     async with broadcast.subscribe("broadcast") as subscriber:
         async for event in subscriber:
-            log.info("to broadcast %s", event.message)
+            # log.debug("to broadcast %s", event.message)
             await websocket.send_text(event.message)
     log.info("[%s] broadcast task is done", client_id)
 

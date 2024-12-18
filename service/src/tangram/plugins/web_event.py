@@ -1,10 +1,14 @@
 import logging
 import asyncio
-from typing import Callable, List
+import json
+from typing import Callable, List, Tuple
 
 from redis.asyncio import Redis
+from redis.asyncio.client import PubSub
+
 
 from tangram.util import logging as tangram_logging
+import tangram.websocket as channels
 
 tangram_log = logging.getLogger(__name__)
 log = tangram_logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.DEBUG)
@@ -15,12 +19,18 @@ async def default_message_handler(message):
     data = message["data"].decode("utf-8")
     log.debug("from [%s]: %s", channel, data)
 
+    # dispatch event
+    if channel == "channel:table:event:flight-hover":
+        data = json.loads(data)
+        await channels.system_broadcast(channel="channel:streaming", event="new-selected", data=data[-1])
+
 
 async def create_redis_subscriber(
     redis_url: str, channels: List[str], message_handler: Callable = default_message_handler
-):
-    redis = await Redis.from_url(redis_url)
-    pubsub = redis.pubsub()
+) -> Tuple[asyncio.Task, PubSub, Redis]:
+    redis: Redis = await Redis.from_url(redis_url)
+
+    pubsub: PubSub = redis.pubsub()
     await pubsub.psubscribe(*channels)
 
     async def listen():
@@ -29,12 +39,12 @@ async def create_redis_subscriber(
                 if message["type"] == "pmessage":
                     await message_handler(message)
         except asyncio.CancelledError:
-            log.info("canncelled")
+            log.warning("web events subscription is canncelled")
         finally:
-            log.info("cleanup ...")
+            log.warning("cleanup ...")
             await pubsub.unsubscribe()
             await redis.close()
-            log.info("subscriber closed")
+            log.info("redis and pubsub subscriber exits.")
 
     task = asyncio.create_task(listen())
     return task, pubsub, redis
@@ -52,14 +62,14 @@ async def cleanup_redis_subscriber(task, pubsub, redis):
 
 
 subscriber_task: None | asyncio.Task[None] = None
-subscriber_pubsub: None | asyncio.Task[None] = None
-subscriber_redis: None | asyncio.Task[None] = None
+subscriber_pubsub: None | PubSub = None
+subscriber_redis: None | Redis = None
 
 
 async def startup(redis_url: str):
     global subscriber_task, subscriber_pubsub, subscriber_redis
 
-    channels = ["channel:system:*"]
+    channels = ["channel:system:*", "channel:table:*"]
     subscriber_task, subscriber_pubsub, subscriber_redis = await create_redis_subscriber(redis_url, channels)
     tangram_log.info("web_event is up and running.")
 
