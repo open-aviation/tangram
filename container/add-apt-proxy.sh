@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -x -euo pipefail
+set -x -eo pipefail
 
 # Get HTTP proxy, fallback to HTTPS proxy if not set
 http_proxy_value=${http_proxy:-$https_proxy}
