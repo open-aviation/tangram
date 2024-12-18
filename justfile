@@ -212,7 +212,8 @@ pc-redis: pc-network
 
 # build process-compose based image
 pc-build: pc-network
-  podman image build --network {{NETWORK}} -f container/tangram.Dockerfile -t tangram:0.1 .
+  #podman image build --network {{NETWORK}} -f container/tangram.Dockerfile -t tangram:0.1 .
+  podman image build -f container/tangram.Dockerfile -t tangram:0.1 .
 
 # launch tangram container
 pc-run: pc-network
