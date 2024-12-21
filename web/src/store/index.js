@@ -15,14 +15,12 @@ export const useMapStore = defineStore("map", {
     showDrawer: false,
     hoverItem: null,
     altitude: [0, 40000],
-    showCluster: true
+    showCluster: false,
   }),
   getters: {
     doubleCount: ({ count }) => count * 2,
     trajectory: ({ selectedPlane, planeTrajectory }) => {
-      console.log(
-        `in store, getting trajectory of ${selectedPlane}, length: ${planeTrajectory.length}`,
-      );
+      console.log(`in store, getting trajectory of ${selectedPlane}, length: ${planeTrajectory.length}`);
       return selectedPlane ? planeTrajectory : [];
     },
   },
@@ -80,15 +78,13 @@ export const useMapStore = defineStore("map", {
     setPlaneData(planeData) {
       this.planeData = planeData;
       this.planeTrajectory = planeData
-        .filter(
-          ({ latitude, longitude }) => latitude !== null && longitude !== null,
-        )
+        .filter(({ latitude, longitude }) => latitude !== null && longitude !== null)
         .map(({ latitude, longitude }) => [latitude, longitude]); // used by VPolyline, lat-lngs
     },
     appendPlaneTrajectory([lat, longi]) {
       this.planeTrajectory.push([lat, longi]);
       console.log(
-        `plane trajectory updated, icao24: ${this.selectedPlane.icao24}, length: ${this.planeTrajectory.length}`,
+        `plane trajectory updated, icao24: ${this.selectedPlane.icao24}, length: ${this.planeTrajectory.length}`
       );
     },
     setHoverItem(v) {
