@@ -21,6 +21,7 @@ COPY . /home/user/tangram
 WORKDIR /home/user/tangram/service
 RUN just install-watchexec
 
+ENV PATH="${PATH}:/home/user/.local/bin"
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 RUN mkdir -p /home/user/.local/share/venvs
