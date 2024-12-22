@@ -8,7 +8,7 @@ from redis.asyncio.client import PubSub
 
 
 from tangram.util import logging as tangram_logging
-import tangram.websocket as channels
+from tangram import channels
 
 tangram_log = logging.getLogger(__name__)
 log = tangram_logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.DEBUG)

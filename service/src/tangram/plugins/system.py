@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import pandas as pd
 from fastapi import APIRouter
 
-from tangram import websocket as channels
+from tangram import channels
 from tangram.plugins.history.storage import HistoryDB
 
 log = logging.getLogger(__name__)

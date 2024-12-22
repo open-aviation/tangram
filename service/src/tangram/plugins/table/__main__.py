@@ -7,8 +7,7 @@ import json
 import redis
 import operator
 
-# from redis_om import HashModel
-import tangram.websocket as channels
+from tangram import channels
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")

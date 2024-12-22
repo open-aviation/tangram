@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Iterable, List
 import logging
 
-from tangram import websocket as channels
+from tangram import channels
 from tangram.plugins import redis_subscriber
 from tangram.plugins.history import HistoryDB
 from tangram.util import logging as tangram_logging

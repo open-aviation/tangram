@@ -5,7 +5,8 @@ import asyncio
 import logging
 from typing import Any, List
 import httpx
-import tangram.websocket as channels
+
+from tangram import channels
 # from redis.asyncio import Redis
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")

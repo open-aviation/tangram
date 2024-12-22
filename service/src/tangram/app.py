@@ -17,7 +17,7 @@ from fastapi.templating import Jinja2Templates
 from httpx import Response, request
 from pydantic import BaseModel
 
-from tangram import websocket as channel
+from tangram import channels
 from tangram.plugins import coordinate, filter_jet1090, system, trajectory_subscriber, web_event
 from tangram.plugins.common import rs1090
 
@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
     # linter complains about the type of app.redis_connection_pool, consider subclass FastAPI
     app.redis_connection_pool = redis.ConnectionPool.from_url(REDIS_URL)
 
-    await channel.broadcast.connect()  # initialize the websocket broadcast
+    await channels.broadcast.connect()  # initialize the websocket broadcast
 
     # listen for web UI events
     await web_event.startup(REDIS_URL)
@@ -134,7 +134,7 @@ async def websocket_handler(ws: WebSocket) -> None:
 
     client_id: str = str(uuid.uuid4())
     log.info("connected, ws: %s, client: %s", ws, client_id)
-    await channel.handle_websocket_client(client_id, ws)
+    await channels.handle_websocket_client(client_id, ws)
     log.info("connection done, ws: %s, client: %s", ws, client_id)
     log.info("%s\n", "+" * 20)
 
@@ -187,20 +187,20 @@ async def channel_publish(message: PublishMessage) -> int:
     if not message.message:
         log.error("empty payload, no publish in channels")
         return status.HTTP_400_BAD_REQUEST
-    await channel.publish_any(message.channel, message.event, message.message)
+    await channels.publish_any(message.channel, message.event, message.message)
     return status.HTTP_204_NO_CONTENT
 
 
 @app.get("/admin/channel-clients")
 async def get_map() -> dict[str, set[str]]:
-    return channel.hub.channel_clients()
+    return channels.hub.channel_clients()
 
 
 @app.get("/admin/channels")
 async def list_channels() -> list[str]:
-    return channel.hub.channels()
+    return channels.hub.channels()
 
 
 @app.get("/admin/clients")
 async def clients() -> list[str]:
-    return channel.hub.clients()
+    return channels.hub.clients()
