@@ -3,15 +3,18 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from math import tan
 import os
 import uuid
 from datetime import datetime
 from typing import Any
+import pathlib
 
 import redis.asyncio as redis
 from fastapi import FastAPI, Request, WebSocket, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.responses import HTMLResponse
 
 # import anyio
 from httpx import Response, request
@@ -102,9 +105,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# working at src/
-app.mount("/static", StaticFiles(directory="tangram/static"), name="static")
-templates = Jinja2Templates(directory="tangram/templates")
+# working directory is $PROJECT/service/src
+tangram_module_root = pathlib.Path(__file__).resolve().parent
+app.mount("/static", StaticFiles(directory=tangram_module_root / "static"), name="static")
+templates = Jinja2Templates(directory=tangram_module_root / "templates")
 
 start_time = datetime.now()
 
@@ -116,6 +120,18 @@ def get_uptime_seconds() -> float:
 @app.get("/uptime")
 async def uptime() -> dict[str, float]:
     return {"uptime": get_uptime_seconds()}
+
+
+@app.get("/")
+async def home(request: Request, history: int = 0) -> HTMLResponse:
+    log.info("index, history: %s", history)
+    context = dict(
+        history=history,
+        form_database=None,
+        form_threshold=None,
+        uptime=get_uptime_seconds(),
+    )
+    return templates.TemplateResponse(request=request, name="index.html", context=context)
 
 
 @app.get("/data/{icao24}")
