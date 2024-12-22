@@ -1,25 +1,34 @@
 version: "0.5"
 
-environment:
-  - "no_proxy=127.0.0.1,134.212.29.201,jet1090,redis"
-  #- "RS1090_SOURCE_BASE_URL=http://host.containers.internal:8080"
-  - "REDIS_URL=redis://134.212.29.201:6379"
-  - "RS1090_SOURCE_BASE_URL=http://134.212.29.201:8080"
+# Global environment is imported from project .env: $PROJECT/.env
+# in container, it's /home/user/tangram/.env
+#
+# environment:
+# - "RS1090_SOURCE_BASE_URL=http://host.containers.internal:8080"
+# - "REDIS_URL=redis://redis:6379"
+# - "RS1090_SOURCE_BASE_URL=http://jet1090:8080"
 log_location: /tmp/pc.log
 log_level: debug
 
 processes:
   web:
-    environment:
-      - "TANGRAM_SERVICE=127.0.0.1:18000"
     working_dir: /home/user/tangram/web
-    command: npm install --verbose && npm install -d --verbose && npx vite --port 2024 --host 0.0.0.0
+    command: just run-web
     availability:
       restart: "always"
 
   service:
     environment:
-    command: just watchexec
+    command: just run-service
+    working_dir: /home/user/tangram/service
+    availability:
+      restart: "always"
+
+  plugins/streaming:
+    environment:
+      - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
+    working_dir: /home/user/tangram/service
+    command: env && pwd && uv run -- python -m tangram.plugins.streaming
     availability:
       restart: "always"
 
@@ -27,4 +36,6 @@ processes:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/service
-    command: uv run -- python -m tangram.plugins.history
+    command: env && pwd && uv run -- python -m tangram.plugins.history
+    availability:
+      restart: "always"

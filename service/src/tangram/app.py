@@ -17,10 +17,9 @@ from fastapi.templating import Jinja2Templates
 from httpx import Response, request
 from pydantic import BaseModel
 
-from tangram import websocket as tangram_websocket
-from tangram.plugins import coordinate, filter_jet1090, rs1090_source, system, trajectory_subscriber, web_event
+from tangram import websocket as channel
+from tangram.plugins import coordinate, filter_jet1090, system, trajectory_subscriber, web_event
 from tangram.plugins.common import rs1090
-from tangram.plugins.common.rs1090.websocket_client import jet1090_websocket_client
 
 log = logging.getLogger("tangram")
 
@@ -44,9 +43,6 @@ async def connect_jet1090(*args: Any, **kwargs: Any) -> None:
     log.info("REDIS: %s", REDIS_URL)
     log.info("JET1090: %s", os.getenv("RS1090_SOURCE_BASE_URL"))
 
-    websocket_url = RS1090_SOURCE_BASE_URL.replace("http", "ws") + "/websocket"
-    await jet1090_websocket_client.connect_async(websocket_url)
-
 
 async def shutdown_debug(*args: Any, **kwargs: Any) -> None:
     """debugging"""
@@ -62,7 +58,7 @@ async def lifespan(app: FastAPI):
     # linter complains about the type of app.redis_connection_pool, consider subclass FastAPI
     app.redis_connection_pool = redis.ConnectionPool.from_url(REDIS_URL)
 
-    await tangram_websocket.broadcast.connect()  # initialize the websocket broadcast
+    await channel.broadcast.connect()  # initialize the websocket broadcast
 
     # listen for web UI events
     await web_event.startup(REDIS_URL)
@@ -75,9 +71,6 @@ async def lifespan(app: FastAPI):
 
     # System UI events
     await system.startup()
-
-    # Pull from jet1090 restful api and publish
-    await rs1090_source.startup()
 
     # Build the history
     # This plugin takes time to restart, consider move it to process_compose
@@ -130,8 +123,8 @@ async def uptime() -> dict[str, float]:
 
 @app.get("/data/{icao24}")
 async def data(icao24: str) -> list[rs1090.Jet1090Data]:
-    return await jet1090_restful_client.icao24_track(icao24) or []
-    # return await rs1090_source.icao24_track(rs1090_source.BASE_URL + "/track", icao24)
+    records = await jet1090_restful_client.icao24_track(icao24) or []
+    return [r for r in records if r.latitude is not None and r.longitude is not None]
 
 
 @app.websocket("/websocket")
@@ -141,7 +134,7 @@ async def websocket_handler(ws: WebSocket) -> None:
 
     client_id: str = str(uuid.uuid4())
     log.info("connected, ws: %s, client: %s", ws, client_id)
-    await tangram_websocket.handle_websocket_client(client_id, ws)
+    await channel.handle_websocket_client(client_id, ws)
     log.info("connection done, ws: %s, client: %s", ws, client_id)
     log.info("%s\n", "+" * 20)
 
@@ -194,20 +187,20 @@ async def channel_publish(message: PublishMessage) -> int:
     if not message.message:
         log.error("empty payload, no publish in channels")
         return status.HTTP_400_BAD_REQUEST
-    await tangram_websocket.publish_any(message.channel, message.event, message.message)
+    await channel.publish_any(message.channel, message.event, message.message)
     return status.HTTP_204_NO_CONTENT
 
 
 @app.get("/admin/channel-clients")
 async def get_map() -> dict[str, set[str]]:
-    return tangram_websocket.hub.channel_clients()
+    return channel.hub.channel_clients()
 
 
 @app.get("/admin/channels")
 async def list_channels() -> list[str]:
-    return tangram_websocket.hub.channels()
+    return channel.hub.channels()
 
 
 @app.get("/admin/clients")
 async def clients() -> list[str]:
-    return tangram_websocket.hub.clients()
+    return channel.hub.clients()

@@ -24,12 +24,12 @@ export default {
             return this.store.selectedPlane;
         },
         /*
-    polyline() {
-      const line = this.store.trajectory;
-      console.log(`getting polyline, length: ${line.length}`);
-      return line;
-    }
-    */
+        polyline() {
+          const line = this.store.trajectory;
+          console.log(`getting polyline, length: ${line.length}`);
+          return line;
+        }
+        */
     },
     watch: {
         selected: function (newVal) {

@@ -128,26 +128,7 @@ class Rs1090Client:
         return await self.request_rs1090(path or "/") or []
 
     async def icao24_track(self, identifier: str, path: str | None = "/track") -> list[Jet1090Data] | None:
-        """ICAO24 1 minute historical positions
-        sample record for `/track?icao24=010117`
-        {
-            "timestamp": 1713076152.4026532,
-            "frame": "",
-            "df": "17",
-            "icao24": "010117",
-            "bds": "05",
-            "NUCp": 7,
-            "NICb": 0,
-            "altitude": 34000,
-            "source": "barometric",
-            "parity": "odd",
-            "lat_cpr": 103579,
-            "lon_cpr": 18181,
-            "latitude": 47.533698647709215,
-            "longitude": 10.511169433593748,
-            "idx": 3
-        }
-        """
+        """ICAO24 1 minute historical positions, `/track?icao24=010117`"""
         items = await self.request_rs1090(path or "/track", params={"icao24": identifier})
         if not items:
             return None

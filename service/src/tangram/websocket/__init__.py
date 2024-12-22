@@ -97,18 +97,18 @@ def is_heartbeat(message: ClientMessage) -> bool:
 
 
 def is_joining_message(message: ClientMessage) -> bool:
-    return message.event == "phx_join"
+    return message.event in ["phx_join", "join"]
 
 
 def is_leaving_message(message: ClientMessage) -> bool:
-    return message.event == "phx_leave"
+    return message.event == ["phx_leave", "leave"]
 
 
 async def handle_heartbeat(client_id: str, message: ClientMessage) -> None:
     """always respond"""
     log.debug("[%s] - receive heartbeat from client", client_id)
     await broadcast.publish(channel=client_id, message=json.dumps([message.join_ref, message.ref, message.topic, "phx_reply", message.ok]))
-    # log.debug("[%s] - heartbeat piped: %s [%s]", client_id, type(message), message)
+    log.debug("[%s] - heartbeat piped: %s [%s]", client_id, type(message), message)
 
 
 async def ok_to_join(client_id: str, message: ClientMessage, response=None):
@@ -124,7 +124,7 @@ async def ok_to_join(client_id: str, message: ClientMessage, response=None):
         await broadcast.publish(channel=client_id, message=response_message)
     except redis.exceptions.DataError as exc:
         log.error("%s", exc)
-    # log.info("[%s] - %s response piped: %s [%s]", client_id, message.event, type(message), message)
+    log.debug("[%s] - %s response piped: %s [%s]", client_id, message.event, type(message), message)
 
 
 async def ok_to_leave(client_id: str, message: ClientMessage):
@@ -231,9 +231,9 @@ def on_channel_event(_func, *, channel_pattern, event_pattern):
 async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
     log.info("[%s] - receive task", client_id)
     async for text in websocket.iter_text():
-        log.debug("[%s] < %s [%s]", client_id, type(text), text)
-
         client_message: ClientMessage = ClientMessage.from_string(text)  # noqa
+        log.debug("[%s] < %s [%s]", client_id, type(text), text)
+        log.debug("client message: %s", client_message)
 
         if is_heartbeat(client_message):
             await handle_heartbeat(client_id, client_message)
@@ -249,13 +249,13 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
 
         publish_topic = f"{client_message.topic}:{client_message.event}"
         redis_client.publish(publish_topic, text)
-        log.debug("> RX / to Redis %s %s", publish_topic, text)
+        # log.debug("> RX / to Redis %s %s", publish_topic, text)
 
         # rs1090_source is the only registered handler now, TODO: migrate it to streamline the whole websocket part
         log.info("channel handlers: %s", channel_handlers)
-        for _channel_name, handler in channel_handlers.items():
-            await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event
-            log.debug("handler events, %s %s", _channel_name, handler)
+        # for _channel_name, handler in channel_handlers.items():
+        #     await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event
+        #     log.debug("handler events, %s %s", _channel_name, handler)
 
     log.debug("[%s] done\n\n", client_id)
 
@@ -306,9 +306,9 @@ async def system_broadcast(*, channel: str, event: str, data: Any, by_redis: boo
 
     message = [None, None, channel, event, data]
     # (redis_client if by_redis else broadcast).publish(channel, json.dumps(message))
-    if by_redis:
+    if by_redis:  # FIXME: not working properly
         await redis_client.publish(channel, json.dumps(message))
     else:
         # check the `websocket_broadcast` function, it's listening to `broadcast` channel
         await broadcast.publish(channel="broadcast", message=json.dumps(message))
-    log.debug("message broadcasted")
+    # log.debug("message broadcasted")

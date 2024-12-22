@@ -10,45 +10,57 @@ set export
 RS1090_SOURCE_BASE_URL := env_var_or_default("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")
 
 _default:
-  just --list
+  @just _check-env
+  @just --list
 
-# watch current dir and run the service
-# presumbly, you have uv installed and the virtualenv is created
-watchexec:
+_check-env:
   #!/usr/bin/env bash
-  set -x -euo pipefail
 
-  pushd service/src
-  watchexec -r -w . -e py -- \
-    uv run uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config ../logging.yml
-  popd
+  if [ ! -f .env ]; then
+    printf ".env file does not exist, use default configurations.\n\n"
+  fi
 
-## utils
-
-install-watchexec:
+# install watchexec, uv, process-compose
+install-dependent-binaries:
   #!/usr/bin/env bash
   set -x -euo pipefail
 
   DEST_DIR="$HOME/.local/bin"
 
-  # download watchexec binary
-  # use it because uvicorn reloading is slow
-  #
-  # curl -sL https://api.github.com/repos/watchexec/watchexec/releases/latest | jq -r '.tag_name' => v2.1.2
-  # download URL: https://github.com/watchexec/watchexec/releases/download/v2.1.2/watchexec-2.1.2-x86_64-unknown-linux-musl.tar.xz
-
-  # Function to clean up temporary files
   cleanup() {
     rm -rf /tmp/watchexec*
   }
   trap cleanup EXIT
+
   LATEST_TAG=$(curl -sL https://api.github.com/repos/watchexec/watchexec/releases/latest | jq -r '.tag_name')
   DL_URL="https://github.com/watchexec/watchexec/releases/download/${LATEST_TAG}/watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl.tar.xz"
   curl -L "$DL_URL" -o /tmp/watchexec.tar.xz
   mkdir -p $DEST_DIR
   tar -xvf /tmp/watchexec.tar.xz --strip-components=1 -C $DEST_DIR "watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl/watchexec"
-  echo "Watchexec has been successfully installed to ~/.local/bin/watchexec"
+  echo "watchexec has been installed to $DEST_DIR/watchexec."
 
+  curl -LsSf https://astral.sh/uv/install.sh | sh # uv
+  echo "uv has been installed to $DEST_DIR/{uv,uvx}."
+
+  sh -c "$(curl --location https://raw.githubusercontent.com/F1bonacc1/process-compose/main/scripts/get-pc.sh)" -- -d -b $DEST_DIR # process-compose
+  echo "process-compose has been installed to $DEST_DIR/process-compose."
+
+  ls -al $DEST_DIR
+
+# create virtualenv
+create-uv-venv wd="~/tangram/service":
+  #!/usr/bin/env bash
+  set -x -euo pipefail
+
+  cd {{wd}}
+  mkdir -p /home/user/.local/share/venvs
+
+  # specify the path for virtual environment
+  # by default it creates .venv in current working directory, which has issues of permission
+  # https://docs.astral.sh/uv/concepts/projects/#configuring-the-project-environment-path
+  export UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram
+  uv venv --verbose
+  uv sync --dev --verbose --no-cache && uv cache clean
 
 NETWORK := "tangram"
 JET1090_VERSION := "v0.4.1"
@@ -78,16 +90,36 @@ pc-redis: pc-network
   podman container run -d --rm --name redis --network {{NETWORK}} -p 6379:6379 \
     docker.io/library/redis:8.0-M02
 
-# build process-compose based image
-pc-build: pc-network
-  # podman image build --network {{NETWORK}} -f container/tangram.Dockerfile -t tangram:0.1 .
-  podman image build -f container/tangram.Dockerfile -t tangram:0.1 .
+# watch current dir and run the service
+# presumbly, you have uv installed and the virtualenv is created
+run-service port="18000" host="0.0.0.0":
+  #!/usr/bin/env bash
+  set -x -euo pipefail
+
+  pwd
+  cd service/src
+  watchexec -r -w . -e py -- \
+    uv run uvicorn --host {{host}} --port {{port}} tangram.app:app --ws websockets --log-config ../logging.yml
+
+run-web host="0.0.0.0" port="2024":
+  #!/usr/bin/env bash
+
+  cd /home/user/tangram/web
+
+  # rm -rf node_modules
+  npm install
+  npm install --dev
+  npx vite --host {{host}} --port {{port}}
+
+# build process-compose based tangram image
+pc-build:
+  podman image build -f container/tangram.Containerfile -t tangram:0.1 .
 
 # launch tangram container
 pc-run: pc-network
   podman container run -it --rm --name tangram \
     --network {{NETWORK}} -p 18000:18000 -p 2024:2024 \
-    -e no_proxy=134.212.29.201,127.0.0.1 \
+    --env-file .env \
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
     tangram:0.1
 

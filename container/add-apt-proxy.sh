@@ -1,20 +1,25 @@
 #!/usr/bin/env bash
-set -x -eo pipefail
 
-# Get HTTP proxy, fallback to HTTPS proxy if not set
-http_proxy_value=${http_proxy:-$https_proxy}
+set -euo pipefail
+[ "${TRACE:-0}" = "1" ] && set -x
 
-# Get HTTPS proxy, fallback to HTTP proxy if not set
-https_proxy_value=${https_proxy:-$http_proxy}
+[ "$(id -u)" -ne 0 ] && echo "This script must be run as root" >&2 && exit 1
 
-# If either proxy is set, add to apt.conf
-if [ -n "$http_proxy_value" ] || [ -n "$https_proxy_value" ]; then
-        echo "Configuring proxy settings..."
+# Get proxy values with fallbacks: lower case > upper case > the other protocol > empty string
+http_proxy_value=${http_proxy:-${HTTP_PROXY:-${https_proxy:-${HTTPS_PROXY:-""}}}}
+https_proxy_value=${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-""}}}}
 
-        [ -n "$http_proxy_value" ] && echo "Acquire::http::Proxy \"$http_proxy_value\";" >>/etc/apt/apt.conf
-        [ -n "$https_proxy_value" ] && echo "Acquire::https::Proxy \"$https_proxy_value\";" >>/etc/apt/apt.conf
+[ -z "$http_proxy_value" ] && [ -z "$https_proxy_value" ] && {
+        echo "No proxy environment variables found."
+        exit 0
+}
 
-        echo "Proxy settings added to /etc/apt/apt.conf"
-else
-        echo "No proxy environment variables found. Skipping proxy configuration."
-fi
+mkdir -p /etc/apt/apt.conf.d
+PROXY_CONF="/etc/apt/apt.conf.d/99-proxy.conf"
+cat >"$PROXY_CONF" <<EOF
+Acquire::http::Proxy "$http_proxy_value";
+Acquire::https::Proxy "$https_proxy_value";
+EOF
+
+echo "APT proxy settings have been updated in $PROXY_CONF"
+cat $PROXY_CONF

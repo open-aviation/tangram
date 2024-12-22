@@ -58,16 +58,6 @@ handlers:
     formatter: default
     class: logging.FileHandler
     filename: /tmp/tangram/history.log
-  websocket_client_info:
-    level: INFO
-    formatter: default
-    class: logging.FileHandler
-    filename: /tmp/tangram/websocket_client.info.log
-  websocket_client_debug:
-    level: DEBUG
-    formatter: raw
-    class: logging.FileHandler
-    filename: /tmp/tangram/websocket_client.debug.log
 loggers:
   uvicorn.error:
     level: INFO
@@ -96,13 +86,6 @@ loggers:
     qualname: tangram.websocket
     handlers:
       - channels
-    propagate: no
-  tangram.plugins.common.rs1090.websocket_client:
-    level: DEBUG
-    qualname: tangram.plugins.common.rs1090.websocket_client
-    handlers:
-      - websocket_client_info
-      - websocket_client_debug
     propagate: no
   tangram.plugins.rs1090_source:
     level: DEBUG
