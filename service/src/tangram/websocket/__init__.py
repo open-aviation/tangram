@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import functools
-import inspect
 import json
 import logging
-import re
-from typing import Any, List, Optional
 import os
+from typing import Any, List
 
 import redis
 import redis.exceptions
@@ -15,7 +12,6 @@ from fastapi import WebSocket
 from pydantic import BaseModel
 from starlette.concurrency import run_until_first_complete
 
-# from tangram.util.geojson import BetterJsonEncoder
 from tangram.util import logging as tangram_logging
 
 # log = logging.getLogger(__name__)
@@ -135,99 +131,6 @@ async def ok_to_leave(client_id: str, message: ClientMessage):
     log.debug("[%s] - %s response piped %s", client_id, message.event, message.topic)
 
 
-class ChannelHandlerMixin:
-    def __init__(self, channel_name: str) -> None:
-        self._channel_name = channel_name
-        self.event_handlers = []
-
-    @property
-    def channel_name(self):
-        return self._channel_name
-
-    def will_handle_channel(self, channel_name: str) -> bool:
-        """accept when channel matches exactly"""
-        return channel_name.lower() == self.channel_name
-
-    async def dispatch_events(self, client_id: str, message: ClientMessage) -> bool:
-        channel, event = message.topic, message.event
-        log.debug("%s(in %s), from %s, disptaching event %s %s ...", self, self.channel_name, client_id, channel, event)
-
-        log.debug("event_handlers: %s", self.event_handlers)
-        for i, event_handler in enumerate(self.event_handlers):
-            channel_pattern_regexp, event_pattern_regexp, fn = event_handler[:3]
-            args, kwargs = event_handler[3:] if len(event_handler) == 5 else ([], {})
-
-            log.debug("%s matching, %s, %s, %s %s", i, channel_pattern_regexp, event_pattern_regexp, args, kwargs)
-            if bool(channel_pattern_regexp.match(channel)) and bool(event_pattern_regexp.match(event)):
-                log.debug("matched, calling %s...", fn)
-                if inspect.isfunction(fn):
-                    result = await fn(client_id, message)
-                    log.debug("function: %s %s => %s", fn, fn.__name__, result)
-                if inspect.ismethod(fn):
-                    result = await getattr(kwargs["obj"], fn.__name__)(client_id, message)
-                    log.debug("method: %s %s %s => %s", fn, fn.__name__, getattr(kwargs["obj"], fn.__name__), result)
-        if event == "join":
-            await ok_to_join(client_id, message)
-        if event == "leave":
-            await ok_to_leave(client_id, message)
-        return False
-
-    def register_channel_event_handler(self, fn, channel_pattern: Optional[str] = None, event_pattern: Optional[str] = None, *args, **kwargs):
-        if channel_pattern is None:
-            channel_pattern = self.channel_name
-        channel_pattern_regexp = re.compile(channel_pattern)
-        if event_pattern is None:
-            event_pattern = fn.__name__  # name as the parameter, or use the function name
-        event_pattern_regexp = re.compile(event_pattern)  # FIXME: ?
-        self.event_handlers.append((channel_pattern_regexp, event_pattern_regexp, fn, args, kwargs))
-        print(self.event_handlers)
-
-    def on_channel_event(self, channel_pattern: Optional[str] = None, event_pattern: Optional[str] = None):
-        if channel_pattern is None:
-            channel_pattern = self.channel_name
-        channel_pattern_regexpr = re.compile(channel_pattern)
-        event_pattern_regexpr = re.compile(event_pattern) if event_pattern else None
-
-        def decorator(fn):
-            @functools.wraps(fn)
-            def wrapper(*args, **kwargs):
-                log.info("fn: %s args: %s, kargs: %s", fn, args, kwargs)
-                return fn
-
-            nonlocal channel_pattern_regexpr
-            nonlocal event_pattern_regexpr
-            if event_pattern_regexpr is None:
-                event_pattern_regexpr = re.compile(fn.__name__)
-
-            self.event_handlers.append((channel_pattern_regexpr, event_pattern_regexpr, fn))
-            return wrapper
-
-        return decorator
-
-
-channel_handlers = {}
-
-
-def register_channel_handler(handler):
-    """plugins call the function to register their event handlers"""
-    channel_handlers[handler.channel_name] = handler
-
-
-def on_channel_event(_func, *, channel_pattern, event_pattern):
-    """both patterns are regex"""
-
-    def decorator(fn):
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            log.info("fn: %s, args: %s, kargs: %s", fn, args, kwargs)
-            # event_handlers[event_name] = fn
-            return fn
-
-        return wrapper
-
-    return decorator if _func is None else decorator(_func)
-
-
 async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
     log.info("[%s] - receive task", client_id)
     async for text in websocket.iter_text():
@@ -250,12 +153,6 @@ async def websocket_receiver(websocket: WebSocket, client_id: str) -> None:
         publish_topic = f"{client_message.topic}:{client_message.event}"
         redis_client.publish(publish_topic, text)
         # log.debug("> RX / to Redis %s %s", publish_topic, text)
-
-        # rs1090_source is the only registered handler now, TODO: migrate it to streamline the whole websocket part
-        log.info("channel handlers: %s", channel_handlers)
-        # for _channel_name, handler in channel_handlers.items():
-        #     await handler.dispatch_events(client_id, client_message)  # handler dispatch based on event
-        #     log.debug("handler events, %s %s", _channel_name, handler)
 
     log.debug("[%s] done\n\n", client_id)
 
