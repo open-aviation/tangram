@@ -104,11 +104,25 @@ run-service port="18000" host="0.0.0.0":
 run-web host="0.0.0.0" port="2024":
   #!/usr/bin/env bash
 
-  cd /home/user/tangram/web
+  echo "- checking env ..."
+  env
 
-  # rm -rf node_modules
-  npm install
-  npm install --dev
+  cd /home/user/tangram/web
+  echo "- working directory: ${PWD}"
+
+  if [ ! -f /tmp/npm-installed.txt ]; then
+    echo "- removing node_modules ..."
+    rm -rf node_modules
+
+    echo "- npm install now ..."
+    npm install --verbose
+    npm install --dev --verbose
+
+    touch /tmp/npm-installed.txt
+  else
+    echo "- node_modules exists, skip npm install."
+  fi
+
   npx vite --host {{host}} --port {{port}}
 
 # build process-compose based tangram image
