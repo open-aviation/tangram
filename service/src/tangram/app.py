@@ -18,7 +18,7 @@ from httpx import Response, request
 from pydantic import BaseModel
 
 from tangram import channels
-from tangram.plugins import coordinate, filter_jet1090, system, trajectory_subscriber, web_event
+from tangram.plugins import coordinate, filter_jet1090, system, trajectory, web_event
 from tangram.plugins.common import rs1090
 
 log = logging.getLogger("tangram")
@@ -73,12 +73,10 @@ async def lifespan(app: FastAPI):
     await system.startup()
 
     # Build the history
-    # This plugin takes time to restart, consider move it to process_compose
-    # await history.startup(REDIS_URL)
+    # this now runs as an independent process managed by process-compose
 
-    # FIXME: history is not persisted correctly, it fails to load the trajectory for now
-    # await trajectory.app.startup()
-    await trajectory_subscriber.startup(REDIS_URL)
+    # Trajectory
+    await trajectory.startup(REDIS_URL)
 
     log.debug("yield to request handling ...")
     yield  # The application is now running and serving requests
@@ -87,8 +85,7 @@ async def lifespan(app: FastAPI):
     # TODO: task for cleanup, they are disabled for now
     #
     # await system.shutdown()
-    # await trajectory_subscriber.shutdown()
-    # await trajectory.app.shutdown()
+    # await trajectory.shutdown()
     # await coordinate.shutdown()
     # await history.shutdown()
     # await rs1090_source.shutdown()
