@@ -29,6 +29,7 @@ RUN just install-dependent-binaries
 
 # it's at ~/.local/share/venvs
 RUN just create-uv-venv
+ENV UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram
 
 RUN mkdir -p /tmp/tangram
 CMD process-compose --no-server --env /home/user/tangram/.env -f ./container/process-compose.yaml
