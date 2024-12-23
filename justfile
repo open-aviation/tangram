@@ -131,11 +131,20 @@ pc-build:
 
 # launch tangram container
 pc-run: pc-network
-  podman container run -it --rm --name tangram \
-    --network {{NETWORK}} -p 18000:18000 -p 2024:2024 \
-    --env-file .env \
-    -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
-    tangram:0.1
+  #!/usr/bin/env bash
+
+  if [ "$(uname)" = "Linux" ]; then \
+    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 --env-file .env \
+      --userns=keep-id \
+      -v .:/home/user/tangram:z \
+      tangram:0.1; \
+  elif [ "$(uname)" = "Darwin" ]; then \
+    # TODO: verify it's necessary to include `--userns=keep-id` here
+    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 --env-file .env \
+      --userns=keep-id --security-opt label=disable \
+      -v $PWD:/home/user/tangram \
+      tangram:0.1; \
+  fi
 
 # rate-limiting plugin container
 pc-rate-limiting: pc-network
