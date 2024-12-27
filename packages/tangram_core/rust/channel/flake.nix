@@ -1,7 +1,9 @@
 {
   nixConfig = {
     extra-trusted-substituters = [ "https://nix-community.cachix.org" ];
-    extra-trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" ];
+    extra-trusted-public-keys = [
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+    ];
   };
 
   inputs = {
@@ -12,10 +14,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    crane = {
-      url = "github:ipetkov/crane";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    crane.url = "github:ipetkov/crane";
 
     advisory-db = {
       url = "github:rustsec/advisory-db";
@@ -27,12 +26,8 @@
 
   outputs = inputs@{ self, fenix, crane, flake-parts, advisory-db, ... }:
     flake-parts.lib.mkFlake { inherit self inputs; } ({ withSystem, ... }: {
-      systems = [
-        "x86_64-linux"
-        "x86_64-darwin"
-        "aarch64-linux"
-        "aarch64-darwin"
-      ];
+      systems =
+        [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
 
       perSystem = { lib, config, self', inputs', pkgs, system, ... }:
         let
@@ -43,11 +38,11 @@
           markdownFilter = path: _type: builtins.match ".*md$" path != null;
           jsonFilter = path: _type: builtins.match ".*json$" path != null;
           markdownOrJSONOrCargo = path: type:
-          (markdownFilter path type) ||
-          (jsonFilter path type) ||
-          (craneLib.filterCargoSources path type);
+            (markdownFilter path type) || (jsonFilter path type)
+            || (craneLib.filterCargoSources path type);
 
-          version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).workspace.package.version;
+          version = (builtins.fromTOML
+            (builtins.readFile ./Cargo.toml)).workspace.package.version;
 
           commonArgs = {
             src = lib.cleanSourceWith {
@@ -58,14 +53,13 @@
             pname = "rs1090";
             version = version;
 
-            nativeBuildInputs = with pkgs; [ pkg-config openssl python3 bzip2 ] ++
-              lib.optionals pkgs.stdenv.isLinux [ clang mold ]
-            ;
+            nativeBuildInputs = with pkgs;
+              [ pkg-config openssl python3 bzip2 ]
+              ++ lib.optionals pkgs.stdenv.isLinux [ clang mold ];
           };
 
           cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-        in
-        {
+        in {
           devShells.default = pkgs.mkShell {
             inputsFrom = builtins.attrValues self.checks;
             buildInputs = [ rustToolchain pkgs.pkg-config pkgs.openssl ];
@@ -74,35 +68,37 @@
             '';
           };
 
-          packages =
-            {
-              default =  craneLib.buildPackage (commonArgs // {
-                pname = "ch";
-                inherit cargoArtifacts;
-              });
+          packages = {
+            default = craneLib.buildPackage (commonArgs // {
+              pname = "ch";
+              inherit cargoArtifacts;
+            });
 
-              # docs = pkgs.callPackage ./docs {};
-            };
+            # docs = pkgs.callPackage ./docs {};
+          };
 
-          checks =
-            {
-              fmt = craneLib.cargoFmt (commonArgs);
-              audit = craneLib.cargoAudit (commonArgs // { inherit advisory-db; });
-              rustdoc = craneLib.cargoDoc (commonArgs // { inherit cargoArtifacts; });
+          checks = {
+            fmt = craneLib.cargoFmt (commonArgs);
+            audit =
+              craneLib.cargoAudit (commonArgs // { inherit advisory-db; });
+            rustdoc =
+              craneLib.cargoDoc (commonArgs // { inherit cargoArtifacts; });
 
-              clippy-check = craneLib.cargoClippy (commonArgs // {
-                inherit cargoArtifacts;
-                cargoClippyExtraArgs = "--all-features -- --deny warnings";
-              });
+            clippy-check = craneLib.cargoClippy (commonArgs // {
+              inherit cargoArtifacts;
+              cargoClippyExtraArgs = "--all-features -- --deny warnings";
+            });
 
-              test-check = craneLib.cargoNextest (commonArgs // {
-                inherit cargoArtifacts;
-                partitions = 1;
-                partitionType = "count";
-              });
-            }
-            # build packages as part of the checks
-            // (lib.mapAttrs' (key: value: lib.nameValuePair (key + "-package") value) self'.packages);
+            test-check = craneLib.cargoNextest (commonArgs // {
+              inherit cargoArtifacts;
+              partitions = 1;
+              partitionType = "count";
+            });
+          }
+          # build packages as part of the checks
+            // (lib.mapAttrs'
+              (key: value: lib.nameValuePair (key + "-package") value)
+              self'.packages);
 
           formatter = pkgs.nixpkgs-fmt;
         };
