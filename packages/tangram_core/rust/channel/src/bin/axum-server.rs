@@ -60,7 +60,7 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: Arc<AppState
 
     let (mut sender, mut receiver) = socket.split();
 
-    let (tx, mut rx) = mpsc::unbounded_channel();
+    let (_tx, mut rx) = mpsc::unbounded_channel();
 
     // Spawn a task for sending messages to the WebSocket
     let mut send_task = tokio::spawn(async move {
@@ -105,9 +105,9 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: Arc<AppState
 }
 
 async fn handle_websocket_message(
-    msg: axum::extract::ws::Message,
-    state: &Arc<AppState>,
-    conn_id: &str,
+    _msg: axum::extract::ws::Message,
+    _state: &Arc<AppState>,
+    _conn_id: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // 实现消息处理逻辑
     // 这里需要根据您的具体需求来处理不同类型的消息
