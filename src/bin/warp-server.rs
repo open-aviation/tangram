@@ -96,6 +96,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
+    let redis_url = options.redis_url.unwrap();
+    let redis_topic = options.redis_topic.unwrap();
+
     let channel_control = ChannelControl::new();
 
     // create channels
@@ -106,6 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // shared state among channels, used by websocket
     let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
+        redis_url: redis_url.clone(),
     });
 
     // system channel
@@ -120,9 +124,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "streaming",
         "data",
     ));
-
-    let redis_url = options.redis_url.unwrap();
-    let redis_topic = options.redis_topic.unwrap();
 
     // publish 到 redis_topic 的会被转发到 streaming:data chnnel
     tokio::spawn(redis_relay(redis_url, redis_topic, tx));

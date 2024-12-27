@@ -7,6 +7,7 @@ use tokio::task::JoinHandle;
 use warp::filters::ws::Message;
 
 use futures::stream::SplitStream;
+use redis::Client;
 use serde::{Deserialize, Serialize};
 use serde_tuple::{Deserialize_tuple, Serialize_tuple};
 use tokio::sync::Mutex;
@@ -69,31 +70,35 @@ impl Display for RequestMessage {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum RequestPayload {
-    Join { token: String },
+    // Join { token: String },
     Leave {},
     Heartbeat {},
 }
 
 pub struct State {
     pub ctl: Mutex<ChannelControl>,
+    pub redis_url: String,
 }
 
 pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
-    let conn_id = Uuid::new_v4().to_string();
-    info!("on_connected: {}", conn_id);
+    let conn_id = Uuid::new_v4().to_string(); // 服务端生成的，内部使用
+    info!("on_connected, new client: {}", conn_id);
 
     state.ctl.lock().await.add_connection(conn_id.clone()).await;
 
     let (ws_tx, mut ws_rx) = ws.split();
 
     // spawn a taks to forward conn mpsc to websocket
-    let mut ws_tx_task = tokio::spawn(websocket_sender(conn_id.clone(), state.clone(), ws_tx));
+    let mut ws_tx_task = tokio::spawn(websocket_tx(conn_id.clone(), state.clone(), ws_tx));
+    // let mut redis_subscribe_task =
+    //     tokio::spawn(subscrisbe_redis(conn_id.clone(), state.clone(), ws_tx));
 
-    // TODO: a task is created when handling joining event
+    // a task is created when handling joining event
     let mut ws_rx_task = tokio::spawn(handle_events(ws_rx, state.clone(), conn_id.clone()));
 
     tokio::select! {
         _ = (&mut ws_tx_task) => ws_rx_task.abort(),
+        // _ = (&mut redis_subscribe_task) => ws_rx_task.abort(),
         _ = (&mut ws_rx_task) => ws_tx_task.abort(),
     }
 
@@ -181,6 +186,13 @@ async fn agent_rx_to_conn(state: Arc<State>, join_ref: String, agent_id: String,
     }
 }
 
+async fn subscrisbe_redis(
+    conn_id: String,
+    state: Arc<State>,
+    mut ws_tx: SplitSink<WebSocket, Message>,
+) {
+}
+
 async fn handle_events(mut ws_rx: SplitStream<WebSocket>, state: Arc<State>, conn_id: String) {
     info!("handle events ...");
     while let Some(Ok(m)) = ws_rx.next().await {
@@ -231,12 +243,50 @@ async fn handle_events(mut ws_rx: SplitStream<WebSocket>, state: Arc<State>, con
     }
 }
 
-async fn websocket_sender(
+async fn redis_relay(
+    redis_url: String,
+    redis_topic: String,
+    mut ws_tx: SplitSink<WebSocket, Message>,
+) -> redis::RedisResult<()> {
+    let redis_client = Client::open(redis_url.clone())?;
+
+    let mut redis_pubsub = redis_client.get_async_pubsub().await?;
+    redis_pubsub.subscribe(redis_topic.clone()).await?;
+
+    let mut redis_pubsub_stream = redis_pubsub.on_message();
+
+    info!("listening to {} pubsub: `{}` ...", redis_url, redis_topic);
+    loop {
+        match redis_pubsub_stream.next().await {
+            Some(stream_message) => {
+                let payload: String = stream_message.get_payload()?;
+                info!("received: {}", payload);
+
+                // Redis string => Message
+                let result = ws_tx.send(warp::ws::Message::text(payload)).await;
+                if result.is_err() {
+                    error!("receiver dropped, exiting: {}", result.err().unwrap());
+                    break; //
+                }
+            }
+            None => {
+                info!("PubSub connection closed, exiting.");
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn websocket_tx(
     conn_id: String,
     state: Arc<State>,
     mut ws_tx: SplitSink<WebSocket, Message>,
 ) {
     debug!("launch websocket sender ...");
+    // let redis_relay_task = tokio::spawn(redis_relay(state.redis_url, conn_id.clone(), ws_tx));
+
     let mut conn_rx = state
         .ctl
         .lock()
