@@ -15,7 +15,7 @@ use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 use uuid::Uuid;
 use websocket_channels::{
     channel::ChannelControl,
-    websocket::{streaming_data_task, system_datetime_task, State as AppState},
+    websocket::{streaming_default_tx_task, system_default_tx_task, State as AppState},
 };
 
 async fn subscribe_and_send(
@@ -130,13 +130,14 @@ async fn main() {
 
     let state = Arc::new(AppState {
         ctl: Mutex::new(channel_control),
+        redis_url: "127.0.0.1:6379".to_string(),
     });
 
-    tokio::spawn(system_datetime_task(state.clone(), "system"));
+    tokio::spawn(system_default_tx_task(state.clone(), "system"));
 
     let (tx, rx) = mpsc::unbounded_channel();
     let data_source = UnboundedReceiverStream::new(rx);
-    tokio::spawn(streaming_data_task(
+    tokio::spawn(streaming_default_tx_task(
         state.clone(),
         data_source,
         "streaming",
