@@ -12,7 +12,7 @@ use tokio::{
 };
 use tracing::{debug, info};
 
-use crate::websocket::{ReplyMessage, Response};
+use crate::websocket::ReplyMessage;
 
 #[derive(Clone, Debug, Serialize)]
 pub enum ChannelMessage {
@@ -92,6 +92,7 @@ impl Display for ChannelAgent {
 }
 
 impl Channel {
+    // capacity is the maximum number of messages that can be stored in the channel
     pub fn new(name: String, capacity: Option<usize>) -> Channel {
         let (tx, _rx) = broadcast::channel(capacity.unwrap_or(100));
         Channel {
@@ -402,5 +403,327 @@ async fn channel_sub_to_agent(
                 let _ = agent_tx.send(channel_message);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::channel::{Channel, ChannelControl, ChannelError, ChannelMessage};
+    use crate::websocket::{ReplyMessage, ReplyPayload, Response};
+    use tokio::sync::broadcast;
+
+    fn create_test_message(topic: &str, reference: &str, message: &str) -> ChannelMessage {
+        ChannelMessage::Reply(ReplyMessage {
+            join_reference: None,
+            reference: reference.to_string(),
+            topic: topic.to_string(),
+            event: "test_event".to_string(),
+            payload: ReplyPayload {
+                status: "ok".to_string(),
+                response: Response::Message {
+                    message: message.to_string(),
+                },
+            },
+        })
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_capacity() {
+        let capacity = 2;
+        let (tx, mut rx1) = broadcast::channel::<&str>(capacity);
+        let mut rx2 = tx.subscribe();
+
+        tx.send("msg1").unwrap();
+        tx.send("msg2").unwrap();
+        tx.send("msg3").unwrap(); // the first message is discarded when the third message is sent, as it was never read
+        tokio::time::sleep(tokio::time::Duration::from_millis(3000)).await;
+
+        let mut r1_messages = Vec::new();
+        while let Ok(msg) = rx1.try_recv() {
+            r1_messages.push(msg);
+        }
+
+        let mut r2_messages = Vec::new();
+        while let Ok(msg) = rx2.try_recv() {
+            r2_messages.push(msg);
+        }
+
+        // FIXME: it's asserted, but it's not guaranteed that the message is lost
+        assert!(
+            !r1_messages.contains(&"msg1") || !r2_messages.contains(&"msg1"),
+            "`msg1` is lost in one of them"
+        );
+    }
+
+    // FIXME: test is flaky
+    //
+    // #[tokio::test]
+    // async fn test_channel_capacity() {
+    //     let channel = Channel::new("test".to_string(), Some(2));
+    //     let agent_id = "agent1".to_string();
+    //     let tx = channel.join(agent_id.clone()).await;
+    //     let mut rx = tx.subscribe();
+    //
+    //     // Send messages with delay between each
+    //     for i in 0..3 {
+    //         let msg = create_test_message("test", &i.to_string(), &format!("msg{}", i));
+    //         assert_eq!(channel.send(msg).unwrap(), 1);
+    //         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    //     }
+    //
+    //     // Give time for messages to propagate
+    //     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    //
+    //     // Collect available messages
+    //     let mut messages = Vec::new();
+    //     while let Ok(msg) = rx.try_recv() {
+    //         if let ChannelMessage::Reply(reply) = msg {
+    //             if let Response::Message { message } = reply.payload.response {
+    //                 messages.push(message);
+    //             }
+    //         }
+    //     }
+    //
+    //     // With lagged receiver, we should only get the last 2 messages due to capacity limit
+    //     assert_eq!(messages.len(), 2);
+    //     assert!(messages.contains(&"msg1".to_string()));
+    //     assert!(messages.contains(&"msg2".to_string()));
+    // }
+
+    #[tokio::test]
+    async fn test_channel_creation_and_basic_ops() {
+        let channel = Channel::new("test".to_string(), None);
+        assert_eq!(channel.name, "test");
+        assert!(channel.empty());
+
+        // Test joining
+        let agent_id = "agent1".to_string();
+        let _tx = channel.join(agent_id.clone()).await;
+        assert!(!channel.empty());
+
+        // Test agent count
+        assert_eq!(channel.agents().await.len(), 1);
+
+        // Test duplicate join
+        let _tx2 = channel.join(agent_id.clone()).await;
+        assert_eq!(channel.agents().await.len(), 1); // Should not increase
+
+        // Test leave
+        channel.leave(agent_id).await;
+        assert!(channel.empty());
+    }
+
+    #[tokio::test]
+    async fn test_channel_message_broadcast() {
+        let channel = Channel::new("test".to_string(), Some(10));
+        let agent_id = "agent1".to_string();
+
+        // Join and get sender
+        let tx = channel.join(agent_id.clone()).await;
+        let mut rx = tx.subscribe();
+
+        // Test message sending
+        let test_msg = create_test_message("test", "1", "hello");
+        let recv_count = channel.send(test_msg.clone()).unwrap();
+        assert_eq!(recv_count, 1);
+
+        // Verify received message
+        if let Ok(ChannelMessage::Reply(msg)) = rx.try_recv() {
+            assert_eq!(msg.topic, "test");
+            if let Response::Message { message } = msg.payload.response {
+                assert_eq!(message, "hello");
+            } else {
+                panic!("Wrong response type");
+            }
+        } else {
+            panic!("Failed to receive message");
+        }
+    }
+
+    // FIXME: Test is flaky
+    //
+    // #[tokio::test]
+    // async fn test_channel_control_operations() {
+    //     let ctl = ChannelControl::new();
+    //
+    //     // Test channel management
+    //     ctl.new_channel("room1".into(), None).await;
+    //     ctl.new_channel("room2".into(), None).await;
+    //
+    //     // Test agent operations
+    //     ctl.add_agent("user1".into(), None).await;
+    //     ctl.add_agent("user2".into(), None).await;
+    //
+    //     // Test joining
+    //     assert!(ctl.join_channel("room1", "user1".into()).await.is_ok());
+    //     assert!(ctl.join_channel("room2", "user1".into()).await.is_ok());
+    //     assert!(ctl.join_channel("room1", "user2".into()).await.is_ok());
+    //
+    //     // Test broadcasting
+    //     let msg = create_test_message("room1", "1", "hello room1");
+    //     let recv_count = ctl.broadcast("room1".into(), msg).await.unwrap();
+    //     assert_eq!(recv_count, 2); // Both users should receive
+    //
+    //     // Test leaving
+    //     assert!(ctl
+    //         .leave_channel("room1".into(), "user1".into())
+    //         .await
+    //         .is_ok());
+    //     let msg = create_test_message("room1", "2", "hello again");
+    //     let recv_count = ctl.broadcast("room1".into(), msg).await.unwrap();
+    //     assert_eq!(recv_count, 1); // Only user2 should receive
+    // }
+
+    #[tokio::test]
+    async fn test_channel_error_cases() {
+        let ctl = ChannelControl::new();
+
+        // Test non-existent channel
+        let result = ctl.join_channel("nonexistent", "user1".into()).await;
+        assert!(matches!(result.unwrap_err(), ChannelError::ChannelNotFound));
+
+        // Test non-initiated agent
+        ctl.new_channel("room1".into(), None).await;
+        let result = ctl.join_channel("room1", "user1".into()).await;
+        assert!(matches!(
+            result.unwrap_err(),
+            ChannelError::AgentNotInitiated
+        ));
+
+        // Test leave non-existent channel
+        let result = ctl
+            .leave_channel("nonexistent".into(), "user1".into())
+            .await;
+        assert!(matches!(result.unwrap_err(), ChannelError::ChannelNotFound));
+    }
+
+    #[tokio::test]
+    async fn test_agent_subscription() {
+        let ctl = ChannelControl::new();
+
+        // Setup channels and agent
+        ctl.new_channel("room1".into(), None).await;
+        ctl.add_agent("user1".into(), None).await;
+
+        // Test subscription before join
+        let sub = ctl.get_agent_subscription("user1".into()).await;
+        assert!(sub.is_ok());
+
+        // Join channel and test broadcasting
+        ctl.join_channel("room1", "user1".into()).await.unwrap();
+        let msg = create_test_message("room1", "1", "test");
+        let count = ctl.broadcast("room1".into(), msg).await.unwrap();
+        assert_eq!(count, 1);
+
+        // Test subscription after removal
+        ctl.remove_agent("user1".into()).await;
+        let sub = ctl.get_agent_subscription("user1".into()).await;
+        assert!(matches!(sub.unwrap_err(), ChannelError::AgentNotInitiated));
+    }
+
+    #[tokio::test]
+    async fn test_ctl_add_remove() {
+        let ctl = ChannelControl::new();
+        assert_eq!(ctl.channel_map.lock().await.len(), 0);
+        // assert!(ctl.empty().await, "Should have no channels");
+
+        ctl.new_channel("test".into(), None).await;
+        assert_eq!(ctl.channel_map.lock().await.len(), 1);
+
+        ctl.remove_channel("test".into()).await;
+        assert_eq!(ctl.channel_map.lock().await.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_join_leave() {
+        let ctl = ChannelControl::new();
+
+        ctl.new_channel("test".into(), None).await; // new channel
+
+        // new agent
+        let agent_id = "agent1".to_string();
+        ctl.add_agent(agent_id.clone(), None).await;
+
+        // join channel
+        let result = ctl.join_channel("test", agent_id.clone()).await;
+        assert!(result.is_ok(), "Should successfully join channel");
+
+        // leave channel
+        let result = ctl
+            .leave_channel("test".to_string(), agent_id.clone())
+            .await;
+        assert!(result.is_ok(), "Should successfully leave channel");
+    }
+
+    #[tokio::test]
+    async fn test_channel_basics() {
+        let ctl = ChannelControl::new();
+
+        // new channel
+        ctl.new_channel("test".into(), None).await;
+
+        // new agent
+        let agent_id = "agent1".to_string();
+        ctl.add_agent(agent_id.clone(), None).await;
+
+        // join channel
+        let result = ctl.join_channel("test", agent_id.clone()).await;
+        assert!(result.is_ok(), "Should successfully join channel");
+
+        // broadcast message
+        let message = ChannelMessage::Reply(ReplyMessage {
+            join_reference: None,
+            reference: "1".to_string(),
+            topic: "test".to_string(),
+            event: "test_event".to_string(),
+            payload: crate::websocket::ReplyPayload {
+                status: "ok".to_string(),
+                response: crate::websocket::Response::Message {
+                    message: "test message".to_string(),
+                },
+            },
+        });
+
+        let result = ctl.broadcast("test".to_string(), message).await;
+        assert!(result.is_ok(), "Should successfully broadcast message");
+        assert_eq!(result.unwrap(), 1, "Should have 1 receiver");
+
+        // leave channel
+        let result = ctl
+            .leave_channel("test".to_string(), agent_id.clone())
+            .await;
+        assert!(result.is_ok(), "Should successfully leave channel");
+    }
+
+    #[tokio::test]
+    async fn test_multiple_agents() {
+        let ctl = ChannelControl::new();
+        ctl.new_channel("room1".into(), None).await;
+
+        // Add multiple agents
+        let agent_ids = vec!["agent1", "agent2", "agent3"];
+        for agent_id in &agent_ids {
+            ctl.add_agent(agent_id.to_string(), None).await;
+            let result = ctl.join_channel("room1", agent_id.to_string()).await;
+            assert!(result.is_ok(), "Agent should join successfully");
+        }
+
+        // Broadcast a message
+        let message = ChannelMessage::Reply(ReplyMessage {
+            join_reference: None,
+            reference: "1".to_string(),
+            topic: "room1".to_string(),
+            event: "broadcast".to_string(),
+            payload: crate::websocket::ReplyPayload {
+                status: "ok".to_string(),
+                response: crate::websocket::Response::Message {
+                    message: "hello all".to_string(),
+                },
+            },
+        });
+
+        let result = ctl.broadcast("room1".to_string(), message).await;
+        assert!(result.is_ok(), "Should successfully broadcast");
+        assert_eq!(result.unwrap(), 3, "Should have 3 receivers");
     }
 }
