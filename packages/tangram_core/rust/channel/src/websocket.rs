@@ -186,13 +186,6 @@ async fn agent_rx_to_conn(state: Arc<State>, join_ref: String, agent_id: String,
     }
 }
 
-async fn subscrisbe_redis(
-    conn_id: String,
-    state: Arc<State>,
-    mut ws_tx: SplitSink<WebSocket, Message>,
-) {
-}
-
 async fn handle_events(mut ws_rx: SplitStream<WebSocket>, state: Arc<State>, conn_id: String) {
     info!("handle events ...");
     while let Some(Ok(m)) = ws_rx.next().await {
