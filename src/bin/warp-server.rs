@@ -23,25 +23,28 @@ use warp::ws::WebSocket;
 use warp::Filter;
 use websocket_channels::channel::ChannelControl;
 use websocket_channels::websocket::{
-    on_connected, streaming_data_task, system_datetime_task, State,
+    on_connected, streaming_default_tx_task, system_default_tx_task, State,
 };
 
-async fn subscribe_and_send(
+async fn redis_relay(
     redis_url: String,
-    topic: String,
+    redis_topic: String,
     tx: mpsc::UnboundedSender<String>,
 ) -> redis::RedisResult<()> {
-    let client = Client::open(redis_url.clone())?;
-    let mut pubsub = client.get_async_pubsub().await?;
-    pubsub.subscribe(topic.clone()).await?;
-    let mut pubsub_stream = pubsub.on_message();
+    let redis_client = Client::open(redis_url.clone())?;
 
-    info!("listening to redis {} pubsub: `{}` ...", redis_url, topic);
+    let mut redis_pubsub = redis_client.get_async_pubsub().await?;
+    redis_pubsub.subscribe(redis_topic.clone()).await?;
+
+    let mut redis_pubsub_stream = redis_pubsub.on_message();
+
+    info!("listening to {} pubsub: `{}` ...", redis_url, redis_topic);
     loop {
-        match pubsub_stream.next().await {
-            Some(msg) => {
-                let payload: String = msg.get_payload()?;
+        match redis_pubsub_stream.next().await {
+            Some(stream_message) => {
+                let payload: String = stream_message.get_payload()?;
                 info!("received: {}", payload);
+
                 if tx.send(payload).is_err() {
                     error!("receiver dropped, exiting.");
                     break;
@@ -94,22 +97,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let channel_control = ChannelControl::new();
+
+    // create channels
     channel_control.new_channel("phoenix".into(), None).await; // channel for server to publish heartbeat
-    channel_control.new_channel("system".into(), None).await;
+    channel_control.new_channel("system".into(), None).await; // system channel
+    channel_control.new_channel("streaming".into(), None).await; // streaming channel
 
-    // what we want is dynamic channel: user defined channel, created on demand
-    channel_control.new_channel("streaming".into(), None).await;
-
+    // shared state among channels, used by websocket
     let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
     });
 
     // system channel
-    tokio::spawn(system_datetime_task(state.clone(), "system"));
+    tokio::spawn(system_default_tx_task(state.clone(), "system"));
 
+    // streaming channel
     let (tx, rx) = mpsc::unbounded_channel();
     let data_source = UnboundedReceiverStream::new(rx);
-    tokio::spawn(streaming_data_task(
+    tokio::spawn(streaming_default_tx_task(
         state.clone(),
         data_source,
         "streaming",
@@ -118,12 +123,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let redis_url = options.redis_url.unwrap();
     let redis_topic = options.redis_topic.unwrap();
-    tokio::spawn(subscribe_and_send(
-        redis_url.clone(),
-        redis_topic.clone(),
-        tx,
-    ));
 
+    // publish 到 redis_topic 的会被转发到 streaming:data chnnel
+    tokio::spawn(redis_relay(redis_url, redis_topic, tx));
+
+    // websocket state
     let state = warp::any().map(move || state.clone());
     let ws_route =
         warp::path("websocket")
@@ -135,14 +139,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let routes = warp::path::end()
         .and(warp::fs::file("src/bin/index.html"))
         .or(ws_route);
-    info!(
-        "serving at {}:{} ...",
-        options.host.unwrap(),
-        options.port.unwrap()
-    );
-    warp::serve(routes)
-        .run(([0, 0, 0, 0], options.port.unwrap()))
-        .await;
+
+    let host = options.host.unwrap().parse::<std::net::IpAddr>().unwrap();
+    let port = options.port.unwrap();
+
+    info!("serving at {}:{} ...", host, port);
+    warp::serve(routes).run((host, options.port.unwrap())).await;
 
     Ok(())
 }

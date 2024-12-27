@@ -292,7 +292,7 @@ async fn reply_ok_with_empty_response(
     debug!("sent to connection {}: {}", conn_id.clone(), text);
 }
 
-pub async fn streaming_data_task(
+pub async fn streaming_default_tx_task(
     local_state: Arc<State>,
     mut rx: UnboundedReceiverStream<String>,
     channel_name: &str,
@@ -343,7 +343,8 @@ pub async fn streaming_data_task(
     }
 }
 
-pub async fn system_datetime_task(state: Arc<State>, channel_name: &str) {
+// 每秒发送一个时间戳
+pub async fn system_default_tx_task(state: Arc<State>, channel_name: &str) {
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
     info!("launch system/datetime task...");
@@ -364,7 +365,7 @@ pub async fn system_datetime_task(state: Arc<State>, channel_name: &str) {
                 },
             },
         };
-        let text = serde_json::to_string(&message).unwrap();
+        // let text = serde_json::to_string(&message).unwrap();
         match state
             .ctl
             .lock()
