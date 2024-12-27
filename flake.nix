@@ -26,8 +26,7 @@
 
   outputs = inputs@{ self, fenix, crane, flake-parts, advisory-db, ... }:
     flake-parts.lib.mkFlake { inherit self inputs; } ({ withSystem, ... }: {
-      systems =
-        [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
+      systems = [ "x86_64-linux" "aarch64-linux" ];
 
       perSystem = { lib, config, self', inputs', pkgs, system, ... }:
         let
@@ -50,7 +49,7 @@
               filter = markdownOrJSONOrCargo;
               name = "source";
             };
-            pname = "rs1090";
+            pname = "channel";
             version = version;
 
             nativeBuildInputs = with pkgs;
@@ -62,7 +61,8 @@
         in {
           devShells.default = pkgs.mkShell {
             inputsFrom = builtins.attrValues self.checks;
-            buildInputs = [ rustToolchain pkgs.pkg-config pkgs.openssl ];
+            buildInputs =
+              [ rustToolchain pkgs.pkg-config pkgs.openssl pkgs.cargo-dist ];
             shellHook = ''
               export RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=${pkgs.mold}/bin/mold"
             '';
