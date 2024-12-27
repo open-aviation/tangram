@@ -44,17 +44,16 @@ pub enum Response {
     Message { message: String },
 }
 
-/// request data structures
-
-/// RequestMessage is a message from client through websocket
-/// it's deserialized from a JSON array
+// request data structures
+// RequestMessage is a message from client through websocket
+// it's deserialized from a JSON array
 #[derive(Debug, Deserialize_tuple)]
 struct RequestMessage {
     join_reference: Option<String>, // null when it's heartbeat
     reference: String,
     topic: String, // `channel`
     event: String,
-    payload: RequestPayload,
+    _payload: RequestPayload,
 }
 
 impl Display for RequestMessage {
@@ -86,7 +85,7 @@ pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
 
     state.ctl.lock().await.add_connection(conn_id.clone()).await;
 
-    let (ws_tx, mut ws_rx) = ws.split();
+    let (ws_tx, ws_rx) = ws.split();
 
     // spawn a taks to forward conn mpsc to websocket
     let mut ws_tx_task = tokio::spawn(websocket_tx(conn_id.clone(), state.clone(), ws_tx));
@@ -113,7 +112,7 @@ pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
 
 async fn handle_join_event(
     rm: &RequestMessage,
-    ws_rx: &mut SplitStream<WebSocket>,
+    _ws_rx: &mut SplitStream<WebSocket>,
     state: Arc<State>,
     conn_id: &str,
 ) -> JoinHandle<()> {
@@ -135,7 +134,7 @@ async fn handle_join_event(
         .await
         .unwrap();
     // task to forward from agent broadcast to conn
-    let local_state = state.clone();
+    // let local_state = state.clone();
     let channel_forward_task = tokio::spawn(agent_rx_to_conn(
         state.clone(),
         rm.join_reference.clone().unwrap(),
@@ -192,7 +191,13 @@ async fn handle_events(mut ws_rx: SplitStream<WebSocket>, state: Arc<State>, con
         if !m.is_text() {
             continue;
         }
-        let rm: RequestMessage = serde_json::from_str(m.to_str().unwrap()).unwrap();
+        info!("input: `{}`", m.to_str().unwrap());
+        let rm_result = serde_json::from_str(m.to_str().unwrap());
+        if rm_result.is_err() {
+            error!("error: {}", rm_result.err().unwrap());
+            continue;
+        }
+        let rm: RequestMessage = rm_result.unwrap();
 
         let reference = &rm.reference;
         let join_reference = &rm.join_reference;
@@ -236,7 +241,7 @@ async fn handle_events(mut ws_rx: SplitStream<WebSocket>, state: Arc<State>, con
     }
 }
 
-async fn redis_relay(
+async fn _redis_relay(
     redis_url: String,
     redis_topic: String,
     mut ws_tx: SplitSink<WebSocket, Message>,
@@ -289,7 +294,7 @@ async fn websocket_tx(
         .unwrap();
 
     while let Ok(channel_message) = conn_rx.recv().await {
-        if let ChannelMessage::Reply(mut reply_message) = channel_message {
+        if let ChannelMessage::Reply(reply_message) = channel_message {
             let text = serde_json::to_string(&reply_message).unwrap();
             let result = ws_tx.send(warp::ws::Message::text(text)).await;
             if result.is_err() {
@@ -375,7 +380,7 @@ pub async fn streaming_default_tx_task(
                 counter += 1;
                 debug!("{} > {}", event_name, text);
             }
-            Err(e) => {
+            Err(_e) => {
                 // it throws error if there's no client
                 // error!(
                 //     "fail to send, channel: {}, event: {}, err: {}",
@@ -418,7 +423,7 @@ pub async fn system_default_tx_task(state: Arc<State>, channel_name: &str) {
         {
             Ok(0) => {} // no client
             Ok(_) => {} // debug!("datetime > {}", text),
-            Err(e) => {
+            Err(_e) => {
                 // FIXME: when thers's no client, it's an error
                 // error!("`{}` `{}`, {}, {}", channel_name, event, e, text)
             }
@@ -426,5 +431,314 @@ pub async fn system_default_tx_task(state: Arc<State>, channel_name: &str) {
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         counter += 1;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::{SinkExt, StreamExt};
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+    use tokio_tungstenite::connect_async;
+    use tokio_tungstenite::tungstenite::Message;
+    use warp::Filter;
+
+    async fn setup_test_server() -> (String, Arc<State>) {
+        let state = Arc::new(State {
+            ctl: Mutex::new(ChannelControl::new()),
+            redis_url: "redis://localhost".to_string(),
+        });
+
+        // Setup channels
+        state
+            .ctl
+            .lock()
+            .await
+            .new_channel("phoenix".into(), None)
+            .await;
+        state
+            .ctl
+            .lock()
+            .await
+            .new_channel("system".into(), None)
+            .await;
+        state
+            .ctl
+            .lock()
+            .await
+            .new_channel("streaming".into(), None)
+            .await;
+
+        // Spawn system task
+        tokio::spawn(system_default_tx_task(state.clone(), "system"));
+
+        let websocket_shared_state = state.clone();
+        let websocket_shared_state = warp::any().map(move || websocket_shared_state.clone());
+        let ws = warp::path("websocket")
+            .and(warp::ws())
+            .and(websocket_shared_state)
+            .map(|ws: warp::ws::Ws, state| {
+                ws.on_upgrade(move |socket| on_connected(socket, state))
+            });
+
+        let (addr, server) = warp::serve(ws).bind_ephemeral(([127, 0, 0, 1], 0));
+        let addr = format!("ws://127.0.0.1:{}/websocket", addr.port());
+        tokio::spawn(server);
+
+        (addr, state)
+    }
+
+    async fn connect_client(
+        addr: &str,
+    ) -> (
+        futures::stream::SplitSink<
+            tokio_tungstenite::WebSocketStream<
+                tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+            >,
+            tokio_tungstenite::tungstenite::Message,
+        >,
+        futures::stream::SplitStream<
+            tokio_tungstenite::WebSocketStream<
+                tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+            >,
+        >,
+    ) {
+        let (ws_stream, _) = connect_async(addr).await.expect("Failed to connect");
+        ws_stream.split()
+    }
+
+    #[tokio::test]
+    async fn test_websocket_connection() {
+        let (addr, _) = setup_test_server().await;
+        let (mut tx, mut rx) = connect_client(&addr).await;
+
+        // Test initial connection with heartbeat
+        let heartbeat = r#"[null,"1","phoenix","heartbeat",{}]"#;
+        tx.send(Message::text(heartbeat)).await.unwrap();
+
+        if let Some(Ok(msg)) = rx.next().await {
+            let response: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+            assert_eq!(response[2], "phoenix");
+            assert_eq!(response[4]["status"], "ok");
+        }
+    }
+
+    // FIXME: not cleaned up
+    //
+    // #[tokio::test]
+    // async fn test_channel_join_leave_flow() {
+    //     let (addr, state) = setup_test_server().await;
+    //     let (mut tx, mut rx) = connect_client(&addr).await;
+    //
+    //     // Join system channel
+    //     let join_msg = r#"["1","ref1","system","phx_join",{"token":"test"}]"#;
+    //     tx.send(Message::text(join_msg)).await.unwrap();
+    //
+    //     // Verify join response
+    //     if let Some(Ok(msg)) = rx.next().await {
+    //         let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+    //         assert_eq!(resp[1], "ref1");
+    //         assert_eq!(resp[2], "system");
+    //         assert_eq!(resp[4]["status"], "ok");
+    //     }
+    //
+    //     // Leave channel
+    //     let leave_msg = r#"["1","ref2","system","phx_leave",{}]"#;
+    //     tx.send(Message::text(leave_msg)).await.unwrap();
+    //
+    //     // Verify leave response
+    //     if let Some(Ok(msg)) = rx.next().await {
+    //         let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+    //         assert_eq!(resp[1], "ref2");
+    //         assert_eq!(resp[2], "system");
+    //         assert_eq!(resp[4]["status"], "ok");
+    //     }
+    //
+    //     // Verify channel state
+    //     assert!(state
+    //         .ctl
+    //         .lock()
+    //         .await
+    //         .channel_map
+    //         .lock()
+    //         .await
+    //         .get("system")
+    //         .unwrap()
+    //         .empty());
+    // }
+
+    #[tokio::test]
+    async fn test_multiple_clients() {
+        let (addr, state) = setup_test_server().await;
+
+        // Connect multiple clients
+        let mut clients = vec![];
+        for i in 0..3 {
+            let (mut tx, mut rx) = connect_client(&addr).await;
+
+            // Join system channel
+            let join_msg = format!(
+                r#"["{}","ref{}","system","phx_join",{{"token":"test"}}]"#,
+                i, i
+            );
+            tx.send(Message::text(join_msg)).await.unwrap();
+
+            // Verify join
+            if let Some(Ok(msg)) = rx.next().await {
+                let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+                assert_eq!(resp[4]["status"], "ok");
+            }
+
+            clients.push((tx, rx));
+        }
+
+        assert_eq!(
+            state
+                .ctl
+                .lock()
+                .await
+                .channel_map
+                .lock()
+                .await
+                .get("system")
+                .unwrap()
+                .count
+                .load(std::sync::atomic::Ordering::SeqCst),
+            3
+        );
+    }
+
+    #[tokio::test]
+    async fn test_message_broadcast() {
+        let (addr, state) = setup_test_server().await;
+        let (mut tx1, mut rx1) = connect_client(&addr).await;
+        let (mut tx2, mut rx2) = connect_client(&addr).await;
+
+        // Both clients join system channel
+        for (tx, i) in [(&mut tx1, 1), (&mut tx2, 2)] {
+            let join_msg = format!(
+                r#"["{}","ref{}","system","phx_join",{{"token":"test"}}]"#,
+                i, i
+            );
+            tx.send(Message::text(join_msg)).await.unwrap();
+
+            // Wait for join response
+            if let Some(Ok(_)) = if i == 1 {
+                rx1.next().await
+            } else {
+                rx2.next().await
+            } {}
+        }
+
+        // Broadcast message to system channel
+        let message = ReplyMessage {
+            join_reference: None,
+            reference: "broadcast".to_string(),
+            topic: "system".to_string(),
+            event: "test".to_string(),
+            payload: ReplyPayload {
+                status: "ok".to_string(),
+                response: Response::Message {
+                    message: "test broadcast".to_string(),
+                },
+            },
+        };
+
+        state
+            .ctl
+            .lock()
+            .await
+            .broadcast("system".to_string(), ChannelMessage::Reply(message))
+            .await
+            .unwrap();
+
+        // Both clients should receive the message
+        for rx in [&mut rx1, &mut rx2] {
+            if let Some(Ok(msg)) = rx.next().await {
+                let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+                assert_eq!(resp[1], "broadcast");
+                assert_eq!(resp[4]["response"]["message"], "test broadcast");
+            }
+        }
+    }
+
+    // FIXME: not cleaned up
+    //
+    // #[tokio::test]
+    // async fn test_connection_close() {
+    //     let (addr, state) = setup_test_server().await;
+    //     let (mut tx, mut rx) = connect_client(&addr).await;
+    //
+    //     let join_msg = r#"["1","ref1","system","phx_join",{"token":"test"}]"#;
+    //     tx.send(Message::text(join_msg)).await.unwrap();
+    //     rx.next().await;
+    //
+    //     drop(tx);
+    //     drop(rx);
+    //
+    //     tokio::time::sleep(Duration::from_millis(100)).await;
+    //     assert!(state
+    //         .ctl
+    //         .lock()
+    //         .await
+    //         .channel_map
+    //         .lock()
+    //         .await
+    //         .get("system")
+    //         .unwrap()
+    //         .empty());
+    // }
+
+    #[tokio::test]
+    async fn test_invalid_messages() {
+        let (addr, _) = setup_test_server().await;
+        let (mut tx, mut rx) = connect_client(&addr).await;
+
+        // Send invalid JSON
+        tx.send(Message::text("invalid json")).await.unwrap();
+
+        // Send invalid message format
+        tx.send(Message::text(r#"["invalid","format"]"#))
+            .await
+            .unwrap();
+
+        // Send to non-existent channel
+        let invalid_channel = r#"["1","ref1","nonexistent","phx_join",{"token":"test"}]"#;
+        tx.send(Message::text(invalid_channel)).await.unwrap();
+
+        // Connection should still be alive
+        let heartbeat = r#"[null,"1","phoenix","heartbeat",{}]"#;
+        tx.send(Message::text(heartbeat)).await.unwrap();
+
+        if let Some(Ok(msg)) = rx.next().await {
+            let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+            assert_eq!(resp[2], "phoenix");
+            assert_eq!(resp[4]["status"], "ok");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_system_channel() {
+        let (addr, _) = setup_test_server().await;
+        let (mut tx, mut rx) = connect_client(&addr).await;
+
+        // Join system channel
+        let join_msg = r#"["1","ref1","system","phx_join",{"token":"test"}]"#;
+        tx.send(Message::text(join_msg)).await.unwrap();
+
+        // Should receive initial join response
+        if let Some(Ok(msg)) = rx.next().await {
+            let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+            assert_eq!(resp[2], "system");
+            assert_eq!(resp[4]["status"], "ok");
+        }
+
+        // Should receive datetime updates
+        if let Some(Ok(msg)) = rx.next().await {
+            let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+            assert_eq!(resp[2], "system");
+            assert!(resp[4]["response"]["datetime"].is_string());
+        }
     }
 }
