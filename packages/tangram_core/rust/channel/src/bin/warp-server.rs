@@ -5,7 +5,7 @@ use std::{path::PathBuf, sync::Arc};
 use clap::{Command, CommandFactory, Parser, ValueHint};
 use futures::{sink::SinkExt, stream::StreamExt};
 use redis::aio::PubSub;
-use redis::Client;
+use redis::{Client, RedisResult};
 use serde::Deserialize;
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -102,14 +102,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let channel_control = ChannelControl::new();
 
     // create channels
-    channel_control.new_channel("phoenix".into(), None).await; // channel for server to publish heartbeat
-    channel_control.new_channel("system".into(), None).await; // system channel
-    channel_control.new_channel("streaming".into(), None).await; // streaming channel
+    channel_control.channel_add("phoenix".into(), None).await; // channel for server to publish heartbeat
+    channel_control.channel_add("system".into(), None).await; // system channel
+    channel_control.channel_add("streaming".into(), None).await; // streaming channel
+
+    let redis_client = Client::open(redis_url.clone())?;
+
+    let mut redis_connection = redis_client.get_multiplexed_async_connection().await?;
+    let result: RedisResult<String> = redis::cmd("PING").query_async(&mut redis_connection).await;
+    info!("ping result: {:?}", result);
 
     // shared state among channels, used by websocket
     let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
         redis_url: redis_url.clone(),
+        redis_client,
     });
 
     // system channel

@@ -7,12 +7,12 @@ description = "Websocket channels compatible with Phixnix"
 repository = "https://github.com/emctoo/websocket-channels"
 keywords = ["axum", "axum-ws", "warp", "websocket", "channels"]
 
-# [[bin]]
-# name = "ad"
-# path = "src/bin/axum-server.rs"
+[[bin]]
+name = "channel-axum"
+path = "src/bin/axum-server.rs"
 
 [[bin]]
-name = "channel"
+name = "channel-warp"
 path = "src/bin/warp-server.rs"
 
 [dependencies]

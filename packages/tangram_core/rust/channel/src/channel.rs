@@ -34,15 +34,21 @@ pub struct Channel {
 
 /// manages all channels
 pub struct ChannelControl {
-    pub channel_map: Mutex<HashMap<String, Channel>>, // channel name -> Channel
+    pub channels: Mutex<HashMap<String, Channel>>, // channel name -> Channel
 
     /// agent_id -> Vec<agentTask>
     /// task forwarding channel messages to agent websocket tx
     /// created when agent joins a channel
-    agent_task_map: Mutex<HashMap<String, Vec<ChannelAgent>>>,
+    agent_subscribe_tasks: Mutex<HashMap<String, Vec<ChannelAgent>>>,
 
-    conn_sender_map: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // conn_id -> Sender
-    agent_sender_map: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // agent_id -> Sender
+    conn_publisher: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // conn_id -> Sender
+    agent_publisher: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // agent_id -> Sender
+}
+
+impl Default for ChannelControl {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Debug)]
@@ -78,7 +84,7 @@ impl fmt::Display for ChannelError {
 
 struct ChannelAgent {
     channel_name: String,
-    join_task: JoinHandle<()>,
+    relay_task: JoinHandle<()>,
 }
 
 impl Display for ChannelAgent {
@@ -86,7 +92,7 @@ impl Display for ChannelAgent {
         write!(
             f,
             "<ChannelAgent: channel={}, task={:?}>",
-            self.channel_name, self.join_task
+            self.channel_name, self.relay_task
         )
     }
 }
@@ -143,61 +149,75 @@ impl Channel {
 impl ChannelControl {
     pub fn new() -> Self {
         ChannelControl {
-            channel_map: Mutex::new(HashMap::new()),
-            agent_task_map: Mutex::new(HashMap::new()),
-            agent_sender_map: Mutex::new(HashMap::new()),
-            conn_sender_map: Mutex::new(HashMap::new()),
+            channels: Mutex::new(HashMap::new()),
+            agent_subscribe_tasks: Mutex::new(HashMap::new()),
+            agent_publisher: Mutex::new(HashMap::new()),
+            conn_publisher: Mutex::new(HashMap::new()),
         }
     }
 
-    pub async fn add_connection(&self, name: String) {
-        let mut conn_sender_map = self.conn_sender_map.lock().await;
-        match conn_sender_map.entry(name.clone()) {
+    pub async fn conn_add(&self, conn_id: String) {
+        let mut conn_senders = self.conn_publisher.lock().await;
+        match conn_senders.entry(conn_id.clone()) {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(100);
                 entry.insert(tx);
-                debug!("conn {} added", name.clone());
+                debug!("conn {} added", conn_id.clone());
             }
             Entry::Occupied(_) => {}
         }
     }
 
-    pub async fn get_conn_subscription(
+    pub async fn conn_subscriber(
         &self,
         conn_id: String,
     ) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
         info!("get conn {} subscription", conn_id);
-        let conn_sender_map = self.conn_sender_map.lock().await;
+        let conn_sender_map = self.conn_publisher.lock().await;
         let rx = conn_sender_map.get(&conn_id).unwrap().subscribe();
         Ok(rx)
     }
 
-    pub async fn get_conn_sender(
+    pub async fn conn_publisher(
         &self,
         conn_id: String,
     ) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
         info!("get conn {} sender", conn_id);
-        let conn_sender_map = self.conn_sender_map.lock().await;
-        Ok(conn_sender_map.get(&conn_id).unwrap().clone())
+        let conn_publisher = self.conn_publisher.lock().await;
+        Ok(conn_publisher.get(&conn_id).unwrap().clone())
     }
 
-    pub async fn new_channel(&self, name: String, capacity: Option<usize>) {
-        let mut channels = self.channel_map.lock().await;
-        channels.insert(name.clone(), Channel::new(name, capacity));
+    pub async fn conn_send(
+        &self,
+        conn_id: String,
+        message: ChannelMessage,
+    ) -> Result<usize, ChannelError> {
+        self.conn_publisher
+            .lock()
+            .await
+            .get(&conn_id)
+            .ok_or(ChannelError::ChannelNotFound)?
+            .send(message)
+            .map_err(|_| ChannelError::MessageSendError)
     }
 
-    pub async fn remove_channel(&self, channel_name: String) {
-        match self.channel_map.lock().await.entry(channel_name.clone()) {
+    pub async fn channel_add(&self, channel_name: String, capacity: Option<usize>) {
+        let mut channels = self.channels.lock().await;
+        channels.insert(channel_name.clone(), Channel::new(channel_name, capacity));
+    }
+
+    pub async fn channel_remove(&self, channel_name: String) {
+        match self.channels.lock().await.entry(channel_name.clone()) {
             Entry::Vacant(_) => {}
             Entry::Occupied(el) => {
                 for agent in el.get().agents().await.iter() {
                     if let Entry::Occupied(mut agent_tasks) =
-                        self.agent_task_map.lock().await.entry(agent.into())
+                        self.agent_subscribe_tasks.lock().await.entry(agent.into())
                     {
                         let vecotr = agent_tasks.get_mut();
                         vecotr.retain(|task| {
                             if task.channel_name == channel_name {
-                                task.join_task.abort();
+                                task.relay_task.abort();
                             }
                             task.channel_name != channel_name
                         });
@@ -209,28 +229,90 @@ impl ChannelControl {
         }
     }
 
-    pub async fn send_to_connction(
+    /// join agent to a channel
+    /// This will subscribe to the channel, create a task to forward messages to the agent websocket
+    pub async fn channel_join(
         &self,
-        conn_id: String,
-        message: ChannelMessage,
-    ) -> Result<usize, ChannelError> {
-        self.conn_sender_map
-            .lock()
-            .await
-            .get(&conn_id)
+        channel_name: &str,
+        agent_id: String,
+    ) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
+        let channel_map = self.channels.lock().await;
+        let mut agent_subscribe_tasks = self.agent_subscribe_tasks.lock().await;
+        let agent_senders = self.agent_publisher.lock().await;
+
+        let channel_sender = channel_map
+            .get(channel_name)
             .ok_or(ChannelError::ChannelNotFound)?
-            .send(message)
-            .map_err(|_| ChannelError::MessageSendError)
+            .join(agent_id.clone())
+            .await;
+        let channel_rx = channel_sender.subscribe();
+        let agent_tx = agent_senders
+            .get(&agent_id)
+            .ok_or(ChannelError::AgentNotInitiated)?
+            .clone();
+
+        // 订阅 channel 并将消息转发给 agent
+        let relay_task = tokio::spawn(channel_to_agent_handler(channel_rx, agent_tx));
+
+        match agent_subscribe_tasks.entry(agent_id.clone()) {
+            Entry::Occupied(mut entry) => {
+                let agent_tasks = entry.get_mut();
+                if !agent_tasks
+                    .iter()
+                    .any(|agent| agent.channel_name == channel_name)
+                {
+                    let channel_name = channel_name.to_string().clone();
+                    let agent = ChannelAgent {
+                        channel_name,
+                        relay_task,
+                    };
+                    agent_tasks.push(agent);
+                }
+            }
+            Entry::Vacant(v) => {
+                let channel_name = channel_name.to_string().clone();
+                let agent = ChannelAgent {
+                    channel_name,
+                    relay_task,
+                };
+                v.insert(vec![agent]);
+            }
+        };
+        Ok(channel_sender)
     }
 
+    pub async fn channel_leave(&self, name: String, agent: String) -> Result<(), ChannelError> {
+        let channels = self.channels.lock().await;
+        let mut agents = self.agent_subscribe_tasks.lock().await;
+
+        channels
+            .get(&name)
+            .ok_or(ChannelError::ChannelNotFound)?
+            .leave(agent.clone())
+            .await;
+
+        match agents.entry(agent.clone()) {
+            Entry::Occupied(mut o) => {
+                let vecotr = o.get_mut();
+                vecotr.retain(|task| {
+                    if task.channel_name == name {
+                        task.relay_task.abort();
+                    }
+                    task.channel_name != name
+                });
+            }
+            Entry::Vacant(_) => {}
+        }
+        Ok(())
+    }
     /// broadcast message to the channel
     /// it returns the number of agents who received the message
-    pub async fn broadcast(
+    pub async fn channel_broadcast(
         &self,
         channel_name: String,
         message: ChannelMessage,
     ) -> Result<usize, ChannelError> {
-        self.channel_map
+        self.channels
             .lock()
             .await
             .get(&channel_name)
@@ -248,12 +330,12 @@ impl ChannelControl {
     //     Ok(agent_sender_map.get(&agent_id).unwrap().clone())
     // }
 
-    pub async fn get_agent_subscription(
+    pub async fn agent_subscriber(
         &self,
         agent_id: String,
     ) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
         info!("get agent {} reciever", agent_id);
-        let agent_sender_map = self.agent_sender_map.lock().await;
+        let agent_sender_map = self.agent_publisher.lock().await;
         let receiver = agent_sender_map
             .get(&agent_id)
             .ok_or(ChannelError::AgentNotInitiated)?
@@ -265,8 +347,8 @@ impl ChannelControl {
     /// `capacity` is the maximum number of messages that can be stored in the channel, default is 100
     /// This will create a broadcast channel: ChannelAgent will write to and websocket_tx_task will
     /// subscribe to and read from
-    pub async fn add_agent(&self, agent_id: String, capacity: Option<usize>) {
-        let mut agent_sender_map = self.agent_sender_map.lock().await;
+    pub async fn agent_add(&self, agent_id: String, capacity: Option<usize>) {
+        let mut agent_sender_map = self.agent_publisher.lock().await;
         match agent_sender_map.entry(agent_id.clone()) {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(capacity.unwrap_or(100));
@@ -280,10 +362,10 @@ impl ChannelControl {
     }
 
     /// remove the agent after leaving all channels
-    pub async fn remove_agent(&self, agent_id: String) {
-        let channels = self.channel_map.lock().await;
-        let mut agent_tasks = self.agent_task_map.lock().await;
-        let mut agent_sender_map = self.agent_sender_map.lock().await;
+    pub async fn agent_remove(&self, agent_id: String) {
+        let channels = self.channels.lock().await;
+        let mut agent_tasks = self.agent_subscribe_tasks.lock().await;
+        let mut agent_sender_map = self.agent_publisher.lock().await;
 
         match agent_tasks.entry(agent_id.clone()) {
             Entry::Occupied(agent_tasks) => {
@@ -294,7 +376,7 @@ impl ChannelControl {
                         channel.leave(agent_id.clone()).await;
                         debug!("agent {} removed from channel {}", agent_id, task)
                     }
-                    task.join_task.abort();
+                    task.relay_task.abort();
                 }
                 agent_tasks.remove();
                 debug!("agent {} tasks removed", agent_id);
@@ -310,89 +392,13 @@ impl ChannelControl {
             Entry::Vacant(_) => {}
         }
     }
-
-    /// join agent to channel
-    /// This will subscribe to the channel, create a task to forward messages to the agent websocket
-    pub async fn join_channel(
-        &self,
-        channel_name: &str,
-        agent_id: String,
-    ) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
-        let channel_map = self.channel_map.lock().await;
-        let mut agent_task_map = self.agent_task_map.lock().await;
-        let agent_sender_map = self.agent_sender_map.lock().await;
-
-        let channel_sender = channel_map
-            .get(channel_name)
-            .ok_or(ChannelError::ChannelNotFound)?
-            .join(agent_id.clone())
-            .await;
-        let channel_sub = channel_sender.subscribe();
-        let agent_tx = agent_sender_map
-            .get(&agent_id)
-            .ok_or(ChannelError::AgentNotInitiated)?
-            .clone();
-
-        // a task for this join, channel subscription to agent sender
-        let join_task = tokio::spawn(channel_sub_to_agent(channel_sub, agent_tx));
-
-        match agent_task_map.entry(agent_id.clone()) {
-            Entry::Occupied(mut entry) => {
-                let agent_tasks = entry.get_mut();
-                if !agent_tasks.iter().any(|x| x.channel_name == channel_name) {
-                    agent_tasks.push(ChannelAgent {
-                        channel_name: channel_name.to_string().clone(),
-                        join_task,
-                    });
-                }
-            }
-            Entry::Vacant(v) => {
-                v.insert(vec![ChannelAgent {
-                    channel_name: channel_name.to_string().clone(),
-                    join_task,
-                }]);
-            }
-        };
-        Ok(channel_sender)
-    }
-
-    pub async fn leave_channel(&self, name: String, agent: String) -> Result<(), ChannelError> {
-        let channels = self.channel_map.lock().await;
-        let mut agents = self.agent_task_map.lock().await;
-
-        channels
-            .get(&name)
-            .ok_or(ChannelError::ChannelNotFound)?
-            .leave(agent.clone())
-            .await;
-
-        match agents.entry(agent.clone()) {
-            Entry::Occupied(mut o) => {
-                let vecotr = o.get_mut();
-                vecotr.retain(|task| {
-                    if task.channel_name == name {
-                        task.join_task.abort();
-                    }
-                    task.channel_name != name
-                });
-            }
-            Entry::Vacant(_) => {}
-        }
-        Ok(())
-    }
 }
 
-impl Default for ChannelControl {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-async fn channel_sub_to_agent(
-    mut channel_sub_rx: broadcast::Receiver<ChannelMessage>,
+async fn channel_to_agent_handler(
+    mut channel_rx: broadcast::Receiver<ChannelMessage>,
     agent_tx: broadcast::Sender<ChannelMessage>,
 ) {
-    while let Ok(channel_message) = channel_sub_rx.recv().await {
+    while let Ok(channel_message) = channel_rx.recv().await {
         match &channel_message {
             ChannelMessage::ReloadFilter { .. } => {
                 info!("filter reloaded (do nothing)")
@@ -578,12 +584,12 @@ mod test {
         let ctl = ChannelControl::new();
 
         // Test non-existent channel
-        let result = ctl.join_channel("nonexistent", "user1".into()).await;
+        let result = ctl.channel_join("nonexistent", "user1".into()).await;
         assert!(matches!(result.unwrap_err(), ChannelError::ChannelNotFound));
 
         // Test non-initiated agent
-        ctl.new_channel("room1".into(), None).await;
-        let result = ctl.join_channel("room1", "user1".into()).await;
+        ctl.channel_add("room1".into(), None).await;
+        let result = ctl.channel_join("room1", "user1".into()).await;
         assert!(matches!(
             result.unwrap_err(),
             ChannelError::AgentNotInitiated
@@ -591,7 +597,7 @@ mod test {
 
         // Test leave non-existent channel
         let result = ctl
-            .leave_channel("nonexistent".into(), "user1".into())
+            .channel_leave("nonexistent".into(), "user1".into())
             .await;
         assert!(matches!(result.unwrap_err(), ChannelError::ChannelNotFound));
     }
@@ -601,55 +607,55 @@ mod test {
         let ctl = ChannelControl::new();
 
         // Setup channels and agent
-        ctl.new_channel("room1".into(), None).await;
-        ctl.add_agent("user1".into(), None).await;
+        ctl.channel_add("room1".into(), None).await;
+        ctl.agent_add("user1".into(), None).await;
 
         // Test subscription before join
-        let sub = ctl.get_agent_subscription("user1".into()).await;
+        let sub = ctl.agent_subscriber("user1".into()).await;
         assert!(sub.is_ok());
 
         // Join channel and test broadcasting
-        ctl.join_channel("room1", "user1".into()).await.unwrap();
+        ctl.channel_join("room1", "user1".into()).await.unwrap();
         let msg = create_test_message("room1", "1", "test");
-        let count = ctl.broadcast("room1".into(), msg).await.unwrap();
+        let count = ctl.channel_broadcast("room1".into(), msg).await.unwrap();
         assert_eq!(count, 1);
 
         // Test subscription after removal
-        ctl.remove_agent("user1".into()).await;
-        let sub = ctl.get_agent_subscription("user1".into()).await;
+        ctl.agent_remove("user1".into()).await;
+        let sub = ctl.agent_subscriber("user1".into()).await;
         assert!(matches!(sub.unwrap_err(), ChannelError::AgentNotInitiated));
     }
 
     #[tokio::test]
     async fn test_ctl_add_remove() {
         let ctl = ChannelControl::new();
-        assert_eq!(ctl.channel_map.lock().await.len(), 0);
+        assert_eq!(ctl.channels.lock().await.len(), 0);
         // assert!(ctl.empty().await, "Should have no channels");
 
-        ctl.new_channel("test".into(), None).await;
-        assert_eq!(ctl.channel_map.lock().await.len(), 1);
+        ctl.channel_add("test".into(), None).await;
+        assert_eq!(ctl.channels.lock().await.len(), 1);
 
-        ctl.remove_channel("test".into()).await;
-        assert_eq!(ctl.channel_map.lock().await.len(), 0);
+        ctl.channel_remove("test".into()).await;
+        assert_eq!(ctl.channels.lock().await.len(), 0);
     }
 
     #[tokio::test]
     async fn test_join_leave() {
         let ctl = ChannelControl::new();
 
-        ctl.new_channel("test".into(), None).await; // new channel
+        ctl.channel_add("test".into(), None).await; // new channel
 
         // new agent
         let agent_id = "agent1".to_string();
-        ctl.add_agent(agent_id.clone(), None).await;
+        ctl.agent_add(agent_id.clone(), None).await;
 
         // join channel
-        let result = ctl.join_channel("test", agent_id.clone()).await;
+        let result = ctl.channel_join("test", agent_id.clone()).await;
         assert!(result.is_ok(), "Should successfully join channel");
 
         // leave channel
         let result = ctl
-            .leave_channel("test".to_string(), agent_id.clone())
+            .channel_leave("test".to_string(), agent_id.clone())
             .await;
         assert!(result.is_ok(), "Should successfully leave channel");
     }
@@ -659,14 +665,14 @@ mod test {
         let ctl = ChannelControl::new();
 
         // new channel
-        ctl.new_channel("test".into(), None).await;
+        ctl.channel_add("test".into(), None).await;
 
         // new agent
         let agent_id = "agent1".to_string();
-        ctl.add_agent(agent_id.clone(), None).await;
+        ctl.agent_add(agent_id.clone(), None).await;
 
         // join channel
-        let result = ctl.join_channel("test", agent_id.clone()).await;
+        let result = ctl.channel_join("test", agent_id.clone()).await;
         assert!(result.is_ok(), "Should successfully join channel");
 
         // broadcast message
@@ -683,13 +689,13 @@ mod test {
             },
         });
 
-        let result = ctl.broadcast("test".to_string(), message).await;
+        let result = ctl.channel_broadcast("test".to_string(), message).await;
         assert!(result.is_ok(), "Should successfully broadcast message");
         assert_eq!(result.unwrap(), 1, "Should have 1 receiver");
 
         // leave channel
         let result = ctl
-            .leave_channel("test".to_string(), agent_id.clone())
+            .channel_leave("test".to_string(), agent_id.clone())
             .await;
         assert!(result.is_ok(), "Should successfully leave channel");
     }
@@ -697,13 +703,13 @@ mod test {
     #[tokio::test]
     async fn test_multiple_agents() {
         let ctl = ChannelControl::new();
-        ctl.new_channel("room1".into(), None).await;
+        ctl.channel_add("room1".into(), None).await;
 
         // Add multiple agents
         let agent_ids = vec!["agent1", "agent2", "agent3"];
         for agent_id in &agent_ids {
-            ctl.add_agent(agent_id.to_string(), None).await;
-            let result = ctl.join_channel("room1", agent_id.to_string()).await;
+            ctl.agent_add(agent_id.to_string(), None).await;
+            let result = ctl.channel_join("room1", agent_id.to_string()).await;
             assert!(result.is_ok(), "Agent should join successfully");
         }
 
@@ -721,7 +727,7 @@ mod test {
             },
         });
 
-        let result = ctl.broadcast("room1".to_string(), message).await;
+        let result = ctl.channel_broadcast("room1".to_string(), message).await;
         assert!(result.is_ok(), "Should successfully broadcast");
         assert_eq!(result.unwrap(), 3, "Should have 3 receivers");
     }
@@ -769,17 +775,17 @@ mod test {
     #[tokio::test]
     async fn test_message_ordering() {
         let ctl = ChannelControl::new();
-        ctl.new_channel("room1".into(), None).await;
-        ctl.add_agent("agent1".into(), None).await;
+        ctl.channel_add("room1".into(), None).await;
+        ctl.agent_add("agent1".into(), None).await;
 
-        let _ = ctl.join_channel("room1", "agent1".into()).await.unwrap();
+        let _ = ctl.channel_join("room1", "agent1".into()).await.unwrap();
 
-        let mut rx = ctl.get_agent_subscription("agent1".into()).await.unwrap();
+        let mut rx = ctl.agent_subscriber("agent1".into()).await.unwrap();
 
         // Send multiple messages
         for i in 0..5 {
             let msg = create_test_message("room1", &i.to_string(), &format!("msg{}", i));
-            ctl.broadcast("room1".into(), msg).await.unwrap();
+            ctl.channel_broadcast("room1".into(), msg).await.unwrap();
         }
 
         // Verify messages are received in order
@@ -796,18 +802,18 @@ mod test {
         let ctl = ChannelControl::new();
 
         // Test joining non-existent channel
-        let result = ctl.join_channel("nonexistent", "agent1".into()).await;
+        let result = ctl.channel_join("nonexistent", "agent1".into()).await;
         assert!(result.is_err());
 
         // Test leaving non-existent channel
         let result = ctl
-            .leave_channel("nonexistent".into(), "agent1".into())
+            .channel_leave("nonexistent".into(), "agent1".into())
             .await;
         assert!(result.is_err());
 
         // Test broadcasting to non-existent channel
         let msg = create_test_message("nonexistent", "1", "test");
-        let result = ctl.broadcast("nonexistent".into(), msg).await;
+        let result = ctl.channel_broadcast("nonexistent".into(), msg).await;
         assert!(result.is_err());
     }
 
@@ -815,24 +821,24 @@ mod test {
     #[tokio::test]
     async fn test_resource_cleanup() {
         let ctl = ChannelControl::new();
-        ctl.new_channel("room1".into(), None).await;
+        ctl.channel_add("room1".into(), None).await;
 
         // Add multiple agents and join channel
         for i in 0..5 {
             let agent_id = format!("agent{}", i);
-            ctl.add_agent(agent_id.clone(), None).await;
-            let _ = ctl.join_channel("room1", agent_id.clone()).await;
+            ctl.agent_add(agent_id.clone(), None).await;
+            let _ = ctl.channel_join("room1", agent_id.clone()).await;
         }
 
         // Remove channel
-        ctl.remove_channel("room1".into()).await;
+        ctl.channel_remove("room1".into()).await;
 
         // Verify cleanup
-        assert!(ctl.channel_map.lock().await.is_empty());
+        assert!(ctl.channels.lock().await.is_empty());
 
         // Attempt to send message to removed channel
         let msg = create_test_message("room1", "1", "test");
-        let result = ctl.broadcast("room1".into(), msg).await;
+        let result = ctl.channel_broadcast("room1".into(), msg).await;
         assert!(result.is_err());
     }
 

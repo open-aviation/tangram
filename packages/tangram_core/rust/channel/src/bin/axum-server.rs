@@ -4,8 +4,10 @@ use axum::{
     routing::get,
     Router,
 };
+use clap::Parser;
 use futures::{SinkExt, StreamExt};
 use redis::Client;
+use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -19,13 +21,13 @@ use websocket_channels::{
 };
 
 async fn subscribe_and_send(
-    redis_url: &str,
-    topic: &str,
+    redis_url: String,
+    redis_topic: String,
     tx: mpsc::UnboundedSender<String>,
 ) -> redis::RedisResult<()> {
     let client = Client::open(redis_url)?;
     let mut pubsub = client.get_async_pubsub().await?;
-    pubsub.subscribe(topic).await?;
+    pubsub.subscribe(redis_topic).await?;
     let mut pubsub_stream = pubsub.on_message();
     loop {
         match pubsub_stream.next().await {
@@ -56,7 +58,7 @@ async fn websocket_handler(
 async fn handle_socket(socket: axum::extract::ws::WebSocket, state: Arc<AppState>) {
     let conn_id = Uuid::new_v4().to_string();
     info!("on_connected: {}", conn_id);
-    state.ctl.lock().await.add_connection(conn_id.clone()).await;
+    state.ctl.lock().await.conn_add(conn_id.clone()).await;
 
     let (mut sender, mut receiver) = socket.split();
 
@@ -100,7 +102,7 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: Arc<AppState
         _ = (&mut receive_task) => send_task.abort(),
     }
 
-    state.ctl.lock().await.remove_agent(conn_id).await;
+    state.ctl.lock().await.agent_remove(conn_id).await;
     info!("client connection closed");
 }
 
@@ -114,8 +116,27 @@ async fn handle_websocket_message(
     Ok(())
 }
 
+// use clap to parse command line arguments
+#[derive(Debug, Deserialize, Parser)]
+#[command(name = "wd", about = "channel server")]
+struct Options {
+    #[arg(long, default_value = "127.0.0.1")]
+    host: Option<String>,
+
+    #[arg(long, default_value = "5000")]
+    port: Option<u16>,
+
+    #[arg(long, default_value = None)]
+    redis_url: Option<String>,
+
+    #[arg(long, default_value = None)]
+    redis_topic: Option<String>,
+}
+
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenv::dotenv().ok(); // load .env if possible
+
     // 设置 tracing 使用 EnvFilter
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     tracing_subscriber::fmt()
@@ -123,14 +144,25 @@ async fn main() {
         .with_span_events(FmtSpan::CLOSE)
         .init();
 
-    let channel_control = ChannelControl::new();
-    channel_control.new_channel("phoenix".into(), None).await;
-    channel_control.new_channel("system".into(), None).await;
-    channel_control.new_channel("streaming".into(), None).await;
+    let options = Options::parse(); // exit on error
+    if options.redis_url.is_none() || options.redis_topic.is_none() {
+        error!("redis_url and redis_topic must be provided");
+        return Ok(());
+    }
 
+    let redis_url = options.redis_url.unwrap();
+    // let redis_topic = options.redis_topic.unwrap();
+
+    let channel_control = ChannelControl::new();
+    channel_control.channel_add("phoenix".into(), None).await;
+    channel_control.channel_add("system".into(), None).await;
+    channel_control.channel_add("streaming".into(), None).await;
+
+    let redis_client = Client::open(redis_url.clone())?;
     let state = Arc::new(AppState {
         ctl: Mutex::new(channel_control),
-        redis_url: "127.0.0.1:6379".to_string(),
+        redis_url: redis_url.clone(),
+        redis_client,
     });
 
     tokio::spawn(system_default_tx_task(state.clone(), "system"));
@@ -144,18 +176,21 @@ async fn main() {
         "data",
     ));
 
-    tokio::spawn(subscribe_and_send(
-        "redis://192.168.8.37:6379/0",
-        "streaming:data",
-        tx,
-    ));
+    tokio::spawn(subscribe_and_send(redis_url.clone(), redis_url.clone(), tx));
+
+    let host = options.host.unwrap(); // .parse::<std::net::IpAddr>().unwrap();
+    let port = options.port.unwrap();
 
     let app = Router::new()
         .route("/websocket", get(websocket_handler))
         .nest_service("/", ServeDir::new("src/bin"))
         .with_state(state.clone());
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:5000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port))
+        .await
+        .unwrap();
 
-    info!("serving at :5000 ...");
+    info!("serving at {}:{} ...", host, port);
     axum::serve(listener, app).await.unwrap();
+
+    Ok(())
 }
