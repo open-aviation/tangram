@@ -1,2 +1,1 @@
-Phoenix Channel in Rust
-=======================
+# WebSocket Channel in Rust

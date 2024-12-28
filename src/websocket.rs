@@ -77,27 +77,24 @@ enum RequestPayload {
 pub struct State {
     pub ctl: Mutex<ChannelControl>,
     pub redis_url: String,
+    pub redis_client: redis::Client,
 }
 
+/// handle websocket connection
 pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
     let conn_id = Uuid::new_v4().to_string(); // 服务端生成的，内部使用
     info!("on_connected, new client: {}", conn_id);
 
-    state.ctl.lock().await.add_connection(conn_id.clone()).await;
+    state.ctl.lock().await.conn_add(conn_id.clone()).await;
 
     let (ws_tx, ws_rx) = ws.split();
 
     // spawn a taks to forward conn mpsc to websocket
     let mut ws_tx_task = tokio::spawn(websocket_tx(conn_id.clone(), state.clone(), ws_tx));
-    // let mut redis_subscribe_task =
-    //     tokio::spawn(subscrisbe_redis(conn_id.clone(), state.clone(), ws_tx));
-
-    // a task is created when handling joining event
-    let mut ws_rx_task = tokio::spawn(handle_events(ws_rx, state.clone(), conn_id.clone()));
+    let mut ws_rx_task = tokio::spawn(default_event_handler(ws_rx, state.clone(), conn_id.clone()));
 
     tokio::select! {
         _ = (&mut ws_tx_task) => ws_rx_task.abort(),
-        // _ = (&mut redis_subscribe_task) => ws_rx_task.abort(),
         _ = (&mut ws_rx_task) => ws_tx_task.abort(),
     }
 
@@ -105,7 +102,7 @@ pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
         .ctl
         .lock()
         .await
-        .remove_agent(conn_id.to_string())
+        .agent_remove(conn_id.to_string())
         .await;
     info!("client connection closed");
 }
@@ -124,13 +121,13 @@ async fn handle_join_event(
         .ctl
         .lock()
         .await
-        .add_agent(agent_id.to_string(), None)
+        .agent_add(agent_id.to_string(), None)
         .await;
     state
         .ctl
         .lock()
         .await
-        .join_channel(&channel_name.clone(), agent_id.to_string())
+        .channel_join(&channel_name.clone(), agent_id.to_string())
         .await
         .unwrap();
     // task to forward from agent broadcast to conn
@@ -157,14 +154,14 @@ async fn agent_rx_to_conn(state: Arc<State>, join_ref: String, agent_id: String,
         .ctl
         .lock()
         .await
-        .get_agent_subscription(agent_id.clone())
+        .agent_subscriber(agent_id.clone())
         .await
         .unwrap();
     let conn_tx = state
         .ctl
         .lock()
         .await
-        .get_conn_sender(conn_id.clone())
+        .conn_publisher(conn_id.clone())
         .await
         .unwrap();
     debug!(
@@ -185,7 +182,12 @@ async fn agent_rx_to_conn(state: Arc<State>, join_ref: String, agent_id: String,
     }
 }
 
-async fn handle_events(mut ws_rx: SplitStream<WebSocket>, state: Arc<State>, conn_id: String) {
+/// default event handler
+async fn default_event_handler(
+    mut ws_rx: SplitStream<WebSocket>,
+    state: Arc<State>,
+    conn_id: String,
+) -> redis::RedisResult<()> {
     info!("handle events ...");
     while let Some(Ok(m)) = ws_rx.next().await {
         if !m.is_text() {
@@ -217,8 +219,7 @@ async fn handle_events(mut ws_rx: SplitStream<WebSocket>, state: Arc<State>, con
         }
 
         if event == "phx_join" {
-            let _channel_foward_task =
-                handle_join_event(&rm, &mut ws_rx, state.clone(), &conn_id).await;
+            handle_join_event(&rm, &mut ws_rx, state.clone(), &conn_id).await;
         }
 
         if event == "phx_leave" {
@@ -226,7 +227,7 @@ async fn handle_events(mut ws_rx: SplitStream<WebSocket>, state: Arc<State>, con
                 .ctl
                 .lock()
                 .await
-                .leave_channel(channel.clone(), conn_id.to_string())
+                .channel_leave(channel.clone(), conn_id.to_string())
                 .await
                 .unwrap();
             reply_ok_with_empty_response(
@@ -238,7 +239,21 @@ async fn handle_events(mut ws_rx: SplitStream<WebSocket>, state: Arc<State>, con
             )
             .await;
         }
+
+        // other evetns are dispatched to redis
+        // dispatch_to_redis(state.redis_url.clone(), redis_topic).await?;
     }
+
+    Ok(())
+}
+
+async fn dispatch_to_redis(redis_url: String, redis_topic: String) -> redis::RedisResult<()> {
+    let redis_client = Client::open(redis_url.clone())?;
+
+    let mut redis_pubsub = redis_client.get_async_pubsub().await?;
+    redis_pubsub.subscribe(redis_topic.clone()).await?;
+
+    Ok(())
 }
 
 async fn _redis_relay(
@@ -277,6 +292,7 @@ async fn _redis_relay(
     Ok(())
 }
 
+// 把消息经由 websocket 发送到客户端
 async fn websocket_tx(
     conn_id: String,
     state: Arc<State>,
@@ -285,13 +301,16 @@ async fn websocket_tx(
     debug!("launch websocket sender ...");
     // let redis_relay_task = tokio::spawn(redis_relay(state.redis_url, conn_id.clone(), ws_tx));
 
+    // 从 ChannelControl
     let mut conn_rx = state
         .ctl
         .lock()
         .await
-        .get_conn_subscription(conn_id.to_string())
+        .conn_subscriber(conn_id.clone())
         .await
         .unwrap();
+
+    // TODO: select! from Redis
 
     while let Ok(channel_message) = conn_rx.recv().await {
         if let ChannelMessage::Reply(reply_message) = channel_message {
@@ -331,7 +350,7 @@ async fn reply_ok_with_empty_response(
         .ctl
         .lock()
         .await
-        .send_to_connction(
+        .conn_send(
             conn_id.to_string(),
             ChannelMessage::Reply(join_reply_message),
         )
@@ -370,7 +389,7 @@ pub async fn streaming_default_tx_task(
             .ctl
             .lock()
             .await
-            .broadcast(
+            .channel_broadcast(
                 channel_name.to_string(),
                 ChannelMessage::Reply(reply_message),
             )
@@ -418,7 +437,7 @@ pub async fn system_default_tx_task(state: Arc<State>, channel_name: &str) {
             .ctl
             .lock()
             .await
-            .broadcast(channel_name.to_string(), ChannelMessage::Reply(message))
+            .channel_broadcast(channel_name.to_string(), ChannelMessage::Reply(message))
             .await
         {
             Ok(0) => {} // no client
@@ -445,9 +464,12 @@ mod tests {
     use warp::Filter;
 
     async fn setup_test_server() -> (String, Arc<State>) {
+        let redis_url = "redis://localhost:6379".to_string();
+        let redis_client = redis::Client::open(redis_url.clone()).unwrap();
         let state = Arc::new(State {
             ctl: Mutex::new(ChannelControl::new()),
-            redis_url: "redis://localhost".to_string(),
+            redis_url,
+            redis_client,
         });
 
         // Setup channels
@@ -455,19 +477,19 @@ mod tests {
             .ctl
             .lock()
             .await
-            .new_channel("phoenix".into(), None)
+            .channel_add("phoenix".into(), None)
             .await;
         state
             .ctl
             .lock()
             .await
-            .new_channel("system".into(), None)
+            .channel_add("system".into(), None)
             .await;
         state
             .ctl
             .lock()
             .await
-            .new_channel("streaming".into(), None)
+            .channel_add("streaming".into(), None)
             .await;
 
         // Spawn system task
@@ -598,7 +620,7 @@ mod tests {
                 .ctl
                 .lock()
                 .await
-                .channel_map
+                .channels
                 .lock()
                 .await
                 .get("system")
@@ -649,7 +671,7 @@ mod tests {
             .ctl
             .lock()
             .await
-            .broadcast("system".to_string(), ChannelMessage::Reply(message))
+            .channel_broadcast("system".to_string(), ChannelMessage::Reply(message))
             .await
             .unwrap();
 
