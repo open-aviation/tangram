@@ -98,9 +98,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "data",
     ));
 
-    // publish 到 redis_topic 的会被转发到 streaming:data chnnel
-    // tokio::spawn(redis_relay(redis_url, redis_topic, tx));
-
     // websocket state
     let state = warp::any().map(move || state.clone());
     let ws_route =
