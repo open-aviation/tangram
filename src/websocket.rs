@@ -1,8 +1,11 @@
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use futures::StreamExt;
+use std::fmt;
 use std::fmt::{Display, Error};
 use std::sync::Arc;
+use tokio::select;
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use warp::filters::ws::Message;
 
@@ -42,6 +45,32 @@ pub enum Response {
     Heartbeat {},
     Datetime { datetime: String, counter: u32 },
     Message { message: String },
+}
+
+impl fmt::Display for ReplyMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Format the response based on its variant
+        let response_str = match &self.payload.response {
+            Response::Empty {} => "Empty".to_string(),
+            Response::Join {} => "Join".to_string(),
+            Response::Heartbeat {} => "Heartbeat".to_string(),
+            Response::Datetime { datetime, counter } => {
+                format!("<Datetime '{}' {}>", datetime, counter)
+            }
+            Response::Message { message } => format!("{{message: {}}}", message),
+        };
+
+        write!(
+            f,
+            "Message join_ref={}, ref={}, topic={}, event={}, <Payload status={}, response={}>",
+            self.join_reference.clone().unwrap(),
+            self.reference,
+            self.topic,
+            self.event,
+            self.payload.status,
+            response_str
+        )
+    }
 }
 
 // request data structures
@@ -85,7 +114,12 @@ pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
     let conn_id = Uuid::new_v4().to_string(); // 服务端生成的，内部使用
     info!("on_connected, new client: {}", conn_id);
 
-    state.ctl.lock().await.conn_add(conn_id.clone()).await;
+    state
+        .ctl
+        .lock()
+        .await
+        .conn_add_publisher(conn_id.clone())
+        .await;
 
     let (ws_tx, ws_rx) = ws.split();
 
@@ -123,14 +157,12 @@ async fn websocket_tx(
         .await
         .unwrap();
 
-    // TODO: select! from Redis
-
     while let Ok(channel_message) = conn_rx.recv().await {
         if let ChannelMessage::Reply(reply_message) = channel_message {
             let text = serde_json::to_string(&reply_message).unwrap();
             let result = ws_tx.send(warp::ws::Message::text(text)).await;
             if result.is_err() {
-                error!("sending failure: {:?}", result);
+                error!("sending failure: {}", result.err().unwrap());
                 continue;
             }
         }
@@ -272,7 +304,7 @@ async fn agent_rx_to_conn(state: Arc<State>, join_ref: String, agent_id: String,
                 error!("sending failure: {:?}", result.err().unwrap());
                 break; // fails when there's no reciever, stop forwarding
             }
-            debug!("F {:?}", channel_message);
+            debug!("F {}", channel_message);
         }
     }
 }
@@ -282,42 +314,6 @@ async fn dispatch_to_redis(redis_url: String, redis_topic: String) -> redis::Red
 
     let mut redis_pubsub = redis_client.get_async_pubsub().await?;
     redis_pubsub.subscribe(redis_topic.clone()).await?;
-
-    Ok(())
-}
-
-async fn _redis_relay(
-    redis_url: String,
-    redis_topic: String,
-    mut ws_tx: SplitSink<WebSocket, Message>,
-) -> redis::RedisResult<()> {
-    let redis_client = Client::open(redis_url.clone())?;
-
-    let mut redis_pubsub = redis_client.get_async_pubsub().await?;
-    redis_pubsub.subscribe(redis_topic.clone()).await?;
-
-    let mut redis_pubsub_stream = redis_pubsub.on_message();
-
-    info!("listening to {} pubsub: `{}` ...", redis_url, redis_topic);
-    loop {
-        match redis_pubsub_stream.next().await {
-            Some(stream_message) => {
-                let payload: String = stream_message.get_payload()?;
-                info!("received: {}", payload);
-
-                // Redis string => Message
-                let result = ws_tx.send(warp::ws::Message::text(payload)).await;
-                if result.is_err() {
-                    error!("receiver dropped, exiting: {}", result.err().unwrap());
-                    break; //
-                }
-            }
-            None => {
-                info!("PubSub connection closed, exiting.");
-                break;
-            }
-        }
-    }
 
     Ok(())
 }
@@ -348,7 +344,7 @@ async fn reply_ok_with_empty_response(
         .ctl
         .lock()
         .await
-        .conn_send(
+        .conn_publish(
             conn_id.to_string(),
             ChannelMessage::Reply(join_reply_message),
         )
@@ -357,59 +353,110 @@ async fn reply_ok_with_empty_response(
     debug!("sent to connection {}: {}", conn_id.clone(), text);
 }
 
-pub async fn streaming_default_tx_task(
-    local_state: Arc<State>,
+pub async fn redis_relay(
+    redis_url: String,
+    redis_topic: String,
+    tx: mpsc::UnboundedSender<String>,
+) -> redis::RedisResult<()> {
+    let redis_client = Client::open(redis_url.clone())?;
+
+    let mut redis_pubsub = redis_client.get_async_pubsub().await?;
+    redis_pubsub.subscribe(redis_topic.clone()).await?;
+
+    let mut redis_pubsub_stream = redis_pubsub.on_message();
+
+    info!("listening to {} pubsub: `{}` ...", redis_url, redis_topic);
+    loop {
+        match redis_pubsub_stream.next().await {
+            Some(stream_message) => {
+                let payload: String = stream_message.get_payload()?;
+                info!("received: {}", payload);
+
+                if tx.send(payload).is_err() {
+                    error!("receiver dropped, exiting.");
+                    break;
+                }
+            }
+            None => {
+                info!("PubSub connection closed, exiting.");
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn _channel_publish(
+    counter: i32,
+    message: String,
+    state: Arc<State>,
+    channel_name: &str,
+    event_name: &str,
+) {
+    let reply_message = ReplyMessage {
+        join_reference: None,
+        reference: counter.to_string(),
+        topic: channel_name.to_string(),
+        event: event_name.to_string(),
+        payload: ReplyPayload {
+            status: "ok".to_string(),
+            response: Response::Message { message },
+        },
+    };
+    // unexpected error: Error("can only flatten structs and maps (got a integer)", line: 0, column: 0)
+    let serialized_result = serde_json::to_string(&reply_message);
+    if serialized_result.is_err() {
+        error!("error: {}", serialized_result.err().unwrap());
+        return;
+    }
+    let text = serialized_result.unwrap();
+    match state
+        .ctl
+        .lock()
+        .await
+        .channel_broadcast(
+            channel_name.to_string(),
+            ChannelMessage::Reply(reply_message),
+        )
+        .await
+    {
+        Ok(_) => {
+            debug!("{} > {}", event_name, text);
+        }
+        Err(_e) => {
+            // it throws error if there's no client
+            // error!(
+            //     "fail to send, channel: {}, event: {}, err: {}",
+            //     channel_name, event_name, e
+            // );
+        }
+    }
+}
+
+pub async fn streaming_default_tx_handler(
+    state: Arc<State>,
     mut rx: UnboundedReceiverStream<String>,
     channel_name: &str,
     event_name: &str,
 ) {
     info!("launch data task ...");
     let mut counter = 0;
-    while let Some(message) = rx.next().await {
-        let reply_message = ReplyMessage {
-            join_reference: None,
-            reference: counter.to_string(),
-            topic: channel_name.to_string(),
-            event: event_name.to_string(),
-            payload: ReplyPayload {
-                status: "ok".to_string(),
-                response: Response::Message { message },
-            },
-        };
-        // unexpected error: Error("can only flatten structs and maps (got a integer)", line: 0, column: 0)
-        let serialized_result = serde_json::to_string(&reply_message);
-        if serialized_result.is_err() {
-            error!("error: {}", serialized_result.err().unwrap());
-            continue;
-        }
-        let text = serialized_result.unwrap();
-        match local_state
-            .ctl
-            .lock()
-            .await
-            .channel_broadcast(
-                channel_name.to_string(),
-                ChannelMessage::Reply(reply_message),
-            )
-            .await
-        {
-            Ok(_) => {
-                counter += 1;
-                debug!("{} > {}", event_name, text);
-            }
-            Err(_e) => {
-                // it throws error if there's no client
-                // error!(
-                //     "fail to send, channel: {}, event: {}, err: {}",
-                //     channel_name, event_name, e
-                // );
-            }
+    // while let Some(message) = rx.next().await {
+    //     _channel_publish(counter, message, state.clone(), channel_name, event_name).await;
+    //     counter += 1;
+    // }
+    //
+    select! {
+        Some(message) = rx.next() => {
+            _channel_publish(counter, message, state.clone(), channel_name, event_name).await;
+            counter += 1;
         }
     }
 }
 
 // 每秒发送一个时间戳
-pub async fn system_default_tx_task(state: Arc<State>, channel_name: &str) {
+pub async fn system_default_tx_handler(state: Arc<State>, channel_name: &str) {
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
     info!("launch system/datetime task...");
@@ -491,7 +538,7 @@ mod tests {
             .await;
 
         // Spawn system task
-        tokio::spawn(system_default_tx_task(state.clone(), "system"));
+        tokio::spawn(system_default_tx_handler(state.clone(), "system"));
 
         let websocket_shared_state = state.clone();
         let websocket_shared_state = warp::any().map(move || websocket_shared_state.clone());
