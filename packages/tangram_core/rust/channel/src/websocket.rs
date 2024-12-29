@@ -209,13 +209,12 @@ async fn websocket_tx(
         .unwrap();
 
     while let Ok(channel_message) = conn_rx.recv().await {
-        if let ChannelMessage::Reply(reply_message) = channel_message {
-            let text = serde_json::to_string(&reply_message).unwrap();
-            let result = ws_tx.send(warp::ws::Message::text(text)).await;
-            if result.is_err() {
-                error!("sending failure: {}", result.err().unwrap());
-                continue;
-            }
+        let ChannelMessage::Reply(reply_message) = channel_message;
+        let text = serde_json::to_string(&reply_message).unwrap();
+        let result = ws_tx.send(warp::ws::Message::text(text)).await;
+        if result.is_err() {
+            error!("sending failure: {}", result.err().unwrap());
+            continue;
         }
     }
 }
@@ -278,20 +277,13 @@ async fn websocket_rx(
             debug!("leave processed");
         }
 
-        dispatch_by_redis(
-            conn_id.clone(),
-            &mut redis_conn,
-            channel_name.clone(),
-            payload,
-        )
-        .await?;
+        dispatch_by_redis(&mut redis_conn, channel_name.clone(), payload).await?;
     }
     Ok(())
 }
 
 /// events from client are published over redis
 async fn dispatch_by_redis(
-    conn_id: String,
     redis_conn: &mut redis::aio::MultiplexedConnection,
     channel_name: String,
     payload: &RequestPayload,
@@ -402,15 +394,14 @@ async fn agent_to_conn(
         select! {
             channel_message_opt = agent_rx.recv() =>  {
                 if let Ok(mut channel_message) = channel_message_opt {
-                    if let ChannelMessage::Reply(ref mut reply) = channel_message {
-                        reply.join_ref = Some(join_ref.clone());
-                        let result = conn_tx.send(channel_message.clone());
-                        if result.is_err() {
-                            error!("agent {}, conn: {}, sending failure: {:?}", agent_id, conn_id, result.err().unwrap());
-                            break; // fails when there's no reciever, stop forwarding
-                        }
-                        debug!("F {}", channel_message);
+                    let ChannelMessage::Reply(ref mut reply) = channel_message;
+                    reply.join_ref = Some(join_ref.clone());
+                    let result = conn_tx.send(channel_message.clone());
+                    if result.is_err() {
+                        error!("agent {}, conn: {}, sending failure: {:?}", agent_id, conn_id, result.err().unwrap());
+                        break; // fails when there's no reciever, stop forwarding
                     }
+                    // debug!("F {}", channel_message);
                 }
             },
             optional_message = redis_pubsub_stream.next() => {
