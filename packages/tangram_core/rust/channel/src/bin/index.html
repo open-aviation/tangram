@@ -1,95 +1,217 @@
 <html>
   <title id="title">Channel Example</title>
   <style>
+    body {
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .channel-section {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .channel-title {
+      font-size: 1.2em;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    .status-panel {
+      background: #f5f5f5;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+
+    .status-label {
+      color: #666;
+      font-size: 0.9em;
+    }
+
+    .status-value {
+      font-weight: 500;
+      color: #333;
+    }
+
     .button {
-      padding: 8px 16px;
+      padding: 10px 20px;
       margin: 5px;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       font-size: 14px;
+      transition: all 0.2s ease;
     }
+
+    .button:hover:not(.disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
     .join-btn {
       background-color: #4CAF50;
       color: white;
     }
+
+    .join-btn:hover:not(.disabled) {
+      background-color: #45a049;
+    }
+
     .leave-btn {
       background-color: #f44336;
       color: white;
     }
+
+    .leave-btn:hover:not(.disabled) {
+      background-color: #da190b;
+    }
+
     .disabled {
       background-color: #cccccc;
       cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .console-note {
+      color: #666;
+      font-size: 0.9em;
+      margin: 10px 0;
+      font-style: italic;
     }
   </style>
   <body> 
-    <a>Check in the DevTools Console</a>
-    <p id='ev-dt'>
-      counter: <b id="counter"></b>, current time: <b id="datetime"></b></b>
-    </p>
-    <div id="system-controls">
-      <button id="joinSystemBtn" class="button join-btn" onclick="joinSystemChannel()">Join System Channel</button>
-      <button id="leaveSystemBtn" class="button leave-btn" onclick="leaveSystemChannel()">Leave System Channel</button>
+
+    <div id="system-section" class="channel-section">
+      <div class="channel-title">System Channel</div>
+      <div id="system-controls">
+        <button id="joinSystemBtn" class="button join-btn" onclick="joinSystemChannel()">Join System Channel</button>
+        <button id="leaveSystemBtn" class="button leave-btn" onclick="leaveSystemChannel()">Leave System Channel</button>
+      </div>
+      <div class="status-panel">
+        <span class="status-label">Counter:</span> 
+        <b id="counter" class="status-value">-</b>
+        <span class="status-label">Current Time:</span> 
+        <b id="datetime" class="status-value">-</b>
+      </div>
+    </div>
+
+    <div id="streaming-section" class="channel-section">
+      <div class="channel-title">Streaming Channel</div>
+      <div id="streaming-controls">
+        <button id="joinStreamingBtn" class="button join-btn" onclick="joinStreamingChannel()">Join Streaming Channel</button>
+        <button id="leaveStreamingBtn" class="button leave-btn" onclick="leaveStreamingChannel()">Leave Streaming Channel</button>
+      </div>
     </div>
   </body>
   <script src='https://unpkg.com/phoenix@1.7.11/priv/static/phoenix.min.js'></script>
   <script src='https://unpkg.com/morphdom@2.6.1/dist/morphdom-umd.js'></script>
   <script>
     const { Socket, Channel, Presence } = Phoenix;
-    console.dir(morphdom);
     
-    function onDatetime ({ status, response: { datetime, counter } }) {
+    function onDatetime({ status, response: { datetime, counter }}) {
       document.getElementById('datetime').innerText = datetime;
       document.getElementById('counter').innerHTML = counter;
     };
     
     function dump({ status, response }) {
-      console.log(`status: ${status}, response: ${response}`);
+      console.log(`Status: ${status}, Response:`, response);
     }
     
     let userToken = 'userSocketToken';
     let debug = false;
-    let socket = new Socket("", { debug, params: { userToken } });
+    let socket = new Socket("", { debug, params: { userToken }});
     socket.connect();
     
     function updateButtonStates() {
-      const joinBtn = document.getElementById('joinSystemBtn');
-      const leaveBtn = document.getElementById('leaveSystemBtn');
+      const systemJoinBtn = document.getElementById('joinSystemBtn');
+      const systemLeaveBtn = document.getElementById('leaveSystemBtn');
+      const streamingJoinBtn = document.getElementById('joinStreamingBtn');
+      const streamingLeaveBtn = document.getElementById('leaveStreamingBtn');
       
       if (window.systemChannel) {
-        joinBtn.classList.add('disabled');
-        leaveBtn.classList.remove('disabled');
+        systemJoinBtn.classList.add('disabled');
+        systemLeaveBtn.classList.remove('disabled');
       } else {
-        joinBtn.classList.remove('disabled');
-        leaveBtn.classList.add('disabled');
+        systemJoinBtn.classList.remove('disabled');
+        systemLeaveBtn.classList.add('disabled');
+      }
+
+      if (window.streamingChannel) {
+        streamingJoinBtn.classList.add('disabled');
+        streamingLeaveBtn.classList.remove('disabled');
+      } else {
+        streamingJoinBtn.classList.remove('disabled');
+        streamingLeaveBtn.classList.add('disabled');
+      }
+    }
+    
+    async function getChannelToken(channelName) {
+      const storageKey = `token_${channelName}`;
+      const storedToken = localStorage.getItem(storageKey);
+      
+      if (storedToken) {
+        return storedToken;
+      }
+
+      try {
+        const response = await fetch('/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ channel: channelName })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        localStorage.setItem(storageKey, data.token);
+        return data.token;
+      } catch (error) {
+        console.error('Error fetching token:', error);
+        return null;
       }
     }
     
     function joinChannel(channelName, channelToken) {
-      console.dir(socket);
+      console.log(`Joining channel: ${channelName}`);
       let channel = socket.channel(channelName, { token: channelToken });
       channel.on('datetime', onDatetime);
       channel.on('data', dump);
-      console.log(`joining channel ${channelName}`)
+      
       channel
         .join()
         .receive('ok', (ev) => {
-          console.log(`(${channelName} - joined`, ev)
+          console.log(`${channelName} - Joined successfully:`, ev);
           updateButtonStates();
         })
         .receive('error', ({ reason }) => {
-          console.log(`${channelName} - failed to join`, reason);
+          console.error(`${channelName} - Failed to join:`, reason);
         })
         .receive('timeout', () => {
-          console.log(`${channelName} - joining timeouts`);
+          console.warn(`${channelName} - Join request timed out`);
         });
       return channel;
     }
     
-    function joinSystemChannel() {
+    async function joinSystemChannel() {
       if (!window.systemChannel) {
-        window.systemChannel = joinChannel('system', 'hello-system');
-        updateButtonStates();
+        const token = await getChannelToken('system');
+        if (token) {
+          window.systemChannel = joinChannel('system', token);
+          updateButtonStates();
+        } else {
+          console.error('Failed to get system channel token');
+        }
       }
     }
     
@@ -104,8 +226,28 @@
       }
     }
 
-    // Initialize streaming channel
-    window.streamingChannel = joinChannel('streaming', 'hello-streaming');
+    async function joinStreamingChannel() {
+      if (!window.streamingChannel) {
+        const token = await getChannelToken('streaming');
+        if (token) {
+          window.streamingChannel = joinChannel('streaming', token);
+          updateButtonStates();
+        } else {
+          console.error('Failed to get streaming channel token');
+        }
+      }
+    }
+    
+    function leaveStreamingChannel() {
+      if (window.streamingChannel) {
+        window.streamingChannel.leave()
+          .receive('ok', () => {
+            console.log('Left streaming channel successfully');
+            window.streamingChannel = null;
+            updateButtonStates();
+          });
+      }
+    }
     
     // Initial button states
     updateButtonStates();
