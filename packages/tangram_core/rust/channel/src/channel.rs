@@ -886,4 +886,60 @@ mod test {
     //         handle.await.unwrap();
     //     }
     // }
+
+    #[test]
+    fn test_reply_message_display() {
+        // Test message response
+        let message = ReplyMessage {
+            join_reference: Some("1".to_string()),
+            reference: "ref1".to_string(),
+            topic: "test".to_string(),
+            event: "msg".to_string(),
+            payload: ReplyPayload {
+                status: "ok".to_string(),
+                response: Response::Message {
+                    message: "hello".to_string(),
+                },
+            },
+        };
+        assert_eq!(
+            message.to_string(),
+            r#"Message join_ref=1, ref=ref1, topic=test, event=msg, <Payload status=ok, response={message: hello}>"#
+        );
+
+        // Test datetime response
+        let datetime = ReplyMessage {
+            join_reference: None,
+            reference: "ref2".to_string(),
+            topic: "system".to_string(),
+            event: "datetime".to_string(),
+            payload: ReplyPayload {
+                status: "ok".to_string(),
+                response: Response::Datetime {
+                    datetime: "2024-01-01T00:00:00".to_string(),
+                    counter: 42,
+                },
+            },
+        };
+        assert_eq!(
+            datetime.to_string(),
+            r#"Message join_ref=None, ref=ref2, topic=system, event=datetime, <Payload status=ok, response=<Datetime '2024-01-01T00:00:00' 42>>"#
+        );
+
+        // Test empty response
+        let empty = ReplyMessage {
+            join_reference: None,
+            reference: "ref3".to_string(),
+            topic: "test".to_string(),
+            event: "phx_reply".to_string(),
+            payload: ReplyPayload {
+                status: "ok".to_string(),
+                response: Response::Empty {},
+            },
+        };
+        assert_eq!(
+            empty.to_string(),
+            r#"Message join_ref=None, ref=ref3, topic=test, event=phx_reply, <Payload status=ok, response=Empty>"#
+        );
+    }
 }
