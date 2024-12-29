@@ -1,52 +1,81 @@
 <html>
   <title id="title">Channel Example</title>
+  <style>
+    .button {
+      padding: 8px 16px;
+      margin: 5px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .join-btn {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .leave-btn {
+      background-color: #f44336;
+      color: white;
+    }
+    .disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+  </style>
   <body> 
     <a>Check in the DevTools Console</a>
     <p id='ev-dt'>
       counter: <b id="counter"></b>, current time: <b id="datetime"></b></b>
     </p>
-
+    <div id="system-controls">
+      <button id="joinSystemBtn" class="button join-btn" onclick="joinSystemChannel()">Join System Channel</button>
+      <button id="leaveSystemBtn" class="button leave-btn" onclick="leaveSystemChannel()">Leave System Channel</button>
+    </div>
   </body>
   <script src='https://unpkg.com/phoenix@1.7.11/priv/static/phoenix.min.js'></script>
   <script src='https://unpkg.com/morphdom@2.6.1/dist/morphdom-umd.js'></script>
-  <!-- <script type='module'> -->
   <script>
-    // channel https://hexdocs.pm/phenox/js/
-
     const { Socket, Channel, Presence } = Phoenix;
-    // import morphdom from 'https://unpkg.com/morphdom@2.6.1/dist/morphdom-esm.js';
-
-    // https://www.npmjs.com/package/morphdom#morphdomfromnode-tonode-options--node
     console.dir(morphdom);
-
+    
     function onDatetime ({ status, response: { datetime, counter } }) {
-      // console.log(`status: ${status}, datetime, ${datetime}, counter: ${counter}`);
-
       document.getElementById('datetime').innerText = datetime;
       document.getElementById('counter').innerHTML = counter;
     };
-
+    
     function dump({ status, response }) {
       console.log(`status: ${status}, response: ${response}`);
     }
-
+    
     let userToken = 'userSocketToken';
     let debug = false;
     let socket = new Socket("", { debug, params: { userToken } });
     socket.connect();
-
+    
+    function updateButtonStates() {
+      const joinBtn = document.getElementById('joinSystemBtn');
+      const leaveBtn = document.getElementById('leaveSystemBtn');
+      
+      if (window.systemChannel) {
+        joinBtn.classList.add('disabled');
+        leaveBtn.classList.remove('disabled');
+      } else {
+        joinBtn.classList.remove('disabled');
+        leaveBtn.classList.add('disabled');
+      }
+    }
+    
     function joinChannel(channelName, channelToken) {
       console.dir(socket);
       let channel = socket.channel(channelName, { token: channelToken });
-
-      channel.on('datetime', onDatetime); // ?
+      channel.on('datetime', onDatetime);
       channel.on('data', dump);
-
-      console.log(`joinning channel ${channelName}`)
+      console.log(`joining channel ${channelName}`)
       channel
         .join()
         .receive('ok', (ev) => {
           console.log(`(${channelName} - joined`, ev)
+          updateButtonStates();
         })
         .receive('error', ({ reason }) => {
           console.log(`${channelName} - failed to join`, reason);
@@ -56,15 +85,29 @@
         });
       return channel;
     }
-
-    function leaveSystem() {
-      if (window.systemChannel !== null) window.systemChannel.leave();
-      window.systemChannel = null;
+    
+    function joinSystemChannel() {
+      if (!window.systemChannel) {
+        window.systemChannel = joinChannel('system', 'hello-system');
+        updateButtonStates();
+      }
+    }
+    
+    function leaveSystemChannel() {
+      if (window.systemChannel) {
+        window.systemChannel.leave()
+          .receive('ok', () => {
+            console.log('Left system channel successfully');
+            window.systemChannel = null;
+            updateButtonStates();
+          });
+      }
     }
 
-
-    window.systemChannel = joinChannel('system', 'hello-system');
+    // Initialize streaming channel
     window.streamingChannel = joinChannel('streaming', 'hello-streaming');
+    
+    // Initial button states
+    updateButtonStates();
   </script>
 </html>
-
