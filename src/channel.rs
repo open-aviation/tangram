@@ -17,7 +17,6 @@ use crate::websocket::ReplyMessage;
 #[derive(Clone, Debug, Serialize)]
 pub enum ChannelMessage {
     Reply(ReplyMessage),
-    ReloadFilter { agent_id: String, code: String },
 }
 
 impl Display for ChannelMessage {
@@ -25,9 +24,6 @@ impl Display for ChannelMessage {
         match self {
             ChannelMessage::Reply(reply) => {
                 write!(f, "<{}>", reply)
-            }
-            ChannelMessage::ReloadFilter { agent_id, code } => {
-                write!(f, "<ReloadFilter agent_id:{}, code: {}>", agent_id, code)
             }
         }
     }
@@ -38,9 +34,9 @@ pub struct Channel {
     /// channel name
     pub name: String,
     /// broadcast in channels
-    sender: broadcast::Sender<ChannelMessage>,
+    pub sender: broadcast::Sender<ChannelMessage>,
     /// channel agents
-    agents: Mutex<Vec<String>>,
+    pub agents: Mutex<Vec<String>>,
     /// channel agent count
     pub count: AtomicU32,
 }
@@ -413,9 +409,6 @@ async fn channel_to_agent_handler(
 ) {
     while let Ok(channel_message) = channel_rx.recv().await {
         match &channel_message {
-            ChannelMessage::ReloadFilter { .. } => {
-                info!("filter reloaded (do nothing)")
-            }
             ChannelMessage::Reply(_reply_message) => {
                 let _ = agent_tx.send(channel_message);
             }
@@ -430,12 +423,15 @@ mod test {
 
     fn create_test_message(topic: &str, reference: &str, message: &str) -> ChannelMessage {
         ChannelMessage::Reply(ReplyMessage {
-            join_reference: None,
-            reference: reference.to_string(),
+            join_ref: None,
+            event_ref: reference.to_string(),
             topic: topic.to_string(),
             event: "test_event".to_string(),
             payload: ReplyPayload {
                 status: "ok".to_string(),
+                // response: json!({
+                //     "message": message.to_string(),
+                // }),
                 response: Response::Message {
                     message: message.to_string(),
                 },
@@ -548,6 +544,8 @@ mod test {
         // Verify received message
         if let Ok(ChannelMessage::Reply(msg)) = rx.try_recv() {
             assert_eq!(msg.topic, "test");
+
+            // let value = from_value(msg.payload.response);
             if let Response::Message { message } = msg.payload.response {
                 assert_eq!(message, "hello");
             } else {
@@ -690,13 +688,16 @@ mod test {
 
         // broadcast message
         let message = ChannelMessage::Reply(ReplyMessage {
-            join_reference: None,
-            reference: "1".to_string(),
+            join_ref: None,
+            event_ref: "1".to_string(),
             topic: "test".to_string(),
             event: "test_event".to_string(),
             payload: crate::websocket::ReplyPayload {
                 status: "ok".to_string(),
-                response: crate::websocket::Response::Message {
+                // response: json!({
+                //     "message": "test message".to_string(),
+                // }),
+                response: Response::Message {
                     message: "test message".to_string(),
                 },
             },
@@ -728,13 +729,16 @@ mod test {
 
         // Broadcast a message
         let message = ChannelMessage::Reply(ReplyMessage {
-            join_reference: None,
-            reference: "1".to_string(),
+            join_ref: None,
+            event_ref: "1".to_string(),
             topic: "room1".to_string(),
             event: "broadcast".to_string(),
             payload: crate::websocket::ReplyPayload {
                 status: "ok".to_string(),
-                response: crate::websocket::Response::Message {
+                // response: json!({
+                //     "message": "hello all".to_string(),
+                // }),
+                response: Response::Message {
                     message: "hello all".to_string(),
                 },
             },
@@ -804,7 +808,7 @@ mod test {
         // Verify messages are received in order
         for i in 0..5 {
             if let Ok(ChannelMessage::Reply(reply)) = rx.recv().await {
-                assert_eq!(reply.reference, i.to_string());
+                assert_eq!(reply.event_ref, i.to_string());
             }
         }
     }
@@ -891,12 +895,15 @@ mod test {
     fn test_reply_message_display() {
         // Test message response
         let message = ReplyMessage {
-            join_reference: Some("1".to_string()),
-            reference: "ref1".to_string(),
+            join_ref: Some("1".to_string()),
+            event_ref: "ref1".to_string(),
             topic: "test".to_string(),
             event: "msg".to_string(),
             payload: ReplyPayload {
                 status: "ok".to_string(),
+                // response: json!({
+                //     "message": "hello".to_string(),
+                // }),
                 response: Response::Message {
                     message: "hello".to_string(),
                 },
@@ -904,17 +911,21 @@ mod test {
         };
         assert_eq!(
             message.to_string(),
-            r#"Message join_ref=1, ref=ref1, topic=test, event=msg, <Payload status=ok, response={message: hello}>"#
+            r#"Message join_ref=1, ref=ref1, topic=test, event=msg, <Payload status=ok, response=...>"#
         );
 
         // Test datetime response
         let datetime = ReplyMessage {
-            join_reference: None,
-            reference: "ref2".to_string(),
+            join_ref: None,
+            event_ref: "ref2".to_string(),
             topic: "system".to_string(),
             event: "datetime".to_string(),
             payload: ReplyPayload {
                 status: "ok".to_string(),
+                // response: json!({
+                //     "datetime": "2024-01-01T00:00:00".to_string(),
+                //     "counter": 42,
+                // }),
                 response: Response::Datetime {
                     datetime: "2024-01-01T00:00:00".to_string(),
                     counter: 42,
@@ -923,23 +934,24 @@ mod test {
         };
         assert_eq!(
             datetime.to_string(),
-            r#"Message join_ref=None, ref=ref2, topic=system, event=datetime, <Payload status=ok, response=<Datetime '2024-01-01T00:00:00' 42>>"#
+            r#"Message join_ref=None, ref=ref2, topic=system, event=datetime, <Payload status=ok, response=...>"#
         );
 
         // Test empty response
         let empty = ReplyMessage {
-            join_reference: None,
-            reference: "ref3".to_string(),
+            join_ref: None,
+            event_ref: "ref3".to_string(),
             topic: "test".to_string(),
             event: "phx_reply".to_string(),
             payload: ReplyPayload {
                 status: "ok".to_string(),
+                // response: json!({}),
                 response: Response::Empty {},
             },
         };
         assert_eq!(
             empty.to_string(),
-            r#"Message join_ref=None, ref=ref3, topic=test, event=phx_reply, <Payload status=ok, response=Empty>"#
+            r#"Message join_ref=None, ref=ref3, topic=test, event=phx_reply, <Payload status=ok, response=...>"#
         );
     }
 }

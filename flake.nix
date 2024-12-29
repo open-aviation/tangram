@@ -61,8 +61,13 @@
         in {
           devShells.default = pkgs.mkShell {
             inputsFrom = builtins.attrValues self.checks;
-            buildInputs =
-              [ rustToolchain pkgs.pkg-config pkgs.openssl pkgs.cargo-dist ];
+            buildInputs = [
+              rustToolchain
+              pkgs.pkg-config
+              pkgs.openssl
+              pkgs.cargo-dist
+              pkgs.redli
+            ];
             shellHook = ''
               export RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=${pkgs.mold}/bin/mold"
             '';

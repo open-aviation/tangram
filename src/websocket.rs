@@ -1,11 +1,12 @@
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use futures::StreamExt;
+use redis::AsyncCommands;
+use redis::RedisResult;
 use std::fmt;
 use std::fmt::{Display, Error};
 use std::sync::Arc;
 use tokio::select;
-use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use warp::filters::ws::Message;
 
@@ -24,8 +25,8 @@ use crate::channel::{ChannelControl, ChannelMessage};
 /// reply data structures
 #[derive(Clone, Debug, Serialize_tuple)]
 pub struct ReplyMessage {
-    pub join_reference: Option<String>, // null when it's heartbeat
-    pub reference: String,
+    pub join_ref: Option<String>, // null when it's heartbeat
+    pub event_ref: String,
     pub topic: String, // `channel`
     pub event: String,
     pub payload: ReplyPayload,
@@ -34,22 +35,37 @@ pub struct ReplyMessage {
 #[derive(Clone, Debug, Serialize)]
 pub struct ReplyPayload {
     pub status: String,
+    // 两种情况
     pub response: Response,
+    // pub response: serde_json::Value,
 }
 
-// #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-// #[serde(untagged)]
-// pub enum Response {
-//     Empty {},
-//     Join {},
-//     Heartbeat {},
-//     Datetime { datetime: String, counter: u32 },
-//     Message { message: String },
-// }
-
+/// 从 websocket 反序列化的
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "type")]
+#[serde(untagged)]
 pub enum Response {
+    #[serde(rename = "join")]
+    Join {},
+
+    #[serde(rename = "heartbeat")]
+    Heartbeat {},
+
+    #[serde(rename = "datetime")]
+    Datetime { datetime: String, counter: u32 },
+
+    #[serde(rename = "message")]
+    Message { message: String },
+
+    #[serde(rename = "null")]
+    Empty {},
+}
+
+/// 从 Redis 反序列化的, 之后转发到 websocket
+/// 序列化的时候需要和 Response 保持一致
+/// 会增加一个 type 字段，分别是 null, join, Heartbeat, datetime, message
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(tag = "type")]
+pub enum ResponseFromRedis {
     #[serde(rename = "null")]
     Empty {},
 
@@ -66,24 +82,39 @@ pub enum Response {
     Message { message: String },
 }
 
+impl Into<Response> for ResponseFromRedis {
+    fn into(self) -> Response {
+        match self {
+            ResponseFromRedis::Empty {} => Response::Empty {},
+            ResponseFromRedis::Join {} => Response::Join {},
+            ResponseFromRedis::Heartbeat {} => Response::Heartbeat {},
+            ResponseFromRedis::Datetime { datetime, counter } => {
+                Response::Datetime { datetime, counter }
+            }
+            ResponseFromRedis::Message { message } => Response::Message { message },
+        }
+    }
+}
+
 impl fmt::Display for ReplyMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Format the response based on its variant
-        let response_str = match &self.payload.response {
-            Response::Empty {} => "Empty".to_string(),
-            Response::Join {} => "Join".to_string(),
-            Response::Heartbeat {} => "Heartbeat".to_string(),
-            Response::Datetime { datetime, counter } => {
-                format!("<Datetime '{}' {}>", datetime, counter)
-            }
-            Response::Message { message } => format!("{{message: {}}}", message),
-        };
+        // let response_str = match &self.payload.response {
+        //     Response::Empty {} => "Empty".to_string(),
+        //     Response::Join {} => "Join".to_string(),
+        //     Response::Heartbeat {} => "Heartbeat".to_string(),
+        //     Response::Datetime { datetime, counter } => {
+        //         format!("<Datetime '{}' {}>", datetime, counter)
+        //     }
+        //     Response::Message { message } => format!("{{message: {}}}", message),
+        // };
+        let response_str = "...";
 
         write!(
             f,
             "Message join_ref={}, ref={}, topic={}, event={}, <Payload status={}, response={}>",
-            self.join_reference.clone().unwrap_or("None".to_string()),
-            self.reference,
+            self.join_ref.clone().unwrap_or("None".to_string()),
+            self.event_ref,
             self.topic,
             self.event,
             self.payload.status,
@@ -97,11 +128,11 @@ impl fmt::Display for ReplyMessage {
 // it's deserialized from a JSON array
 #[derive(Debug, Deserialize_tuple)]
 struct RequestMessage {
-    join_reference: Option<String>, // null when it's heartbeat
-    reference: String,
+    join_ref: Option<String>, // null when it's heartbeat
+    event_ref: String,
     topic: String, // `channel`
     event: String,
-    _payload: RequestPayload,
+    payload: RequestPayload,
 }
 
 impl Display for RequestMessage {
@@ -109,17 +140,18 @@ impl Display for RequestMessage {
         write!(
             formatter,
             "<RequestMessage: join_ref={:?}, ref={}, topic={}, event={}, payload=...>",
-            self.join_reference, self.reference, self.topic, self.event
+            self.join_ref, self.event_ref, self.topic, self.event
         )
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 enum RequestPayload {
-    // Join { token: String },
-    Leave {},
-    Heartbeat {},
+    Join { token: String },
+    Message { message: String },
+    // Empty {}, // for both leave & heartbeat, the last
+    JsonValue(serde_json::Value),
 }
 
 pub struct State {
@@ -195,73 +227,97 @@ async fn websocket_rx(
     conn_id: String,
 ) -> redis::RedisResult<()> {
     info!("handle events ...");
+
+    let redis_client = Client::open(state.redis_url.clone())?;
+    let mut redis_conn = redis_client.get_multiplexed_async_connection().await?;
+
     while let Some(Ok(m)) = ws_rx.next().await {
         if !m.is_text() {
             continue;
         }
-        info!("input: `{}`", m.to_str().unwrap());
-        let rm_result = serde_json::from_str(m.to_str().unwrap());
+        info!("read from websocket: `{}`", m.to_str().unwrap());
+        let rm_result = serde_json::from_str::<RequestMessage>(m.to_str().unwrap());
         if rm_result.is_err() {
             error!("error: {}", rm_result.err().unwrap());
             continue;
         }
         let rm: RequestMessage = rm_result.unwrap();
 
-        let reference = &rm.reference;
-        let join_reference = &rm.join_reference;
-        let channel = &rm.topic;
+        let channel_name = &rm.topic;
+        let join_ref = &rm.join_ref;
+        let event_ref = &rm.event_ref;
         let event = &rm.event;
+        let payload = &rm.payload;
 
-        if channel == "phoenix" && event == "heartbeat" {
-            debug!("heartbeat message");
+        if channel_name == "phoenix" && event == "heartbeat" {
             reply_ok_with_empty_response(
                 conn_id.clone(),
                 None,
-                reference,
+                event_ref,
                 "phoenix",
                 state.clone(),
             )
             .await;
+            debug!("heartbeat processed");
         }
 
         if event == "phx_join" {
-            handle_join_event(&rm, &mut ws_rx, state.clone(), &conn_id).await;
+            handle_join_event(&rm, state.clone(), &conn_id).await;
+            debug!("join processed");
         }
 
         if event == "phx_leave" {
-            state
-                .ctl
-                .lock()
-                .await
-                .channel_leave(channel.clone(), conn_id.to_string())
-                .await
-                .unwrap();
-            reply_ok_with_empty_response(
-                conn_id.clone(),
-                join_reference.clone(),
-                reference,
-                channel,
+            handle_leave_event(
                 state.clone(),
+                conn_id.clone(),
+                join_ref.clone(),
+                event_ref,
+                channel_name.clone(),
             )
             .await;
+            debug!("leave processed");
         }
 
-        // other evetns are dispatched to redis
-        // dispatch_to_redis(state.redis_url.clone(), redis_topic).await?;
+        dispatch_by_redis(
+            conn_id.clone(),
+            &mut redis_conn,
+            channel_name.clone(),
+            payload,
+        )
+        .await?;
     }
+    Ok(())
+}
 
+/// events from client are published over redis
+async fn dispatch_by_redis(
+    conn_id: String,
+    redis_conn: &mut redis::aio::MultiplexedConnection,
+    channel_name: String,
+    payload: &RequestPayload,
+) -> RedisResult<()> {
+    let event_name = "default";
+    let redis_topic = format!("{}:{}", channel_name, event_name);
+
+    // let message = format!("Message from conn_id: {}", conn_id);
+    let message = serde_json::to_string(&payload).unwrap();
+    let result: RedisResult<String> = redis_conn.publish(redis_topic, message.clone()).await;
+    if result.is_err() {
+        error!("fail to publish to redis: {}", result.err().unwrap());
+    } else {
+        debug!("publish over redis: {}", message.clone());
+    }
     Ok(())
 }
 
 async fn handle_join_event(
     rm: &RequestMessage,
-    _ws_rx: &mut SplitStream<WebSocket>,
     state: Arc<State>,
     conn_id: &str,
-) -> JoinHandle<()> {
+) -> JoinHandle<redis::RedisResult<()>> {
     let channel_name = &rm.topic; // ?
 
-    let agent_id = format!("{}:{}", conn_id, rm.join_reference.clone().unwrap());
+    let agent_id = format!("{}:{}", conn_id, rm.join_ref.clone().unwrap());
     info!("{} joining {} ...", agent_id, channel_name.clone(),);
     state
         .ctl
@@ -277,17 +333,18 @@ async fn handle_join_event(
         .await
         .unwrap();
 
-    // task to forward from agent broadcast to conn
+    // task to forward from agent rx to conn
     let channel_forward_task = tokio::spawn(agent_to_conn(
         state.clone(),
-        rm.join_reference.clone().unwrap(),
+        channel_name.clone(),
+        rm.join_ref.clone().unwrap(),
         agent_id.clone(),
         conn_id.to_string(),
     ));
     reply_ok_with_empty_response(
         conn_id.to_string().clone(),
-        rm.join_reference.clone(),
-        &rm.reference,
+        rm.join_ref.clone(),
+        &rm.event_ref,
         channel_name,
         state.clone(),
     )
@@ -295,7 +352,25 @@ async fn handle_join_event(
     channel_forward_task
 }
 
-async fn agent_to_conn(state: Arc<State>, join_ref: String, agent_id: String, conn_id: String) {
+async fn get_redis_pubsub_stream(
+    channel_name: String,
+    event_name: String,
+    redis_url: String,
+) -> RedisResult<redis::aio::PubSub> {
+    let redis_topic = format!("{}:{}", channel_name, event_name);
+    let redis_client = Client::open(redis_url)?;
+    let mut redis_pubsub = redis_client.get_async_pubsub().await?;
+    redis_pubsub.subscribe(redis_topic.clone()).await?;
+    Ok(redis_pubsub)
+}
+
+async fn agent_to_conn(
+    state: Arc<State>,
+    channel_name: String,
+    join_ref: String,
+    agent_id: String,
+    conn_id: String,
+) -> RedisResult<()> {
     let mut agent_rx = state
         .ctl
         .lock()
@@ -310,18 +385,86 @@ async fn agent_to_conn(state: Arc<State>, join_ref: String, agent_id: String, co
         .conn_publisher(conn_id.clone())
         .await
         .unwrap();
+
+    let event_name = "default"; // 默认的
+    let mut redis_pubsub = get_redis_pubsub_stream(
+        "streaming".to_string(),
+        "default".to_string(),
+        state.redis_url.clone(),
+    )
+    .await
+    .unwrap();
+    let mut redis_pubsub_stream = redis_pubsub.on_message();
+
     debug!("agent {} => conn {}", agent_id.clone(), conn_id.clone());
-    while let Ok(mut channel_message) = agent_rx.recv().await {
-        if let ChannelMessage::Reply(ref mut reply) = channel_message {
-            reply.join_reference = Some(join_ref.clone());
-            let result = conn_tx.send(channel_message.clone());
-            if result.is_err() {
-                error!("agent {}, conn: {}, sending failure: {:?}", agent_id, conn_id, result.err().unwrap());
-                break; // fails when there's no reciever, stop forwarding
+    let mut counter = 0;
+    loop {
+        select! {
+            channel_message_opt = agent_rx.recv() =>  {
+                if let Ok(mut channel_message) = channel_message_opt {
+                    if let ChannelMessage::Reply(ref mut reply) = channel_message {
+                        reply.join_ref = Some(join_ref.clone());
+                        let result = conn_tx.send(channel_message.clone());
+                        if result.is_err() {
+                            error!("agent {}, conn: {}, sending failure: {:?}", agent_id, conn_id, result.err().unwrap());
+                            break; // fails when there's no reciever, stop forwarding
+                        }
+                        debug!("F {}", channel_message);
+                    }
+                }
+            },
+            optional_message = redis_pubsub_stream.next() => {
+                if let Some(stream_message) = optional_message {
+                    let payload: String = stream_message.get_payload()?;
+                    debug!("got from redis: {}", payload.clone());
+
+                    match serde_json::from_str::<ResponseFromRedis>(&payload) {
+                        Err(e) => {
+                            warn!("fail to deserialize from Redis, {}, payload: {}", e, payload);
+                            continue;
+                        },
+                        Ok(response_from_redis) => {
+                            let response = response_from_redis.into();
+                            debug!("parsed from redis, response: {:?}", &response);
+                            _channel_publish(counter, response, state.clone(), &channel_name, event_name).await;
+
+                            counter += 1;
+                            debug!("publish message from redis, counter: {}", counter);
+                        }
+                    }
+                }
             }
-            debug!("F {}", channel_message);
         }
     }
+    // while let Ok(mut channel_message) = agent_rx.recv().await {
+    //     if let ChannelMessage::Reply(ref mut reply) = channel_message {
+    //         reply.join_ref = Some(join_ref.clone());
+    //         let result = conn_tx.send(channel_message.clone());
+    //         if result.is_err() {
+    //             error!("agent {}, conn: {}, sending failure: {:?}", agent_id, conn_id, result.err().unwrap());
+    //             break; // fails when there's no reciever, stop forwarding
+    //         }
+    //         debug!("F {}", channel_message);
+    //     }
+    // }
+    Ok(())
+}
+
+async fn handle_leave_event(
+    state: Arc<State>,
+    conn_id: String,
+    join_ref: Option<String>,
+    event_ref: &str,
+    channel_name: String,
+) {
+    state
+        .ctl
+        .lock()
+        .await
+        .channel_leave(channel_name.clone(), conn_id.to_string())
+        .await
+        .unwrap();
+    reply_ok_with_empty_response(conn_id, join_ref, event_ref, &channel_name, state.clone()).await;
 }
 
 async fn reply_ok_with_empty_response(
@@ -332,12 +475,13 @@ async fn reply_ok_with_empty_response(
     state: Arc<State>,
 ) {
     let join_reply_message = ReplyMessage {
-        join_reference: join_ref.clone(),
-        reference: event_ref.to_string(),
+        join_ref: join_ref.clone(),
+        event_ref: event_ref.to_string(),
         topic: channel_name.to_string(),
         event: "phx_reply".to_string(),
         payload: ReplyPayload {
             status: "ok".to_string(),
+            // response: serde_json::json!({}),
             response: Response::Empty {},
         },
     };
@@ -359,51 +503,16 @@ async fn reply_ok_with_empty_response(
     debug!("sent to connection {}: {}", conn_id.clone(), text);
 }
 
-pub async fn redis_relay(
-    redis_url: String,
-    redis_topic: String,
-    tx: mpsc::UnboundedSender<String>,
-) -> redis::RedisResult<()> {
-    let redis_client = Client::open(redis_url.clone())?;
-
-    let mut redis_pubsub = redis_client.get_async_pubsub().await?;
-    redis_pubsub.subscribe(redis_topic.clone()).await?;
-
-    let mut redis_pubsub_stream = redis_pubsub.on_message();
-
-    info!("listening to {} pubsub: `{}` ...", redis_url, redis_topic);
-    loop {
-        match redis_pubsub_stream.next().await {
-            Some(stream_message) => {
-                let payload: String = stream_message.get_payload()?;
-                info!("received: {}", payload);
-
-                if tx.send(payload).is_err() {
-                    error!("receiver dropped, exiting.");
-                    break;
-                }
-            }
-            None => {
-                info!("PubSub connection closed, exiting.");
-                break;
-            }
-        }
-    }
-
-    Ok(())
-}
-
 async fn _channel_publish(
     counter: i32,
     response: Response,
-    // message: String,
     state: Arc<State>,
     channel_name: &str,
     event_name: &str,
 ) {
     let reply_message = ReplyMessage {
-        join_reference: None,
-        reference: counter.to_string(),
+        join_ref: None,
+        event_ref: counter.to_string(),
         topic: channel_name.to_string(),
         event: event_name.to_string(),
         payload: ReplyPayload {
@@ -411,25 +520,27 @@ async fn _channel_publish(
             response,
         },
     };
+
     // unexpected error: Error("can only flatten structs and maps (got a integer)", line: 0, column: 0)
-    let serialized_result = serde_json::to_string(&reply_message);
-    if serialized_result.is_err() {
-        error!("error: {}", serialized_result.err().unwrap());
-        return;
-    }
-    let text = serialized_result.unwrap();
+    // let serialized_result = serde_json::to_string(&reply_message);
+    // if serialized_result.is_err() {
+    //     error!("error: {}", serialized_result.err().unwrap());
+    //     return;
+    // }
+    // let text = serialized_result.unwrap();
+
     match state
         .ctl
         .lock()
         .await
         .channel_broadcast(
             channel_name.to_string(),
-            ChannelMessage::Reply(reply_message),
+            ChannelMessage::Reply(reply_message.clone()),
         )
         .await
     {
         Ok(_) => {
-            debug!("published, {} > {}", event_name, text);
+            debug!("published, {} > {}", event_name, reply_message);
         }
         Err(_e) => {
             // it throws error if there's no client
@@ -448,10 +559,10 @@ pub async fn streaming_default_tx_handler(
     event_name: &str,
 ) -> redis::RedisResult<()> {
     info!("launch data task ...");
-    let redis_topic = format!("{}:{}", channel_name, event_name);
     let mut counter = 0;
-    let redis_client = Client::open(state.redis_url.clone())?;
 
+    let redis_topic = format!("{}:{}", channel_name, event_name);
+    let redis_client = Client::open(state.redis_url.clone())?;
     let mut redis_pubsub = redis_client.get_async_pubsub().await?;
     redis_pubsub.subscribe(redis_topic.clone()).await?;
     let mut redis_pubsub_stream = redis_pubsub.on_message();
@@ -475,12 +586,13 @@ pub async fn streaming_default_tx_handler(
                         let payload: String = stream_message.get_payload()?;
                         debug!("got from redis: {}", payload.clone());
 
-                        match serde_json::from_str::<Response>(&payload) {
+                        match serde_json::from_str::<ResponseFromRedis>(&payload) {
                             Err(e) => {
                                 warn!("fail to deserialize from Redis, {}, payload: {}", e, payload);
                                 continue;
                             },
-                            Ok(response) => {
+                            Ok(response_from_redis) => {
+                                let response = response_from_redis.into();
                                 debug!("parsed from redis, response: {:?}", &response);
                                 _channel_publish(counter, response, state.clone(), channel_name, event_name).await;
 
@@ -509,12 +621,16 @@ pub async fn system_default_tx_handler(state: Arc<State>, channel_name: &str) {
     loop {
         let now = chrono::Local::now();
         let message = ReplyMessage {
-            join_reference: None,
-            reference: counter.to_string(),
+            join_ref: None,
+            event_ref: counter.to_string(),
             topic: channel_name.to_string(),
             event: event.to_string(),
             payload: ReplyPayload {
                 status: "ok".to_string(),
+                // response: serde_json::json!({
+                //     "datetime": now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
+                //     "counter": counter,
+                // }),
                 response: Response::Datetime {
                     datetime: now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
                     counter,
@@ -546,6 +662,8 @@ pub async fn system_default_tx_handler(state: Arc<State>, channel_name: &str) {
 mod tests {
     use super::*;
     use futures::{SinkExt, StreamExt};
+    use serde_json::json;
+    use std::collections::HashSet;
     use std::sync::Arc;
     use tokio::sync::Mutex;
     use tokio_tungstenite::connect_async;
@@ -553,7 +671,7 @@ mod tests {
     use warp::Filter;
 
     async fn setup_test_server() -> (String, Arc<State>) {
-        let redis_url = "redis://localhost:6379".to_string();
+        let redis_url = "redis://192.168.11.37:6379".to_string(); // FIXME
         let redis_client = redis::Client::open(redis_url.clone()).unwrap();
         let state = Arc::new(State {
             ctl: Mutex::new(ChannelControl::new()),
@@ -678,6 +796,76 @@ mod tests {
     //         .unwrap()
     //         .empty());
     // }
+    //
+
+    #[tokio::test]
+    async fn test_flow_server() {
+        let (_addr, state) = setup_test_server().await;
+
+        let ctl = state.ctl.lock().await;
+        let channels = ctl.channels.lock().await;
+
+        let channel_names: HashSet<String> = channels.keys().cloned().collect();
+        assert_eq!(
+            channel_names,
+            ["phoenix", "system", "streaming"]
+                .iter()
+                .map(|&s| s.to_string())
+                .collect::<HashSet<String>>()
+        );
+
+        let agents = channels.get("system").unwrap().agents.lock().await;
+        assert_eq!(agents.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_flow_join_leave() {
+        let (addr, state) = setup_test_server().await;
+        let (mut tx, mut rx) = connect_client(&addr).await;
+
+        // Join system channel
+        let join_msg = r#"["1","ref1","system","phx_join",{"token":"test"}]"#;
+        tx.send(Message::text(join_msg)).await.unwrap();
+
+        // Verify join response
+        if let Some(Ok(msg)) = rx.next().await {
+            let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+            assert_eq!(resp[1], "ref1");
+            assert_eq!(resp[2], "system");
+            assert_eq!(resp[3], "phx_reply".to_string());
+            assert_eq!(resp[4]["status"], "ok");
+        }
+
+        {
+            let ctl = state.ctl.lock().await;
+            let channels = ctl.channels.lock().await;
+            let agents = channels.get("system").unwrap().agents.lock().await;
+            // 没法知道具体的 agent_id
+            // assert_eq!(*agents, vec!["foobar"]);
+            assert_eq!(agents.len(), 1);
+        }
+
+        // Leave channel
+        let leave_msg = r#"["1","ref2","system","phx_leave",{}]"#;
+        tx.send(Message::text(leave_msg)).await.unwrap();
+
+        // Verify leave response
+        if let Some(Ok(msg)) = rx.next().await {
+            let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+            assert_eq!(resp[1], "ref2");
+            assert_eq!(resp[2], "system");
+            assert_eq!(resp[3], "phx_reply".to_string());
+            assert_eq!(resp[4]["status"], "ok");
+        }
+
+        {
+            let ctl = state.ctl.lock().await;
+            let channels = ctl.channels.lock().await;
+            let agents = channels.get("system").unwrap().agents.lock().await;
+            assert_eq!(*agents, vec!["foobar"]);
+            assert_eq!(agents.len(), 0);
+        }
+    }
 
     #[tokio::test]
     async fn test_multiple_clients() {
@@ -685,6 +873,8 @@ mod tests {
 
         // Connect multiple clients
         let mut clients = vec![];
+        assert_eq!(clients.len(), 0);
+
         for i in 0..3 {
             let (mut tx, mut rx) = connect_client(&addr).await;
 
@@ -700,24 +890,25 @@ mod tests {
                 let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
                 assert_eq!(resp[4]["status"], "ok");
             }
-
             clients.push((tx, rx));
         }
 
+        assert_eq!(clients.len(), 3);
+
+        let ctl = state.ctl.lock().await;
+        let channels = ctl.channels.lock().await;
+
+        let channel_names: HashSet<String> = channels.keys().cloned().collect();
         assert_eq!(
-            state
-                .ctl
-                .lock()
-                .await
-                .channels
-                .lock()
-                .await
-                .get("system")
-                .unwrap()
-                .count
-                .load(std::sync::atomic::Ordering::SeqCst),
-            3
+            channel_names,
+            ["phoenix", "system", "streaming"]
+                .iter()
+                .map(|&s| s.to_string())
+                .collect::<HashSet<String>>()
         );
+
+        let agents = channels.get("system").unwrap().agents.lock().await;
+        assert_eq!(*agents, vec!["a".to_string()]);
     }
 
     #[tokio::test]
@@ -744,12 +935,15 @@ mod tests {
 
         // Broadcast message to system channel
         let message = ReplyMessage {
-            join_reference: None,
-            reference: "broadcast".to_string(),
+            join_ref: None,
+            event_ref: "broadcast".to_string(),
             topic: "system".to_string(),
             event: "test".to_string(),
             payload: ReplyPayload {
                 status: "ok".to_string(),
+                // response: json!({
+                //     "message": "test broadcast".to_string(),
+                // }),
                 response: Response::Message {
                     message: "test broadcast".to_string(),
                 },
@@ -853,90 +1047,131 @@ mod tests {
         }
     }
 
+    // #[test]
+    // fn test_response_invalid_json() {
+    //     // Missing type field
+    //     let json = r#"{"message": "hello"}"#;
+    //     assert!(serde_json::from_str::<RedisResponse>(json).is_err());
+    //
+    //     // Invalid type value
+    //     let json = r#"{"type": "invalid"}"#;
+    //     assert!(serde_json::from_str::<RedisResponse>(json).is_err());
+    //
+    //     // Missing required fields
+    //     let json = r#"{"type": "datetime", "datetime": "2024-01-01"}"#;
+    //     assert!(serde_json::from_str::<RedisResponse>(json).is_err());
+    // }
+
     #[test]
-    fn test_response_deserialize() {
-        // Empty with null type
-        let json = r#"{"type": "null"}"#;
-        let response: Response = serde_json::from_str(json).unwrap();
-        assert!(matches!(response, Response::Empty {}));
+    fn test_request_json_heartbeat() {
+        // Test full message with join payload
+        let msg: RequestMessage =
+            serde_json::from_str(r#"["1", "ref1", "room123", "heartbeat", {}]"#).unwrap();
 
-        // Join type
-        let json = r#"{"type": "join"}"#;
-        let response: Response = serde_json::from_str(json).unwrap();
-        assert!(matches!(response, Response::Join {}));
-
-        // Heartbeat type
-        let json = r#"{"type": "heartbeat"}"#;
-        let response: Response = serde_json::from_str(json).unwrap();
-        assert!(matches!(response, Response::Heartbeat {}));
-
-        // Message with payload
-        let json = r#"{"type": "message", "message": "hello world"}"#;
-        let response: Response = serde_json::from_str(json).unwrap();
-        assert!(matches!(response, Response::Message { message } if message == "hello world"));
-
-        // Datetime with fields
-        let json = r#"{"type": "datetime", "datetime": "2024-01-01", "counter": 42}"#;
-        let response: Response = serde_json::from_str(json).unwrap();
-        assert!(matches!(response, Response::Datetime { datetime, counter } 
-            if datetime == "2024-01-01" && counter == 42));
+        assert_eq!(msg.join_ref, Some("1".to_string()));
+        assert_eq!(msg.event_ref, "ref1");
+        assert_eq!(msg.topic, "room123");
+        assert_eq!(msg.event, "heartbeat");
+        assert_eq!(msg.payload, serde_json::from_value(json!({})).unwrap());
     }
 
     #[test]
-    fn test_response_serialize() {
-        // Empty serializes with null type
-        let response = Response::Empty {};
-        assert_eq!(
-            serde_json::to_string(&response).unwrap(),
-            r#"{"type":"null"}"#
-        );
+    fn test_request_json_join() {
+        // Test full message with join payload
+        let msg: RequestMessage = serde_json::from_str(
+            r#"["1", "ref1", "room123", "phx_join", {"token": "secret_token"}]"#,
+        )
+        .unwrap();
 
-        // Join with join type
-        let response = Response::Join {};
+        assert_eq!(msg.join_ref, Some("1".to_string()));
+        assert_eq!(msg.event_ref, "ref1");
+        assert_eq!(msg.topic, "room123");
+        assert_eq!(msg.event, "phx_join");
         assert_eq!(
-            serde_json::to_string(&response).unwrap(),
-            r#"{"type":"join"}"#
-        );
-
-        // Heartbeat with join type
-        let response = Response::Heartbeat {};
-        assert_eq!(
-            serde_json::to_string(&response).unwrap(),
-            r#"{"type":"heartbeat"}"#
-        );
-
-        // Message includes payload
-        let response = Response::Message {
-            message: "hello".to_string(),
-        };
-        assert_eq!(
-            serde_json::to_string(&response).unwrap(),
-            r#"{"type":"message","message":"hello"}"#
-        );
-
-        // Datetime includes all fields
-        let response = Response::Datetime {
-            datetime: "2024-01-01".to_string(),
-            counter: 42,
-        };
-        assert_eq!(
-            serde_json::to_string(&response).unwrap(),
-            r#"{"type":"datetime","datetime":"2024-01-01","counter":42}"#
+            msg.payload,
+            RequestPayload::Join {
+                token: "secret_token".to_string()
+            }
         );
     }
 
     #[test]
-    fn test_response_invalid_json() {
-        // Missing type field
-        let json = r#"{"message": "hello"}"#;
-        assert!(serde_json::from_str::<Response>(json).is_err());
+    fn test_request_json_message() {
+        let json = r#"["1", "ref4", "room123", "message", {"message": "Hello, World!"}]"#;
 
-        // Invalid type value
-        let json = r#"{"type": "invalid"}"#;
-        assert!(serde_json::from_str::<Response>(json).is_err());
+        let msg: RequestMessage = serde_json::from_str(json).unwrap();
+        assert_eq!(msg.event, "message");
+        assert_eq!(
+            msg.payload,
+            RequestPayload::Message {
+                message: "Hello, World!".to_string()
+            }
+        );
 
-        // Missing required fields
-        let json = r#"{"type": "datetime", "datetime": "2024-01-01"}"#;
-        assert!(serde_json::from_str::<Response>(json).is_err());
+        // Test just the payload
+        // let payload: RequestPayload = serde_json::from_value(json!({"message": "test message"})).unwrap();
+        // assert_eq!(payload, RequestPayload::Message("test message".to_string()));
+    }
+
+    #[test]
+    fn test_request_json_message_payload() {
+        let payload: RequestPayload = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(payload, RequestPayload::JsonValue(json!({})));
+
+        let payload: RequestPayload =
+            serde_json::from_value(json!({"token": "another_token"})).unwrap();
+        assert_eq!(
+            payload,
+            RequestPayload::Join {
+                token: "another_token".to_string()
+            }
+        );
+
+        let payload: RequestPayload =
+            serde_json::from_value(json!({ "message": "test message" })).unwrap();
+        assert_eq!(
+            payload,
+            RequestPayload::Message {
+                message: "test message".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_request_json_invalid() {
+        // Invalid array length
+        assert!(serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123"]"#).is_err());
+        assert!(
+            serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123", "phx_join"]"#)
+                .is_err()
+        );
+
+        // Invalid join payload (wrong format)
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"["1", "ref1", "room123", "phx_join", null]"#
+        )
+        .is_ok());
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"["1", "ref1", "room123", "phx_join", 23]"#
+        )
+        .is_ok());
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"["1", "ref1", "room123", "phx_join", 12.4]"#
+        )
+        .is_ok());
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"["1", "ref1", "room123", "phx_join", "nulldirect_token"]"#
+        )
+        .is_ok());
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"["1", "ref1", "room123", "phx_join", [1, null, "foobar"]]"#
+        )
+        .is_ok());
+
+        // Invalid type for number elements
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"[123, "ref1", "room123", "phx_join", {"token": "secret"}]"#
+        )
+        .is_err());
     }
 }
