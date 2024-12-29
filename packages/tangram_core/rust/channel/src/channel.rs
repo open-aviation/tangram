@@ -34,7 +34,7 @@ pub struct Channel {
     /// channel name
     pub name: String,
     /// broadcast in channels
-    pub sender: broadcast::Sender<ChannelMessage>,
+    pub tx: broadcast::Sender<ChannelMessage>,
     /// channel agents
     pub agents: Mutex<Vec<String>>,
     /// channel agent count
@@ -48,10 +48,10 @@ pub struct ChannelControl {
     /// agent_id -> Vec<agentTask>
     /// task forwarding channel messages to agent websocket tx
     /// created when agent joins a channel
-    agent_subscribe_tasks: Mutex<HashMap<String, Vec<ChannelAgent>>>,
-    agent_publisher: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // agent_id -> Sender
+    agent_relay_tasks: Mutex<HashMap<String, Vec<ChannelAgent>>>,
+    agent_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // agent_id -> Sender
 
-    conn_publisher: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // conn_id -> Sender
+    conn_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // conn_id -> Sender
 }
 
 impl Default for ChannelControl {
@@ -112,7 +112,7 @@ impl Channel {
         let (tx, _rx) = broadcast::channel(capacity.unwrap_or(100));
         Channel {
             name,
-            sender: tx,
+            tx,
             agents: Mutex::new(vec![]),
             count: AtomicU32::new(0),
         }
@@ -126,7 +126,7 @@ impl Channel {
             agents.push(agent_id);
             self.count.fetch_add(1, Ordering::SeqCst);
         }
-        self.sender.clone()
+        self.tx.clone()
     }
 
     pub async fn leave(&self, agent: String) {
@@ -143,7 +143,7 @@ impl Channel {
         &self,
         data: ChannelMessage,
     ) -> Result<usize, broadcast::error::SendError<ChannelMessage>> {
-        self.sender.send(data)
+        self.tx.send(data)
     }
 
     pub fn empty(&self) -> bool {
@@ -159,14 +159,14 @@ impl ChannelControl {
     pub fn new() -> Self {
         ChannelControl {
             channels: Mutex::new(HashMap::new()),
-            agent_subscribe_tasks: Mutex::new(HashMap::new()),
-            agent_publisher: Mutex::new(HashMap::new()),
-            conn_publisher: Mutex::new(HashMap::new()),
+            agent_relay_tasks: Mutex::new(HashMap::new()),
+            agent_tx: Mutex::new(HashMap::new()),
+            conn_tx: Mutex::new(HashMap::new()),
         }
     }
 
-    pub async fn conn_add_publisher(&self, conn_id: String) {
-        let mut conn_publishers = self.conn_publisher.lock().await;
+    pub async fn conn_add_tx(&self, conn_id: String) {
+        let mut conn_publishers = self.conn_tx.lock().await;
         match conn_publishers.entry(conn_id.clone()) {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(100);
@@ -177,31 +177,28 @@ impl ChannelControl {
         }
     }
 
-    pub async fn conn_subscriber(
+    pub async fn conn_rx(
         &self,
         conn_id: String,
     ) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
         info!("get conn {} subscription", conn_id);
-        let conn_sender_map = self.conn_publisher.lock().await;
-        let rx = conn_sender_map.get(&conn_id).unwrap().subscribe();
-        Ok(rx)
+        Ok(self.conn_tx.lock().await.get(&conn_id).unwrap().subscribe())
     }
 
-    pub async fn conn_publisher(
+    pub async fn conn_tx(
         &self,
         conn_id: String,
     ) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
         info!("get conn {} sender", conn_id);
-        let conn_publisher = self.conn_publisher.lock().await;
-        Ok(conn_publisher.get(&conn_id).unwrap().clone())
+        Ok(self.conn_tx.lock().await.get(&conn_id).unwrap().clone())
     }
 
-    pub async fn conn_publish(
+    pub async fn conn_send(
         &self,
         conn_id: String,
         message: ChannelMessage,
     ) -> Result<usize, ChannelError> {
-        self.conn_publisher
+        self.conn_tx
             .lock()
             .await
             .get(&conn_id)
@@ -216,15 +213,16 @@ impl ChannelControl {
     }
 
     pub async fn channel_remove(&self, channel_name: String) {
+        // 在删除之前需要清理所有的资源
         match self.channels.lock().await.entry(channel_name.clone()) {
             Entry::Vacant(_) => {}
             Entry::Occupied(el) => {
                 for agent in el.get().agents().await.iter() {
                     if let Entry::Occupied(mut agent_tasks) =
-                        self.agent_subscribe_tasks.lock().await.entry(agent.into())
+                        self.agent_relay_tasks.lock().await.entry(agent.into())
                     {
-                        let vecotr = agent_tasks.get_mut();
-                        vecotr.retain(|task| {
+                        let relay_tasks = agent_tasks.get_mut();
+                        relay_tasks.retain(|task| {
                             if task.channel_name == channel_name {
                                 task.relay_task.abort();
                             }
@@ -245,17 +243,17 @@ impl ChannelControl {
         channel_name: &str,
         agent_id: String,
     ) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
-        let channel_map = self.channels.lock().await;
-        let mut agent_subscribe_tasks = self.agent_subscribe_tasks.lock().await;
+        let channels = self.channels.lock().await;
+        let mut agent_relay_tasks = self.agent_relay_tasks.lock().await;
 
-        let channel_sender = channel_map
+        let channel_sender = channels
             .get(channel_name)
             .ok_or(ChannelError::ChannelNotFound)?
             .join(agent_id.clone())
             .await;
         let channel_rx = channel_sender.subscribe();
         let agent_tx = self
-            .agent_publisher
+            .agent_tx
             .lock()
             .await
             .get(&agent_id)
@@ -265,28 +263,24 @@ impl ChannelControl {
         // 订阅 channel 并将消息转发给 agent
         let relay_task = tokio::spawn(channel_to_agent_handler(channel_rx, agent_tx));
 
-        match agent_subscribe_tasks.entry(agent_id.clone()) {
+        match agent_relay_tasks.entry(agent_id.clone()) {
             Entry::Occupied(mut entry) => {
-                let agent_tasks = entry.get_mut();
-                if !agent_tasks
+                let relay_tasks = entry.get_mut();
+                if !relay_tasks
                     .iter()
                     .any(|agent| agent.channel_name == channel_name)
                 {
-                    let channel_name = channel_name.to_string().clone();
-                    let agent = ChannelAgent {
-                        channel_name,
+                    relay_tasks.push(ChannelAgent {
+                        channel_name: channel_name.to_string().clone(),
                         relay_task,
-                    };
-                    agent_tasks.push(agent);
+                    });
                 }
             }
-            Entry::Vacant(v) => {
-                let channel_name = channel_name.to_string().clone();
-                let agent = ChannelAgent {
-                    channel_name,
+            Entry::Vacant(entry) => {
+                entry.insert(vec![ChannelAgent {
+                    channel_name: channel_name.to_string().clone(),
                     relay_task,
-                };
-                v.insert(vec![agent]);
+                }]);
             }
         };
         Ok(channel_sender)
@@ -295,7 +289,7 @@ impl ChannelControl {
     pub async fn channel_leave(&self, name: String, agent_id: String) -> Result<(), ChannelError> {
         info!("leave {} from {} ...", agent_id, name);
         let channels = self.channels.lock().await;
-        let mut agent_subscribe_tasks = self.agent_subscribe_tasks.lock().await;
+        let mut agent_relay_tasks = self.agent_relay_tasks.lock().await;
 
         channels
             .get(&name)
@@ -303,11 +297,11 @@ impl ChannelControl {
             .leave(agent_id.clone())
             .await;
 
-        match agent_subscribe_tasks.entry(agent_id.clone()) {
+        match agent_relay_tasks.entry(agent_id.clone()) {
             Entry::Occupied(mut entry) => {
-                let vecotr = entry.get_mut();
+                let relay_tasks = entry.get_mut();
                 // 所有返回值为真的保留
-                vecotr.retain(|task| {
+                relay_tasks.retain(|task| {
                     if task.channel_name == name {
                         task.relay_task.abort();
                         info!("relay task for {} aborts.", agent_id);
@@ -350,7 +344,7 @@ impl ChannelControl {
     ) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
         info!("get agent {} reciever", agent_id);
         let receiver = self
-            .agent_publisher
+            .agent_tx
             .lock()
             .await
             .get(&agent_id)
@@ -364,7 +358,7 @@ impl ChannelControl {
     /// This will create a broadcast channel: ChannelAgent will write to and websocket_tx_task will
     /// subscribe to and read from
     pub async fn agent_add(&self, agent_id: String, capacity: Option<usize>) {
-        match self.agent_publisher.lock().await.entry(agent_id.clone()) {
+        match self.agent_tx.lock().await.entry(agent_id.clone()) {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(capacity.unwrap_or(100));
                 entry.insert(tx);
@@ -377,23 +371,18 @@ impl ChannelControl {
     }
 
     /// remove the agent after leaving all channels
-    pub async fn agent_remove(&self, agent_id: String) {
+    pub async fn agent_rm(&self, agent_id: String) {
         let channels = self.channels.lock().await;
-        match self
-            .agent_subscribe_tasks
-            .lock()
-            .await
-            .entry(agent_id.clone())
-        {
+        match self.agent_relay_tasks.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(entry) => {
-                let tasks = entry.get();
-                for task in tasks {
-                    let channel = channels.get(&task.channel_name);
+                let relay_tasks = entry.get();
+                for relay_task in relay_tasks {
+                    let channel = channels.get(&relay_task.channel_name);
                     if let Some(channel) = channel {
                         channel.leave(agent_id.clone()).await;
-                        debug!("agent {} removed from channel {}", agent_id, task)
+                        debug!("agent {} removed from channel {}", agent_id, relay_task)
                     }
-                    task.relay_task.abort();
+                    relay_task.relay_task.abort();
                 }
                 entry.remove();
                 debug!("agent {} subscribe tasks removed", agent_id);
@@ -401,7 +390,7 @@ impl ChannelControl {
             Entry::Vacant(_) => {}
         }
 
-        match self.agent_publisher.lock().await.entry(agent_id.clone()) {
+        match self.agent_tx.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(entry) => {
                 entry.remove();
                 debug!("agent {} tx removed", agent_id);
@@ -640,7 +629,7 @@ mod test {
         assert_eq!(count, 1);
 
         // Test subscription after removal
-        ctl.agent_remove("user1".into()).await;
+        ctl.agent_rm("user1".into()).await;
         let sub = ctl.agent_subscriber("user1".into()).await;
         assert!(matches!(sub.unwrap_err(), ChannelError::AgentNotInitiated));
     }

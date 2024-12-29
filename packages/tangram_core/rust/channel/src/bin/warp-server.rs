@@ -4,16 +4,19 @@ use std::{path::PathBuf, sync::Arc};
 
 use clap::{Command, CommandFactory, Parser, ValueHint};
 use futures::{sink::SinkExt, stream::StreamExt};
+use jsonwebtoken::{encode, EncodingKey, Header};
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use redis::aio::PubSub;
 use redis::{Client, RedisResult};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_tungstenite::connect_async;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
@@ -25,6 +28,59 @@ use websocket_channels::channel::ChannelControl;
 use websocket_channels::websocket::{
     on_connected, streaming_default_tx_handler, system_default_tx_handler, State,
 };
+
+#[derive(Debug, Serialize, Deserialize)]
+struct TokenRequest {
+    channel: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    id: String,
+    channel: String,
+    exp: usize,
+}
+
+#[derive(Debug)]
+enum TokenError {
+    ChannelNotFound,
+    GenerationFailed,
+}
+
+impl warp::reject::Reject for TokenError {}
+
+async fn generate_token(
+    req: TokenRequest,
+    state: Arc<State>,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    // Check if channel exists
+    let ctl = state.ctl.lock().await;
+    let channels = ctl.channels.lock().await;
+    if !channels.contains_key(&req.channel) {
+        return Err(warp::reject::custom(TokenError::ChannelNotFound));
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let expiration = chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::hours(24))
+        .expect("valid timestamp")
+        .timestamp() as usize;
+
+    let claims = Claims {
+        id,
+        channel: req.channel,
+        exp: expiration,
+    };
+
+    let key = EncodingKey::from_secret(state.jwt_secret.as_bytes());
+
+    match encode(&Header::default(), &claims, &key) {
+        Ok(token) => Ok(warp::reply::json(&serde_json::json!({
+            "token": token
+        }))),
+        Err(_) => Err(warp::reject::custom(TokenError::GenerationFailed)),
+    }
+}
 
 // use clap to parse command line arguments
 #[derive(Debug, Deserialize, Parser)]
@@ -41,6 +97,17 @@ struct Options {
 
     #[arg(long, default_value = None)]
     redis_topic: Option<String>,
+
+    #[arg(long, default_value = None)]
+    jwt_secret: Option<String>,
+}
+
+fn random_string(length: usize) -> String {
+    thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(length)
+        .map(char::from)
+        .collect()
 }
 
 #[tokio::main]
@@ -65,6 +132,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let redis_url = options.redis_url.unwrap();
     let redis_topic = options.redis_topic.unwrap();
 
+    let jwt_secret = options.jwt_secret.unwrap_or_else(|| {
+        let generate_jwt_secret = random_string(8);
+        warn!("no secret proviced, generated: {}", generate_jwt_secret);
+        generate_jwt_secret
+    });
+
     let channel_control = ChannelControl::new();
 
     // create channels
@@ -83,6 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ctl: Mutex::new(channel_control),
         redis_url: redis_url.clone(),
         redis_client,
+        jwt_secret,
     });
 
     // system channel
@@ -98,18 +172,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "data",
     ));
 
-    // websocket state
-    let state = warp::any().map(move || state.clone());
-    let ws_route =
-        warp::path("websocket")
-            .and(warp::ws())
-            .and(state)
-            .map(|ws: warp::ws::Ws, state| {
-                ws.on_upgrade(move |websocket| on_connected(websocket, state))
-            });
+    let state_for_ws = state.clone();
+    let ws_route = warp::path("websocket")
+        .and(warp::ws())
+        .and(warp::any().map(move || state_for_ws.clone()))
+        .map(|ws: warp::ws::Ws, state| {
+            ws.on_upgrade(move |websocket| on_connected(websocket, state))
+        });
+
+    // let state_for_token = state.clone();
+    // let token_route = warp::path("token")
+    //     .and(warp::get())
+    //     .and(warp::any().map(move || state_for_token.clone()))
+    //     .and_then(generate_token);
+
+    // Rename the route variable and update the path
+    let state_for_channel_token = state.clone();
+    let channel_token_route = warp::path("token")
+        .and(warp::post())
+        .and(warp::body::json())
+        .and(warp::any().map(move || state_for_channel_token.clone()))
+        .and_then(generate_token);
+
     let routes = warp::path::end()
         .and(warp::fs::file("src/bin/index.html"))
-        .or(ws_route);
+        .or(ws_route)
+        .or(channel_token_route);
 
     let host = options.host.unwrap().parse::<std::net::IpAddr>().unwrap();
     let port = options.port.unwrap();

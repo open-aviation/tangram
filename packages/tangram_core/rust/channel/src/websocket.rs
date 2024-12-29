@@ -158,6 +158,7 @@ pub struct State {
     pub ctl: Mutex<ChannelControl>,
     pub redis_url: String,
     pub redis_client: redis::Client,
+    pub jwt_secret: String,
 }
 
 /// handle websocket connection
@@ -165,12 +166,7 @@ pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
     let conn_id = Uuid::new_v4().to_string(); // 服务端生成的，内部使用
     info!("on_connected, new client: {}", conn_id);
 
-    state
-        .ctl
-        .lock()
-        .await
-        .conn_add_publisher(conn_id.clone())
-        .await;
+    state.ctl.lock().await.conn_add_tx(conn_id.clone()).await;
 
     let (ws_tx, ws_rx) = ws.split();
 
@@ -182,32 +178,15 @@ pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
         _ = (&mut ws_rx_task) => ws_tx_task.abort(),
     }
 
-    state
-        .ctl
-        .lock()
-        .await
-        .agent_remove(conn_id.to_string())
-        .await;
+    state.ctl.lock().await.agent_rm(conn_id.to_string()).await;
     info!("client connection closed");
 }
 
 /// 把消息经由 websocket 发送到客户端: conn rx => ws tx
-async fn websocket_tx(
-    conn_id: String,
-    state: Arc<State>,
-    mut ws_tx: SplitSink<WebSocket, Message>,
-) {
+async fn websocket_tx(cid: String, state: Arc<State>, mut ws_tx: SplitSink<WebSocket, Message>) {
     debug!("launch websocket sender ...");
 
-    // 从 ChannelControl
-    let mut conn_rx = state
-        .ctl
-        .lock()
-        .await
-        .conn_subscriber(conn_id.clone())
-        .await
-        .unwrap();
-
+    let mut conn_rx = state.ctl.lock().await.conn_rx(cid.clone()).await.unwrap();
     while let Ok(channel_message) = conn_rx.recv().await {
         let ChannelMessage::Reply(reply_message) = channel_message;
         let text = serde_json::to_string(&reply_message).unwrap();
@@ -223,8 +202,8 @@ async fn websocket_tx(
 async fn websocket_rx(
     mut ws_rx: SplitStream<WebSocket>,
     state: Arc<State>,
-    conn_id: String,
-) -> redis::RedisResult<()> {
+    cid: String,
+) -> RedisResult<()> {
     info!("handle events ...");
 
     let redis_client = Client::open(state.redis_url.clone())?;
@@ -249,26 +228,20 @@ async fn websocket_rx(
         let payload = &rm.payload;
 
         if channel_name == "phoenix" && event == "heartbeat" {
-            reply_ok_with_empty_response(
-                conn_id.clone(),
-                None,
-                event_ref,
-                "phoenix",
-                state.clone(),
-            )
-            .await;
+            reply_ok_with_empty_response(cid.clone(), None, event_ref, "phoenix", state.clone())
+                .await;
             debug!("heartbeat processed");
         }
 
         if event == "phx_join" {
-            handle_join_event(&rm, state.clone(), &conn_id).await;
+            handle_join_event(&rm, state.clone(), &cid).await;
             debug!("join processed");
         }
 
         if event == "phx_leave" {
             handle_leave_event(
                 state.clone(),
-                conn_id.clone(),
+                cid.clone(),
                 join_ref.clone(),
                 event_ref,
                 channel_name.clone(),
@@ -374,7 +347,7 @@ async fn agent_to_conn(
         .ctl
         .lock()
         .await
-        .conn_publisher(conn_id.clone())
+        .conn_tx(conn_id.clone())
         .await
         .unwrap();
 
@@ -407,7 +380,7 @@ async fn agent_to_conn(
             optional_message = redis_pubsub_stream.next() => {
                 if let Some(stream_message) = optional_message {
                     let payload: String = stream_message.get_payload()?;
-                    debug!("got from redis: {}", payload.clone());
+                    debug!("agent_to_conn / from redis: {}", payload.clone());
 
                     match serde_json::from_str::<ResponseFromRedis>(&payload) {
                         Err(e) => {
@@ -485,7 +458,7 @@ async fn reply_ok_with_empty_response(
         .ctl
         .lock()
         .await
-        .conn_publish(
+        .conn_send(
             conn_id.to_string(),
             ChannelMessage::Reply(join_reply_message),
         )
