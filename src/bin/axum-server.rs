@@ -58,12 +58,7 @@ async fn websocket_handler(
 async fn handle_socket(socket: axum::extract::ws::WebSocket, state: Arc<AppState>) {
     let conn_id = Uuid::new_v4().to_string();
     info!("on_connected: {}", conn_id);
-    state
-        .ctl
-        .lock()
-        .await
-        .conn_add_publisher(conn_id.clone())
-        .await;
+    state.ctl.lock().await.conn_add_tx(conn_id.clone()).await;
 
     let (mut sender, mut receiver) = socket.split();
 
@@ -107,7 +102,7 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: Arc<AppState
         _ = (&mut receive_task) => send_task.abort(),
     }
 
-    state.ctl.lock().await.agent_remove(conn_id).await;
+    state.ctl.lock().await.agent_rm(conn_id).await;
     info!("client connection closed");
 }
 
