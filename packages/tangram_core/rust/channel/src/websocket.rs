@@ -89,9 +89,8 @@ pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
 
     let (ws_tx, ws_rx) = ws.split();
 
-    // spawn a taks to forward conn mpsc to websocket
     let mut ws_tx_task = tokio::spawn(websocket_tx(conn_id.clone(), state.clone(), ws_tx));
-    let mut ws_rx_task = tokio::spawn(default_event_handler(ws_rx, state.clone(), conn_id.clone()));
+    let mut ws_rx_task = tokio::spawn(websocket_rx(ws_rx, state.clone(), conn_id.clone()));
 
     tokio::select! {
         _ = (&mut ws_tx_task) => ws_rx_task.abort(),
@@ -107,83 +106,39 @@ pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
     info!("client connection closed");
 }
 
-async fn handle_join_event(
-    rm: &RequestMessage,
-    _ws_rx: &mut SplitStream<WebSocket>,
+/// 把消息经由 websocket 发送到客户端: conn rx => ws tx
+async fn websocket_tx(
+    conn_id: String,
     state: Arc<State>,
-    conn_id: &str,
-) -> JoinHandle<()> {
-    let channel_name = &rm.topic; // ?
+    mut ws_tx: SplitSink<WebSocket, Message>,
+) {
+    debug!("launch websocket sender ...");
 
-    let agent_id = format!("{}:{}", conn_id, rm.join_reference.clone().unwrap());
-    info!("{} joining {} ...", agent_id, channel_name.clone(),);
-    state
+    // 从 ChannelControl
+    let mut conn_rx = state
         .ctl
         .lock()
         .await
-        .agent_add(agent_id.to_string(), None)
-        .await;
-    state
-        .ctl
-        .lock()
-        .await
-        .channel_join(&channel_name.clone(), agent_id.to_string())
+        .conn_subscriber(conn_id.clone())
         .await
         .unwrap();
-    // task to forward from agent broadcast to conn
-    // let local_state = state.clone();
-    let channel_forward_task = tokio::spawn(agent_rx_to_conn(
-        state.clone(),
-        rm.join_reference.clone().unwrap(),
-        agent_id.clone(),
-        conn_id.to_string(),
-    ));
-    reply_ok_with_empty_response(
-        conn_id.to_string().clone(),
-        rm.join_reference.clone(),
-        &rm.reference,
-        channel_name,
-        state.clone(),
-    )
-    .await;
-    channel_forward_task
-}
 
-async fn agent_rx_to_conn(state: Arc<State>, join_ref: String, agent_id: String, conn_id: String) {
-    let mut agent_rx = state
-        .ctl
-        .lock()
-        .await
-        .agent_subscriber(agent_id.clone())
-        .await
-        .unwrap();
-    let conn_tx = state
-        .ctl
-        .lock()
-        .await
-        .conn_publisher(conn_id.clone())
-        .await
-        .unwrap();
-    debug!(
-        "forward agent {} to conn {} ...",
-        agent_id.clone(),
-        conn_id.clone()
-    );
-    while let Ok(mut channel_message) = agent_rx.recv().await {
-        if let ChannelMessage::Reply(ref mut reply_message) = channel_message {
-            reply_message.join_reference = Some(join_ref.clone());
-            let result = conn_tx.send(channel_message.clone());
+    // TODO: select! from Redis
+
+    while let Ok(channel_message) = conn_rx.recv().await {
+        if let ChannelMessage::Reply(reply_message) = channel_message {
+            let text = serde_json::to_string(&reply_message).unwrap();
+            let result = ws_tx.send(warp::ws::Message::text(text)).await;
             if result.is_err() {
-                error!("sending failure: {:?}", result.err().unwrap());
-                break; // fails when there's no reciever, stop forwarding
+                error!("sending failure: {:?}", result);
+                continue;
             }
-            debug!("F {:?}", channel_message);
         }
     }
 }
 
 /// default event handler
-async fn default_event_handler(
+async fn websocket_rx(
     mut ws_rx: SplitStream<WebSocket>,
     state: Arc<State>,
     conn_id: String,
@@ -247,6 +202,81 @@ async fn default_event_handler(
     Ok(())
 }
 
+async fn handle_join_event(
+    rm: &RequestMessage,
+    _ws_rx: &mut SplitStream<WebSocket>,
+    state: Arc<State>,
+    conn_id: &str,
+) -> JoinHandle<()> {
+    let channel_name = &rm.topic; // ?
+
+    let agent_id = format!("{}:{}", conn_id, rm.join_reference.clone().unwrap());
+    info!("{} joining {} ...", agent_id, channel_name.clone(),);
+    state
+        .ctl
+        .lock()
+        .await
+        .agent_add(agent_id.to_string(), None)
+        .await;
+    state
+        .ctl
+        .lock()
+        .await
+        .channel_join(&channel_name.clone(), agent_id.to_string())
+        .await
+        .unwrap();
+
+    // task to forward from agent broadcast to conn
+    let channel_forward_task = tokio::spawn(agent_rx_to_conn(
+        state.clone(),
+        rm.join_reference.clone().unwrap(),
+        agent_id.clone(),
+        conn_id.to_string(),
+    ));
+    reply_ok_with_empty_response(
+        conn_id.to_string().clone(),
+        rm.join_reference.clone(),
+        &rm.reference,
+        channel_name,
+        state.clone(),
+    )
+    .await;
+    channel_forward_task
+}
+
+async fn agent_rx_to_conn(state: Arc<State>, join_ref: String, agent_id: String, conn_id: String) {
+    let mut agent_rx = state
+        .ctl
+        .lock()
+        .await
+        .agent_subscriber(agent_id.clone())
+        .await
+        .unwrap();
+    let conn_tx = state
+        .ctl
+        .lock()
+        .await
+        .conn_publisher(conn_id.clone())
+        .await
+        .unwrap();
+    debug!(
+        "forward agent {} to conn {} ...",
+        agent_id.clone(),
+        conn_id.clone()
+    );
+    while let Ok(mut channel_message) = agent_rx.recv().await {
+        if let ChannelMessage::Reply(ref mut reply_message) = channel_message {
+            reply_message.join_reference = Some(join_ref.clone());
+            let result = conn_tx.send(channel_message.clone());
+            if result.is_err() {
+                error!("sending failure: {:?}", result.err().unwrap());
+                break; // fails when there's no reciever, stop forwarding
+            }
+            debug!("F {:?}", channel_message);
+        }
+    }
+}
+
 async fn dispatch_to_redis(redis_url: String, redis_topic: String) -> redis::RedisResult<()> {
     let redis_client = Client::open(redis_url.clone())?;
 
@@ -290,38 +320,6 @@ async fn _redis_relay(
     }
 
     Ok(())
-}
-
-// 把消息经由 websocket 发送到客户端
-async fn websocket_tx(
-    conn_id: String,
-    state: Arc<State>,
-    mut ws_tx: SplitSink<WebSocket, Message>,
-) {
-    debug!("launch websocket sender ...");
-    // let redis_relay_task = tokio::spawn(redis_relay(state.redis_url, conn_id.clone(), ws_tx));
-
-    // 从 ChannelControl
-    let mut conn_rx = state
-        .ctl
-        .lock()
-        .await
-        .conn_subscriber(conn_id.clone())
-        .await
-        .unwrap();
-
-    // TODO: select! from Redis
-
-    while let Ok(channel_message) = conn_rx.recv().await {
-        if let ChannelMessage::Reply(reply_message) = channel_message {
-            let text = serde_json::to_string(&reply_message).unwrap();
-            let result = ws_tx.send(warp::ws::Message::text(text)).await;
-            if result.is_err() {
-                error!("sending failure: {:?}", result);
-                continue;
-            }
-        }
-    }
 }
 
 async fn reply_ok_with_empty_response(
