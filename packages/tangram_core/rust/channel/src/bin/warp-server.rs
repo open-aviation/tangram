@@ -23,7 +23,7 @@ use warp::ws::WebSocket;
 use warp::Filter;
 use websocket_channels::channel::ChannelControl;
 use websocket_channels::websocket::{
-    on_connected, redis_relay, streaming_default_tx_handler, system_default_tx_handler, State,
+    on_connected, streaming_default_tx_handler, system_default_tx_handler, State,
 };
 
 // use clap to parse command line arguments

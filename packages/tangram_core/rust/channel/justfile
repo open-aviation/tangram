@@ -21,3 +21,7 @@ server:
 channel target="axum":
   watchexec -w . -e rs -r -- RUST_LOG=debug cargo run --bin channel-{{target}} -- \
     --host 0.0.0.0 --port 5000 --redis-url redis://192.168.11.37:6379 --redis-topic streaming:data
+
+pub:
+  redli --uri redis://192.168.11.37:6379 publish streaming:default '{"type": "message", "message": "hello, world!+"}'
+
