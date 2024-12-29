@@ -17,7 +17,7 @@ use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 use uuid::Uuid;
 use websocket_channels::{
     channel::ChannelControl,
-    websocket::{streaming_default_tx_task, system_default_tx_task, State as AppState},
+    websocket::{streaming_default_tx_handler, system_default_tx_handler, State as AppState},
 };
 
 async fn subscribe_and_send(
@@ -58,7 +58,12 @@ async fn websocket_handler(
 async fn handle_socket(socket: axum::extract::ws::WebSocket, state: Arc<AppState>) {
     let conn_id = Uuid::new_v4().to_string();
     info!("on_connected: {}", conn_id);
-    state.ctl.lock().await.conn_add(conn_id.clone()).await;
+    state
+        .ctl
+        .lock()
+        .await
+        .conn_add_publisher(conn_id.clone())
+        .await;
 
     let (mut sender, mut receiver) = socket.split();
 
@@ -165,11 +170,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         redis_client,
     });
 
-    tokio::spawn(system_default_tx_task(state.clone(), "system"));
+    tokio::spawn(system_default_tx_handler(state.clone(), "system"));
 
     let (tx, rx) = mpsc::unbounded_channel();
     let data_source = UnboundedReceiverStream::new(rx);
-    tokio::spawn(streaming_default_tx_task(
+    tokio::spawn(streaming_default_tx_handler(
         state.clone(),
         data_source,
         "streaming",

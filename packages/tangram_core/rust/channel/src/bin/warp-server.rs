@@ -23,42 +23,8 @@ use warp::ws::WebSocket;
 use warp::Filter;
 use websocket_channels::channel::ChannelControl;
 use websocket_channels::websocket::{
-    on_connected, streaming_default_tx_task, system_default_tx_task, State,
+    on_connected, redis_relay, streaming_default_tx_handler, system_default_tx_handler, State,
 };
-
-async fn redis_relay(
-    redis_url: String,
-    redis_topic: String,
-    tx: mpsc::UnboundedSender<String>,
-) -> redis::RedisResult<()> {
-    let redis_client = Client::open(redis_url.clone())?;
-
-    let mut redis_pubsub = redis_client.get_async_pubsub().await?;
-    redis_pubsub.subscribe(redis_topic.clone()).await?;
-
-    let mut redis_pubsub_stream = redis_pubsub.on_message();
-
-    info!("listening to {} pubsub: `{}` ...", redis_url, redis_topic);
-    loop {
-        match redis_pubsub_stream.next().await {
-            Some(stream_message) => {
-                let payload: String = stream_message.get_payload()?;
-                info!("received: {}", payload);
-
-                if tx.send(payload).is_err() {
-                    error!("receiver dropped, exiting.");
-                    break;
-                }
-            }
-            None => {
-                info!("PubSub connection closed, exiting.");
-                break;
-            }
-        }
-    }
-
-    Ok(())
-}
 
 // use clap to parse command line arguments
 #[derive(Debug, Deserialize, Parser)]
@@ -120,20 +86,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // system channel
-    tokio::spawn(system_default_tx_task(state.clone(), "system"));
+    tokio::spawn(system_default_tx_handler(state.clone(), "system"));
 
     // streaming channel
     let (tx, rx) = mpsc::unbounded_channel();
-    let data_source = UnboundedReceiverStream::new(rx);
-    tokio::spawn(streaming_default_tx_task(
+    let rx = UnboundedReceiverStream::new(rx);
+    tokio::spawn(streaming_default_tx_handler(
         state.clone(),
-        data_source,
+        rx,
         "streaming",
         "data",
     ));
 
     // publish 到 redis_topic 的会被转发到 streaming:data chnnel
-    tokio::spawn(redis_relay(redis_url, redis_topic, tx));
+    // tokio::spawn(redis_relay(redis_url, redis_topic, tx));
 
     // websocket state
     let state = warp::any().map(move || state.clone());

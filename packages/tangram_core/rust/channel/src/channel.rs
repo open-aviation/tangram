@@ -20,6 +20,19 @@ pub enum ChannelMessage {
     ReloadFilter { agent_id: String, code: String },
 }
 
+impl Display for ChannelMessage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ChannelMessage::Reply(reply) => {
+                write!(f, "<{}>", reply)
+            }
+            ChannelMessage::ReloadFilter { agent_id, code } => {
+                write!(f, "<ReloadFilter agent_id:{}, code: {}>", agent_id, code)
+            }
+        }
+    }
+}
+
 /// agent channel, can broadcast to every agent in the channel
 pub struct Channel {
     /// channel name
@@ -156,9 +169,9 @@ impl ChannelControl {
         }
     }
 
-    pub async fn conn_add(&self, conn_id: String) {
-        let mut conn_senders = self.conn_publisher.lock().await;
-        match conn_senders.entry(conn_id.clone()) {
+    pub async fn conn_add_publisher(&self, conn_id: String) {
+        let mut conn_publishers = self.conn_publisher.lock().await;
+        match conn_publishers.entry(conn_id.clone()) {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(100);
                 entry.insert(tx);
@@ -187,7 +200,7 @@ impl ChannelControl {
         Ok(conn_publisher.get(&conn_id).unwrap().clone())
     }
 
-    pub async fn conn_send(
+    pub async fn conn_publish(
         &self,
         conn_id: String,
         message: ChannelMessage,
