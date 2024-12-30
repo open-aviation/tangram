@@ -237,7 +237,6 @@ impl ChannelControl {
     }
 
     /// join agent to a channel
-    /// This will subscribe to the channel, create a task to forward messages to the agent websocket
     pub async fn channel_join(
         &self,
         channel_name: &str,
@@ -246,12 +245,13 @@ impl ChannelControl {
         let channels = self.channels.lock().await;
         let mut agent_relay_tasks = self.agent_relay_tasks.lock().await;
 
-        let channel_sender = channels
+        // join
+        let channel_tx = channels
             .get(channel_name)
             .ok_or(ChannelError::ChannelNotFound)?
             .join(agent_id.clone())
             .await;
-        let channel_rx = channel_sender.subscribe();
+        let channel_rx = channel_tx.subscribe();
         let agent_tx = self
             .agent_tx
             .lock()
@@ -283,7 +283,7 @@ impl ChannelControl {
                 }]);
             }
         };
-        Ok(channel_sender)
+        Ok(channel_tx)
     }
 
     pub async fn channel_leave(&self, name: String, agent_id: String) -> Result<(), ChannelError> {
@@ -353,10 +353,9 @@ impl ChannelControl {
         Ok(receiver)
     }
 
-    /// Add channel agent to the channel ctl
-    /// `capacity` is the maximum number of messages that can be stored in the channel, default is 100
-    /// This will create a broadcast channel: ChannelAgent will write to and websocket_tx_task will
-    /// subscribe to and read from
+    /// Add channel agent to the channel ctl, 就是添加 agent tx
+    /// `capacity` is the maximum number of messages that can be stored in the channel. The default value is 100.
+    /// This will create a broadcast channel: ChannelAgent will write to and websocket_tx_task will subscribe to and read from
     pub async fn agent_add(&self, agent_id: String, capacity: Option<usize>) {
         match self.agent_tx.lock().await.entry(agent_id.clone()) {
             Entry::Vacant(entry) => {

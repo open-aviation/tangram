@@ -172,7 +172,6 @@ pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
 
     let mut ws_tx_task = tokio::spawn(websocket_tx(conn_id.clone(), state.clone(), ws_tx));
     let mut ws_rx_task = tokio::spawn(websocket_rx(ws_rx, state.clone(), conn_id.clone()));
-
     tokio::select! {
         _ = (&mut ws_tx_task) => ws_rx_task.abort(),
         _ = (&mut ws_rx_task) => ws_tx_task.abort(),
@@ -234,7 +233,7 @@ async fn websocket_rx(
         }
 
         if event == "phx_join" {
-            handle_joining(&rm, state.clone(), &cid).await;
+            handle_join(&rm, state.clone(), &cid).await;
             debug!("join processed");
             // continue;
         }
@@ -283,11 +282,13 @@ async fn dispatch_by_redis(
     Ok(())
 }
 
-async fn handle_joining(
+// 添加 agent tx, join channel, spawn agent/conn relay task, ack joining
+// NOTE: relay task 在连接断开的时候会发生什么?
+async fn handle_join(
     rm: &RequestMessage,
     state: Arc<State>,
     conn_id: &str,
-) -> JoinHandle<redis::RedisResult<()>> {
+) -> JoinHandle<RedisResult<()>> {
     let channel_name = &rm.topic; // ?
     let agent_id = format!("{}:{}", conn_id, rm.join_ref.clone().unwrap());
     let join_ref = &rm.join_ref;
@@ -308,14 +309,17 @@ async fn handle_joining(
         .await
         .unwrap();
 
-    // task to forward from agent rx to conn
-    let channel_forward_task = tokio::spawn(agent_to_conn(
+    // agent rx 到 conn tx 转发消息
+    // 这个需要在 join 完整之前准备好，才不会丢失消息
+    let relay_task = tokio::spawn(agent_to_conn(
         state.clone(),
         channel_name.clone(),
         join_ref.clone().unwrap(),
         agent_id.clone(),
         conn_id.to_string(),
     ));
+
+    // phx_reply, 确认 join 事件
     send_ok_empty(
         conn_id,
         join_ref.clone(),
@@ -324,7 +328,7 @@ async fn handle_joining(
         state.clone(),
     )
     .await;
-    channel_forward_task
+    relay_task
 }
 
 async fn get_redis_pubsub_stream(
@@ -433,17 +437,6 @@ async fn agent_to_conn(
             }
         }
     }
-    // while let Ok(mut channel_message) = agent_rx.recv().await {
-    //     if let ChannelMessage::Reply(ref mut reply) = channel_message {
-    //         reply.join_ref = Some(join_ref.clone());
-    //         let result = conn_tx.send(channel_message.clone());
-    //         if result.is_err() {
-    //             error!("agent {}, conn: {}, sending failure: {:?}", agent_id, conn_id, result.err().unwrap());
-    //             break; // fails when there's no reciever, stop forwarding
-    //         }
-    //         debug!("F {}", channel_message);
-    //     }
-    // }
     Ok(())
 }
 
