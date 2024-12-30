@@ -23,97 +23,89 @@
       margin-bottom: 15px;
     }
 
+    .toggle-label {
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      background: transparent;
+      border: 2px solid #4CAF50;
+      color: #4CAF50;
+      user-select: none;
+    }
+
+    .toggle-label:hover {
+      background: rgba(76, 175, 80, 0.1);
+    }
+
+    .toggle-label.active {
+      background: #4CAF50;
+      color: white;
+    }
+
     .status-panel {
       background: #f5f5f5;
       border-radius: 6px;
       padding: 15px;
-      margin: 20px 0;
+      margin: 15px 0;
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .status-panel.visible {
+      max-height: 100px;
+      opacity: 1;
+      margin: 15px 0;
     }
 
     .status-label {
       color: #666;
       font-size: 0.9em;
+      margin-right: 10px;
     }
 
     .status-value {
       font-weight: 500;
       color: #333;
+      margin-right: 20px;
     }
 
-    .button {
-      padding: 10px 20px;
-      margin: 5px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all 0.2s ease;
-    }
-
-    .button:hover:not(.disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .join-btn {
-      background-color: #4CAF50;
-      color: white;
-    }
-
-    .join-btn:hover:not(.disabled) {
-      background-color: #45a049;
-    }
-
-    .leave-btn {
-      background-color: #f44336;
-      color: white;
-    }
-
-    .leave-btn:hover:not(.disabled) {
-      background-color: #da190b;
-    }
-
-    .disabled {
-      background-color: #cccccc;
-      cursor: not-allowed;
-      opacity: 0.7;
-    }
-
-    .console-note {
-      color: #666;
-      font-size: 0.9em;
-      margin: 10px 0;
-      font-style: italic;
+    .status-group {
+      display: inline-block;
     }
   </style>
   <body> 
-
     <div id="system-section" class="channel-section">
       <div class="channel-title">System Channel</div>
       <div id="system-controls">
-        <button id="joinSystemBtn" class="button join-btn" onclick="joinSystemChannel()">Join System Channel</button>
-        <button id="leaveSystemBtn" class="button leave-btn" onclick="leaveSystemChannel()">Leave System Channel</button>
+        <span id="systemToggle" class="toggle-label" onclick="toggleSystemChannel()">System Channel</span>
       </div>
-      <div class="status-panel">
-        <span class="status-label">Counter:</span> 
-        <b id="counter" class="status-value">-</b>
-        <span class="status-label">Current Time:</span> 
-        <b id="datetime" class="status-value">-</b>
+      <div id="systemStatus" class="status-panel">
+        <div class="status-group">
+          <span class="status-label">Counter:</span>
+          <b id="counter" class="status-value">-</b>
+        </div>
+        <div class="status-group">
+          <span class="status-label">Current Time:</span>
+          <b id="datetime" class="status-value">-</b>
+        </div>
       </div>
     </div>
 
     <div id="streaming-section" class="channel-section">
       <div class="channel-title">Streaming Channel</div>
       <div id="streaming-controls">
-        <button id="joinStreamingBtn" class="button join-btn" onclick="joinStreamingChannel()">Join Streaming Channel</button>
-        <button id="leaveStreamingBtn" class="button leave-btn" onclick="leaveStreamingChannel()">Leave Streaming Channel</button>
+        <span id="streamingToggle" class="toggle-label" onclick="toggleStreamingChannel()">Streaming Channel</span>
       </div>
     </div>
   </body>
   <script src='https://unpkg.com/phoenix@1.7.11/priv/static/phoenix.min.js'></script>
-  <script src='https://unpkg.com/morphdom@2.6.1/dist/morphdom-umd.js'></script>
   <script>
-    const { Socket, Channel, Presence } = Phoenix;
+    const { Socket, Channel } = Phoenix;
     
     function onDatetime({ status, response: { datetime, counter }}) {
       document.getElementById('datetime').innerText = datetime;
@@ -129,26 +121,23 @@
     let socket = new Socket("", { debug, params: { userToken }});
     socket.connect();
     
-    function updateButtonStates() {
-      const systemJoinBtn = document.getElementById('joinSystemBtn');
-      const systemLeaveBtn = document.getElementById('leaveSystemBtn');
-      const streamingJoinBtn = document.getElementById('joinStreamingBtn');
-      const streamingLeaveBtn = document.getElementById('leaveStreamingBtn');
+    function updateToggleStates() {
+      const systemToggle = document.getElementById('systemToggle');
+      const streamingToggle = document.getElementById('streamingToggle');
+      const systemStatus = document.getElementById('systemStatus');
       
       if (window.systemChannel) {
-        systemJoinBtn.classList.add('disabled');
-        systemLeaveBtn.classList.remove('disabled');
+        systemToggle.classList.add('active');
+        systemStatus.classList.add('visible');
       } else {
-        systemJoinBtn.classList.remove('disabled');
-        systemLeaveBtn.classList.add('disabled');
+        systemToggle.classList.remove('active');
+        systemStatus.classList.remove('visible');
       }
 
       if (window.streamingChannel) {
-        streamingJoinBtn.classList.add('disabled');
-        streamingLeaveBtn.classList.remove('disabled');
+        streamingToggle.classList.add('active');
       } else {
-        streamingJoinBtn.classList.remove('disabled');
-        streamingLeaveBtn.classList.add('disabled');
+        streamingToggle.classList.remove('active');
       }
     }
     
@@ -192,7 +181,7 @@
         .join()
         .receive('ok', (ev) => {
           console.log(`${channelName} - Joined successfully:`, ev);
-          updateButtonStates();
+          updateToggleStates();
         })
         .receive('error', ({ reason }) => {
           console.error(`${channelName} - Failed to join:`, reason);
@@ -203,53 +192,45 @@
       return channel;
     }
     
-    async function joinSystemChannel() {
-      if (!window.systemChannel) {
-        const token = await getChannelToken('system');
-        if (token) {
-          window.systemChannel = joinChannel('system', token);
-          updateButtonStates();
-        } else {
-          console.error('Failed to get system channel token');
-        }
-      }
-    }
-    
-    function leaveSystemChannel() {
+    async function toggleSystemChannel() {
       if (window.systemChannel) {
         window.systemChannel.leave()
           .receive('ok', () => {
             console.log('Left system channel successfully');
             window.systemChannel = null;
-            updateButtonStates();
+            updateToggleStates();
           });
+      } else {
+        const token = await getChannelToken('system');
+        if (token) {
+          window.systemChannel = joinChannel('system', token);
+          updateToggleStates();
+        } else {
+          console.error('Failed to get system channel token');
+        }
       }
     }
 
-    async function joinStreamingChannel() {
-      if (!window.streamingChannel) {
+    async function toggleStreamingChannel() {
+      if (window.streamingChannel) {
+        window.streamingChannel.leave()
+          .receive('ok', () => {
+            console.log('Left streaming channel successfully');
+            window.streamingChannel = null;
+            updateToggleStates();
+          });
+      } else {
         const token = await getChannelToken('streaming');
         if (token) {
           window.streamingChannel = joinChannel('streaming', token);
-          updateButtonStates();
+          updateToggleStates();
         } else {
           console.error('Failed to get streaming channel token');
         }
       }
     }
     
-    function leaveStreamingChannel() {
-      if (window.streamingChannel) {
-        window.streamingChannel.leave()
-          .receive('ok', () => {
-            console.log('Left streaming channel successfully');
-            window.streamingChannel = null;
-            updateButtonStates();
-          });
-      }
-    }
-    
-    // Initial button states
-    updateButtonStates();
+    // Initial toggle states
+    updateToggleStates();
   </script>
 </html>
