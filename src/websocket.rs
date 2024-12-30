@@ -337,6 +337,26 @@ async fn get_redis_pubsub_stream(
     Ok(redis_pubsub)
 }
 
+#[derive(Debug)]
+struct ChannelEventFromRedis {
+    channel: String,
+    event: String,
+}
+
+impl ChannelEventFromRedis {
+    /// parse the format to:channel_name:event_name
+    fn parse(redis_channel: &str) -> Result<Self, &'static str> {
+        let components: Vec<&str> = redis_channel.split(':').collect();
+        match components.as_slice() {
+            [_, channel, event] => Ok(Self {
+                channel: channel.to_string(),
+                event: event.to_string(),
+            }),
+            _ => Err("invalid channel format"),
+        }
+    }
+}
+
 async fn agent_to_conn(
     state: Arc<State>,
     channel_name: String,
@@ -383,28 +403,33 @@ async fn agent_to_conn(
                 }
             },
             optional_message = redis_pubsub_stream.next() => {
-                if let Some(stream_message) = optional_message {
-                    let payload: String = stream_message.get_payload()?;
-                    debug!("agent_to_conn / from redis, {}, payload: `{}`", stream_message.get_channel_name(), payload.clone());
-
-                    match serde_json::from_str::<ResponseFromRedis>(&payload) {
-                        Err(e) => {
-                            warn!("fail to deserialize from Redis, {}, payload: `{}`", e, payload);
-                            continue;
-                        },
-                        Ok(response_from_redis) => {
-                            let response = response_from_redis.into();
-                            debug!("parsed from redis, response: {:?}", &response);
-                            let event_name = "default"; // parse from event
-                            _channel_publish(counter, response, state.clone(), &channel_name, &event_name).await;
-
-                            counter += 1;
-                            debug!("publish message from redis, counter: {}", counter);
-                        }
-                    }
-                } else {
-                    debug!("agent_to_conn / from redis: none");
+                if optional_message.is_none() {
+                    error!("agent_to_conn / from redis: none");
+                    continue;
                 }
+
+                let stream_message = optional_message.unwrap();
+                let payload: String = stream_message.get_payload()?;
+                debug!("agent_to_conn / from redis, {}, payload: `{}`", stream_message.get_channel_name(), payload.clone());
+
+                let response_from_redis_result = serde_json::from_str::<ResponseFromRedis>(&payload);
+                if response_from_redis_result.is_err() {
+                    warn!("fail to deserialize from Redis, {}, payload: `{}`", response_from_redis_result.err().unwrap(), payload);
+                    continue;
+                }
+                let response: Response = response_from_redis_result.unwrap().into();
+                debug!("parsed from redis, response: {:?}", &response);
+
+                // the format is to:channel_name:event_name, split it by `:`
+                match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
+                    Ok(msg) => _channel_publish(counter, response, state.clone(), &msg.channel, &msg.event).await,
+                    Err(e) => {
+                        warn!("Invalid redis channel format: {}", e);
+                        continue;
+                    }
+                }
+                counter += 1;
+                debug!("publish message from redis, counter: {}", counter);
             }
         }
     }
