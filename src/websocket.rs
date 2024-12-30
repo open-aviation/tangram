@@ -192,8 +192,8 @@ async fn websocket_tx(cid: String, state: Arc<State>, mut ws_tx: SplitSink<WebSo
         let text = serde_json::to_string(&reply_message).unwrap();
         let result = ws_tx.send(warp::ws::Message::text(text)).await;
         if result.is_err() {
-            error!("sending failure: {}", result.err().unwrap());
-            continue;
+            error!("websocket tx sending failed: {}", result.err().unwrap());
+            continue; // what happend? exit if the connection is lost
         }
     }
 }
@@ -211,6 +211,7 @@ async fn websocket_rx(
 
     while let Some(Ok(m)) = ws_rx.next().await {
         if !m.is_text() {
+            // 也可能是 binary 的，暂时不处理
             continue;
         }
         info!("read from websocket: `{}`", m.to_str().unwrap());
@@ -220,7 +221,6 @@ async fn websocket_rx(
             continue;
         }
         let rm: RequestMessage = rm_result.unwrap();
-
         let channel_name = &rm.topic;
         let join_ref = &rm.join_ref;
         let event_ref = &rm.event_ref;
@@ -228,43 +228,51 @@ async fn websocket_rx(
         let payload = &rm.payload;
 
         if channel_name == "phoenix" && event == "heartbeat" {
-            reply_ok_with_empty_response(cid.clone(), None, event_ref, "phoenix", state.clone())
-                .await;
+            send_ok_empty(&cid.clone(), None, event_ref, "phoenix", state.clone()).await;
             debug!("heartbeat processed");
+            // continue;
         }
 
         if event == "phx_join" {
-            handle_join_event(&rm, state.clone(), &cid).await;
+            handle_joining(&rm, state.clone(), &cid).await;
             debug!("join processed");
+            // continue;
         }
 
         if event == "phx_leave" {
-            handle_leave_event(
+            handle_leaving(
                 state.clone(),
-                cid.clone(),
+                &cid.clone(),
                 join_ref.clone(),
                 event_ref,
                 channel_name.clone(),
             )
             .await;
             debug!("leave processed");
+            // continue;
         }
 
-        dispatch_by_redis(&mut redis_conn, channel_name.clone(), payload).await?;
+        // all events are dispatched to reids
+        dispatch_by_redis(
+            &mut redis_conn,
+            channel_name.clone(),
+            event.clone(),
+            payload,
+        )
+        .await?;
     }
     Ok(())
 }
 
 /// events from client are published over redis
+/// iredis --url redis://localhost:6379 psubscribe 'from*'
 async fn dispatch_by_redis(
     redis_conn: &mut redis::aio::MultiplexedConnection,
     channel_name: String,
+    event_name: String,
     payload: &RequestPayload,
 ) -> RedisResult<()> {
-    let event_name = "default";
-    let redis_topic = format!("{}:{}", channel_name, event_name);
-
-    // let message = format!("Message from conn_id: {}", conn_id);
+    let redis_topic = format!("from:{}:{}", channel_name, event_name);
     let message = serde_json::to_string(&payload).unwrap();
     let result: RedisResult<String> = redis_conn.publish(redis_topic, message.clone()).await;
     if result.is_err() {
@@ -275,14 +283,16 @@ async fn dispatch_by_redis(
     Ok(())
 }
 
-async fn handle_join_event(
+async fn handle_joining(
     rm: &RequestMessage,
     state: Arc<State>,
     conn_id: &str,
 ) -> JoinHandle<redis::RedisResult<()>> {
     let channel_name = &rm.topic; // ?
-
     let agent_id = format!("{}:{}", conn_id, rm.join_ref.clone().unwrap());
+    let join_ref = &rm.join_ref;
+    let event_ref = &rm.event_ref;
+
     info!("{} joining {} ...", agent_id, channel_name.clone(),);
     state
         .ctl
@@ -302,14 +312,14 @@ async fn handle_join_event(
     let channel_forward_task = tokio::spawn(agent_to_conn(
         state.clone(),
         channel_name.clone(),
-        rm.join_ref.clone().unwrap(),
+        join_ref.clone().unwrap(),
         agent_id.clone(),
         conn_id.to_string(),
     ));
-    reply_ok_with_empty_response(
-        conn_id.to_string().clone(),
-        rm.join_ref.clone(),
-        &rm.event_ref,
+    send_ok_empty(
+        conn_id,
+        join_ref.clone(),
+        event_ref,
         channel_name,
         state.clone(),
     )
@@ -318,14 +328,12 @@ async fn handle_join_event(
 }
 
 async fn get_redis_pubsub_stream(
-    channel_name: String,
-    event_name: String,
+    redis_topic: String,
     redis_url: String,
 ) -> RedisResult<redis::aio::PubSub> {
-    let redis_topic = format!("{}:{}", channel_name, event_name);
     let redis_client = Client::open(redis_url)?;
     let mut redis_pubsub = redis_client.get_async_pubsub().await?;
-    redis_pubsub.subscribe(redis_topic.clone()).await?;
+    redis_pubsub.psubscribe(redis_topic.clone()).await?;
     Ok(redis_pubsub)
 }
 
@@ -351,14 +359,11 @@ async fn agent_to_conn(
         .await
         .unwrap();
 
-    let event_name = "default"; // 默认的
-    let mut redis_pubsub = get_redis_pubsub_stream(
-        "streaming".to_string(),
-        "default".to_string(),
-        state.redis_url.clone(),
-    )
-    .await
-    .unwrap();
+    let redis_url = state.redis_url.clone();
+    let redis_topic = format!("to:{}:*", channel_name);
+    let mut redis_pubsub = get_redis_pubsub_stream(redis_topic, redis_url.clone())
+        .await
+        .unwrap();
     let mut redis_pubsub_stream = redis_pubsub.on_message();
 
     debug!("agent {} => conn {}", agent_id.clone(), conn_id.clone());
@@ -380,22 +385,25 @@ async fn agent_to_conn(
             optional_message = redis_pubsub_stream.next() => {
                 if let Some(stream_message) = optional_message {
                     let payload: String = stream_message.get_payload()?;
-                    debug!("agent_to_conn / from redis: {}", payload.clone());
+                    debug!("agent_to_conn / from redis, {}, payload: `{}`", stream_message.get_channel_name(), payload.clone());
 
                     match serde_json::from_str::<ResponseFromRedis>(&payload) {
                         Err(e) => {
-                            warn!("fail to deserialize from Redis, {}, payload: {}", e, payload);
+                            warn!("fail to deserialize from Redis, {}, payload: `{}`", e, payload);
                             continue;
                         },
                         Ok(response_from_redis) => {
                             let response = response_from_redis.into();
                             debug!("parsed from redis, response: {:?}", &response);
-                            _channel_publish(counter, response, state.clone(), &channel_name, event_name).await;
+                            let event_name = "default"; // parse from event
+                            _channel_publish(counter, response, state.clone(), &channel_name, &event_name).await;
 
                             counter += 1;
                             debug!("publish message from redis, counter: {}", counter);
                         }
                     }
+                } else {
+                    debug!("agent_to_conn / from redis: none");
                 }
             }
         }
@@ -414,9 +422,9 @@ async fn agent_to_conn(
     Ok(())
 }
 
-async fn handle_leave_event(
+async fn handle_leaving(
     state: Arc<State>,
-    conn_id: String,
+    cid: &str,
     join_ref: Option<String>,
     event_ref: &str,
     channel_name: String,
@@ -425,14 +433,14 @@ async fn handle_leave_event(
         .ctl
         .lock()
         .await
-        .channel_leave(channel_name.clone(), conn_id.to_string())
+        .channel_leave(channel_name.clone(), cid.to_string())
         .await
         .unwrap();
-    reply_ok_with_empty_response(conn_id, join_ref, event_ref, &channel_name, state.clone()).await;
+    send_ok_empty(cid, join_ref, event_ref, &channel_name, state.clone()).await;
 }
 
-async fn reply_ok_with_empty_response(
-    conn_id: String,
+async fn send_ok_empty(
+    conn_id: &str,
     join_ref: Option<String>,
     event_ref: &str,
     channel_name: &str,
@@ -464,7 +472,7 @@ async fn reply_ok_with_empty_response(
         )
         .await
         .unwrap();
-    debug!("sent to connection {}: {}", conn_id.clone(), text);
+    debug!("sent to connection {}: {}", &conn_id, text);
 }
 
 async fn _channel_publish(

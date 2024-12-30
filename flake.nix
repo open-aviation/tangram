@@ -66,7 +66,8 @@
               pkgs.pkg-config
               pkgs.openssl
               pkgs.cargo-dist
-              pkgs.redli
+              pkgs.redis
+              pkgs.iredis
             ];
             shellHook = ''
               export RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=${pkgs.mold}/bin/mold"
