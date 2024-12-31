@@ -25,9 +25,7 @@ use warp::ws::Message;
 use warp::ws::WebSocket;
 use warp::Filter;
 use websocket_channels::channel::ChannelControl;
-use websocket_channels::websocket::{
-    streaming_default_tx_handler, system_default_tx_handler, warp_on_connected, State,
-};
+use websocket_channels::websocket::{streaming_default_tx_handler, system_default_tx_handler, warp_on_connected, State};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TokenRequest {
@@ -49,10 +47,7 @@ enum TokenError {
 
 impl warp::reject::Reject for TokenError {}
 
-async fn generate_token(
-    req: TokenRequest,
-    state: Arc<State>,
-) -> Result<impl warp::Reply, warp::Rejection> {
+async fn generate_token(req: TokenRequest, state: Arc<State>) -> Result<impl warp::Reply, warp::Rejection> {
     // Check if channel exists
     let ctl = state.ctl.lock().await;
     let channels = ctl.channels.lock().await;
@@ -103,11 +98,7 @@ struct Options {
 }
 
 fn random_string(length: usize) -> String {
-    thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(length)
-        .map(char::from)
-        .collect()
+    thread_rng().sample_iter(&Alphanumeric).take(length).map(char::from).collect()
 }
 
 #[tokio::main]
@@ -118,10 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // RUST_LOG=redis_subscriber=debug,redis=info,tokio=warn
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-    tracing_subscriber::fmt()
-        .with_env_filter(env_filter)
-        .with_span_events(FmtSpan::CLOSE)
-        .init();
+    tracing_subscriber::fmt().with_env_filter(env_filter).with_span_events(FmtSpan::CLOSE).init();
 
     let options = Options::parse(); // exit on error
     if options.redis_url.is_none() || options.redis_topic.is_none() {
@@ -165,20 +153,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // streaming channel
     let (tx, rx) = mpsc::unbounded_channel();
     let rx = UnboundedReceiverStream::new(rx);
-    tokio::spawn(streaming_default_tx_handler(
-        state.clone(),
-        rx,
-        "streaming",
-        "data",
-    ));
+    tokio::spawn(streaming_default_tx_handler(state.clone(), rx, "streaming", "data"));
 
     let state_for_ws = state.clone();
     let ws_route = warp::path("websocket")
         .and(warp::ws())
         .and(warp::any().map(move || state_for_ws.clone()))
-        .map(|ws: warp::ws::Ws, state| {
-            ws.on_upgrade(move |websocket| warp_on_connected(websocket, state))
-        });
+        .map(|ws: warp::ws::Ws, state| ws.on_upgrade(move |websocket| warp_on_connected(websocket, state)));
 
     // let state_for_token = state.clone();
     // let token_route = warp::path("token")
@@ -194,10 +175,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and(warp::any().map(move || state_for_channel_token.clone()))
         .and_then(generate_token);
 
-    let routes = warp::path::end()
-        .and(warp::fs::file("src/bin/index.html"))
-        .or(ws_route)
-        .or(channel_token_route);
+    let routes = warp::path::end().and(warp::fs::file("src/bin/index.html")).or(ws_route).or(channel_token_route);
 
     let host = options.host.unwrap().parse::<std::net::IpAddr>().unwrap();
     let port = options.port.unwrap();

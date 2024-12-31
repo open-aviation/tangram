@@ -5,55 +5,20 @@ use axum::{
     Router,
 };
 use clap::Parser;
-use futures::StreamExt;
 use redis::Client;
 use serde::Deserialize;
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 use tracing::{error, info};
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 use websocket_channels::{
-    channel::ChannelControl,
+    channel::{listen_to_redis, ChannelControl},
     utils::random_string,
-    websocket::{
-        axum_on_connected, streaming_default_tx_handler, system_default_tx_handler, State,
-    },
+    websocket::{axum_on_connected, system_default_tx_handler, State},
 };
 
-async fn subscribe_and_send(
-    redis_url: String,
-    redis_topic: String,
-    tx: mpsc::UnboundedSender<String>,
-) -> redis::RedisResult<()> {
-    let client = Client::open(redis_url)?;
-    let mut pubsub = client.get_async_pubsub().await?;
-    pubsub.subscribe(redis_topic).await?;
-    let mut pubsub_stream = pubsub.on_message();
-    loop {
-        match pubsub_stream.next().await {
-            Some(msg) => {
-                let payload: String = msg.get_payload()?;
-                info!("received: {}", payload);
-                if tx.send(payload).is_err() {
-                    error!("receiver dropped, exiting.");
-                    break;
-                }
-            }
-            None => {
-                info!("PubSub connection closed, exiting.");
-                break;
-            }
-        }
-    }
-    Ok(())
-}
-
-async fn websocket_handler(
-    ws: WebSocketUpgrade,
-    AxumState(state): AxumState<Arc<State>>,
-) -> impl IntoResponse {
+async fn websocket_handler(ws: WebSocketUpgrade, AxumState(state): AxumState<Arc<State>>) -> impl IntoResponse {
     ws.on_upgrade(move |socket| axum_on_connected(socket, state))
 }
 
@@ -80,10 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 设置 tracing 使用 EnvFilter
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    tracing_subscriber::fmt()
-        .with_env_filter(env_filter)
-        .with_span_events(FmtSpan::CLOSE)
-        .init();
+    tracing_subscriber::fmt().with_env_filter(env_filter).with_span_events(FmtSpan::CLOSE).init();
 
     let options = Options::parse(); // exit on error
     if options.redis_url.is_none() || options.redis_topic.is_none() {
@@ -109,16 +71,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tokio::spawn(system_default_tx_handler(state.clone(), "system"));
 
-    let (tx, rx) = mpsc::unbounded_channel();
-    let data_source = UnboundedReceiverStream::new(rx);
-    tokio::spawn(streaming_default_tx_handler(
-        state.clone(),
-        data_source,
-        "streaming",
-        "data",
-    ));
-
-    tokio::spawn(subscribe_and_send(redis_url.clone(), redis_url.clone(), tx));
+    // 并不需要一致监听，应该是有 agent subscribe 的时候才 sub 到 redis
+    tokio::spawn(listen_to_redis(state.clone(), "system".to_string()));
+    tokio::spawn(listen_to_redis(state.clone(), "streaming".to_string()));
 
     let host = options.host.unwrap(); // .parse::<std::net::IpAddr>().unwrap();
     let port = options.port.unwrap();
@@ -127,9 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/websocket", get(websocket_handler))
         .nest_service("/", ServeDir::new("src/bin"))
         .with_state(state.clone());
-    let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port))
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await.unwrap();
 
     info!("serving at {}:{} ...", host, port);
     axum::serve(listener, app).await.unwrap();
