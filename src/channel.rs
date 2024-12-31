@@ -9,7 +9,7 @@ use std::{
 };
 
 use futures::StreamExt;
-use redis::{Client, RedisResult};
+use redis::RedisResult;
 use serde::{Deserialize, Serialize};
 use tokio::{
     sync::{broadcast, Mutex},
@@ -165,10 +165,14 @@ impl ChannelControl {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(100);
                 entry.insert(tx);
-                debug!("conn added: {}", conn_id.clone());
+                debug!("CONN / tx added: {}", conn_id.clone());
             }
             Entry::Occupied(_) => {}
         }
+    }
+
+    pub async fn conn_rm_tx(&self, _conn_id: String) {
+        todo!()
     }
 
     pub async fn conn_rx(&self, conn_id: String) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
@@ -258,7 +262,7 @@ impl ChannelControl {
     }
 
     pub async fn channel_leave(&self, name: String, agent_id: String) -> Result<(), ChannelError> {
-        info!("leave {} from {} ...", agent_id, name);
+        info!("CH / leave {} from {} ...", agent_id, name);
         let channels = self.channels.lock().await;
         let mut agent_relay_tasks = self.agent_relay_tasks.lock().await;
 
@@ -303,7 +307,6 @@ impl ChannelControl {
     // }
 
     pub async fn agent_rx(&self, agent_id: String) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
-        info!("getting agent rx ({}) ...", agent_id);
         Ok(self.agent_tx.lock().await.get(&agent_id).ok_or(ChannelError::AgentNotInitiated)?.subscribe())
     }
 
@@ -315,13 +318,15 @@ impl ChannelControl {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(capacity.unwrap_or(100));
                 entry.insert(tx);
-                info!("agent added: {}", agent_id.clone());
+                info!("AGENT / added: {}", agent_id.clone());
             }
             Entry::Occupied(_) => {
-                info!("agent already exists: {}", agent_id.clone());
+                info!("AGENT / already exists: {}", agent_id.clone());
             }
         }
-        info!("agents: {:?}", self.agent_list().await);
+
+        let agents = self.agent_list().await;
+        info!("AGENT / list: {} {:?}", agents.len(), agents);
     }
 
     /// remove the agent after leaving all channels
@@ -334,12 +339,12 @@ impl ChannelControl {
                     let channel = channels.get(&relay_task.channel_name);
                     if let Some(channel) = channel {
                         channel.leave(agent_id.clone()).await;
-                        debug!("agent {} removed from channel {}", agent_id, relay_task)
+                        debug!("AGENT / {} removed from channel {}", agent_id, relay_task)
                     }
                     relay_task.relay_task.abort();
                 }
                 entry.remove();
-                debug!("agent {} subscribe tasks removed", agent_id);
+                debug!("AGENT / {} subscribe tasks removed", agent_id);
             }
             Entry::Vacant(_) => {}
         }
@@ -347,11 +352,13 @@ impl ChannelControl {
         match self.agent_tx.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(entry) => {
                 entry.remove();
-                debug!("agent {} tx removed", agent_id);
+                debug!("AGENT / {} tx removed", agent_id);
             }
             Entry::Vacant(_) => {}
         }
-        info!("agents: {:?}", self.agent_list().await);
+
+        let agents = self.agent_list().await;
+        info!("AGENT / list {} {:?}", agents.len(), agents);
     }
 
     /// list all agents
@@ -394,13 +401,6 @@ impl Into<Response> for ResponseFromRedis {
     }
 }
 
-async fn get_redis_pubsub_stream(redis_topic: String, redis_url: String) -> RedisResult<redis::aio::PubSub> {
-    let redis_client = Client::open(redis_url)?;
-    let mut redis_pubsub = redis_client.get_async_pubsub().await?;
-    redis_pubsub.psubscribe(redis_topic.clone()).await?;
-    Ok(redis_pubsub)
-}
-
 #[derive(Debug)]
 struct ChannelEventFromRedis {
     channel: String,
@@ -423,9 +423,9 @@ impl ChannelEventFromRedis {
 
 /// 从redis 监听消息, per channel 的任务
 pub async fn listen_to_redis(state: Arc<State>, channel_name: String) -> RedisResult<()> {
-    let redis_url = state.redis_url.clone();
     let redis_topic = format!("to:{}:*", channel_name);
-    let mut redis_pubsub = get_redis_pubsub_stream(redis_topic, redis_url.clone()).await.unwrap();
+    let mut redis_pubsub = state.redis_client.get_async_pubsub().await?;
+    redis_pubsub.psubscribe(redis_topic.clone()).await?;
     let mut redis_pubsub_stream = redis_pubsub.on_message();
     let mut counter = 0; // TODO: counter 有问题, 在这里完全没有意义
     loop {
