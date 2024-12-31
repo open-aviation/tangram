@@ -171,7 +171,7 @@ impl ChannelControl {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(100);
                 entry.insert(tx);
-                debug!("conn {} added", conn_id.clone());
+                debug!("conn added: {}", conn_id.clone());
             }
             Entry::Occupied(_) => {}
         }
@@ -181,7 +181,6 @@ impl ChannelControl {
         &self,
         conn_id: String,
     ) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
-        info!("getting conn {} rx ...", conn_id);
         Ok(self.conn_tx.lock().await.get(&conn_id).unwrap().subscribe())
     }
 
@@ -189,7 +188,6 @@ impl ChannelControl {
         &self,
         conn_id: String,
     ) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
-        info!("getting conn {} tx ...", conn_id);
         Ok(self.conn_tx.lock().await.get(&conn_id).unwrap().clone())
     }
 
@@ -343,7 +341,7 @@ impl ChannelControl {
         &self,
         agent_id: String,
     ) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
-        info!("get agent {} rx ...", agent_id);
+        info!("getting agent rx ({}) ...", agent_id);
         Ok(self
             .agent_tx
             .lock()
@@ -361,12 +359,13 @@ impl ChannelControl {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(capacity.unwrap_or(100));
                 entry.insert(tx);
-                info!("agent {} added", agent_id.clone());
+                info!("agent added: {}", agent_id.clone());
             }
             Entry::Occupied(_) => {
-                info!("agent {} already exists", agent_id.clone());
+                info!("agent already exists: {}", agent_id.clone());
             }
         }
+        info!("agents: {:?}", self.agent_list().await);
     }
 
     /// remove the agent after leaving all channels
@@ -396,6 +395,12 @@ impl ChannelControl {
             }
             Entry::Vacant(_) => {}
         }
+        info!("agents: {:?}", self.agent_list().await);
+    }
+
+    /// list all agents
+    pub async fn agent_list(&self) -> Vec<String> {
+        self.agent_tx.lock().await.keys().cloned().collect()
     }
 }
 

@@ -5,7 +5,7 @@ use axum::{
     Router,
 };
 use clap::Parser;
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use redis::Client;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -14,10 +14,12 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tower_http::services::ServeDir;
 use tracing::{error, info};
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
-use uuid::Uuid;
 use websocket_channels::{
     channel::ChannelControl,
-    websocket::{streaming_default_tx_handler, system_default_tx_handler, State as AppState},
+    utils::random_string,
+    websocket::{
+        axum_on_connected, streaming_default_tx_handler, system_default_tx_handler, State,
+    },
 };
 
 async fn subscribe_and_send(
@@ -50,70 +52,9 @@ async fn subscribe_and_send(
 
 async fn websocket_handler(
     ws: WebSocketUpgrade,
-    AxumState(state): AxumState<Arc<AppState>>,
+    AxumState(state): AxumState<Arc<State>>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
-}
-
-async fn handle_socket(socket: axum::extract::ws::WebSocket, state: Arc<AppState>) {
-    let conn_id = Uuid::new_v4().to_string();
-    info!("on_connected: {}", conn_id);
-    state.ctl.lock().await.conn_add_tx(conn_id.clone()).await;
-
-    let (mut sender, mut receiver) = socket.split();
-
-    let (_tx, mut rx) = mpsc::unbounded_channel();
-
-    // Spawn a task for sending messages to the WebSocket
-    let mut send_task = tokio::spawn(async move {
-        while let Some(message) = rx.recv().await {
-            if let Err(e) = sender.send(message).await {
-                error!("Error sending websocket message: {}", e);
-                break;
-            }
-        }
-    });
-
-    // Spawn a task for receiving messages from the WebSocket
-    let state_clone = state.clone();
-    let conn_id_clone = conn_id.clone();
-    let mut receive_task = tokio::spawn(async move {
-        while let Some(result) = receiver.next().await {
-            match result {
-                Ok(msg) => {
-                    if let Err(e) =
-                        handle_websocket_message(msg, &state_clone, &conn_id_clone).await
-                    {
-                        error!("Error handling websocket message: {}", e);
-                        break;
-                    }
-                }
-                Err(e) => {
-                    error!("Error receiving websocket message: {}", e);
-                    break;
-                }
-            }
-        }
-    });
-
-    // Wait for either task to finish
-    tokio::select! {
-        _ = (&mut send_task) => receive_task.abort(),
-        _ = (&mut receive_task) => send_task.abort(),
-    }
-
-    state.ctl.lock().await.agent_rm(conn_id).await;
-    info!("client connection closed");
-}
-
-async fn handle_websocket_message(
-    _msg: axum::extract::ws::Message,
-    _state: &Arc<AppState>,
-    _conn_id: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // 实现消息处理逻辑
-    // 这里需要根据您的具体需求来处理不同类型的消息
-    Ok(())
+    ws.on_upgrade(move |socket| axum_on_connected(socket, state))
 }
 
 // use clap to parse command line arguments
@@ -159,10 +100,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     channel_control.channel_add("streaming".into(), None).await;
 
     let redis_client = Client::open(redis_url.clone())?;
-    let state = Arc::new(AppState {
+    let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
         redis_url: redis_url.clone(),
         redis_client,
+        jwt_secret: random_string(8),
     });
 
     tokio::spawn(system_default_tx_handler(state.clone(), "system"));

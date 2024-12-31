@@ -26,7 +26,7 @@ use warp::ws::WebSocket;
 use warp::Filter;
 use websocket_channels::channel::ChannelControl;
 use websocket_channels::websocket::{
-    on_connected, streaming_default_tx_handler, system_default_tx_handler, State,
+    streaming_default_tx_handler, system_default_tx_handler, warp_on_connected, State,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -177,7 +177,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and(warp::ws())
         .and(warp::any().map(move || state_for_ws.clone()))
         .map(|ws: warp::ws::Ws, state| {
-            ws.on_upgrade(move |websocket| on_connected(websocket, state))
+            ws.on_upgrade(move |websocket| warp_on_connected(websocket, state))
         });
 
     // let state_for_token = state.clone();
