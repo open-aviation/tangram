@@ -249,7 +249,7 @@ impl ChannelControl {
             .ok_or(ChannelError::ChannelNotFound)?
             .join(agent_id.clone())
             .await;
-        let channel_rx = channel_tx.subscribe();
+        let mut channel_rx = channel_tx.subscribe();
         let agent_tx = self
             .agent_tx
             .lock()
@@ -259,7 +259,15 @@ impl ChannelControl {
             .clone();
 
         // 订阅 channel 并将消息转发给 agent
-        let relay_task = tokio::spawn(channel_to_agent_relay(channel_rx, agent_tx));
+        let relay_task = tokio::spawn(async move {
+            while let Ok(channel_message) = channel_rx.recv().await {
+                match &channel_message {
+                    ChannelMessage::Reply(_reply_message) => {
+                        let _ = agent_tx.send(channel_message);
+                    }
+                }
+            }
+        });
 
         match agent_relay_tasks.entry(agent_id.clone()) {
             Entry::Occupied(mut entry) => {
@@ -401,20 +409,6 @@ impl ChannelControl {
     /// list all agents
     pub async fn agent_list(&self) -> Vec<String> {
         self.agent_tx.lock().await.keys().cloned().collect()
-    }
-}
-
-// ch rx => agent tx
-async fn channel_to_agent_relay(
-    mut channel_rx: broadcast::Receiver<ChannelMessage>,
-    agent_tx: broadcast::Sender<ChannelMessage>,
-) {
-    while let Ok(channel_message) = channel_rx.recv().await {
-        match &channel_message {
-            ChannelMessage::Reply(_reply_message) => {
-                let _ = agent_tx.send(channel_message);
-            }
-        }
     }
 }
 
