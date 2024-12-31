@@ -122,17 +122,23 @@ impl Channel {
     pub async fn join(&self, agent_id: String) -> broadcast::Sender<ChannelMessage> {
         let mut agents = self.agents.lock().await;
         if !agents.contains(&agent_id) {
-            agents.push(agent_id);
+            agents.push(agent_id.clone());
             self.count.fetch_add(1, Ordering::SeqCst);
+            info!("CHANNEL / total: {:?}, added {}", self.count, agent_id);
+        } else {
+            info!("CHANNEL / total: {:?}, {} exists", self.count, agent_id);
         }
         self.tx.clone()
     }
 
-    pub async fn leave(&self, agent: String) {
+    pub async fn leave(&self, agent_id: String) {
         let mut agents = self.agents.lock().await;
-        if let Some(pos) = agents.iter().position(|x| *x == agent) {
-            agents.swap_remove(pos);
+        if let Some(pos) = agents.iter().position(|x| *x == agent_id) {
+            // - 找到 index
+            // - 删除 index 位置的，用最后一个顶替这个位置
+            let agent = agents.swap_remove(pos);
             self.count.fetch_sub(1, Ordering::SeqCst);
+            info!("CHANNEL / {:?}, removed {}", self.count, agent);
         }
     }
 
@@ -168,7 +174,7 @@ impl ChannelControl {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(100);
                 entry.insert(tx);
-                debug!("CONN / tx added: {}", conn_id.clone());
+                debug!("CONN / conn_tx added, conn_id: {}", conn_id.clone());
             }
             Entry::Occupied(_) => {}
         }
@@ -193,15 +199,8 @@ impl ChannelControl {
     }
 
     // 清理所有和conn 有关的: conn, channel, agent
+    // agent_id: {conn_id}:{channel}:{join_ref}
     pub async fn conn_cleanup(&self, conn_id: String) {
-        // self.agent_relay_tasks.lock().await.retain(|k, agents| {
-        //     if k.starts_with(&conn_id) {
-        //         agents.iter().for_each(|agent| {
-        //             agent.relay_task.abort();
-        //         });
-        //     }
-        //     !k.starts_with(&conn_id)
-        // });
         self.agent_relay_task.lock().await.retain(|k, agent| {
             if k.starts_with(&conn_id) {
                 agent.relay_task.abort();
@@ -210,10 +209,10 @@ impl ChannelControl {
             info!("CONN / {} to be removed", agent.id);
             !k.starts_with(&conn_id)
         });
-        let agent_tx = self.agent_tx.lock().await;
-        debug!("CONN / to cleanup agent tx, conn_id: {}, {} {:?}", conn_id, agent_tx.len(), agent_tx.keys().collect::<Vec<&String>>());
-        self.agent_tx.lock().await.retain(|k, _| !k.starts_with(&conn_id)); // agent_id: {conn_id}:{channel}:{join_ref}
-        debug!("CONN / agent tx cleared, conn_id: {}, {} {:?}", conn_id, agent_tx.len(), agent_tx.keys().collect::<Vec<&String>>());
+        let mut agent_tx = self.agent_tx.lock().await;
+        debug!("CONN / cleanup agent_tx, conn_id: {}, {} {:?}", conn_id, agent_tx.len(), agent_tx.keys().collect::<Vec<&String>>());
+        agent_tx.retain(|k, _| !k.starts_with(&conn_id));
+        debug!("CONN / agent_tx cleared, conn_id: {}, {} {:?}", conn_id, agent_tx.len(), agent_tx.keys().collect::<Vec<&String>>());
 
         self.conn_tx.lock().await.remove_entry(&conn_id);
         debug!("CONN / conn cleared, {}", conn_id);
@@ -226,26 +225,6 @@ impl ChannelControl {
 
     // 删除一个 channel
     pub async fn channel_remove(&self, channel_name: String) {
-        // 在删除之前需要清理所有的资源
-        //
-        // match self.channels.lock().await.entry(channel_name.clone()) {
-        //     Entry::Vacant(_) => {}
-        //     Entry::Occupied(el) => {
-        //         for agent in el.get().agents().await.iter() {
-        //             if let Entry::Occupied(mut agent_tasks) = self.agent_relay_tasks.lock().await.entry(agent.into()) {
-        //                 let relay_tasks = agent_tasks.get_mut();
-        //                 relay_tasks.retain(|task| {
-        //                     if task.channel_name == channel_name {
-        //                         task.relay_task.abort();
-        //                     }
-        //                     task.channel_name != channel_name
-        //                 });
-        //             }
-        //         }
-        //
-        //         el.remove();
-        //     }
-        // }
         match self.channels.lock().await.entry(channel_name.clone()) {
             Entry::Vacant(_) => {}
             Entry::Occupied(entry) => {
@@ -289,27 +268,6 @@ impl ChannelControl {
             }
         });
 
-        // let mut agent_relay_tasks = self.agent_relay_tasks.lock().await;
-        // match agent_relay_tasks.entry(agent_id.clone()) {
-        //     Entry::Occupied(mut entry) => {
-        //         let relay_tasks = entry.get_mut();
-        //         info!("AGENT / {} has tasks {} {:?}", agent_id, relay_tasks.len(), relay_tasks);
-        //         if !relay_tasks.iter().any(|agent| agent.channel_name == channel_name) {
-        //             relay_tasks.push(ChannelAgent {
-        //                 id: agent_id,
-        //                 channel_name: channel_name.to_string().clone(),
-        //                 relay_task,
-        //             });
-        //         }
-        //     }
-        //     Entry::Vacant(entry) => {
-        //         entry.insert(vec![ChannelAgent {
-        //             id: agent_id,
-        //             channel_name: channel_name.to_string().clone(),
-        //             relay_task,
-        //         }]);
-        //     }
-        // };
         match self.agent_relay_task.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(_) => {
                 warn!("AGENT / {} already has a relay task", agent_id);
@@ -329,22 +287,6 @@ impl ChannelControl {
         info!("CH / leave {} from {} ...", agent_id, name);
         let channels = self.channels.lock().await;
         channels.get(&name).ok_or(ChannelError::ChannelNotFound)?.leave(agent_id.clone()).await;
-
-        // let mut agent_relay_tasks = self.agent_relay_tasks.lock().await;
-        // match agent_relay_tasks.entry(agent_id.clone()) {
-        //     Entry::Occupied(mut entry) => {
-        //         let relay_tasks = entry.get_mut();
-        //         // 所有返回值为真的保留
-        //         relay_tasks.retain(|task| {
-        //             if task.channel_name == name {
-        //                 task.relay_task.abort();
-        //                 info!("relay task for {} aborts.", agent_id);
-        //             }
-        //             task.channel_name != name
-        //         });
-        //     }
-        //     Entry::Vacant(_) => {}
-        // }
         match self.agent_relay_task.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(entry) => {
                 entry.get().relay_task.abort();
@@ -367,15 +309,6 @@ impl ChannelControl {
             .send(message)
             .map_err(|_| ChannelError::MessageSendError)
     }
-
-    // pub async fn get_agent_sender(
-    //     &self,
-    //     agent_id: String,
-    // ) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
-    //     info!("get agent {} sender", agent_id);
-    //     let agent_sender_map = self.agent_sender_map.lock().await;
-    //     Ok(agent_sender_map.get(&agent_id).unwrap().clone())
-    // }
 
     pub async fn agent_rx(&self, agent_id: String) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
         Ok(self.agent_tx.lock().await.get(&agent_id).ok_or(ChannelError::AgentNotInitiated)?.subscribe())
@@ -402,23 +335,6 @@ impl ChannelControl {
 
     /// remove the agent after leaving all channels
     pub async fn agent_rm(&self, agent_id: String) {
-        // let channels = self.channels.lock().await;
-        // match self.agent_relay_tasks.lock().await.entry(agent_id.clone()) {
-        //     Entry::Occupied(entry) => {
-        //         let relay_tasks = entry.get();
-        //         for relay_task in relay_tasks {
-        //             let channel = channels.get(&relay_task.channel_name);
-        //             if let Some(channel) = channel {
-        //                 channel.leave(agent_id.clone()).await;
-        //                 debug!("AGENT / {} removed from channel {}", agent_id, relay_task)
-        //             }
-        //             relay_task.relay_task.abort();
-        //         }
-        //         entry.remove();
-        //         debug!("AGENT / {} subscribe tasks removed", agent_id);
-        //     }
-        //     Entry::Vacant(_) => {}
-        // }
         match self.agent_relay_task.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(entry) => {
                 entry.get().relay_task.abort();
@@ -434,6 +350,10 @@ impl ChannelControl {
                 debug!("AGENT / {} tx removed", agent_id);
             }
             Entry::Vacant(_) => {}
+        }
+        // Channel agents 中的也需要删除
+        for channel in self.channels.lock().await.values() {
+            channel.leave(agent_id.clone()).await;
         }
 
         let agents = self.agent_list().await;
