@@ -241,7 +241,9 @@ pub async fn warp_on_connected(ws: WebSocket, state: Arc<State>) {
 async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn: &mut redis::aio::MultiplexedConnection) -> RedisResult<()> {
     let rm_result = serde_json::from_str::<RequestMessage>(text);
     if rm_result.is_err() {
-        error!("error: {}", rm_result.err().unwrap());
+        error!("WS_RX / conn: {}, error: {}", &conn_id, rm_result.err().unwrap());
+        // 清理 conn_id 的所有 agent
+        // state.ctl.lock().await.agent_rm(conn_id).await;
         return Ok(());
     }
     let rm: RequestMessage = rm_result.unwrap();
@@ -253,7 +255,7 @@ async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn
 
     if channel_name == "phoenix" && event == "heartbeat" {
         ok_reply(conn_id, None, event_ref, "phoenix", state.clone()).await;
-        debug!("heartbeat processed");
+        debug!("WS_RX / heartbeat processed");
         // continue;
     }
 
@@ -262,14 +264,14 @@ async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn
 
         // TODO: 这里启动了一个新的 relay task(agent rx => conn tx), 需要在agent leave 的时候清除
         let _relay_task = handle_join(&rm, state.clone(), conn_id).await;
-        debug!("join processed");
+        debug!("WS_RX / join processed");
         // continue;
     }
 
     if event == "phx_leave" {
         handle_leave(state.clone(), conn_id, join_ref.clone(), event_ref, channel_name.clone()).await;
         // TODO: cleanup _relay_task
-        debug!("leave processed");
+        debug!("WS_RX / leave processed");
         // continue;
     }
 
@@ -297,7 +299,7 @@ async fn dispatch_by_redis(
 // NOTE: relay task 在连接断开的时候会发生什么?
 async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> JoinHandle<()> {
     let channel_name = rm.topic.clone(); // ?
-    let agent_id = format!("{}:{}", conn_id, rm.join_ref.clone().unwrap());
+    let agent_id = format!("{}:{}:{}", conn_id, channel_name.clone(), rm.join_ref.clone().unwrap());
     let join_ref = rm.join_ref.clone();
     let event_ref = rm.event_ref.clone();
 
@@ -316,19 +318,20 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> J
 
         debug!("agent {} => conn {}", agent_id.clone(), local_conn_id.clone());
         loop {
-            match agent_rx.recv().await {
-                Ok(mut channel_message) => {
-                    let ChannelMessage::Reply(ref mut reply) = channel_message;
-                    reply.join_ref = local_join_ref.clone();
-                    let result = conn_tx.send(channel_message.clone()); // agent rx => conn tx => conn rx => ws tx
-                    if result.is_err() {
-                        error!("agent {}, conn: {}, sending failure: {:?}", agent_id, &local_conn_id, result.err().unwrap());
-                        break; // fails when there's no reciever, stop forwarding
-                    }
-                    // debug!("F {}", channel_message);
-                }
-                Err(e) => error!("fail to get message from agent rx: {}", e),
+            let message_opt = agent_rx.recv().await;
+            if message_opt.is_err() {
+                error!("fail to get message from agent rx: {}", message_opt.err().unwrap());
+                break;
             }
+            let mut channel_message = message_opt.unwrap();
+            let ChannelMessage::Reply(ref mut reply) = channel_message;
+            reply.join_ref = local_join_ref.clone();
+            let result = conn_tx.send(channel_message.clone()); // agent rx => conn tx => conn rx => ws tx
+            if result.is_err() {
+                error!("agent {}, conn: {}, sending failure: {:?}", agent_id, &local_conn_id, result.err().unwrap());
+                break; // fails when there's no reciever, stop forwarding
+            }
+            // debug!("F {}", channel_message);
         }
     });
 
@@ -337,10 +340,12 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> J
     relay_task
 }
 
-async fn handle_leave(state: Arc<State>, cid: &str, join_ref: Option<String>, event_ref: &str, channel_name: String) {
-    state.ctl.lock().await.agent_rm(cid.to_string()).await;
-    state.ctl.lock().await.channel_leave(channel_name.clone(), cid.to_string()).await.unwrap();
-    ok_reply(cid, join_ref, event_ref, &channel_name, state.clone()).await;
+async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: String) {
+    let agent_id = format!("{}:{}:{}", conn_id, channel_name.clone(), join_ref.clone().unwrap());
+    state.ctl.lock().await.agent_rm(agent_id.clone()).await;
+
+    state.ctl.lock().await.channel_leave(channel_name.clone(), agent_id.clone()).await.unwrap();
+    ok_reply(conn_id, join_ref, event_ref, &channel_name, state.clone()).await;
 }
 
 async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: &str, state: Arc<State>) {
