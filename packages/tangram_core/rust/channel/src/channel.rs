@@ -181,7 +181,7 @@ impl ChannelControl {
         &self,
         conn_id: String,
     ) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
-        info!("get conn {} subscription", conn_id);
+        info!("getting conn {} rx ...", conn_id);
         Ok(self.conn_tx.lock().await.get(&conn_id).unwrap().subscribe())
     }
 
@@ -189,7 +189,7 @@ impl ChannelControl {
         &self,
         conn_id: String,
     ) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
-        info!("get conn {} sender", conn_id);
+        info!("getting conn {} tx ...", conn_id);
         Ok(self.conn_tx.lock().await.get(&conn_id).unwrap().clone())
     }
 
@@ -261,7 +261,7 @@ impl ChannelControl {
             .clone();
 
         // 订阅 channel 并将消息转发给 agent
-        let relay_task = tokio::spawn(channel_to_agent_handler(channel_rx, agent_tx));
+        let relay_task = tokio::spawn(channel_to_agent_relay(channel_rx, agent_tx));
 
         match agent_relay_tasks.entry(agent_id.clone()) {
             Entry::Occupied(mut entry) => {
@@ -313,6 +313,7 @@ impl ChannelControl {
         }
         Ok(())
     }
+
     /// broadcast message to the channel
     /// it returns the number of agents who received the message
     pub async fn channel_broadcast(
@@ -338,19 +339,18 @@ impl ChannelControl {
     //     Ok(agent_sender_map.get(&agent_id).unwrap().clone())
     // }
 
-    pub async fn agent_subscriber(
+    pub async fn agent_rx(
         &self,
         agent_id: String,
     ) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
-        info!("get agent {} reciever", agent_id);
-        let receiver = self
+        info!("get agent {} rx ...", agent_id);
+        Ok(self
             .agent_tx
             .lock()
             .await
             .get(&agent_id)
             .ok_or(ChannelError::AgentNotInitiated)?
-            .subscribe();
-        Ok(receiver)
+            .subscribe())
     }
 
     /// Add channel agent to the channel ctl, 就是添加 agent tx
@@ -399,7 +399,8 @@ impl ChannelControl {
     }
 }
 
-async fn channel_to_agent_handler(
+// ch rx => agent tx
+async fn channel_to_agent_relay(
     mut channel_rx: broadcast::Receiver<ChannelMessage>,
     agent_tx: broadcast::Sender<ChannelMessage>,
 ) {
@@ -618,7 +619,7 @@ mod test {
         ctl.agent_add("user1".into(), None).await;
 
         // Test subscription before join
-        let sub = ctl.agent_subscriber("user1".into()).await;
+        let sub = ctl.agent_rx("user1".into()).await;
         assert!(sub.is_ok());
 
         // Join channel and test broadcasting
@@ -629,7 +630,7 @@ mod test {
 
         // Test subscription after removal
         ctl.agent_rm("user1".into()).await;
-        let sub = ctl.agent_subscriber("user1".into()).await;
+        let sub = ctl.agent_rx("user1".into()).await;
         assert!(matches!(sub.unwrap_err(), ChannelError::AgentNotInitiated));
     }
 
@@ -793,7 +794,7 @@ mod test {
 
         let _ = ctl.channel_join("room1", "agent1".into()).await.unwrap();
 
-        let mut rx = ctl.agent_subscriber("agent1".into()).await.unwrap();
+        let mut rx = ctl.agent_rx("agent1".into()).await.unwrap();
 
         // Send multiple messages
         for i in 0..5 {
