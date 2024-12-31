@@ -119,7 +119,7 @@ impl State {}
 pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<State>) {
     let conn_id = Uuid::new_v4().to_string();
     state.ctl.lock().await.conn_add_tx(conn_id.clone()).await;
-    info!("new connection connected: {}", conn_id);
+    info!("AXUM / WS_TX / new connection connected: {}", conn_id);
 
     let (mut ws_tx, mut ws_rx) = ws.split();
 
@@ -127,17 +127,29 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
     let ws_tx_state = state.clone();
     let ws_tx_conn_id = conn_id.clone();
     let mut ws_tx_task = tokio::spawn(async move {
-        info!("launch websocket tx task (conn rx => ws tx) ...");
+        info!("AXUM / WS_TX / launch websocket tx task (conn rx => ws tx) ...");
 
         let mut conn_rx = ws_tx_state.ctl.lock().await.conn_rx(ws_tx_conn_id.clone()).await.unwrap();
-        while let Ok(channel_message) = conn_rx.recv().await {
-            let ChannelMessage::Reply(reply_message) = channel_message;
-            let text = serde_json::to_string(&reply_message).unwrap();
-            // let result = ws_tx.send(warp::ws::Message::text(text)).await;
-            let result = ws_tx.send(axum::extract::ws::Message::Text(text)).await;
-            if result.is_err() {
-                error!("websocket tx sending failed: {}", result.err().unwrap());
-                break; // what happend? exit if the connection is lost
+        loop {
+            match conn_rx.recv().await {
+                Ok(channel_message) => {
+                    let ChannelMessage::Reply(reply_message) = channel_message;
+                    let text_result = serde_json::to_string(&reply_message);
+                    if text_result.is_err() {
+                        error!("AXUM / WS_TX / fail to serialize reply message: {}", text_result.err().unwrap());
+                        break;
+                    }
+                    let text = text_result.unwrap();
+                    let sending_result = ws_tx.send(axum::extract::ws::Message::Text(text)).await;
+                    if sending_result.is_err() {
+                        error!("AXUM / WS_TX / websocket tx sending failed: {}", sending_result.err().unwrap());
+                        break; // what happend? exit if the connection is lost
+                    }
+                }
+                Err(e) => {
+                    error!("AXUM / WS_TX / rx error: {:?}", e);
+                    break;
+                }
             }
         }
     });
@@ -167,11 +179,18 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
 
     // Wait for either task to finish
     tokio::select! {
-        _ = (&mut ws_tx_task) => ws_rx_task.abort(),
-        _ = (&mut ws_rx_task) => ws_tx_task.abort(),
+        _ = (&mut ws_tx_task) => {
+            ws_rx_task.abort();
+            info!("WS / RX task aborts.");
+        },
+        _ = (&mut ws_rx_task) => {
+            ws_tx_task.abort();
+            info!("WS / TX task aborts.");
+        },
     }
 
     state.ctl.lock().await.agent_rm(conn_id).await;
+    // TODO: more
     info!("client connection closed");
 }
 
@@ -241,7 +260,7 @@ pub async fn warp_on_connected(ws: WebSocket, state: Arc<State>) {
 async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn: &mut redis::aio::MultiplexedConnection) -> RedisResult<()> {
     let rm_result = serde_json::from_str::<RequestMessage>(text);
     if rm_result.is_err() {
-        error!("WS_RX / conn: {}, error: {}", &conn_id, rm_result.err().unwrap());
+        error!("WS_RX / conn: {}, error: {:?}", &conn_id, rm_result.err());
         // 清理 conn_id 的所有 agent
         // state.ctl.lock().await.agent_rm(conn_id).await;
         return Ok(());
