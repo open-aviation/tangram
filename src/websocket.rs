@@ -157,7 +157,7 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
     let ws_rx_state = state.clone();
     let ws_rx_conn_id = conn_id.clone();
     let mut ws_rx_task = tokio::spawn(async move {
-        info!("websocket rx handling (ws rx =>) ...");
+        info!("AXUM / WS_RX / websocket rx handling (ws rx =>) ...");
         let mut redis_conn = Client::open(ws_rx_state.redis_url.clone())
             .unwrap()
             .get_multiplexed_async_connection()
@@ -165,9 +165,15 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
             .unwrap();
 
         // 从 websocket rx 读取所有消息，处理或者分发到各个 channel
-        while let Some(msg_result) = ws_rx.next().await {
+        loop {
+            let ws_msg_opt = ws_rx.next().await;
+            if ws_msg_opt.is_none() {
+                error!("AXUM / WS_RX / ws rx receiving failure");
+                break;
+            }
+            let msg_result = ws_msg_opt.unwrap();
             if msg_result.is_err() {
-                error!("ws rx receiving failure: {}", msg_result.err().unwrap());
+                error!("AXUM / WS_RX / rx error: {:?}", msg_result.err());
                 break;
             }
             let msg = msg_result.unwrap();
@@ -177,21 +183,24 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
         }
     });
 
-    // Wait for either task to finish
+    // Wait for either task to finish: 一个结束了总是等另外一个
     tokio::select! {
         _ = (&mut ws_tx_task) => {
+            info!("AXUM / ws_tx_task exits.");
+
             ws_rx_task.abort();
-            info!("WS / RX task aborts.");
+            info!("AXUM / ws_rx_task aborts.");
         },
         _ = (&mut ws_rx_task) => {
+            info!("AXUM / ws_rx_task exits.");
+
             ws_tx_task.abort();
-            info!("WS / TX task aborts.");
+            info!("AXUM / ws_tx_task aborts.");
         },
     }
 
-    state.ctl.lock().await.agent_rm(conn_id).await;
-    // TODO: more
-    info!("client connection closed");
+    state.ctl.lock().await.conn_cleanup(conn_id.clone()).await;
+    info!("AXUM / CONNECTION CLOSED");
 }
 
 /// handle websocket connection
@@ -309,7 +318,9 @@ async fn dispatch_by_redis(
     let result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
     match result {
         Err(e) => error!("fail to publish to redis: {}", e),
-        _ => info!("published to redis {}, {}", redis_topic, message.clone()),
+        _ => {
+            // info!("published to redis {}, {}", redis_topic, message.clone());
+        }
     }
     Ok(())
 }
@@ -379,11 +390,6 @@ async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, chan
             response: Response::Empty {},
         },
     };
-    let text = serde_json::to_string(&join_reply_message).unwrap();
-    // debug!(
-    //     "sending empty response, channel: {}, join_ref: {:?}, ref: {}, {}",
-    //     channel_name, join_ref, event_ref, text
-    // );
     state
         .ctl
         .lock()
@@ -391,7 +397,8 @@ async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, chan
         .conn_send(conn_id.to_string(), ChannelMessage::Reply(join_reply_message))
         .await
         .unwrap();
-    debug!("sent to connection {}: {}", &conn_id, text);
+    // let text = serde_json::to_string(&join_reply_message).unwrap();
+    // debug!("sent to connection {}: {}", &conn_id, text);
 }
 
 pub async fn _channel_publish(counter: i32, response: Response, state: Arc<State>, channel_name: &str, event_name: &str) {
