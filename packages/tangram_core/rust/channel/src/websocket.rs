@@ -9,7 +9,6 @@ use serde_tuple::{Deserialize_tuple, Serialize_tuple};
 use std::fmt;
 use std::fmt::{Display, Error};
 use std::sync::Arc;
-use tokio::select;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info};
@@ -317,19 +316,18 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> J
 
         debug!("agent {} => conn {}", agent_id.clone(), local_conn_id.clone());
         loop {
-            select! {
-                channel_message_opt = agent_rx.recv() =>  {
-                    if let Ok(mut channel_message) = channel_message_opt {
-                        let ChannelMessage::Reply(ref mut reply) = channel_message;
-                        reply.join_ref = local_join_ref.clone();
-                        let result = conn_tx.send(channel_message.clone()); // agent rx => conn tx => conn rx => ws tx
-                        if result.is_err() {
-                            error!("agent {}, conn: {}, sending failure: {:?}", agent_id, &local_conn_id, result.err().unwrap());
-                            break; // fails when there's no reciever, stop forwarding
-                        }
-                        // debug!("F {}", channel_message);
+            match agent_rx.recv().await {
+                Ok(mut channel_message) => {
+                    let ChannelMessage::Reply(ref mut reply) = channel_message;
+                    reply.join_ref = local_join_ref.clone();
+                    let result = conn_tx.send(channel_message.clone()); // agent rx => conn tx => conn rx => ws tx
+                    if result.is_err() {
+                        error!("agent {}, conn: {}, sending failure: {:?}", agent_id, &local_conn_id, result.err().unwrap());
+                        break; // fails when there's no reciever, stop forwarding
                     }
-                },
+                    // debug!("F {}", channel_message);
+                }
+                Err(e) => error!("fail to get message from agent rx: {}", e),
             }
         }
     });
