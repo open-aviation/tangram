@@ -167,16 +167,16 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
     let (mut ws_tx, mut ws_rx) = ws.split();
 
     // conn rx => ws tx
-    let ws_state = state.clone();
-    let ws_conn_id = conn_id.clone();
+    let ws_tx_state = state.clone();
+    let ws_tx_conn_id = conn_id.clone();
     let mut ws_tx_task = tokio::spawn(async move {
         info!("launch websocket tx task (conn rx => ws tx) ...");
 
-        let mut conn_rx = ws_state
+        let mut conn_rx = ws_tx_state
             .ctl
             .lock()
             .await
-            .conn_rx(ws_conn_id.clone())
+            .conn_rx(ws_tx_conn_id.clone())
             .await
             .unwrap();
         while let Ok(channel_message) = conn_rx.recv().await {
@@ -195,9 +195,8 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
     let ws_rx_conn_id = conn_id.clone();
     let mut ws_rx_task = tokio::spawn(async move {
         info!("websocket rx handling (ws rx =>) ...");
-
-        let redis_client = Client::open(ws_rx_state.redis_url.clone()).unwrap();
-        let mut redis_conn = redis_client
+        let mut redis_conn = Client::open(ws_rx_state.redis_url.clone())
+            .unwrap()
             .get_multiplexed_async_connection()
             .await
             .unwrap();
@@ -209,11 +208,10 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
                 break;
             }
             let msg = msg_result.unwrap();
-            let text = msg.to_text().unwrap();
             handle_message(
                 ws_rx_state.clone(),
-                ws_rx_conn_id.clone(),
-                text,
+                &ws_rx_conn_id,
+                msg.to_text().unwrap(),
                 &mut redis_conn,
             )
             .await
@@ -283,14 +281,9 @@ pub async fn warp_on_connected(ws: WebSocket, state: Arc<State>) {
             }
             let msg = msg_result.unwrap();
             let text = msg.to_str().unwrap();
-            handle_message(
-                state_clone.clone(),
-                conn_id_clone.clone(),
-                text,
-                &mut redis_conn,
-            )
-            .await
-            .unwrap();
+            handle_message(state_clone.clone(), &conn_id_clone, text, &mut redis_conn)
+                .await
+                .unwrap();
         }
     });
 
@@ -310,80 +303,9 @@ pub async fn warp_on_connected(ws: WebSocket, state: Arc<State>) {
     info!("client connection closed");
 }
 
-/// default event handler
-pub async fn websocket_rx(
-    mut ws_rx: SplitStream<warp::ws::WebSocket>,
-    state: Arc<State>,
-    conn_id: String,
-) -> RedisResult<()> {
-    info!("websocket rx handling (ws rx =>) ...");
-
-    let redis_client = Client::open(state.redis_url.clone())?;
-    let mut redis_conn = redis_client.get_multiplexed_async_connection().await?;
-
-    // 从 websocket rx 读取所有消息，处理或者分发到各个 channel
-    while let Some(Ok(m)) = ws_rx.next().await {
-        if !m.is_text() {
-            // 也可能是 binary 的，暂时不处理
-            continue;
-        }
-        info!("read from websocket: `{}`", m.to_str().unwrap());
-        let rm_result = serde_json::from_str::<RequestMessage>(m.to_str().unwrap());
-        if rm_result.is_err() {
-            error!("error: {}", rm_result.err().unwrap());
-            continue;
-        }
-        let rm: RequestMessage = rm_result.unwrap();
-        let channel_name = &rm.topic;
-        let join_ref = &rm.join_ref;
-        let event_ref = &rm.event_ref;
-        let event = &rm.event;
-        let payload = &rm.payload;
-
-        if channel_name == "phoenix" && event == "heartbeat" {
-            send_ok_empty(&conn_id.clone(), None, event_ref, "phoenix", state.clone()).await;
-            debug!("heartbeat processed");
-            // continue;
-        }
-
-        if event == "phx_join" {
-            // TODO: 如果没有channel，创建
-
-            // TODO: 这里启动了一个新的 relay task(agent rx => conn tx), 需要在agent leave 的时候清除
-            let _relay_task = handle_join(&rm, state.clone(), &conn_id).await;
-            debug!("join processed");
-            // continue;
-        }
-
-        if event == "phx_leave" {
-            handle_leave(
-                state.clone(),
-                &conn_id.clone(),
-                join_ref.clone(),
-                event_ref,
-                channel_name.clone(),
-            )
-            .await;
-            // TODO: cleanup _relay_task
-            debug!("leave processed");
-            // continue;
-        }
-
-        // all events are dispatched to reids
-        dispatch_by_redis(
-            &mut redis_conn,
-            channel_name.clone(),
-            event.clone(),
-            payload,
-        )
-        .await?;
-    }
-    Ok(())
-}
-
 async fn handle_message(
     state: Arc<State>,
-    conn_id: String,
+    conn_id: &str,
     text: &str,
     redis_conn: &mut redis::aio::MultiplexedConnection,
 ) -> RedisResult<()> {
@@ -400,7 +322,7 @@ async fn handle_message(
     let payload = &rm.payload;
 
     if channel_name == "phoenix" && event == "heartbeat" {
-        send_ok_empty(&conn_id.clone(), None, event_ref, "phoenix", state.clone()).await;
+        send_ok_empty(conn_id, None, event_ref, "phoenix", state.clone()).await;
         debug!("heartbeat processed");
         // continue;
     }
@@ -409,7 +331,7 @@ async fn handle_message(
         // TODO: 如果没有channel，创建
 
         // TODO: 这里启动了一个新的 relay task(agent rx => conn tx), 需要在agent leave 的时候清除
-        let _relay_task = handle_join(&rm, state.clone(), &conn_id).await;
+        let _relay_task = handle_join(&rm, state.clone(), conn_id).await;
         debug!("join processed");
         // continue;
     }
@@ -417,7 +339,7 @@ async fn handle_message(
     if event == "phx_leave" {
         handle_leave(
             state.clone(),
-            &conn_id.clone(),
+            conn_id,
             join_ref.clone(),
             event_ref,
             channel_name.clone(),
@@ -699,10 +621,10 @@ async fn send_ok_empty(
         },
     };
     let text = serde_json::to_string(&join_reply_message).unwrap();
-    debug!(
-        "sending empty response, channel: {}, join_ref: {:?}, ref: {}, {}",
-        channel_name, join_ref, event_ref, text
-    );
+    // debug!(
+    //     "sending empty response, channel: {}, join_ref: {:?}, ref: {}, {}",
+    //     channel_name, join_ref, event_ref, text
+    // );
     state
         .ctl
         .lock()
