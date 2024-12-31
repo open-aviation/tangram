@@ -1,26 +1,24 @@
+use crate::channel::{ChannelControl, ChannelMessage};
 use futures::stream::SplitSink;
+use futures::stream::SplitStream;
 use futures::SinkExt;
 use futures::StreamExt;
 use redis::AsyncCommands;
+use redis::Client;
 use redis::RedisResult;
+use serde::{Deserialize, Serialize};
+use serde_tuple::{Deserialize_tuple, Serialize_tuple};
 use std::fmt;
 use std::fmt::{Display, Error};
 use std::sync::Arc;
 use tokio::select;
-use tokio::task::JoinHandle;
-use warp::filters::ws::Message;
-
-use futures::stream::SplitStream;
-use redis::Client;
-use serde::{Deserialize, Serialize};
-use serde_tuple::{Deserialize_tuple, Serialize_tuple};
+use tokio::sync::mpsc;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
-use warp::filters::ws::WebSocket;
-
-use crate::channel::{ChannelControl, ChannelMessage};
+use warp::filters::ws::{Message, WebSocket};
 
 /// reply data structures
 #[derive(Clone, Debug, Serialize_tuple)]
@@ -161,16 +159,141 @@ pub struct State {
     pub jwt_secret: String,
 }
 
+pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<State>) {
+    let conn_id = Uuid::new_v4().to_string();
+    state.ctl.lock().await.conn_add_tx(conn_id.clone()).await;
+    info!("new connection connected: {}", conn_id);
+
+    let (mut ws_tx, mut ws_rx) = ws.split();
+
+    // conn rx => ws tx
+    let ws_state = state.clone();
+    let ws_conn_id = conn_id.clone();
+    let mut ws_tx_task = tokio::spawn(async move {
+        info!("launch websocket tx task (conn rx => ws tx) ...");
+
+        let mut conn_rx = ws_state
+            .ctl
+            .lock()
+            .await
+            .conn_rx(ws_conn_id.clone())
+            .await
+            .unwrap();
+        while let Ok(channel_message) = conn_rx.recv().await {
+            let ChannelMessage::Reply(reply_message) = channel_message;
+            let text = serde_json::to_string(&reply_message).unwrap();
+            // let result = ws_tx.send(warp::ws::Message::text(text)).await;
+            let result = ws_tx.send(axum::extract::ws::Message::Text(text)).await;
+            if result.is_err() {
+                error!("websocket tx sending failed: {}", result.err().unwrap());
+                break; // what happend? exit if the connection is lost
+            }
+        }
+    });
+
+    let ws_rx_state = state.clone();
+    let ws_rx_conn_id = conn_id.clone();
+    let mut ws_rx_task = tokio::spawn(async move {
+        info!("websocket rx handling (ws rx =>) ...");
+
+        let redis_client = Client::open(ws_rx_state.redis_url.clone()).unwrap();
+        let mut redis_conn = redis_client
+            .get_multiplexed_async_connection()
+            .await
+            .unwrap();
+
+        // 从 websocket rx 读取所有消息，处理或者分发到各个 channel
+        while let Some(msg_result) = ws_rx.next().await {
+            if msg_result.is_err() {
+                error!("ws rx receiving failure: {}", msg_result.err().unwrap());
+                break;
+            }
+            let msg = msg_result.unwrap();
+            let text = msg.to_text().unwrap();
+            handle_message(
+                ws_rx_state.clone(),
+                ws_rx_conn_id.clone(),
+                text,
+                &mut redis_conn,
+            )
+            .await
+            .unwrap();
+        }
+    });
+
+    // Wait for either task to finish
+    tokio::select! {
+        _ = (&mut ws_tx_task) => ws_rx_task.abort(),
+        _ = (&mut ws_rx_task) => ws_tx_task.abort(),
+    }
+
+    state.ctl.lock().await.agent_rm(conn_id).await;
+    info!("client connection closed");
+}
+
 /// handle websocket connection
-pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
+pub async fn warp_on_connected(ws: WebSocket, state: Arc<State>) {
     let conn_id = Uuid::new_v4().to_string(); // 服务端生成的，内部使用
     state.ctl.lock().await.conn_add_tx(conn_id.clone()).await;
     info!("on_connected, 新连接: {}", conn_id);
 
-    let (ws_tx, ws_rx) = ws.split();
+    let (mut ws_tx, mut ws_rx) = ws.split();
 
-    let mut ws_tx_task = tokio::spawn(websocket_tx(conn_id.clone(), state.clone(), ws_tx));
-    let mut ws_rx_task = tokio::spawn(websocket_rx(ws_rx, state.clone(), conn_id.clone()));
+    // conn rx => ws tx
+    // 把消息经由 websocket 发送到客户端
+    let ws_state = state.clone();
+    let ws_conn_id = conn_id.clone();
+    let mut ws_tx_task = tokio::spawn(async move {
+        debug!("launch websocket tx task (conn rx => ws tx) ...");
+
+        let mut conn_rx = ws_state
+            .ctl
+            .lock()
+            .await
+            .conn_rx(ws_conn_id.clone())
+            .await
+            .unwrap();
+        while let Ok(channel_message) = conn_rx.recv().await {
+            let ChannelMessage::Reply(reply_message) = channel_message;
+            let text = serde_json::to_string(&reply_message).unwrap();
+            let result = ws_tx.send(warp::ws::Message::text(text)).await;
+            if result.is_err() {
+                error!("websocket tx sending failed: {}", result.err().unwrap());
+                break; // what happend? exit if the connection is lost
+            }
+        }
+    });
+    // let mut ws_rx_task = tokio::spawn(websocket_rx(ws_rx, state.clone(), conn_id.clone()));
+    let state_clone = state.clone();
+    let conn_id_clone = conn_id.clone();
+    let mut ws_rx_task = tokio::spawn(async move {
+        info!("websocket rx handling (ws rx =>) ...");
+
+        let redis_client = Client::open(state_clone.redis_url.clone()).unwrap();
+        let mut redis_conn = redis_client
+            .get_multiplexed_async_connection()
+            .await
+            .unwrap();
+
+        // 从 websocket rx 读取所有消息，处理或者分发到各个 channel
+        while let Some(msg_result) = ws_rx.next().await {
+            if msg_result.is_err() {
+                error!("ws rx receiving failure: {}", msg_result.err().unwrap());
+                break;
+            }
+            let msg = msg_result.unwrap();
+            let text = msg.to_str().unwrap();
+            handle_message(
+                state_clone.clone(),
+                conn_id_clone.clone(),
+                text,
+                &mut redis_conn,
+            )
+            .await
+            .unwrap();
+        }
+    });
+
     tokio::select! {
         _ = (&mut ws_rx_task) => {
             ws_rx_task.abort();
@@ -182,48 +305,23 @@ pub async fn on_connected(ws: WebSocket, state: Arc<State>) {
         }
     }
 
-    state.ctl.lock().await.agent_rm(conn_id.to_string()).await;
+    // 这个是 conn 结束，不是 agent 结束
+    // state.ctl.lock().await.agent_rm(conn_id.to_string()).await;
     info!("client connection closed");
 }
 
-/// conn rx => ws tx
-/// 把消息经由 websocket 发送到客户端
-async fn websocket_tx(
-    conn_id: String,
-    state: Arc<State>,
-    mut ws_tx: SplitSink<WebSocket, Message>,
-) {
-    debug!("launch websocket tx task (conn rx => ws tx) ...");
-
-    let mut conn_rx = state
-        .ctl
-        .lock()
-        .await
-        .conn_rx(conn_id.clone())
-        .await
-        .unwrap();
-    while let Ok(channel_message) = conn_rx.recv().await {
-        let ChannelMessage::Reply(reply_message) = channel_message;
-        let text = serde_json::to_string(&reply_message).unwrap();
-        let result = ws_tx.send(warp::ws::Message::text(text)).await;
-        if result.is_err() {
-            error!("websocket tx sending failed: {}", result.err().unwrap());
-            continue; // what happend? exit if the connection is lost
-        }
-    }
-}
-
 /// default event handler
-async fn websocket_rx(
-    mut ws_rx: SplitStream<WebSocket>,
+pub async fn websocket_rx(
+    mut ws_rx: SplitStream<warp::ws::WebSocket>,
     state: Arc<State>,
-    cid: String,
+    conn_id: String,
 ) -> RedisResult<()> {
     info!("websocket rx handling (ws rx =>) ...");
 
     let redis_client = Client::open(state.redis_url.clone())?;
     let mut redis_conn = redis_client.get_multiplexed_async_connection().await?;
 
+    // 从 websocket rx 读取所有消息，处理或者分发到各个 channel
     while let Some(Ok(m)) = ws_rx.next().await {
         if !m.is_text() {
             // 也可能是 binary 的，暂时不处理
@@ -243,13 +341,16 @@ async fn websocket_rx(
         let payload = &rm.payload;
 
         if channel_name == "phoenix" && event == "heartbeat" {
-            send_ok_empty(&cid.clone(), None, event_ref, "phoenix", state.clone()).await;
+            send_ok_empty(&conn_id.clone(), None, event_ref, "phoenix", state.clone()).await;
             debug!("heartbeat processed");
             // continue;
         }
 
         if event == "phx_join" {
-            handle_join(&rm, state.clone(), &cid).await;
+            // TODO: 如果没有channel，创建
+
+            // TODO: 这里启动了一个新的 relay task(agent rx => conn tx), 需要在agent leave 的时候清除
+            let _relay_task = handle_join(&rm, state.clone(), &conn_id).await;
             debug!("join processed");
             // continue;
         }
@@ -257,12 +358,13 @@ async fn websocket_rx(
         if event == "phx_leave" {
             handle_leave(
                 state.clone(),
-                &cid.clone(),
+                &conn_id.clone(),
                 join_ref.clone(),
                 event_ref,
                 channel_name.clone(),
             )
             .await;
+            // TODO: cleanup _relay_task
             debug!("leave processed");
             // continue;
         }
@@ -276,6 +378,58 @@ async fn websocket_rx(
         )
         .await?;
     }
+    Ok(())
+}
+
+async fn handle_message(
+    state: Arc<State>,
+    conn_id: String,
+    text: &str,
+    redis_conn: &mut redis::aio::MultiplexedConnection,
+) -> RedisResult<()> {
+    let rm_result = serde_json::from_str::<RequestMessage>(text);
+    if rm_result.is_err() {
+        error!("error: {}", rm_result.err().unwrap());
+        return Ok(());
+    }
+    let rm: RequestMessage = rm_result.unwrap();
+    let channel_name = &rm.topic;
+    let join_ref = &rm.join_ref;
+    let event_ref = &rm.event_ref;
+    let event = &rm.event;
+    let payload = &rm.payload;
+
+    if channel_name == "phoenix" && event == "heartbeat" {
+        send_ok_empty(&conn_id.clone(), None, event_ref, "phoenix", state.clone()).await;
+        debug!("heartbeat processed");
+        // continue;
+    }
+
+    if event == "phx_join" {
+        // TODO: 如果没有channel，创建
+
+        // TODO: 这里启动了一个新的 relay task(agent rx => conn tx), 需要在agent leave 的时候清除
+        let _relay_task = handle_join(&rm, state.clone(), &conn_id).await;
+        debug!("join processed");
+        // continue;
+    }
+
+    if event == "phx_leave" {
+        handle_leave(
+            state.clone(),
+            &conn_id.clone(),
+            join_ref.clone(),
+            event_ref,
+            channel_name.clone(),
+        )
+        .await;
+        // TODO: cleanup _relay_task
+        debug!("leave processed");
+        // continue;
+    }
+
+    // all events are dispatched to reids
+    dispatch_by_redis(redis_conn, channel_name.clone(), event.clone(), payload).await?;
     Ok(())
 }
 
@@ -311,7 +465,7 @@ async fn handle_join(
     let join_ref = &rm.join_ref;
     let event_ref = &rm.event_ref;
 
-    info!("agent {} joining channel {} ...", agent_id, channel_name);
+    info!("agent joining ({} => {}) ...", agent_id, channel_name);
     state
         .ctl
         .lock()
@@ -400,15 +554,15 @@ async fn agent_to_conn(
         .await
         .unwrap();
 
-    let redis_url = state.redis_url.clone();
-    let redis_topic = format!("to:{}:*", channel_name);
-    let mut redis_pubsub = get_redis_pubsub_stream(redis_topic, redis_url.clone())
-        .await
-        .unwrap();
-    let mut redis_pubsub_stream = redis_pubsub.on_message();
+    // let redis_url = state.redis_url.clone();
+    // let redis_topic = format!("to:{}:*", channel_name);
+    // let mut redis_pubsub = get_redis_pubsub_stream(redis_topic, redis_url.clone())
+    //     .await
+    //     .unwrap();
+    // let mut redis_pubsub_stream = redis_pubsub.on_message();
 
+    // let mut counter = 0;
     debug!("agent {} => conn {}", agent_id.clone(), conn_id.clone());
-    let mut counter = 0;
     loop {
         select! {
             channel_message_opt = agent_rx.recv() =>  {
@@ -423,38 +577,89 @@ async fn agent_to_conn(
                     // debug!("F {}", channel_message);
                 }
             },
-            optional_message = redis_pubsub_stream.next() => {
-                if optional_message.is_none() {
-                    error!("agent_to_conn / from redis: none");
-                    continue;
-                }
-
-                let stream_message = optional_message.unwrap();
-                let payload: String = stream_message.get_payload()?;
-                debug!("agent_to_conn / from redis, {}, payload: `{}`", stream_message.get_channel_name(), payload.clone());
-
-                let response_from_redis_result = serde_json::from_str::<ResponseFromRedis>(&payload);
-                if response_from_redis_result.is_err() {
-                    warn!("fail to deserialize from Redis, {}, payload: `{}`", response_from_redis_result.err().unwrap(), payload);
-                    continue;
-                }
-                let response: Response = response_from_redis_result.unwrap().into();
-                debug!("parsed from redis, response: {:?}", &response);
-
-                // the format is to:channel_name:event_name, split it by `:`
-                match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
-                    Ok(msg) => _channel_publish(counter, response, state.clone(), &msg.channel, &msg.event).await,
-                    Err(e) => {
-                        warn!("Invalid redis channel format: {}", e);
-                        continue;
-                    }
-                }
-                counter += 1;
-                debug!("publish message from redis, counter: {}", counter);
-            }
+            // optional_message = redis_pubsub_stream.next() => {
+            //     if optional_message.is_none() {
+            //         error!("agent_to_conn / from redis: none");
+            //         continue;
+            //     }
+            //
+            //     let stream_message = optional_message.unwrap();
+            //     let payload: String = stream_message.get_payload()?;
+            //     debug!("agent_to_conn / from redis, {}, payload: `{}`", stream_message.get_channel_name(), payload.clone());
+            //
+            //     let response_from_redis_result = serde_json::from_str::<ResponseFromRedis>(&payload);
+            //     if response_from_redis_result.is_err() {
+            //         warn!("fail to deserialize from Redis, {}, payload: `{}`", response_from_redis_result.err().unwrap(), payload);
+            //         continue;
+            //     }
+            //     let response: Response = response_from_redis_result.unwrap().into();
+            //     debug!("parsed from redis, response: {:?}", &response);
+            //
+            //     // the format is to:channel_name:event_name, split it by `:`
+            //     match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
+            //         Ok(msg) => _channel_publish(counter, response, state.clone(), &msg.channel, &msg.event).await,
+            //         Err(e) => {
+            //             warn!("Invalid redis channel format: {}", e);
+            //             continue;
+            //         }
+            //     }
+            //     counter += 1;
+            //     debug!("publish message from redis, counter: {}", counter);
+            // }
         }
     }
     Ok(())
+}
+
+/// 从redis 监听消息
+async fn channel_messages_from_redis(state: Arc<State>, channel_name: String) -> RedisResult<()> {
+    let redis_url = state.redis_url.clone();
+    let redis_topic = format!("to:{}:*", channel_name);
+    let mut redis_pubsub = get_redis_pubsub_stream(redis_topic, redis_url.clone())
+        .await
+        .unwrap();
+    let mut redis_pubsub_stream = redis_pubsub.on_message();
+    let mut counter = 0; // TODO: counter 有问题, 在这里完全没有意义
+    loop {
+        let optional_message = redis_pubsub_stream.next().await;
+        if optional_message.is_none() {
+            error!("agent_to_conn / from redis: none");
+            continue;
+        }
+
+        let stream_message = optional_message.unwrap();
+        let payload: String = stream_message.get_payload()?;
+        debug!(
+            "agent_to_conn / from redis, {}, payload: `{}`",
+            stream_message.get_channel_name(),
+            payload.clone()
+        );
+
+        let response_from_redis_result = serde_json::from_str::<ResponseFromRedis>(&payload);
+        if response_from_redis_result.is_err() {
+            warn!(
+                "fail to deserialize from Redis, {}, payload: `{}`",
+                response_from_redis_result.err().unwrap(),
+                payload
+            );
+            continue;
+        }
+        let response: Response = response_from_redis_result.unwrap().into();
+        debug!("parsed from redis, response: {:?}", &response);
+
+        // the format is to:channel_name:event_name, split it by `:`
+        match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
+            Ok(msg) => {
+                _channel_publish(counter, response, state.clone(), &msg.channel, &msg.event).await
+            }
+            Err(e) => {
+                warn!("Invalid redis channel format: {}", e);
+                continue;
+            }
+        }
+        counter += 1;
+        debug!("publish message from redis, counter: {}", counter);
+    }
 }
 
 async fn handle_leave(
@@ -464,6 +669,7 @@ async fn handle_leave(
     event_ref: &str,
     channel_name: String,
 ) {
+    state.ctl.lock().await.agent_rm(cid.to_string()).await;
     state
         .ctl
         .lock()
@@ -715,7 +921,7 @@ mod tests {
             .and(warp::ws())
             .and(websocket_shared_state)
             .map(|ws: warp::ws::Ws, state| {
-                ws.on_upgrade(move |socket| on_connected(socket, state))
+                ws.on_upgrade(move |socket| warp_on_connected(socket, state))
             });
 
         let (addr, server) = warp::serve(ws).bind_ephemeral(([127, 0, 0, 1], 0));
