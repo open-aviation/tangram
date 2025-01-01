@@ -1,0 +1,246 @@
+<html>
+  <title>Admin Channel</title>
+  <style>
+    body {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .channel-section {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .channel-title {
+      font-size: 1.2em;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    .status-panel {
+      background: #f5f5f5;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+
+    .event-log {
+      height: 600px;
+      overflow-y: auto;
+      font-family: Monaco, monospace;
+      font-size: 13px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border: 1px solid #e9ecef;
+    }
+
+    .event-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .event-table th {
+      position: sticky;
+      top: 0;
+      background: #f8f9fa;
+      padding: 8px;
+      text-align: left;
+      border-bottom: 2px solid #dee2e6;
+      color: #495057;
+    }
+
+    .event-table td {
+      padding: 8px;
+      border-bottom: 1px solid #e9ecef;
+      vertical-align: top;
+    }
+
+    .event-table tr:nth-child(even) {
+      background: #ffffff;
+    }
+
+    .timestamp {
+      white-space: nowrap;
+      color: #666;
+      width: 180px;
+    }
+
+    .event-type {
+      color: #004085;
+      width: 120px;
+    }
+
+    .event-data {
+      font-family: Monaco, monospace;
+      white-space: pre-wrap;
+    }
+
+    .connection-status {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      margin-left: 10px;
+    }
+
+    .status-connected {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-disconnected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+  </style>
+  <body>
+    <div class="channel-section">
+      <div class="channel-title">
+        Admin Channel
+        <span id="connectionStatus" class="connection-status"></span>
+      </div>
+      <div class="event-log">
+        <table class="event-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Event</th>
+              <th>Data</th>
+            </tr>
+          </thead>
+          <tbody id="eventLog">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+  <script src='https://unpkg.com/phoenix@1.7.11/priv/static/phoenix.min.js'></script>
+  <script>
+    const { Socket } = Phoenix;
+    
+    let userToken = 'adminSocketToken';
+    let debug = false;
+    let socket = new Socket("", { debug, params: { userToken }});
+    socket.connect();
+
+    function formatTimestamp(date) {
+      return date.toISOString().replace('T', ' ').slice(0, -5);
+    }
+
+    function formatEventData(data) {
+      return JSON.stringify(data, null, 2);
+    }
+
+    function addEventToLog(eventType, data) {
+      const tbody = document.getElementById('eventLog');
+      const row = document.createElement('tr');
+      
+      const timestamp = document.createElement('td');
+      timestamp.className = 'timestamp';
+      timestamp.textContent = formatTimestamp(new Date());
+      
+      const type = document.createElement('td');
+      type.className = 'event-type';
+      type.textContent = eventType;
+      
+      const eventData = document.createElement('td');
+      eventData.className = 'event-data';
+      eventData.textContent = formatEventData(data);
+      
+      row.appendChild(timestamp);
+      row.appendChild(type);
+      row.appendChild(eventData);
+      tbody.appendChild(row);
+
+      // Auto scroll to bottom unless user has scrolled up
+      const eventLog = document.querySelector('.event-log');
+      if (eventLog.scrollHeight - eventLog.scrollTop === eventLog.clientHeight) {
+        eventLog.scrollTop = eventLog.scrollHeight;
+      }
+    }
+
+    function updateConnectionStatus(status) {
+      const statusEl = document.getElementById('connectionStatus');
+      statusEl.textContent = status ? 'Connected' : 'Disconnected';
+      statusEl.className = `connection-status ${status ? 'status-connected' : 'status-disconnected'}`;
+    }
+
+    async function getChannelToken() {
+      const storageKey = 'token_admin';
+      const storedToken = localStorage.getItem(storageKey);
+      
+      if (storedToken) {
+        return storedToken;
+      }
+
+      try {
+        const response = await fetch('/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ channel: 'admin' })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        localStorage.setItem(storageKey, data.token);
+        return data.token;
+      } catch (error) {
+        console.error('Error fetching token:', error);
+        updateConnectionStatus(false);
+        return null;
+      }
+    }
+
+    async function joinAdminChannel() {
+      // const token = await getChannelToken();
+      const token = "admin-token";
+      if (!token) {
+        console.error('Failed to get admin channel token');
+        return;
+      }
+
+      const channel = socket.channel('admin', { token });
+      
+      // Handle all events generically
+      channel.onMessage = (event, payload) => {
+        addEventToLog(event, payload);
+        return payload;
+      };
+
+      channel
+        .join()
+        .receive('ok', () => {
+          console.log('Joined admin channel successfully');
+          updateConnectionStatus(true);
+          addEventToLog('system', { message: 'Connected to admin channel' });
+        })
+        .receive('error', ({ reason }) => {
+          console.error('Failed to join admin channel:', reason);
+          updateConnectionStatus(false);
+          addEventToLog('error', { message: 'Failed to join admin channel', reason });
+        })
+        .receive('timeout', () => {
+          console.warn('Admin channel join request timed out');
+          updateConnectionStatus(false);
+          addEventToLog('error', { message: 'Channel join request timed out' });
+        });
+
+      return channel;
+    }
+
+    // Initialize admin channel
+    updateConnectionStatus(false);
+    joinAdminChannel();
+  </script>
+</html>

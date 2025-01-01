@@ -288,7 +288,7 @@ async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn
     }
 
     if event == "phx_join" {
-        // TODO: 如果没有channel，创建
+        // 如果没有channel，创建
 
         // TODO: 这里启动了一个新的 relay task(agent rx => conn tx), 需要在agent leave 的时候清除
         let _relay_task = handle_join(&rm, state.clone(), conn_id).await;
