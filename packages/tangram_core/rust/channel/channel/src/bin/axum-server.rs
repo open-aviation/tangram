@@ -4,6 +4,11 @@ use axum::{
     routing::get,
     Router,
 };
+use channels::{
+    channel::{listen_to_redis, ChannelControl},
+    utils::random_string,
+    websocket::{axum_on_connected, system_default_tx_handler, State},
+};
 use clap::Parser;
 use redis::Client;
 use serde::Deserialize;
@@ -12,11 +17,6 @@ use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 use tracing::{error, info};
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
-use channels::{
-    channel::{listen_to_redis, ChannelControl},
-    utils::random_string,
-    websocket::{axum_on_connected, system_default_tx_handler, State},
-};
 
 async fn websocket_handler(ws: WebSocketUpgrade, AxumState(state): AxumState<Arc<State>>) -> impl IntoResponse {
     ws.on_upgrade(move |socket| axum_on_connected(socket, state))
@@ -54,7 +54,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let redis_url = options.redis_url.unwrap();
-    // let redis_topic = options.redis_topic.unwrap();
 
     let channel_control = ChannelControl::new();
     channel_control.channel_add("phoenix".into(), None).await;
@@ -84,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/websocket", get(websocket_handler))
-        .nest_service("/", ServeDir::new("src/bin"))
+        .nest_service("/", ServeDir::new("channels/src/bin")) // 需要把 html 直接包含到 binary 中，方便发布
         .with_state(state.clone());
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await.unwrap();
 

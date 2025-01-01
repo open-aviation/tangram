@@ -47,3 +47,20 @@ t c:
 token:
   curl -s -X POST http://localhost:5000/token -H "Content-Type: application/json" -d '{"channel": "system"}' | jq -r .
 
+
+_build-image:
+  #!/usr/bin/env bash
+
+  set -x
+
+  VERSION=v0.1.6
+  REPO_URL=https://github.com/emctoo/channel
+
+  ctr=$(buildah from "ubuntu:20.04")
+
+  buildah run "$ctr" -- curl --proto '=https' --tlsv1.2 -LsSf ${REPO_URL}/releases/download/${VERSION}/channels-installer.sh | sh
+
+  buildah config --cmd "channel --help" "$ctr"
+  buildah config --port 5000 "$ctr"
+
+  buildah commit "$ctr1" "channel:${VERSION}"
