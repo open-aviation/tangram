@@ -4,7 +4,7 @@ use axum::{
     routing::get,
     Router,
 };
-use channels::{
+use channel::{
     channel::{listen_to_redis, ChannelControl},
     utils::random_string,
     websocket::{axum_on_connected, system_default_tx_handler, State},

@@ -1,5 +1,5 @@
 [workspace]
-members = ["channels"]
+members = ["channel"]
 resolver = "2"
 
 # The profile that 'cargo dist' will build with
