@@ -83,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/websocket", get(websocket_handler))
-        .nest_service("/", ServeDir::new("channels/src/bin")) // 需要把 html 直接包含到 binary 中，方便发布
+        .nest_service("/", ServeDir::new("channel/src/bin")) // 需要把 html 直接包含到 binary 中，方便发布
         .with_state(state.clone());
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await.unwrap();
 
