@@ -71,6 +71,11 @@
       width: 180px;
     }
 
+    .channel-name {
+      width: 100px;
+      color: #6c757d;
+    }
+
     .event-type {
       color: #004085;
       width: 120px;
@@ -110,6 +115,7 @@
           <thead>
             <tr>
               <th>Timestamp</th>
+              <th>Channel</th>
               <th>Event</th>
               <th>Data</th>
             </tr>
@@ -133,11 +139,24 @@
       return date.toISOString().replace('T', ' ').slice(0, -5);
     }
 
+    function shouldShowData(data) {
+      if (typeof data !== 'object') return true;
+
+      // Check if it's a simple {status: "ok", response: {}} pattern
+      if (data.status === 'ok' && data.response) {
+        if (typeof data.response === 'object' && Object.keys(data.response).length === 0) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     function formatEventData(data) {
+      if (!shouldShowData(data)) return '';
       return JSON.stringify(data, null, 2);
     }
 
-    function addEventToLog(eventType, data) {
+    function addEventToLog(channelName, eventType, data) {
       const tbody = document.getElementById('eventLog');
       const row = document.createElement('tr');
       
@@ -145,6 +164,10 @@
       timestamp.className = 'timestamp';
       timestamp.textContent = formatTimestamp(new Date());
       
+      const channel = document.createElement('td');
+      channel.className = 'channel-name';
+      channel.textContent = channelName;
+
       const type = document.createElement('td');
       type.className = 'event-type';
       type.textContent = eventType;
@@ -154,14 +177,15 @@
       eventData.textContent = formatEventData(data);
       
       row.appendChild(timestamp);
+      row.appendChild(channel);
       row.appendChild(type);
       row.appendChild(eventData);
-      tbody.appendChild(row);
 
-      // Auto scroll to bottom unless user has scrolled up
-      const eventLog = document.querySelector('.event-log');
-      if (eventLog.scrollHeight - eventLog.scrollTop === eventLog.clientHeight) {
-        eventLog.scrollTop = eventLog.scrollHeight;
+      // Insert at the beginning of the tbody
+      if (tbody.firstChild) {
+        tbody.insertBefore(row, tbody.firstChild);
+      } else {
+        tbody.appendChild(row);
       }
     }
 
@@ -203,8 +227,7 @@
     }
 
     async function joinAdminChannel() {
-      // const token = await getChannelToken();
-      const token = "admin-token";
+      const token = 'admin-token'; // await getChannelToken();
       if (!token) {
         console.error('Failed to get admin channel token');
         return;
@@ -214,7 +237,8 @@
       
       // Handle all events generically
       channel.onMessage = (event, payload) => {
-        addEventToLog(event, payload);
+        const channelTopic = payload.channel || 'admin';
+        addEventToLog(channelTopic, event, payload);
         return payload;
       };
 
@@ -223,17 +247,17 @@
         .receive('ok', () => {
           console.log('Joined admin channel successfully');
           updateConnectionStatus(true);
-          addEventToLog('system', { message: 'Connected to admin channel' });
+          addEventToLog('admin', 'system', { message: 'Connected to admin channel' });
         })
         .receive('error', ({ reason }) => {
           console.error('Failed to join admin channel:', reason);
           updateConnectionStatus(false);
-          addEventToLog('error', { message: 'Failed to join admin channel', reason });
+          addEventToLog('admin', 'error', { message: 'Failed to join admin channel', reason });
         })
         .receive('timeout', () => {
           console.warn('Admin channel join request timed out');
           updateConnectionStatus(false);
-          addEventToLog('error', { message: 'Channel join request timed out' });
+          addEventToLog('admin', 'error', { message: 'Channel join request timed out' });
         });
 
       return channel;

@@ -425,24 +425,26 @@ pub async fn listen_to_redis(state: Arc<State>, channel_name: String) -> RedisRe
     redis_pubsub.psubscribe(redis_topic.clone()).await?;
     let mut redis_pubsub_stream = redis_pubsub.on_message();
     let mut counter = 0; // TODO: counter 有问题, 在这里完全没有意义
+
+    info!("LISTENER / subscribed to redis, channel: {}", redis_topic);
     loop {
         let optional_message = redis_pubsub_stream.next().await;
         if optional_message.is_none() {
-            error!("agent_to_conn / from redis: none");
+            error!("LISTENER / from redis: none");
             continue;
         }
 
         let stream_message = optional_message.unwrap();
         let payload: String = stream_message.get_payload()?;
-        debug!("agent_to_conn / from redis, {}, payload: `{}`", stream_message.get_channel_name(), payload.clone());
+        debug!("LISTENER / from redis, {}, payload: `{}`", stream_message.get_channel_name(), payload.clone());
 
         let response_from_redis_result = serde_json::from_str::<ResponseFromRedis>(&payload);
         if response_from_redis_result.is_err() {
-            warn!("fail to deserialize from Redis, {}, payload: `{}`", response_from_redis_result.err().unwrap(), payload);
+            warn!("LISTENER / fail to deserialize from Redis, {}, payload: `{}`", response_from_redis_result.err().unwrap(), payload);
             continue;
         }
         let response: crate::websocket::Response = response_from_redis_result.unwrap().into();
-        debug!("parsed from redis, response: {:?}", &response);
+        debug!("LISTENER / parsed from redis, response: {:?}", &response);
 
         // the format is to:channel_name:event_name, split it by `:`
         match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
@@ -450,12 +452,12 @@ pub async fn listen_to_redis(state: Arc<State>, channel_name: String) -> RedisRe
                 _channel_publish(counter, response, state.clone(), &msg.channel, &msg.event).await;
             }
             Err(e) => {
-                warn!("invalid redis channel format: {}", e);
+                warn!("LISTENER / invalid redis channel format: {}", e);
                 continue;
             }
         }
         counter += 1;
-        debug!("publish message from redis, counter: {}", counter);
+        debug!("LISTENER / publish message from redis, counter: {}", counter);
     }
 }
 
