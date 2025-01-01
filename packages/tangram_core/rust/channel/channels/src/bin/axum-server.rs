@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 use tracing::{error, info};
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
-use websocket_channels::{
+use channels::{
     channel::{listen_to_redis, ChannelControl},
     utils::random_string,
     websocket::{axum_on_connected, system_default_tx_handler, State},

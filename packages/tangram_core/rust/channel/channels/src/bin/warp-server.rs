@@ -24,8 +24,8 @@ use uuid::Uuid;
 use warp::ws::Message;
 use warp::ws::WebSocket;
 use warp::Filter;
-use websocket_channels::channel::ChannelControl;
-use websocket_channels::websocket::{streaming_default_tx_handler, system_default_tx_handler, warp_on_connected, State};
+use channels::channel::ChannelControl;
+use channels::websocket::{system_default_tx_handler, warp_on_connected, State};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TokenRequest {
@@ -149,11 +149,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // system channel
     tokio::spawn(system_default_tx_handler(state.clone(), "system"));
-
-    // streaming channel
-    let (tx, rx) = mpsc::unbounded_channel();
-    let rx = UnboundedReceiverStream::new(rx);
-    tokio::spawn(streaming_default_tx_handler(state.clone(), rx, "streaming", "data"));
 
     let state_for_ws = state.clone();
     let ws_route = warp::path("websocket")
