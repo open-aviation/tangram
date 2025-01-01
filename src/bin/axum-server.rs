@@ -58,6 +58,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let channel_control = ChannelControl::new();
     channel_control.channel_add("phoenix".into(), None).await;
+    channel_control.channel_add("admin".into(), None).await;
+
     channel_control.channel_add("system".into(), None).await;
     channel_control.channel_add("streaming".into(), None).await;
 
@@ -72,6 +74,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(system_default_tx_handler(state.clone(), "system"));
 
     // 并不需要一致监听，应该是有 agent subscribe 的时候才 sub 到 redis
+    tokio::spawn(listen_to_redis(state.clone(), "admin".to_string()));
+
     tokio::spawn(listen_to_redis(state.clone(), "system".to_string()));
     tokio::spawn(listen_to_redis(state.clone(), "streaming".to_string()));
 

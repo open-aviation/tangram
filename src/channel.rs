@@ -43,7 +43,6 @@ pub struct Channel {
     pub agents: Mutex<Vec<String>>,
     /// channel agent count
     pub count: AtomicU32,
-    pub redis_listen_task: Option<JoinHandle<RedisResult<()>>>,
 }
 
 /// manages all channels
@@ -113,7 +112,6 @@ impl Channel {
             tx,
             agents: Mutex::new(vec![]),
             count: AtomicU32::new(0),
-            redis_listen_task: None,
         }
     }
 
