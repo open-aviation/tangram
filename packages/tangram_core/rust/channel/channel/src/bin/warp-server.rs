@@ -24,8 +24,8 @@ use uuid::Uuid;
 use warp::ws::Message;
 use warp::ws::WebSocket;
 use warp::Filter;
-use channels::channel::ChannelControl;
-use channels::websocket::{system_default_tx_handler, warp_on_connected, State};
+use channel::channel::ChannelControl;
+use channel::websocket::{system_default_tx_handler, warp_on_connected, State};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TokenRequest {

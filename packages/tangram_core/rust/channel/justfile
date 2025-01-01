@@ -19,7 +19,7 @@ fmt:
 #     cargo watch -x "run -- {{ARGS}}"
 
 
-channel target="channel":
+channel target="channeld":
   watchexec -w . -e rs -r -- RUST_LOG=debug cargo run --bin {{target}} -- \
     --host 0.0.0.0 --port 5000 --redis-url redis://192.168.11.37:6379 --redis-topic streaming:data
 
@@ -58,7 +58,7 @@ _build-image:
 
   ctr=$(buildah from "ubuntu:20.04")
 
-  buildah run "$ctr" -- curl --proto '=https' --tlsv1.2 -LsSf ${REPO_URL}/releases/download/${VERSION}/channels-installer.sh | sh
+  buildah run "$ctr" -- curl --proto '=https' --tlsv1.2 -LsSf ${REPO_URL}/releases/download/${VERSION}/channel-installer.sh | sh
 
   buildah config --cmd "channel --help" "$ctr"
   buildah config --port 5000 "$ctr"
