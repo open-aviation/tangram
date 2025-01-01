@@ -8,12 +8,12 @@ repository = "https://github.com/emctoo/websocket-channels"
 keywords = ["axum", "axum-ws", "warp", "websocket", "channels"]
 
 [[bin]]
-name = "channel-axum"
+name = "channel"
 path = "src/bin/axum-server.rs"
 
-[[bin]]
-name = "channel-warp"
-path = "src/bin/warp-server.rs"
+# [[bin]]
+# name = "channel-warp"
+# path = "src/bin/warp-server.rs"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
