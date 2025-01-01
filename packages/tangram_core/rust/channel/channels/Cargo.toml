@@ -1,6 +1,6 @@
 [package]
 name = "channels"
-version = "0.1.2"
+version = "v0.1.4"
 edition = "2021"
 license = "MIT"
 description = "Websocket channels compatible with Phixnix"
