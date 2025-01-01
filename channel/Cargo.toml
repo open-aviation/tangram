@@ -1,14 +1,14 @@
 [package]
-name = "channels"
+name = "channel"
 version = "0.1.6"
 edition = "2021"
 license = "MIT"
 description = "Websocket channels compatible with Phixnix"
-repository = "https://github.com/emctoo/websocket-channels"
+repository = "https://github.com/emctoo/channels"
 keywords = ["axum", "axum-ws", "warp", "websocket", "channels"]
 
 [[bin]]
-name = "channel"
+name = "channeld"
 path = "src/bin/axum-server.rs"
 
 # [[bin]]
