@@ -1,2 +1,2 @@
-load_dotenv_if_exists
+dotenv_if_exists
 use flake
