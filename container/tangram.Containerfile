@@ -21,7 +21,7 @@ COPY . /home/user/tangram
 WORKDIR /home/user/tangram
 
 # helpful for troubleshooting following installation
-RUN env | grep -i proxy
+RUN env | grep -i proxy || true
 
 # all dependencies are installed in user's ~/.local/bin
 RUN curl --proto '=https' --tlsv1.2 -Sf https://just.systems/install.sh | bash -s -- --to /home/user/.local/bin # just
