@@ -1,8 +1,59 @@
 # Tangram
 
-Tangram is an open framework that aggregates ADS-B and Mode S data for real-time data analysis. We are developing this into a framework where users can easily implement simple plugins to conduct their own analysis.
+Tangram is an open framework that aggregates and processes ADS-B and Mode S surveillance data for real-time analysis. It provides a flexible plugin architecture where users can easily implement custom analyzers for their specific needs.
 
-The frontend is developed in javascript and the backend is developed in Python using FastAPI. The backend aggregates data from different receiver streams and provides a websocket interface to the frontend for real-time data analysis.
+The system consists of a JavaScript frontend and a Python backend built with FastAPI. The backend efficiently aggregates data from multiple receiver streams and exposes a WebSocket interface, enabling real-time data visualization and analysis in the browser-based frontend.
+
+
+## Quick start
+
+1. Install [just](https://github.com/casey/just) - a command project-sepcific runner
+
+2. Install [podman](https://podman.io/docs/installation) - a container runtime
+
+3. create a `.env` file from the template:
+
+  ```shell
+  cp .env.example .env
+  ```
+
+  Set the `JET1090_SOURCE` to the source of your ADS-B data. For example, you can use an example web socket provided by us: `ws://51.158.72.24:9876/40130@LFMA`
+
+  ```shell
+  JET1090_SOURCE=ws://51.158.72.24:9876/40130@LFMA
+  ```
+
+4. pull and run a Redis container, this is used for message caching between different services:
+
+  ```shell
+  just pc-redis
+  ```
+
+
+5. build the tagram container:
+
+  ```shell
+  just pc-build
+  ```
+
+6. run the tangram container:
+
+  ```shell
+  just pc-run
+  ```
+
+7. Visualize the live data:
+
+  Visit <http://localhost:2024> in your browser.
+
+
+
+## Results
+
+Here is a screenshot of the tool running in real-time:
+
+![plot](./web/screenshot.png)
+
 
 ## Funding
 
@@ -15,68 +66,3 @@ In 2020, @junzis and @xoolive published a paper [Detecting and Measuring Turbule
 Based on this method, @MichelKhalaf started developing this tool as part of his training with @xoolive in 2021, which was completed in Summer 2022. After that, the project was then lightly maintained by @xoolive and @junzis, while we have been applying for funding to continue this tool.
 
 And in 2023, we received funding from NWO to continue the development of this tool. With this funding, @emctoo from [Shintech](https://www.shinetechsoftware.com) was hired to work alongside us on this open-source project.
-
-## Quick start
-
-Install [just](https://github.com/casey/just) if it's not there yet.
-
-With `docker` (or `podman`) you can:
-
-- for `docker`: `just run`
-- or for `podman`: `just run container-cli=podman`
-
-and visit `http://localhost:18000` locally in your browser.
-
-## Install & Run it
-
-- prerequisite: `poetry`
-- you may need to install system library:
-
-  - `libgeos-dev` for Ubuntu/Debian (`sudo apt install -y libgeos-dev`)
-  - `geos` for Arch Linux or NixOS
-
-- install python dependencies: `poetry install`
-
-- run it:
-
-```sh
-cp .env.example .env  # enable the default data source
-# enable `direnv` if you have, it makes your life easier
-
-# now you can launch the service by 
-tangram run
-
-# you can also check the settings
-tangram dump-config
-```
-
-- check your browser at `http://localhost:18000`
-
-## Nix flake
-
-If you are using `Nix` for the development environment, the commands are:
-
-```shell
-cp .env.example .env
-
-# for direnv/nix-direnv users
-cp .envrc.example .env
-direnv allow
-
-# or else, to drop into a new bash shell environment
-nix develop
-
-# launch the service by
-just nix run
-
-# or
-# uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config=tangram/log.yml --reload
-```
-
-## Troubleshooting
-
-## Results
-
-Here is an example of the tool running in real-time:
-
-![plot](./src/tangram/static/screenshot.png)
