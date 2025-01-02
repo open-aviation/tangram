@@ -7,7 +7,7 @@ use axum::{
 use channel::{
     channel::{listen_to_redis, ChannelControl},
     utils::random_string,
-    websocket::{axum_on_connected, system_default_tx_handler, State},
+    websocket::{axum_on_connected, datetime_handler, State},
 };
 use clap::Parser;
 use redis::Client;
@@ -56,11 +56,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let redis_url = options.redis_url.unwrap();
 
     let channel_control = ChannelControl::new();
-    channel_control.channel_add("phoenix".into(), None).await;
-    channel_control.channel_add("admin".into(), None).await;
-
-    channel_control.channel_add("system".into(), None).await;
-    channel_control.channel_add("streaming".into(), None).await;
+    // channel_control.channel_add("phoenix".into(), None).await;
+    // channel_control.channel_add("admin".into(), None).await;
+    //
+    // channel_control.channel_add("system".into(), None).await;
+    // channel_control.channel_add("streaming".into(), None).await;
 
     let redis_client = Client::open(redis_url.clone())?;
     let state = Arc::new(State {
@@ -70,15 +70,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         jwt_secret: random_string(8),
     });
 
-    tokio::spawn(system_default_tx_handler(state.clone(), "system"));
+    state.ctl.lock().await.channel_add("phoenix".into(), None).await;
 
     // 并不需要一致监听，应该是有 agent subscribe 的时候才 sub 到 redis
+    state.ctl.lock().await.channel_add("admin".into(), None).await;
     tokio::spawn(listen_to_redis(state.clone(), "admin".to_string()));
 
+    state.ctl.lock().await.channel_add("system".into(), None).await;
     tokio::spawn(listen_to_redis(state.clone(), "system".to_string()));
-    tokio::spawn(listen_to_redis(state.clone(), "streaming".to_string()));
+    tokio::spawn(datetime_handler(state.clone(), "system"));
 
-    let host = options.host.unwrap(); // .parse::<std::net::IpAddr>().unwrap();
+    // state.ctl.lock().await.channel_add("streaming".into(), None).await;
+    // tokio::spawn(listen_to_redis(state.clone(), "streaming".to_string()));
+
+    let host = options.host.unwrap();
     let port = options.port.unwrap();
 
     let app = Router::new()

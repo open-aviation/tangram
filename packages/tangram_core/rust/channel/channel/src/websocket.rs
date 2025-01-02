@@ -1,3 +1,4 @@
+use crate::channel::{listen_to_redis, ChannelError};
 use crate::channel::{ChannelControl, ChannelMessage};
 use futures::SinkExt;
 use futures::StreamExt;
@@ -11,7 +12,7 @@ use std::fmt::{Display, Error};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 use warp::filters::ws::WebSocket;
 
@@ -326,16 +327,31 @@ async fn dispatch_by_redis(
 }
 
 // 添加 agent tx, join channel, spawn agent/conn relay task, ack joining
-// NOTE: relay task 在连接断开的时候会发生什么?
-async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> JoinHandle<()> {
+async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> Result<JoinHandle<()>, ChannelError> {
     let channel_name = rm.topic.clone(); // ?
+
     let agent_id = format!("{}:{}:{}", conn_id, channel_name.clone(), rm.join_ref.clone().unwrap());
     let join_ref = rm.join_ref.clone();
     let event_ref = rm.event_ref.clone();
 
-    info!("agent joining ({} => {}) ...", agent_id, channel_name);
+    if !state.ctl.lock().await.channel_exists(&channel_name).await {
+        warn!("JOIN / channel not found, creating: {}", channel_name);
+        let ctl = state.ctl.lock().await;
+        ctl.channel_add(channel_name.clone(), None).await;
+        ctl.channel_add_redis_listen_task(channel_name.clone(), tokio::spawn(listen_to_redis(state.clone(), channel_name.clone())))
+            .await;
+    }
+
+    info!("JOIN / agent joining ({} => {}) ...", agent_id, channel_name);
     state.ctl.lock().await.agent_add(agent_id.to_string(), None).await;
-    state.ctl.lock().await.channel_join(&channel_name.clone(), agent_id.to_string()).await.unwrap();
+    match state.ctl.lock().await.channel_join(&channel_name.clone(), agent_id.to_string()).await {
+        Ok(_) => {}
+        Err(e) => {
+            // relay task 在连接断开的时候会发生什么?
+            error!("JOIN / fail to join: {}", e);
+            return Err(e);
+        }
+    }
 
     // agent rx 到 conn tx 转发消息
     // 这个需要在 join 完整之前准备好，才不会丢失消息
@@ -367,7 +383,7 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> J
 
     // phx_reply, 确认 join 事件
     ok_reply(conn_id, join_ref.clone(), &event_ref, &channel_name, state.clone()).await;
-    relay_task
+    Ok(relay_task)
 }
 
 async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: String) {
@@ -402,7 +418,7 @@ async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, chan
 }
 
 // 每秒发送一个时间戳
-pub async fn system_default_tx_handler(state: Arc<State>, channel_name: &str) {
+pub async fn datetime_handler(state: Arc<State>, channel_name: &str) {
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
     info!("launch system/datetime task...");
@@ -417,17 +433,12 @@ pub async fn system_default_tx_handler(state: Arc<State>, channel_name: &str) {
             event: event.to_string(),
             payload: ServerPayload::ServerResponse(ServerResponse {
                 status: "ok".to_string(),
-                // response: serde_json::json!({
-                //     "datetime": now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
-                //     "counter": counter,
-                // }),
                 response: Response::Datetime {
                     datetime: now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
                     counter,
                 },
             }),
         };
-        // let text = serde_json::to_string(&message).unwrap();
         match state
             .ctl
             .lock()
@@ -437,9 +448,9 @@ pub async fn system_default_tx_handler(state: Arc<State>, channel_name: &str) {
         {
             Ok(0) => {} // no client
             Ok(_) => {} // debug!("datetime > {}", text),
-            Err(_e) => {
-                // FIXME: when thers's no client, it's an error
-                // error!("`{}` `{}`, {}, {}", channel_name, event, e, text)
+            Err(ChannelError::ChannelEmpty) => {}
+            Err(e) => {
+                error!("DT / fail to broadcast, channel: {}, event: {}, error: {}", channel_name, event, e);
             }
         }
 
@@ -476,7 +487,7 @@ mod tests {
         state.ctl.lock().await.channel_add("streaming".into(), None).await;
 
         // Spawn system task
-        tokio::spawn(system_default_tx_handler(state.clone(), "system"));
+        tokio::spawn(datetime_handler(state.clone(), "system"));
 
         let websocket_shared_state = state.clone();
         let websocket_shared_state = warp::any().map(move || websocket_shared_state.clone());
