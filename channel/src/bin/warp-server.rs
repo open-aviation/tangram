@@ -2,6 +2,8 @@
 
 use std::{path::PathBuf, sync::Arc};
 
+use channel::channel::ChannelControl;
+use channel::websocket::{datetime_handler, warp_on_connected, State};
 use clap::{Command, CommandFactory, Parser, ValueHint};
 use futures::{sink::SinkExt, stream::StreamExt};
 use jsonwebtoken::{encode, EncodingKey, Header};
@@ -24,8 +26,6 @@ use uuid::Uuid;
 use warp::ws::Message;
 use warp::ws::WebSocket;
 use warp::Filter;
-use channel::channel::ChannelControl;
-use channel::websocket::{system_default_tx_handler, warp_on_connected, State};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TokenRequest {
@@ -148,7 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // system channel
-    tokio::spawn(system_default_tx_handler(state.clone(), "system"));
+    tokio::spawn(datetime_handler(state.clone(), "system"));
 
     let state_for_ws = state.clone();
     let ws_route = warp::path("websocket")

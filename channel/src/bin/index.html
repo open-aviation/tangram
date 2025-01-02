@@ -136,11 +136,53 @@
 
       if (window.streamingChannel) {
         streamingToggle.classList.add('active');
+        streamingToggle.classList.remove('loading');
+      } else if (window.streamingJoining) {
+        streamingToggle.classList.add('loading');
       } else {
-        streamingToggle.classList.remove('active');
+        streamingToggle.classList.remove('active', 'loading');
       }
     }
     
+    function joinChannel(channelName, channelToken) {
+      console.log(`Joining channel: ${channelName}`);
+      let channel = socket.channel(channelName, { token: channelToken });
+      channel.on('datetime', onDatetime);
+      channel.on('data', dump);
+      
+      if (channelName === 'streaming') {
+        window.streamingJoining = true;
+        updateToggleStates();
+      }
+      
+      channel
+        .join()
+        .receive('ok', (ev) => {
+          console.log(`${channelName} - Joined successfully:`, ev);
+          if (channelName === 'streaming') {
+            window.streamingJoining = false;
+          }
+          updateToggleStates();
+        })
+        .receive('error', ({ reason }) => {
+          console.error(`${channelName} - Failed to join:`, reason);
+          if (channelName === 'streaming') {
+            window.streamingJoining = false;
+            window.streamingChannel = null;
+          }
+          updateToggleStates();
+        })
+        .receive('timeout', () => {
+          console.warn(`${channelName} - Join request timed out`);
+          if (channelName === 'streaming') {
+            window.streamingJoining = false;
+            window.streamingChannel = null;
+          }
+          updateToggleStates();
+        });
+      return channel;
+    }   
+
     async function getChannelToken(channelName) {
       const storageKey = `token_${channelName}`;
       const storedToken = localStorage.getItem(storageKey);
@@ -169,27 +211,6 @@
         console.error('Error fetching token:', error);
         return null;
       }
-    }
-    
-    function joinChannel(channelName, channelToken) {
-      console.log(`Joining channel: ${channelName}`);
-      let channel = socket.channel(channelName, { token: channelToken });
-      channel.on('datetime', onDatetime);
-      channel.on('data', dump);
-      
-      channel
-        .join()
-        .receive('ok', (ev) => {
-          console.log(`${channelName} - Joined successfully:`, ev);
-          updateToggleStates();
-        })
-        .receive('error', ({ reason }) => {
-          console.error(`${channelName} - Failed to join:`, reason);
-        })
-        .receive('timeout', () => {
-          console.warn(`${channelName} - Join request timed out`);
-        });
-      return channel;
     }
     
     async function toggleSystemChannel() {
@@ -229,7 +250,7 @@
         }
       }
     }
-    
+
     // Initial toggle states
     updateToggleStates();
   </script>

@@ -46,6 +46,7 @@ pub struct Channel {
     pub agents: Mutex<Vec<String>>,
     /// channel agent count
     pub count: AtomicU32,
+    pub redis_listen_task: Option<JoinHandle<RedisResult<()>>>,
 }
 
 /// manages all channels
@@ -68,9 +69,10 @@ impl Default for ChannelControl {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ChannelError {
     ChannelNotFound,
+    ChannelEmpty,
     MessageSendError,
     AgentNotInitiated,
 }
@@ -82,6 +84,9 @@ impl fmt::Display for ChannelError {
         match self {
             ChannelError::ChannelNotFound => {
                 write!(f, "<ChannelNotFound: channel not found>")
+            }
+            ChannelError::ChannelEmpty => {
+                write!(f, "<ChannelEmpty: channel has not agents>")
             }
             ChannelError::AgentNotInitiated => {
                 write!(f, "<AgentNotInitiated: agent not initiated>")
@@ -115,6 +120,7 @@ impl Channel {
             tx,
             agents: Mutex::new(vec![]),
             count: AtomicU32::new(0),
+            redis_listen_task: None,
         }
     }
 
@@ -221,40 +227,68 @@ impl ChannelControl {
 
     pub async fn channel_add(&self, channel_name: String, capacity: Option<usize>) {
         let mut channels = self.channels.lock().await;
-        channels.insert(channel_name.clone(), Channel::new(channel_name.clone(), capacity));
+        channels
+            .entry(channel_name.clone())
+            .or_insert_with(|| Channel::new(channel_name.clone(), capacity));
+        // None if key does not exist, or value replace and old value retured
+        // let inserted = channels.insert(channel_name.clone(), Channel::new(channel_name.clone(), capacity));
+    }
+
+    pub async fn channel_add_redis_listen_task(&self, channel_name: String, redis_listen_task: JoinHandle<RedisResult<()>>) {
+        let mut channels = self.channels.lock().await;
+        let channel = channels.get_mut(&channel_name).unwrap();
+        channel.redis_listen_task = Some(redis_listen_task);
+        info!("CH / added redis listen task to channel {}", channel_name);
     }
 
     // 删除一个 channel
+    // channel 上所有的资源: channel, agents, agent_tx, relay_task, redis_listen_task, conn_tx
     pub async fn channel_remove(&self, channel_name: String) {
         match self.channels.lock().await.entry(channel_name.clone()) {
             Entry::Vacant(_) => {}
             Entry::Occupied(entry) => {
                 let channel = entry.get();
+
+                // channel agents
+                //
+
                 for agent_id in channel.agents().await.iter() {
                     if let Entry::Occupied(agent_task) = self.agent_relay_task.lock().await.entry(agent_id.into()) {
                         agent_task.get().relay_task.abort();
                         agent_task.remove();
                     }
                 }
+                if let Some(task) = &channel.redis_listen_task {
+                    task.abort();
+                    info!("CH / channel {} redis listen task aborted", channel_name);
+                }
+
+                entry.remove();
+                info!("CH / removed from channels, {}", channel_name);
             }
         }
     }
 
-    pub async fn channel_rm_conn_agents(&self, conn_id: String) {
-        for (name, channel) in self.channels.lock().await.iter() {
-            let mut agents = channel.agents.lock().await;
-            debug!("CH / {}, agents {} {:?}", name, agents.len(), agents);
-            agents.retain(|agent| !agent.starts_with(&conn_id));
-            debug!("CH / {}, removed agents of conn {}, agents {} {:?}", name, conn_id, agents.len(), agents);
-        }
-    }
+    // pub async fn channel_rm_conn_agents(&self, conn_id: String) {
+    //     for (name, channel) in self.channels.lock().await.iter() {
+    //         let mut agents = channel.agents.lock().await;
+    //         debug!("CH / {}, agents {} {:?}", name, agents.len(), agents);
+    //         agents.retain(|agent| !agent.starts_with(&conn_id));
+    //         debug!("CH / {}, removed agents of conn {}, agents {} {:?}", name, conn_id, agents.len(), agents);
+    //     }
+    // }
 
+    pub async fn channel_exists(&self, channel_name: &str) -> bool {
+        let channels = self.channels.lock().await;
+        channels.contains_key(channel_name)
+    }
     /// join agent to a channel
     pub async fn channel_join(&self, channel_name: &str, agent_id: String) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
         let channels = self.channels.lock().await;
 
         // join
-        let channel_tx = channels.get(channel_name).ok_or(ChannelError::ChannelNotFound)?.join(agent_id.clone()).await;
+        let channel = channels.get(channel_name).ok_or(ChannelError::ChannelNotFound)?;
+        let channel_tx = channel.join(agent_id.clone()).await;
         let mut channel_rx = channel_tx.subscribe();
         let agent_tx = self.agent_tx.lock().await.get(&agent_id).ok_or(ChannelError::AgentNotInitiated)?.clone();
 
@@ -302,16 +336,17 @@ impl ChannelControl {
     /// broadcast message to the channel
     /// it returns the number of agents who received the message
     pub async fn channel_broadcast(&self, channel_name: String, message: ChannelMessage) -> Result<usize, ChannelError> {
-        self.channels
-            .lock()
-            .await
-            .get(&channel_name)
-            .ok_or(ChannelError::ChannelNotFound)?
-            .send(message)
-            .map_err(|e| {
-                error!("CH / broadcast error: {}", e);
-                ChannelError::MessageSendError
-            })
+        let channels = self.channels.lock().await;
+        let channel = channels.get(&channel_name).ok_or(ChannelError::ChannelNotFound)?;
+        if channel.agents.lock().await.is_empty() {
+            warn!("CH / no agents, no broadcasting");
+            return Err(ChannelError::ChannelEmpty);
+        }
+
+        channel.send(message).map_err(|e| {
+            error!("CH / broadcasting error, channel: {}, {:?}", channel_name, e);
+            ChannelError::MessageSendError
+        })
     }
 
     pub async fn agent_rx(&self, agent_id: String) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
