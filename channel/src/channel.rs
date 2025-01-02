@@ -11,7 +11,10 @@ use std::{
     },
 };
 use tokio::{
-    sync::{broadcast, Mutex},
+    sync::{
+        broadcast::{self, error::SendError},
+        Mutex,
+    },
     task::JoinHandle,
 };
 use tracing::{debug, error, info, warn};
@@ -24,10 +27,10 @@ pub enum ChannelMessage {
 }
 
 impl Display for ChannelMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ChannelMessage::Reply(reply) => {
-                write!(f, "<{}>", reply)
+                write!(formatter, "<{}>", reply)
             }
         }
     }
@@ -142,7 +145,7 @@ impl Channel {
 
     /// broadcast messages to the channel
     /// it returns the number of agents who received the message
-    pub fn send(&self, data: ChannelMessage) -> Result<usize, broadcast::error::SendError<ChannelMessage>> {
+    pub fn send(&self, data: ChannelMessage) -> Result<usize, SendError<ChannelMessage>> {
         self.tx.send(data)
     }
 
@@ -443,13 +446,13 @@ pub async fn listen_to_redis(state: Arc<State>, channel_name: String) -> RedisRe
             warn!("LISTENER / fail to deserialize from Redis, {}, payload: `{}`", response_from_redis_result.err().unwrap(), payload);
             continue;
         }
-        let response: crate::websocket::Response = response_from_redis_result.unwrap().into();
-        debug!("LISTENER / parsed from redis, response: {:?}", &response);
+        let resp: crate::websocket::Response = response_from_redis_result.unwrap().into();
+        debug!("LISTENER / parsed from redis, response: {:?}", &resp);
 
         // the format is to:channel_name:event_name, split it by `:`
         match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
             Ok(msg) => {
-                _channel_publish(counter, response, state.clone(), &msg.channel, &msg.event).await;
+                _channel_publish(counter, resp, state.clone(), &msg.channel, &msg.event).await;
             }
             Err(e) => {
                 warn!("LISTENER / invalid redis channel format: {}", e);

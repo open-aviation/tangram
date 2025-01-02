@@ -28,7 +28,6 @@ pub struct ReplyMessage {
 #[derive(Clone, Debug, Serialize)]
 pub struct ReplyPayload {
     pub status: String,
-    // 两种情况
     pub response: Response,
     // pub response: serde_json::Value,
 }
@@ -428,15 +427,10 @@ pub async fn _channel_publish(counter: i32, response: Response, state: Arc<State
         .channel_broadcast(channel_name.to_string(), ChannelMessage::Reply(reply_message.clone()))
         .await
     {
-        Ok(_) => {
-            debug!("published, {} > {}", event_name, reply_message);
-        }
-        Err(_e) => {
+        Ok(_) => debug!("published, {} > {}", event_name, reply_message),
+        Err(e) => {
             // it throws error if there's no client
-            // error!(
-            //     "fail to send, channel: {}, event: {}, err: {}",
-            //     channel_name, event_name, e
-            // );
+            error!("fail to send, channel: {}, event: {}, err: {}", channel_name, event_name, e);
         }
     }
 }
