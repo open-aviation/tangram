@@ -17,19 +17,25 @@ use warp::filters::ws::WebSocket;
 
 /// reply data structures
 #[derive(Clone, Debug, Serialize_tuple)]
-pub struct ReplyMessage {
-    pub join_ref: Option<String>, // null when it's heartbeat
+pub struct ServerMessage {
+    pub join_ref: Option<String>, // null when it's heartbeat, or initialized from server
     pub event_ref: String,
     pub topic: String, // `channel`
     pub event: String,
-    pub payload: ReplyPayload,
+    pub payload: ServerPayload,
 }
 
 #[derive(Clone, Debug, Serialize)]
-pub struct ReplyPayload {
+#[serde(untagged)]
+pub enum ServerPayload {
+    ServerResponse(ServerResponse),
+    ServerJsonValue(serde_json::Value),
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ServerResponse {
     pub status: String,
     pub response: Response,
-    // pub response: serde_json::Value,
 }
 
 /// 从 websocket 反序列化的
@@ -52,7 +58,7 @@ pub enum Response {
     Empty {},
 }
 
-impl fmt::Display for ReplyMessage {
+impl fmt::Display for ServerMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Format the response based on its variant
         // let response_str = match &self.payload.response {
@@ -64,18 +70,14 @@ impl fmt::Display for ReplyMessage {
         //     }
         //     Response::Message { message } => format!("{{message: {}}}", message),
         // };
-        let response_str = "...";
+        let join_ref = self.join_ref.clone().unwrap_or("None".to_string());
 
-        write!(
-            f,
-            "Message join_ref={}, ref={}, topic={}, event={}, <Payload status={}, response={}>",
-            self.join_ref.clone().unwrap_or("None".to_string()),
-            self.event_ref,
-            self.topic,
-            self.event,
-            self.payload.status,
-            response_str
-        )
+        let response_str = "...";
+        let payload_display = match self.payload {
+            ServerPayload::ServerResponse(ref resp) => format!("<ServerResponse status={}, response={}>", resp.status, response_str),
+            ServerPayload::ServerJsonValue(ref value) => format!("<ServerJsonResponse {}>", value),
+        };
+        write!(f, "Message join_ref={}, ref={}, topic={}, event={}, {}", join_ref, self.event_ref, self.topic, self.event, payload_display)
     }
 }
 
@@ -102,8 +104,7 @@ impl Display for RequestMessage {
 enum RequestPayload {
     Join { token: String },
     Message { message: String },
-    // Empty {}, // for both leave & heartbeat, the last
-    JsonValue(serde_json::Value),
+    JsonValue(serde_json::Value), // 这样允许提交的数据只要是JSON 就可以了
 }
 
 pub struct State {
@@ -378,16 +379,16 @@ async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>
 }
 
 async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: &str, state: Arc<State>) {
-    let join_reply_message = ReplyMessage {
+    let join_reply_message = ServerMessage {
         join_ref: join_ref.clone(),
         event_ref: event_ref.to_string(),
         topic: channel_name.to_string(),
         event: "phx_reply".to_string(),
-        payload: ReplyPayload {
+        payload: ServerPayload::ServerResponse(ServerResponse {
             status: "ok".to_string(),
             // response: serde_json::json!({}),
             response: Response::Empty {},
-        },
+        }),
     };
     state
         .ctl
@@ -400,41 +401,6 @@ async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, chan
     // debug!("sent to connection {}: {}", &conn_id, text);
 }
 
-pub async fn _channel_publish(counter: i32, response: Response, state: Arc<State>, channel_name: &str, event_name: &str) {
-    let reply_message = ReplyMessage {
-        join_ref: None,
-        event_ref: counter.to_string(),
-        topic: channel_name.to_string(),
-        event: event_name.to_string(),
-        payload: ReplyPayload {
-            status: "ok".to_string(),
-            response,
-        },
-    };
-
-    // unexpected error: Error("can only flatten structs and maps (got a integer)", line: 0, column: 0)
-    // let serialized_result = serde_json::to_string(&reply_message);
-    // if serialized_result.is_err() {
-    //     error!("error: {}", serialized_result.err().unwrap());
-    //     return;
-    // }
-    // let text = serialized_result.unwrap();
-
-    match state
-        .ctl
-        .lock()
-        .await
-        .channel_broadcast(channel_name.to_string(), ChannelMessage::Reply(reply_message.clone()))
-        .await
-    {
-        Ok(_) => debug!("published, {} > {}", event_name, reply_message),
-        Err(e) => {
-            // it throws error if there's no client
-            error!("fail to send, channel: {}, event: {}, err: {}", channel_name, event_name, e);
-        }
-    }
-}
-
 // 每秒发送一个时间戳
 pub async fn system_default_tx_handler(state: Arc<State>, channel_name: &str) {
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
@@ -444,12 +410,12 @@ pub async fn system_default_tx_handler(state: Arc<State>, channel_name: &str) {
     let event = "datetime";
     loop {
         let now = chrono::Local::now();
-        let message = ReplyMessage {
+        let message = ServerMessage {
             join_ref: None,
             event_ref: counter.to_string(),
             topic: channel_name.to_string(),
             event: event.to_string(),
-            payload: ReplyPayload {
+            payload: ServerPayload::ServerResponse(ServerResponse {
                 status: "ok".to_string(),
                 // response: serde_json::json!({
                 //     "datetime": now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
@@ -459,7 +425,7 @@ pub async fn system_default_tx_handler(state: Arc<State>, channel_name: &str) {
                     datetime: now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
                     counter,
                 },
-            },
+            }),
         };
         // let text = serde_json::to_string(&message).unwrap();
         match state
@@ -714,12 +680,12 @@ mod tests {
         }
 
         // Broadcast message to system channel
-        let message = ReplyMessage {
+        let message = ServerMessage {
             join_ref: None,
             event_ref: "broadcast".to_string(),
             topic: "system".to_string(),
             event: "test".to_string(),
-            payload: ReplyPayload {
+            payload: ServerPayload {
                 status: "ok".to_string(),
                 // response: json!({
                 //     "message": "test broadcast".to_string(),

@@ -19,11 +19,11 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 
-use crate::websocket::{ReplyMessage, Response, State, _channel_publish};
+use crate::websocket::{Response, ServerMessage, ServerPayload, State};
 
 #[derive(Clone, Debug, Serialize)]
 pub enum ChannelMessage {
-    Reply(ReplyMessage),
+    Reply(ServerMessage),
 }
 
 impl Display for ChannelMessage {
@@ -308,7 +308,10 @@ impl ChannelControl {
             .get(&channel_name)
             .ok_or(ChannelError::ChannelNotFound)?
             .send(message)
-            .map_err(|_| ChannelError::MessageSendError)
+            .map_err(|e| {
+                error!("CH / broadcast error: {}", e);
+                ChannelError::MessageSendError
+            })
     }
 
     pub async fn agent_rx(&self, agent_id: String) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
@@ -441,18 +444,22 @@ pub async fn listen_to_redis(state: Arc<State>, channel_name: String) -> RedisRe
         let payload: String = stream_message.get_payload()?;
         debug!("LISTENER / from redis, {}, payload: `{}`", stream_message.get_channel_name(), payload.clone());
 
-        let response_from_redis_result = serde_json::from_str::<ResponseFromRedis>(&payload);
+        let response_from_redis_result = serde_json::from_str::<serde_json::Value>(&payload);
         if response_from_redis_result.is_err() {
             warn!("LISTENER / fail to deserialize from Redis, {}, payload: `{}`", response_from_redis_result.err().unwrap(), payload);
             continue;
         }
-        let resp: crate::websocket::Response = response_from_redis_result.unwrap().into();
-        debug!("LISTENER / parsed from redis, response: {:?}", &resp);
+        // let response_from_redis = response_from_redis_result.unwrap();
+        // let resp: Response = response_from_redis.into();
+        // debug!("LISTENER / parsed from redis, response: {:?}", &resp);
+
+        let value = response_from_redis_result.unwrap();
+        debug!("LISTENER / parsed from redis, value: {:?}", &value);
 
         // the format is to:channel_name:event_name, split it by `:`
         match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
             Ok(msg) => {
-                _channel_publish(counter, resp, state.clone(), &msg.channel, &msg.event).await;
+                _channel_publish(counter, value.clone(), state.clone(), &msg.channel, &msg.event).await;
             }
             Err(e) => {
                 warn!("LISTENER / invalid redis channel format: {}", e);
@@ -464,18 +471,41 @@ pub async fn listen_to_redis(state: Arc<State>, channel_name: String) -> RedisRe
     }
 }
 
+async fn _channel_publish(counter: i32, value: serde_json::Value, state: Arc<State>, channel_name: &str, event_name: &str) {
+    let reply_message = ServerMessage {
+        join_ref: None,
+        event_ref: counter.to_string(),
+        topic: channel_name.to_string(),
+        event: event_name.to_string(),
+        payload: ServerPayload::ServerJsonValue(value),
+    };
+    match state
+        .ctl
+        .lock()
+        .await
+        .channel_broadcast(channel_name.to_string(), ChannelMessage::Reply(reply_message.clone()))
+        .await
+    {
+        Ok(_) => debug!("REDIS_PUB / published, {} > {}", event_name, reply_message),
+        Err(e) => {
+            // it throws error if there's no client
+            error!("REDIS_PUB / fail to send, channel: {}, event: {}, err: {}", channel_name, event_name, e);
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::channel::{Channel, ChannelControl, ChannelError, ChannelMessage};
-    use crate::websocket::{ReplyMessage, ReplyPayload, Response};
+    use crate::websocket::{Response, ServerMessage, ServerPayload};
 
     fn create_test_message(topic: &str, reference: &str, message: &str) -> ChannelMessage {
-        ChannelMessage::Reply(ReplyMessage {
+        ChannelMessage::Reply(ServerMessage {
             join_ref: None,
             event_ref: reference.to_string(),
             topic: topic.to_string(),
             event: "test_event".to_string(),
-            payload: ReplyPayload {
+            payload: ServerPayload {
                 status: "ok".to_string(),
                 // response: json!({
                 //     "message": message.to_string(),
@@ -726,12 +756,12 @@ mod test {
         assert!(result.is_ok(), "Should successfully join channel");
 
         // broadcast message
-        let message = ChannelMessage::Reply(ReplyMessage {
+        let message = ChannelMessage::Reply(ServerMessage {
             join_ref: None,
             event_ref: "1".to_string(),
             topic: "test".to_string(),
             event: "test_event".to_string(),
-            payload: crate::websocket::ReplyPayload {
+            payload: crate::websocket::ServerPayload {
                 status: "ok".to_string(),
                 // response: json!({
                 //     "message": "test message".to_string(),
@@ -765,12 +795,12 @@ mod test {
         }
 
         // Broadcast a message
-        let message = ChannelMessage::Reply(ReplyMessage {
+        let message = ChannelMessage::Reply(ServerMessage {
             join_ref: None,
             event_ref: "1".to_string(),
             topic: "room1".to_string(),
             event: "broadcast".to_string(),
-            payload: crate::websocket::ReplyPayload {
+            payload: crate::websocket::ServerPayload {
                 status: "ok".to_string(),
                 // response: json!({
                 //     "message": "hello all".to_string(),
@@ -929,12 +959,12 @@ mod test {
     #[test]
     fn test_reply_message_display() {
         // Test message response
-        let message = ReplyMessage {
+        let message = ServerMessage {
             join_ref: Some("1".to_string()),
             event_ref: "ref1".to_string(),
             topic: "test".to_string(),
             event: "msg".to_string(),
-            payload: ReplyPayload {
+            payload: ServerPayload {
                 status: "ok".to_string(),
                 // response: json!({
                 //     "message": "hello".to_string(),
@@ -945,12 +975,12 @@ mod test {
         assert_eq!(message.to_string(), r#"Message join_ref=1, ref=ref1, topic=test, event=msg, <Payload status=ok, response=...>"#);
 
         // Test datetime response
-        let datetime = ReplyMessage {
+        let datetime = ServerMessage {
             join_ref: None,
             event_ref: "ref2".to_string(),
             topic: "system".to_string(),
             event: "datetime".to_string(),
-            payload: ReplyPayload {
+            payload: ServerPayload {
                 status: "ok".to_string(),
                 // response: json!({
                 //     "datetime": "2024-01-01T00:00:00".to_string(),
@@ -965,12 +995,12 @@ mod test {
         assert_eq!(datetime.to_string(), r#"Message join_ref=None, ref=ref2, topic=system, event=datetime, <Payload status=ok, response=...>"#);
 
         // Test empty response
-        let empty = ReplyMessage {
+        let empty = ServerMessage {
             join_ref: None,
             event_ref: "ref3".to_string(),
             topic: "test".to_string(),
             event: "phx_reply".to_string(),
-            payload: ReplyPayload {
+            payload: ServerPayload {
                 status: "ok".to_string(),
                 // response: json!({}),
                 response: Response::Empty {},
