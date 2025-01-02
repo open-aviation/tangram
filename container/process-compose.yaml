@@ -2,11 +2,7 @@ version: "0.5"
 
 # Global environment is imported from project .env: $PROJECT/.env
 # in container, it's /home/user/tangram/.env
-#
-# environment:
-# - "RS1090_SOURCE_BASE_URL=http://host.containers.internal:8080"
-# - "REDIS_URL=redis://redis:6379"
-# - "RS1090_SOURCE_BASE_URL=http://jet1090:8080"
+
 log_location: /tmp/pc.log
 log_level: debug
 

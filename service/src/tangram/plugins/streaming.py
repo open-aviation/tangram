@@ -4,9 +4,11 @@
 import asyncio
 import logging
 from typing import Any, List
+
 import httpx
 
 from tangram import channels
+
 # from redis.asyncio import Redis
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
@@ -46,7 +48,7 @@ if __name__ == "__main__":
     import os
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--jet1090-service", dest="jet1090_service", default=os.getenv("RS1090_SOURCE_BASE_URL"))
+    parser.add_argument("--jet1090-service", dest="jet1090_service", default=os.getenv("JET1090_URL", "http://jet1090:8080"))
     args = parser.parse_args()
 
     jet1090_service = args.jet1090_service

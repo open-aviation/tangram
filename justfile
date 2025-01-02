@@ -7,7 +7,7 @@ set positional-arguments
 # all just variables to be exported as environment variables in recipes
 set export
 
-RS1090_SOURCE_BASE_URL := env_var_or_default("RS1090_SOURCE_BASE_URL", "http://127.0.0.1:8080")
+JET1090_SOURCE := env_var("JET1090_SOURCE")
 
 _default:
   @just _check-env
@@ -136,12 +136,14 @@ pc-run: pc-network
   if [ "$(uname)" = "Linux" ]; then \
     podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 --env-file .env \
       --userns=keep-id \
+      -e REDIS_URL=redis://redis:6379 \
       -v .:/home/user/tangram:z \
       tangram:0.1; \
   elif [ "$(uname)" = "Darwin" ]; then \
     # TODO: verify it's necessary to include `--userns=keep-id` here
     podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 --env-file .env \
       --userns=keep-id --security-opt label=disable \
+      -e REDIS_URL=redis://redis:6379 \
       -v $PWD:/home/user/tangram \
       tangram:0.1; \
   fi
@@ -174,7 +176,7 @@ pc-jet1090-basestation:
   mkdir -p ~/.cache/jet1090
   if [[ ! -f ~/.cache/jet1090/basestation.zip ]]; then
     echo "basestation.zip not found, downloading ..."
-    curl -L https://jetvision.de/resoucess/sqb_databases/basestation.zip -o ~/.cache/jet1090/basestation.zip
+    curl -L https://jetvision.de/resources/sqb_databases/basestation.zip -o ~/.cache/jet1090/basestation.zip
   fi
 
   unzip -o ~/.cache/jet1090/basestation.zip -d ~/.cache/jet1090
@@ -202,7 +204,7 @@ pc-jet1090: pc-network pc-redis pc-jet1090-basestation
         -i \
         --serve-port 8080 \
         --redis-url redis://redis:6379 --redis-topic jet1090-full \
-        ws://51.158.72.24:9876/40130@LFMA
+        {{JET1090_SOURCE}}
 
 # run jet1090 (0.3.8) as a service
 pc-jet1090-daemon: pc-network pc-redis pc-jet1090-basestation
@@ -213,4 +215,4 @@ pc-jet1090-daemon: pc-network pc-redis pc-jet1090-basestation
       jet1090 \
         --serve-port 8080 \
         --redis-url redis://redis:6379 --redis-topic jet1090-full \
-        ws://51.158.72.24:9876/40130@LFMA
+        {{JET1090_SOURCE}}

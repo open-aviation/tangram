@@ -3,22 +3,22 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from math import tan
 import os
+import pathlib
 import uuid
 from datetime import datetime
+from math import tan
 from typing import Any
-import pathlib
 
 import redis.asyncio as redis
 from fastapi import FastAPI, Request, WebSocket, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.responses import HTMLResponse
 
 # import anyio
 from httpx import Response, request
 from pydantic import BaseModel
+from starlette.responses import HTMLResponse
 
 from tangram import channels
 from tangram.plugins import coordinate, filter_jet1090, system, trajectory, web_event
@@ -26,7 +26,8 @@ from tangram.plugins.common import rs1090
 
 log = logging.getLogger("tangram")
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
+JET1090_URL = os.getenv("JET1090_URL", "http://jet1090:8080")
 
 jet1090_restful_client = rs1090.Rs1090Client()
 jet1090_websocket_task: None | asyncio.Task[None] = None
@@ -37,14 +38,9 @@ async def connect_jet1090(*args: Any, **kwargs: Any) -> None:
     log.info("%s\n\n\n\n", "=" * 40)
     log.info("startup, %s, %s", args, kwargs)
 
-    RS1090_SOURCE_BASE_URL = os.getenv("RS1090_SOURCE_BASE_URL")
-    if RS1090_SOURCE_BASE_URL is None:
-        log.error("RS1090_SOURCE_BASE_URL not set")
-        exit(1)
-
     # check environment variables
     log.info("REDIS: %s", REDIS_URL)
-    log.info("JET1090: %s", os.getenv("RS1090_SOURCE_BASE_URL"))
+    log.info("JET1090: %s", JET1090_URL)
 
 
 async def shutdown_debug(*args: Any, **kwargs: Any) -> None:
@@ -153,13 +149,7 @@ async def websocket_handler(ws: WebSocket) -> None:
 
 
 async def get_receiver_latlong():
-    # from env
-    RS1090_SOURCE_BASE_URL = os.getenv("RS1090_SOURCE_BASE_URL")
-    if RS1090_SOURCE_BASE_URL is None:
-        log.error("RS1090_SOURCE_BASE_URL not set")
-        return None, None
-
-    url = f"{RS1090_SOURCE_BASE_URL}/sensors"
+    url = f"{JET1090_URL}/sensors"
     log.info("getting receivers from %s ...", url)
     resp: Response = request("GET", url)
     receivers = resp.json()
