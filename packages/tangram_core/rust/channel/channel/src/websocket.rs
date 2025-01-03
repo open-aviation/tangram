@@ -425,8 +425,9 @@ async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>
         .channel_leave(channel_name.clone(), agent_id.clone())
         .await
         .unwrap();
-    if agent_count == 0 {
+    if agent_count == 0 && !is_special_channel(&channel_name) {
         warn!("LEAVE / channel {} is empty, cleaning up ...", channel_name);
+        state.ctl.lock().await.channel_rm(channel_name.clone()).await;
     }
     ok_reply(conn_id, join_ref, event_ref, &channel_name, state.clone()).await;
 }
