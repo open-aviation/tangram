@@ -282,7 +282,7 @@ async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn
 
     if channel_name == "phoenix" && event == "heartbeat" {
         ok_reply(conn_id, None, event_ref, "phoenix", state.clone()).await;
-        debug!("WS_RX / heartbeat processed");
+        // debug!("WS_RX / heartbeat processed");
         // continue;
     }
 
@@ -349,6 +349,8 @@ pub async fn add_channel(ctl: &Mutex<ChannelControl>, redis_client: redis::Clien
 
     let channel_names = channels.keys().cloned().collect::<Vec<String>>();
     info!("ADD_CH / {} created, channels: {} {:?}", channel_name, channel_names.len(), channel_names);
+
+    let _ = ctl.pub_meta_event().await;
 }
 
 // 添加 agent tx, join channel, spawn agent/conn relay task, ack joining
