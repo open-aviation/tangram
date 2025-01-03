@@ -36,34 +36,31 @@ impl Display for ChannelMessage {
 
 /// agent channel, can broadcast to every agent in the channel
 pub struct Channel {
-    /// channel name
     pub name: String,
-    /// broadcast in channels
     pub tx: broadcast::Sender<ChannelMessage>,
-    /// channel agents
     pub agents: Mutex<Vec<String>>,
-    /// channel agent count
     pub count: AtomicU32,
     pub redis_listen_task: Option<JoinHandle<RedisResult<()>>>,
 }
 
 /// manages all channels
 pub struct ChannelControl {
-    pub channels: Mutex<HashMap<String, Channel>>, // channel name -> Channel
-
-    /// agent_id -> Vec<agentTask>
-    /// task forwarding channel messages to agent websocket tx
-    /// created when agent joins a channel
-    // agent_relay_tasks: Mutex<HashMap<String, Vec<ChannelAgent>>>, // agent_id -> JoinHandle
-    agent_relay_task: Mutex<HashMap<String, ChannelAgent>>, // agent_id -> JoinHandle
+    pub channels: Mutex<HashMap<String, Channel>>,                       // channel name -> Channel
+    agent_relay_task: Mutex<HashMap<String, Agent>>,                     // agent_id -> JoinHandle
     agent_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // agent_id -> Sender
-
-    conn_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // conn_id -> Sender
+    conn_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>,  // conn_id -> Sender
 }
 
-impl Default for ChannelControl {
-    fn default() -> Self {
-        Self::new()
+#[derive(Debug)]
+struct Agent {
+    channel: String,
+    id: String,
+    relay_task: JoinHandle<()>,
+}
+
+impl Display for Agent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<Agent: id={} channel={}, task={:?}>", self.id, self.channel, self.relay_task)
     }
 }
 
@@ -78,34 +75,13 @@ pub enum ChannelError {
 impl Error for ChannelError {}
 
 impl fmt::Display for ChannelError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ChannelError::ChannelNotFound => {
-                write!(f, "<ChannelNotFound: channel not found>")
-            }
-            ChannelError::ChannelEmpty => {
-                write!(f, "<ChannelEmpty: channel has not agents>")
-            }
-            ChannelError::AgentNotInitiated => {
-                write!(f, "<AgentNotInitiated: agent not initiated>")
-            }
-            ChannelError::MessageSendError => {
-                write!(f, "<MessageSendError: failed to send a message to the channel>")
-            }
+            ChannelError::ChannelNotFound => write!(formatter, "<ChannelNotFound>"),
+            ChannelError::ChannelEmpty => write!(formatter, "<ChannelEmpty: channel has not agents>"),
+            ChannelError::AgentNotInitiated => write!(formatter, "<AgentNotInitiated>"),
+            ChannelError::MessageSendError => write!(formatter, "<MessageSendError: failed to send a message to the channel>"),
         }
-    }
-}
-
-#[derive(Debug)]
-struct ChannelAgent {
-    channel_name: String,
-    id: String,
-    relay_task: JoinHandle<()>,
-}
-
-impl Display for ChannelAgent {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<Agent: id={} channel={}, task={:?}>", self.id, self.channel_name, self.relay_task)
     }
 }
 
@@ -162,13 +138,18 @@ impl Channel {
     }
 }
 
+impl Default for ChannelControl {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ChannelControl {
     pub fn new() -> Self {
         ChannelControl {
             channels: Mutex::new(HashMap::new()),
-            // agent_relay_tasks: Mutex::new(HashMap::new()),
-            agent_relay_task: Mutex::new(HashMap::new()),
             agent_tx: Mutex::new(HashMap::new()),
+            agent_relay_task: Mutex::new(HashMap::new()),
             conn_tx: Mutex::new(HashMap::new()),
         }
     }
@@ -255,13 +236,10 @@ impl ChannelControl {
             Entry::Vacant(_) => {}
             Entry::Occupied(entry) => {
                 let channel = entry.get();
-
-                // channel agents
-                //
-
                 for agent_id in channel.agents().await.iter() {
                     if let Entry::Occupied(agent_task) = self.agent_relay_task.lock().await.entry(agent_id.into()) {
                         agent_task.get().relay_task.abort();
+                        info!("CH / channel {}, agent {}, relay task aborts.", channel_name, agent_id);
                         agent_task.remove();
                     }
                 }
@@ -315,9 +293,9 @@ impl ChannelControl {
                 warn!("AGENT / {} already has a relay task", agent_id);
             }
             Entry::Vacant(entry) => {
-                entry.insert(ChannelAgent {
+                entry.insert(Agent {
                     id: agent_id,
-                    channel_name: channel_name.to_string().clone(),
+                    channel: channel_name.to_string().clone(),
                     relay_task,
                 });
             }
