@@ -97,9 +97,9 @@ run-service port="18000" host="0.0.0.0":
   set -x -euo pipefail
 
   pwd
-  cd service/src
+  cd service
   watchexec -r -w . -e py -- \
-    uv run uvicorn --host {{host}} --port {{port}} tangram.app:app --ws websockets --log-config ../logging.yml
+    uv run uvicorn --host {{host}} --port {{port}} tangram.app:app --ws websockets --log-config logging.yml
 
 run-web host="0.0.0.0" port="2024":
   #!/usr/bin/env bash

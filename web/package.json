@@ -8,7 +8,7 @@
     "dev": "vite --debug",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint --fix \"./src/**/*.{ts,js,vue}\""
+    "lint": "eslint --fix \"./web/**/*.{ts,js,vue}\""
   },
   "devDependencies": {
     "@eslint/js": "^9.8.0",
