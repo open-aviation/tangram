@@ -2,13 +2,15 @@
   <div class="main-container" :class="{'hasItem': show}">
     <TopNavBar />
     <LeftSideBar ref="leftBar" />
-    <l-map @click="emptySelect" @mousemove="getPosition($event)"  class="map-container" ref="map" v-model:zoom="zoom" :center="[45.41322, 10.219482]" >
+    <l-map @click="emptySelect" @mousemove="getPosition($event)" 
+     class="map-container" ref="map" v-model:zoom="zoom" :center="[48, 8]" >
       <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap"></l-tile-layer>
       <PlaneData />
       <PolyLines />
       <Charts v-show="show"  />
       <!-- <LatLngBar :position="position" />-->
       <HoverDisplay />
+      <Sensors/>
     </l-map>
     <Timeline :styles="{width: 'calc(100% - 40px)', position: 'absolute', bottom: 0, zIndex: 500, left: '40px', background: '#ffffff80', color: 'black'}" />
 
@@ -30,6 +32,7 @@ import {useMapStore} from './store'
 import HoverDisplay from "./components/HoverDisplay.vue";
 import Timeline from "./components/Timeline.vue";
 //import Timeline from "./components/Timeline.vue";
+import Sensors from "./components/Sensors.vue";
 
 export default {
   components: {
@@ -43,7 +46,8 @@ export default {
     LTileLayer,
     TopNavBar,
     PlaneData,
-    Charts
+    Charts,
+    Sensors
   },
   data() {
     return {
