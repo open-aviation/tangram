@@ -15,7 +15,6 @@ export default {
         return {
             staticAnchor: [16, 37],
             color: "purple",
-            polyline: [],
             store: useMapStore(),
         };
     },
@@ -23,13 +22,11 @@ export default {
         selected() {
             return this.store.selectedPlane;
         },
-        /*
         polyline() {
-          const line = this.store.trajectory;
-          console.log(`getting polyline, length: ${line.length}`);
-          return line;
+            const line = this.store.trajectory;
+            console.log(`getting polyline, length: ${line.length}`);
+            return line;
         }
-        */
     },
     watch: {
         selected: function (newVal) {
@@ -46,8 +43,7 @@ export default {
 
             trajectoryChannel.on("new-data", (data) => {
                 console.log(`${icao24} trajectory updated, ${data.length} points`);
-                this.polyline = data;
-                // this.store.appendPlaneTrajectory([lat, longi]);
+                this.store.trajectory = data;
             });
 
             trajectoryChannel
