@@ -231,27 +231,30 @@ impl ChannelControl {
 
     // 删除一个 channel
     // channel 上所有的资源: channel, agents, agent_tx, relay_task, redis_listen_task, conn_tx
-    pub async fn channel_remove(&self, channel_name: String) {
-        match self.channels.lock().await.entry(channel_name.clone()) {
+    pub async fn channel_rm(&self, channel_name: String) {
+        let mut channels = self.channels.lock().await;
+        match channels.entry(channel_name.clone()) {
             Entry::Vacant(_) => {}
             Entry::Occupied(entry) => {
                 let channel = entry.get();
                 for agent_id in channel.agents().await.iter() {
                     if let Entry::Occupied(agent_task) = self.agent_relay_task.lock().await.entry(agent_id.into()) {
                         agent_task.get().relay_task.abort();
-                        info!("CH / channel {}, agent {}, relay task aborts.", channel_name, agent_id);
+                        info!("CH_RM / channel {}, agent {}, relay_task aborted", channel_name, agent_id);
                         agent_task.remove();
                     }
                 }
                 if let Some(task) = &channel.redis_listen_task {
                     task.abort();
-                    info!("CH / channel {} redis listen task aborted", channel_name);
+                    info!("CH_RM / channel {} redis listen task aborted", channel_name);
                 }
 
                 entry.remove();
-                info!("CH / removed from channels, {}", channel_name);
+                info!("CH_RM / removed from channels, {}", channel_name);
             }
         }
+        let channel_names = channels.keys().cloned().collect::<Vec<String>>();
+        info!("CH_RM / {} cleared, channels: {} {:?}", channel_name, channel_names.len(), channel_names);
     }
 
     // pub async fn channel_rm_conn_agents(&self, conn_id: String) {
@@ -757,7 +760,7 @@ mod test {
         ctl.channel_add("test".into(), None).await;
         assert_eq!(ctl.channels.lock().await.len(), 1);
 
-        ctl.channel_remove("test".into()).await;
+        ctl.channel_rm("test".into()).await;
         assert_eq!(ctl.channels.lock().await.len(), 0);
     }
 
@@ -953,7 +956,7 @@ mod test {
         }
 
         // Remove channel
-        ctl.channel_remove("room1".into()).await;
+        ctl.channel_rm("room1".into()).await;
 
         // Verify cleanup
         assert!(ctl.channels.lock().await.is_empty());
