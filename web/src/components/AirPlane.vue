@@ -1,17 +1,14 @@
 <template>
   <l-layer-group v-if="showCluster">
     <l-marker-cluster-group :maxClusterRadius="20" :removeOutsideVisibleBounds="true">
-      <v-rotated-marker v-for="(item, index) in planeData" :key='index'
-                        @click="showRoute"
-                        :icon="getIcon(item)"
-                        :rotationAngle="getRotate(item)"
-                        :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'"
-                        :lat-lng.sync="[item.latitude, item.longitude]">
-        <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10]}">
+      <v-rotated-marker v-for="(item, index) in planeData" :key='index' @click="showRoute" :icon="getIcon(item)"
+        :rotationAngle="getRotate(item)" :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'"
+        :lat-lng.sync="[item.latitude, item.longitude]">
+        <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10] }">
           <p style="font-size: 14px">
-            icao24: <code>{{ item.icao24 }}</code><br/>
-            callsign: <code>{{ item.callsign }}</code><br/>
-            tail: <code>{{ item.registration }}</code><br/>
+            icao24: <code>{{ item.icao24 }}</code><br />
+            callsign: <code>{{ item.callsign }}</code><br />
+            tail: <code>{{ item.registration }}</code><br />
             altitude: <code>{{ item.altitude }}</code>
           </p>
         </l-tooltip>
@@ -22,35 +19,32 @@
     </l-marker-cluster-group>
   </l-layer-group>
   <l-layer-group v-else>
-      <v-rotated-marker v-for="(item, index) in planeData" :key='index'
-                        @click="showRoute"
-                        :icon="getIcon(item)"
-                        :rotationAngle="getRotate(item)"
-                        :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'"
-                        :lat-lng.sync="[item.latitude, item.longitude]">
-        <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10]}">
-          <p style="font-size: 14px">
-            icao24: <code>{{ item.icao24 }}</code><br/>
-            callsign: <code>{{ item.callsign }}</code><br/>
-            tail: <code>{{ item.registration }}</code><br/>
-            altitude: <code>{{ item.altitude }}</code>
-          </p>
-        </l-tooltip>
-        <l-popup class="popup-leaflet-hidden">
-          <div ref="popup" :id="'popup-' + item.icao24">{{ item.icao24 }}</div>
-        </l-popup>
-      </v-rotated-marker>
+    <v-rotated-marker v-for="(item, index) in planeData" :key='index' @click="showRoute" :icon="getIcon(item)"
+      :rotationAngle="getRotate(item)" :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'"
+      :lat-lng.sync="[item.latitude, item.longitude]">
+      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10] }">
+        <p style="font-size: 14px">
+          icao24: <code>{{ item.icao24 }}</code><br />
+          callsign: <code>{{ item.callsign }}</code><br />
+          tail: <code>{{ item.registration }}</code><br />
+          altitude: <code>{{ item.altitude }}</code>
+        </p>
+      </l-tooltip>
+      <l-popup class="popup-leaflet-hidden">
+        <div ref="popup" :id="'popup-' + item.icao24">{{ item.icao24 }}</div>
+      </l-popup>
+    </v-rotated-marker>
   </l-layer-group>
 </template>
 <script>
 import L from 'leaflet'
 import "leaflet/dist/leaflet.css";
-import {LLayerGroup, LPopup, LTooltip} from '@vue-leaflet/vue-leaflet';
-import {LMarkerRotate} from 'vue-leaflet-rotate-marker';
+import { LLayerGroup, LPopup, LTooltip } from '@vue-leaflet/vue-leaflet';
+import { LMarkerRotate } from 'vue-leaflet-rotate-marker';
 import Raphael from 'raphael';
-import {get_image_object} from './PlanePath';
-import {useMapStore} from '../store'
-import {LMarkerClusterGroup} from 'vue-leaflet-markercluster'
+import { get_image_object } from './PlanePath';
+import { useMapStore } from '../store'
+import { LMarkerClusterGroup } from 'vue-leaflet-markercluster'
 
 import 'leaflet/dist/leaflet.css'
 import 'vue-leaflet-markercluster/dist/style.css'
@@ -90,7 +84,7 @@ export default {
 
       const streamingChannelName = "channel:streaming";
       const streamingChannelToken = "channel-token";
-      this.streamingChannel = this.socket.channel(streamingChannelName, {token: streamingChannelToken});
+      this.streamingChannel = this.socket.channel(streamingChannelName, { token: streamingChannelToken });
 
       this.streamingChannel.on("new-data", data => {
         if (data && data.length > 0) {
@@ -109,14 +103,14 @@ export default {
       });
 
       this.streamingChannel
-          .join()
-          .receive("ok", ({messages}) => {
-            console.log(`(${streamingChannelName}) joined`, messages);
-          })
-          .receive("error", ({reason}) =>
-              console.log(`failed to join ${streamingChannelName}`, reason)
-          )
-          .receive("timeout", () => console.log(`timeout joining ${streamingChannelName}`));
+        .join()
+        .receive("ok", ({ messages }) => {
+          console.log(`(${streamingChannelName}) joined`, messages);
+        })
+        .receive("error", ({ reason }) =>
+          console.log(`failed to join ${streamingChannelName}`, reason)
+        )
+        .receive("timeout", () => console.log(`timeout joining ${streamingChannelName}`));
     }
   },
 
@@ -134,7 +128,7 @@ export default {
       let bbox = Raphael.pathBBox(iconProps.path);
       let x = Math.floor(bbox.x + bbox.width / 2.0);
       let y = Math.floor(bbox.y + bbox.height / 2.0);
-      let center = {x, y};
+      let center = { x, y };
       let offs_x = 0;
       if (iconProps.ofX) {
         offs_x = iconProps.ofX;
@@ -169,17 +163,21 @@ export default {
        * can find the popup modal's id attribute which is icao24, then we can find the correct plane info in planeData
        */
       setTimeout(() => {
-        console.dir(this.$refs.popup);
-        const obj = this.$refs.popup.find(e => {
-          return e.parentElement.parentElement.style.display !== 'none' &&
-            e.parentElement.parentElement.parentElement.parentElement.style.opacity === '1'
-        });
-        console.dir(obj)
-        this.selected = this.planeData.find(e => obj.id.indexOf(e.icao24) === 6)
-        console.log('new selected aircraft: ', this.selected);
+        if (!this.$refs.popup) return;
 
-        this.store.setSelected(this.selected)
-      }, 100) // 100ms
+        const obj = this.$refs.popup.find(e => {
+          return e?.parentElement?.parentElement?.style?.display !== 'none' &&
+            e?.parentElement?.parentElement?.parentElement?.parentElement?.style?.opacity === '1'
+        });
+
+        if (!obj || !obj.id) return;
+
+        const selectedPlane = this.planeData.find(e => obj.id.indexOf(e.icao24) === 6);
+        if (selectedPlane) {
+          this.selected = selectedPlane;
+          this.store.setSelected(this.selected);
+        }
+      }, 100)
     }
   }
 }

@@ -1,16 +1,19 @@
 <template>
-  <div class="main-container" :class="{'hasItem': show}">
+  <div class="main-container" :class="{ 'hasItem': show }">
     <TopNavBar />
     <LeftSideBar ref="leftBar" />
-    <l-map @click="emptySelect" @mousemove="getPosition($event)"  class="map-container" ref="map" v-model:zoom="zoom" :center="[45.41322, 10.219482]" >
-      <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap"></l-tile-layer>
+    <l-map @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map"
+      v-model:zoom="zoom" :center="center">
+      <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png" layer-type="base"
+        name="OpenStreetMap"></l-tile-layer>
       <PlaneData />
       <PolyLines />
-      <Charts v-show="show"  />
+      <Charts v-show="show" />
       <!-- <LatLngBar :position="position" />-->
       <HoverDisplay />
     </l-map>
-    <Timeline :styles="{width: 'calc(100% - 40px)', position: 'absolute', bottom: 0, zIndex: 500, left: '40px', background: '#ffffff80', color: 'black'}" />
+    <Timeline
+      :styles="{ width: 'calc(100% - 40px)', position: 'absolute', bottom: 0, zIndex: 500, left: '40px', background: '#ffffff80', color: 'black' }" />
 
   </div>
 
@@ -25,7 +28,7 @@ import LeftSideBar from "./components/LeftSideBar.vue";
 import PlaneData from "./components/AirPlane.vue";
 import PolyLines from "./components/PlanePolylines.vue";
 import Charts from "./components/MultiCharts.vue";
-import {useMapStore} from './store'
+import { useMapStore } from './store'
 //import LatLngBar from "./components/LatLngBar.vue";
 import HoverDisplay from "./components/HoverDisplay.vue";
 import Timeline from "./components/Timeline.vue";
@@ -49,7 +52,8 @@ export default {
     return {
       zoom: 6,
       position: '',
-      store: useMapStore()
+      store: useMapStore(),
+      center: [52.3169, 4.7459]  // Add this line
     };
   },
   computed: {
@@ -70,30 +74,30 @@ export default {
     const systemChannelToken = "channel-token";
     let systemChannel = socket.channel(systemChannelName, { token: systemChannelToken });
     systemChannel.on('update-node', ({ el, html }) => {
-      this.updateItem = {el, html}
-      if(el === 'plane_count') {
+      this.updateItem = { el, html }
+      if (el === 'plane_count') {
         this.store.setCount(html)
       }
-      if(el === 'uptime') {
+      if (el === 'uptime') {
         this.store.setUpTime(html)
       }
-      if(el === 'info_utc') {
+      if (el === 'info_utc') {
         this.store.setInfoUtc(html)
       }
-      if(el === 'info_local') {
+      if (el === 'info_local') {
         this.store.setInfoLocal(html)
       }
     });
     systemChannel
-        .join()
-        .receive("ok", ({ messages }) => {
-          console.log(`(${systemChannelName}) joined`, messages);
-          this.store.setSystemChannel(systemChannel);
-        })
-        .receive("error", ({ reason }) =>
-            console.log(`failed to join ${systemChannelName}`, reason)
-        )
-        .receive("timeout", () => console.log(`timeout joining ${systemChannelName}`));
+      .join()
+      .receive("ok", ({ messages }) => {
+        console.log(`(${systemChannelName}) joined`, messages);
+        this.store.setSystemChannel(systemChannel);
+      })
+      .receive("error", ({ reason }) =>
+        console.log(`failed to join ${systemChannelName}`, reason)
+      )
+      .receive("timeout", () => console.log(`timeout joining ${systemChannelName}`));
   },
 
   methods: {
@@ -103,6 +107,9 @@ export default {
     emptySelect() {
       this.store.setShowDrawer(false)
     },
+    updateCenter(event) {
+      this.center = event.target.getCenter();
+    },
   }
 };
 </script>
@@ -111,17 +118,20 @@ html {
   width: 100%;
   height: 100%;
 }
+
 body {
   font-family: "B612", sans-serif;
   width: 100%;
   height: 100%;
 }
+
 .main-container {
   height: 100%;
   width: 100%;
   display: flex;
   flex-direction: column;
 }
+
 @media (min-width: 768px) {
   .leaflet-control-container .leaflet-left {
     transition: left 80ms;
@@ -148,6 +158,7 @@ body {
   flex: 1;
   flex-grow: 1;
 }
+
 .aircraft_img svg {
   fill: #f9fd15;
 }
@@ -159,7 +170,9 @@ body {
 .aircraft_selected svg {
   fill: green;
 }
-.leaflet-top, .leaflet-bottom {
+
+.leaflet-top,
+.leaflet-bottom {
   z-index: 400;
 }
 </style>
