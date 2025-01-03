@@ -19,7 +19,7 @@ fmt:
 
 run target="channeld":
   watchexec -w . -e rs -r -- RUST_LOG=debug cargo run --bin {{target}} -- \
-    --host 0.0.0.0 --port 5000 --redis-url redis://192.168.11.37:6379 --redis-topic streaming:data
+    --host 0.0.0.0 --port 5000 --redis-url redis://192.168.11.37:6379
 
 pub message channel="system" event="default":
   redis-cli -u redis://192.168.11.37:6379 publish to:{{channel}}:{{event}} '{"type": "message", "message": "{{message}}"}'

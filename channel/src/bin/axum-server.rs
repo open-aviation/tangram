@@ -34,9 +34,6 @@ struct Options {
 
     #[arg(long, default_value = None)]
     redis_url: Option<String>,
-
-    #[arg(long, default_value = None)]
-    redis_topic: Option<String>,
 }
 
 #[tokio::main]
@@ -51,44 +48,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     let options = Options::parse(); // exit on error
-    if options.redis_url.is_none() || options.redis_topic.is_none() {
-        error!("redis_url and redis_topic must be provided");
+    if options.redis_url.is_none() {
+        error!("redis_url is missing");
         return Ok(());
     }
 
     let redis_url = options.redis_url.unwrap();
-
     let channel_control = ChannelControl::new();
-    // channel_control.channel_add("phoenix".into(), None).await;
-    // channel_control.channel_add("admin".into(), None).await;
-    //
-    // channel_control.channel_add("system".into(), None).await;
-    // channel_control.channel_add("streaming".into(), None).await;
 
     let redis_client = Client::open(redis_url.clone())?;
     let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
-        redis_url: redis_url.clone(),
         redis_client,
         jwt_secret: random_string(8),
     });
 
-    // state.ctl.lock().await.channel_add("phoenix".into(), None).await;
-    {
-        let channel_name: String = "phoenix".into();
-        add_channel(&state.ctl, state.redis_client.clone(), channel_name.clone()).await;
-    }
+    // phoenix & admin are special
+    add_channel(&state.ctl, state.redis_client.clone(), "phoenix".into()).await;
+    add_channel(&state.ctl, state.redis_client.clone(), "admin".into()).await;
 
-    {
-        let channel_name: String = "admin".into();
-        add_channel(&state.ctl, state.redis_client.clone(), channel_name.clone()).await;
-    }
-
-    {
-        let channel_name: String = "system".into();
-        add_channel(&state.ctl, state.redis_client.clone(), channel_name.clone()).await;
-        tokio::spawn(datetime_handler(state.clone(), channel_name.clone()));
-    }
+    // predefined channel
+    add_channel(&state.ctl, state.redis_client.clone(), "system".into()).await;
+    tokio::spawn(datetime_handler(state.clone(), "system".into()));
 
     let host = options.host.unwrap();
     let port = options.port.unwrap();

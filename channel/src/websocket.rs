@@ -3,7 +3,6 @@ use crate::channel::{ChannelControl, ChannelMessage};
 use futures::SinkExt;
 use futures::StreamExt;
 use redis::AsyncCommands;
-use redis::Client;
 use redis::RedisResult;
 use serde::{Deserialize, Serialize};
 use serde_tuple::{Deserialize_tuple, Serialize_tuple};
@@ -114,7 +113,6 @@ enum RequestPayload {
 
 pub struct State {
     pub ctl: Mutex<ChannelControl>,
-    pub redis_url: String,
     pub redis_client: redis::Client,
     pub jwt_secret: String,
 }
@@ -163,11 +161,7 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
     let ws_rx_conn_id = conn_id.clone();
     let mut ws_rx_task = tokio::spawn(async move {
         info!("AXUM / WS_RX / websocket rx handling (ws rx =>) ...");
-        let mut redis_conn = Client::open(ws_rx_state.redis_url.clone())
-            .unwrap()
-            .get_multiplexed_async_connection()
-            .await
-            .unwrap();
+        let mut redis_conn = ws_rx_state.redis_client.get_multiplexed_async_connection().await.unwrap();
 
         // 从 websocket rx 读取所有消息，处理或者分发到各个 channel
         loop {
@@ -241,8 +235,7 @@ pub async fn warp_on_connected(ws: WebSocket, state: Arc<State>) {
     let mut ws_rx_task = tokio::spawn(async move {
         info!("websocket rx handling (ws rx =>) ...");
 
-        let redis_client = Client::open(state_clone.redis_url.clone()).unwrap();
-        let mut redis_conn = redis_client.get_multiplexed_async_connection().await.unwrap();
+        let mut redis_conn = state_clone.redis_client.get_multiplexed_async_connection().await.unwrap();
 
         // 从 websocket rx 读取所有消息，处理或者分发到各个 channel
         while let Some(msg_result) = ws_rx.next().await {
@@ -514,7 +507,6 @@ mod tests {
         let redis_client = redis::Client::open(redis_url.clone()).unwrap();
         let state = Arc::new(State {
             ctl: Mutex::new(ChannelControl::new()),
-            redis_url,
             redis_client,
             jwt_secret: "secret".clone(),
         });
