@@ -17,32 +17,47 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
   cp .env.example .env
   ```
 
-  Set the `JET1090_SOURCE` to the source of your ADS-B data. For example, you can use an example web socket provided by us:
+  Set the `JET1090_SOURCE` to the source for the `jet1090`. For example, you can use an example web socket provided by us:
 
   ```shell
   JET1090_SOURCE=ws://feedme.mode-s.org:9876/40128@EHRD
   ```
 
-4. pull and run a Redis container, this is used for message caching between different services:
+4. pull and run a `Redis` container, this is used for message caching between different services:
 
   ```shell
   just redis
   ```
 
 
-5. build the tagram container:
+5. build the `tangram` and `jet1090` container:
 
   ```shell
   just build
+  just build-jet1090
   ```
 
-6. run the tangram container:
+6. run the `jet1090` container:
+
+  ```shell
+  just jet1090
+  ```
+  You should be able to see the `jet1090` console, which contains the data that is being received from the source, for example:
+
+  ![jet1090 console](./web/screenshot/jet1090.png)
+
+7. run the `tangram` container, in a new terminal:
 
   ```shell
   just run
   ```
 
-7. Visualize the live data:
+  You should be able to see the `process composer` console, which contains difference processes that are running in the background, for example:
+
+  ![process composer](./web/screenshot/process.png)
+
+
+8. Visualize the live data:
 
   Visit <http://localhost:2024> in your browser.
 
@@ -52,7 +67,7 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
 
 Here is a screenshot of the tool running in real-time:
 
-![plot](./web/screenshot.png)
+![web interface](./web/screenshot/web.png)
 
 
 ## Funding
