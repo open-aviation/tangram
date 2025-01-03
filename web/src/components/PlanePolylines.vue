@@ -43,7 +43,7 @@ export default {
 
             trajectoryChannel.on("new-data", (data) => {
                 console.log(`${icao24} trajectory updated, ${data.length} points`);
-                this.store.trajectory = data;
+                this.store.$patch({ trajectory: data });
             });
 
             trajectoryChannel
