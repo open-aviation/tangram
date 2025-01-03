@@ -67,7 +67,7 @@ create-uv-venv wd="~/tangram/service":
   uv sync --dev --verbose --no-cache && uv cache clean
 
 # create tangram network
-pc-network:
+network:
   #!/usr/bin/env bash
   set -x -euo pipefail
 
@@ -79,7 +79,7 @@ pc-network:
   podman network create {{NETWORK}}
 
 # launch redis
-pc-redis: pc-network
+redis: network
   #!/usr/bin/env bash
 
   if podman container exists redis; then
@@ -126,11 +126,11 @@ run-web host="0.0.0.0" port="2024":
   npx vite --host {{host}} --port {{port}}
 
 # build process-compose based tangram image
-pc-build:
+build:
   podman image build -f container/tangram.Containerfile -t tangram:0.1 .
 
 # launch tangram container
-pc-run: pc-network
+run: network
   #!/usr/bin/env bash
 
   if [ "$(uname)" = "Linux" ]; then \
@@ -149,7 +149,7 @@ pc-run: pc-network
   fi
 
 # rate-limiting plugin container
-pc-rate-limiting: pc-network
+rate-limiting: network
   podman container run -it --rm --name rate_limiting \
     --network {{NETWORK}} \
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
@@ -158,7 +158,7 @@ pc-rate-limiting: pc-network
     -w /home/user/tangram/service \
     tangram:0.1 uv run -- python -m tangram.plugins.rate_limiting --dest-topic=coordinate
 
-pc-table:
+table:
   podman container run -it --rm --name rate_limiting \
     --network {{NETWORK}} \
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
@@ -167,10 +167,10 @@ pc-table:
     -w /home/user/tangram/service \
     tangram:0.1 uv run -- python -m tangram.plugins.table
 
-pc-log log="tangram": pc-network
+log log="tangram": network
   @podman container exec -it -e TERM=xterm-256color -w /tmp/tangram tangram tail -f {{log}}.log
 
-pc-jet1090-basestation:
+jet1090-basestation:
   #!/usr/bin/env bash
 
   mkdir -p ~/.cache/jet1090
@@ -181,7 +181,7 @@ pc-jet1090-basestation:
 
   unzip -o ~/.cache/jet1090/basestation.zip -d ~/.cache/jet1090
 
-pc-jet1090-vol: pc-jet1090-basestation
+jet1090-vol: jet1090-basestation
   # Commands for creating a volume for basestation.sqb
   # It can be used as name volume when running jet1090 contaienr
   # FIXME: it does not work with jet1090 for now, it tries to create the directory and download anyway.
@@ -195,7 +195,7 @@ build-jet1090:
   podman image build -t jet1090:{{JET1090_VERSION}} --build-arg VERSION={{JET1090_VERSION}} -f container/jet1090.Dockerfile .
 
 # run jet1090 interactively, as a container
-pc-jet1090: pc-network pc-redis pc-jet1090-basestation
+jet1090: network redis jet1090-basestation
   podman run -it --rm --name jet1090 \
     --network {{NETWORK}} -p 8080:8080 \
     -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
@@ -207,7 +207,7 @@ pc-jet1090: pc-network pc-redis pc-jet1090-basestation
         {{JET1090_SOURCE}}
 
 # run jet1090 (0.3.8) as a service
-pc-jet1090-daemon: pc-network pc-redis pc-jet1090-basestation
+jet1090-daemon: network redis jet1090-basestation
   podman run -d --rm --name jet1090 \
     --network {{NETWORK}} -p 8080:8080 \
     -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \

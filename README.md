@@ -26,20 +26,20 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
 4. pull and run a Redis container, this is used for message caching between different services:
 
   ```shell
-  just pc-redis
+  just redis
   ```
 
 
 5. build the tagram container:
 
   ```shell
-  just pc-build
+  just build
   ```
 
 6. run the tangram container:
 
   ```shell
-  just pc-run
+  just run
   ```
 
 7. Visualize the live data:
