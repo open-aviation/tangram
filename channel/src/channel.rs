@@ -1,14 +1,12 @@
 use futures::StreamExt;
 use redis::RedisResult;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::{
     collections::{hash_map::Entry, HashMap},
     error::Error,
     fmt::{self, Display},
-    sync::{
-        atomic::{AtomicU32, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicU32, Ordering},
 };
 use tokio::{
     sync::{
@@ -19,7 +17,7 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 
-use crate::websocket::{Response, ServerMessage, ServerPayload, State};
+use crate::websocket::{Response, ServerMessage, ServerPayload};
 
 #[derive(Clone, Debug, Serialize)]
 pub enum ChannelMessage {
@@ -131,9 +129,9 @@ impl Channel {
         if !agents.contains(&agent_id) {
             agents.push(agent_id.clone());
             self.count.fetch_add(1, Ordering::SeqCst);
-            info!("CHANNEL / total: {:?}, added {}", self.count, agent_id);
+            info!("C / {}, total: {:?}, agent added {}", self.name, self.count, agent_id);
         } else {
-            info!("CHANNEL / total: {:?}, {} exists", self.count, agent_id);
+            info!("C / {}, total: {:?}, agent {} exists", self.name, self.count, agent_id);
         }
         self.tx.clone()
     }
@@ -145,7 +143,7 @@ impl Channel {
             // - 删除 index 位置的，用最后一个顶替这个位置
             let agent = agents.swap_remove(pos);
             self.count.fetch_sub(1, Ordering::SeqCst);
-            info!("CHANNEL / {:?}, removed {}", self.count, agent);
+            info!("C / {}, total: {:?}, agent removed {}", self.name, self.count, agent);
         }
     }
 
@@ -232,6 +230,7 @@ impl ChannelControl {
             .or_insert_with(|| Channel::new(channel_name.clone(), capacity));
         // None if key does not exist, or value replace and old value retured
         // let inserted = channels.insert(channel_name.clone(), Channel::new(channel_name.clone(), capacity));
+        debug!("CH / channel {} added", channel_name);
     }
 
     pub async fn channel_add_redis_listen_task(&self, channel_name: String, redis_listen_task: JoinHandle<RedisResult<()>>) {
@@ -239,6 +238,14 @@ impl ChannelControl {
         let channel = channels.get_mut(&channel_name).unwrap();
         channel.redis_listen_task = Some(redis_listen_task);
         info!("CH / added redis listen task to channel {}", channel_name);
+
+        // self.admin_pub().await;
+    }
+
+    pub async fn admin_pub(&self) {
+        if let Err(e) = self.channel_broadcast_json("admin", "CH", json!({})).await {
+            info!("CH / fail to publish admin event: {}", e);
+        }
     }
 
     // 删除一个 channel
@@ -318,10 +325,11 @@ impl ChannelControl {
         Ok(channel_tx)
     }
 
-    pub async fn channel_leave(&self, name: String, agent_id: String) -> Result<(), ChannelError> {
+    pub async fn channel_leave(&self, name: String, agent_id: String) -> Result<usize, ChannelError> {
         info!("CH / leave {} from {} ...", agent_id, name);
         let channels = self.channels.lock().await;
-        channels.get(&name).ok_or(ChannelError::ChannelNotFound)?.leave(agent_id.clone()).await;
+        let channel = channels.get(&name).ok_or(ChannelError::ChannelNotFound)?;
+        channel.leave(agent_id.clone()).await;
         match self.agent_relay_task.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(entry) => {
                 entry.get().relay_task.abort();
@@ -330,7 +338,18 @@ impl ChannelControl {
             }
             Entry::Vacant(_) => {}
         }
-        Ok(())
+        Ok(channel.count.load(Ordering::SeqCst) as usize)
+    }
+
+    pub async fn channel_broadcast_json(&self, channel_name: &str, event_name: &str, value: serde_json::Value) -> Result<usize, ChannelError> {
+        let message = ServerMessage {
+            join_ref: None,
+            event_ref: "0".into(),
+            topic: channel_name.to_string(),
+            event: event_name.to_string(),
+            payload: ServerPayload::ServerJsonValue(value),
+        };
+        self.channel_broadcast(channel_name.to_string(), ChannelMessage::Reply(message)).await
     }
 
     /// broadcast message to the channel
@@ -350,7 +369,13 @@ impl ChannelControl {
     }
 
     pub async fn agent_rx(&self, agent_id: String) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
-        Ok(self.agent_tx.lock().await.get(&agent_id).ok_or(ChannelError::AgentNotInitiated)?.subscribe())
+        Ok(self
+            .agent_tx
+            .lock()
+            .await
+            .get(&agent_id)
+            .ok_or(ChannelError::AgentNotInitiated)?
+            .subscribe())
     }
 
     /// Add channel agent to the channel ctl, 就是添加 agent tx
@@ -460,9 +485,9 @@ impl ChannelEventFromRedis {
 }
 
 /// 从redis 监听消息, per channel 的任务
-pub async fn listen_to_redis(state: Arc<State>, channel_name: String) -> RedisResult<()> {
+pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client: redis::Client, channel_name: String) -> RedisResult<()> {
     let redis_topic = format!("to:{}:*", channel_name);
-    let mut redis_pubsub = state.redis_client.get_async_pubsub().await?;
+    let mut redis_pubsub = redis_client.get_async_pubsub().await?;
     redis_pubsub.psubscribe(redis_topic.clone()).await?;
     let mut redis_pubsub_stream = redis_pubsub.on_message();
     let mut counter = 0; // TODO: counter 有问题, 在这里完全没有意义
@@ -494,7 +519,7 @@ pub async fn listen_to_redis(state: Arc<State>, channel_name: String) -> RedisRe
         // the format is to:channel_name:event_name, split it by `:`
         match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
             Ok(msg) => {
-                _channel_publish(counter, value.clone(), state.clone(), &msg.channel, &msg.event).await;
+                _channel_publish(counter, value.clone(), tx.clone(), &msg.channel, &msg.event).await;
             }
             Err(e) => {
                 warn!("LISTENER / invalid redis channel format: {}", e);
@@ -506,7 +531,7 @@ pub async fn listen_to_redis(state: Arc<State>, channel_name: String) -> RedisRe
     }
 }
 
-async fn _channel_publish(counter: i32, value: serde_json::Value, state: Arc<State>, channel_name: &str, event_name: &str) {
+async fn _channel_publish(counter: i32, value: serde_json::Value, tx: broadcast::Sender<ChannelMessage>, channel_name: &str, event_name: &str) {
     let reply_message = ServerMessage {
         join_ref: None,
         event_ref: counter.to_string(),
@@ -514,13 +539,13 @@ async fn _channel_publish(counter: i32, value: serde_json::Value, state: Arc<Sta
         event: event_name.to_string(),
         payload: ServerPayload::ServerJsonValue(value),
     };
-    match state
-        .ctl
-        .lock()
-        .await
-        .channel_broadcast(channel_name.to_string(), ChannelMessage::Reply(reply_message.clone()))
-        .await
-    {
+    // match state
+    //     .ctl
+    //     .lock()
+    //     .await
+    //     .channel_broadcast(channel_name.to_string(), ChannelMessage::Reply(reply_message.clone()))
+    //     .await
+    match tx.send(ChannelMessage::Reply(reply_message.clone())) {
         Ok(_) => debug!("REDIS_PUB / published, {} > {}", event_name, reply_message),
         Err(e) => {
             // it throws error if there's no client
@@ -545,7 +570,9 @@ mod test {
                 // response: json!({
                 //     "message": message.to_string(),
                 // }),
-                response: Response::Message { message: message.to_string() },
+                response: Response::Message {
+                    message: message.to_string(),
+                },
             },
         })
     }
@@ -1004,7 +1031,9 @@ mod test {
                 // response: json!({
                 //     "message": "hello".to_string(),
                 // }),
-                response: Response::Message { message: "hello".to_string() },
+                response: Response::Message {
+                    message: "hello".to_string(),
+                },
             },
         };
         assert_eq!(message.to_string(), r#"Message join_ref=1, ref=ref1, topic=test, event=msg, <Payload status=ok, response=...>"#);
