@@ -17,10 +17,10 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
   cp .env.example .env
   ```
 
-  Set the `JET1090_SOURCE` to the source of your ADS-B data. For example, you can use an example web socket provided by us: `ws://51.158.72.24:9876/40130@LFMA`
+  Set the `JET1090_SOURCE` to the source of your ADS-B data. For example, you can use an example web socket provided by us: `ws://...:9876/40128@EHRD`
 
   ```shell
-  JET1090_SOURCE=ws://51.158.72.24:9876/40130@LFMA
+  JET1090_SOURCE=ws://...:9876/40128@EHRD
   ```
 
 4. pull and run a Redis container, this is used for message caching between different services:
