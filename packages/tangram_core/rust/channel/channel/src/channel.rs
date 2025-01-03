@@ -1,12 +1,15 @@
 use futures::StreamExt;
-use redis::RedisResult;
+use redis::{AsyncCommands, RedisResult};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
     collections::{hash_map::Entry, HashMap},
     error::Error,
     fmt::{self, Display},
-    sync::atomic::{AtomicU32, Ordering},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    },
 };
 use tokio::{
     sync::{
@@ -45,7 +48,8 @@ pub struct Channel {
 
 /// manages all channels
 pub struct ChannelControl {
-    pub channels: Mutex<HashMap<String, Channel>>,                       // channel name -> Channel
+    pub channels: Mutex<HashMap<String, Channel>>, // channel name -> Channel
+    redis_client: Arc<redis::Client>,
     agent_relay_task: Mutex<HashMap<String, Agent>>,                     // agent_id -> JoinHandle
     agent_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // agent_id -> Sender
     conn_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>,  // conn_id -> Sender
@@ -140,14 +144,16 @@ impl Channel {
 
 impl Default for ChannelControl {
     fn default() -> Self {
-        Self::new()
+        let redis_client = redis::Client::open("redis://127.0.0.1:6379").unwrap();
+        Self::new(Arc::new(redis_client))
     }
 }
 
 impl ChannelControl {
-    pub fn new() -> Self {
+    pub fn new(redis_client: Arc<redis::Client>) -> Self {
         ChannelControl {
             channels: Mutex::new(HashMap::new()),
+            redis_client,
             agent_tx: Mutex::new(HashMap::new()),
             agent_relay_task: Mutex::new(HashMap::new()),
             conn_tx: Mutex::new(HashMap::new()),
@@ -220,13 +226,21 @@ impl ChannelControl {
         channel.redis_listen_task = Some(redis_listen_task);
         info!("CH / added redis listen task to channel {}", channel_name);
 
-        // self.admin_pub().await;
+        let _ = self.pub_meta_event().await;
     }
 
-    pub async fn admin_pub(&self) {
-        if let Err(e) = self.channel_broadcast_json("admin", "CH", json!({})).await {
-            info!("CH / fail to publish admin event: {}", e);
-        }
+    pub async fn pub_meta_event(&self) -> RedisResult<()> {
+        let redis_topic = "to:admin:dt";
+        let mut redis_conn = self.redis_client.clone().get_multiplexed_async_connection().await?;
+        let json_value = json!({
+            "type": "message",
+            "message": "admin channel added ..."
+        });
+        let message = serde_json::to_string(&json_value).unwrap();
+        let _result: String = redis_conn.publish(redis_topic, message.clone()).await?;
+
+        info!("ADMIN_PUB / event published to redis");
+        Ok(())
     }
 
     // 删除一个 channel
@@ -500,7 +514,18 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
         // the format is to:channel_name:event_name, split it by `:`
         match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
             Ok(msg) => {
-                _channel_publish(counter, value.clone(), tx.clone(), &msg.channel, &msg.event).await;
+                // _channel_publish(counter, value.clone(), tx.clone(), &msg.channel, &msg.event).await;
+                let reply_message = ServerMessage {
+                    join_ref: None,
+                    event_ref: counter.to_string(),
+                    topic: msg.channel.to_string(),
+                    event: msg.event.to_string(),
+                    payload: ServerPayload::ServerJsonValue(value),
+                };
+                match tx.send(ChannelMessage::Reply(reply_message.clone())) {
+                    Ok(_) => debug!("LISTENER / published, to {}:{}, {}", &msg.channel, &msg.event, reply_message),
+                    Err(e) => error!("LISTENER / fail to publish, to {}:{}, err: {}", &msg.channel, &msg.event, e),
+                }
             }
             Err(e) => {
                 warn!("LISTENER / invalid redis channel format: {}", e);
@@ -520,18 +545,9 @@ async fn _channel_publish(counter: i32, value: serde_json::Value, tx: broadcast:
         event: event_name.to_string(),
         payload: ServerPayload::ServerJsonValue(value),
     };
-    // match state
-    //     .ctl
-    //     .lock()
-    //     .await
-    //     .channel_broadcast(channel_name.to_string(), ChannelMessage::Reply(reply_message.clone()))
-    //     .await
     match tx.send(ChannelMessage::Reply(reply_message.clone())) {
         Ok(_) => debug!("REDIS_PUB / published, {} > {}", event_name, reply_message),
-        Err(e) => {
-            // it throws error if there's no client
-            error!("REDIS_PUB / fail to send, channel: {}, event: {}, err: {}", channel_name, event_name, e);
-        }
+        Err(e) => error!("REDIS_PUB / fail to send, channel: {}, event: {}, err: {}", channel_name, event_name, e),
     }
 }
 

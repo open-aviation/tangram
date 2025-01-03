@@ -54,13 +54,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let redis_url = options.redis_url.unwrap();
-    let channel_control = ChannelControl::new();
-
     let redis_client = Client::open(redis_url.clone())?;
+    let channel_control = ChannelControl::new(Arc::new(redis_client.clone()));
+
     let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
         redis_client,
-        jwt_secret: random_string(8),
+        jwt_secret: random_string(8), // 从命令行、环境变量中获取，或者生成一个随机的
     });
 
     // phoenix & admin are special
