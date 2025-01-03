@@ -86,7 +86,11 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
         icao24 = message["icao24"]
         timestamp_ms = int(float(message["timestamp"]) * 1000)
-        altitude = float(message["altitude"]) if message["altitude"] is not None else None
+
+        if message["altitude"] is None:
+            return
+
+        altitude = float(message["altitude"])
 
         altitude_key = f"altitude:{icao24}"
         labels = {"type": "altitude", "icao24": icao24}
