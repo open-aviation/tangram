@@ -1,13 +1,17 @@
+# set just environment variables
 set dotenv-load
-
-# https://just.systems/man/en/avoiding-argument-splitting.html?highlight=positional-arguments#positional-arguments
 set positional-arguments
-
-# https://just.systems/man/en/settings.html#export
-# all just variables to be exported as environment variables in recipes
 set export
 
+# read from .env file
 JET1090_SOURCE := env_var("JET1090_SOURCE")
+
+# set default values
+NETWORK := "tangram"
+JET1090_VERSION := "v0.4.1"
+JET1090_VOL := "jet1090-vol"
+BASESTATION_ZIP_URL := env_var_or_default("BASESTATION_ZIP_URL", "https://jetvision.de/resources/sqb_databases/basestation.zip")
+
 
 _default:
   @just _check-env
@@ -61,10 +65,6 @@ create-uv-venv wd="~/tangram/service":
   export UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram
   uv venv --verbose
   uv sync --dev --verbose --no-cache && uv cache clean
-
-NETWORK := "tangram"
-JET1090_VERSION := "v0.4.1"
-JET1090_VOL := "jet1090-vol"
 
 # create tangram network
 pc-network:
@@ -176,7 +176,7 @@ pc-jet1090-basestation:
   mkdir -p ~/.cache/jet1090
   if [[ ! -f ~/.cache/jet1090/basestation.zip ]]; then
     echo "basestation.zip not found, downloading ..."
-    curl -L https://jetvision.de/resources/sqb_databases/basestation.zip -o ~/.cache/jet1090/basestation.zip
+    curl -L {{BASESTATION_ZIP_URL}} -o ~/.cache/jet1090/basestation.zip
   fi
 
   unzip -o ~/.cache/jet1090/basestation.zip -d ~/.cache/jet1090
