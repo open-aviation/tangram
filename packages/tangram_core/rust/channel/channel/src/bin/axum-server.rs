@@ -5,9 +5,9 @@ use axum::{
     Router,
 };
 use channel::{
-    channel::{listen_to_redis, ChannelControl},
+    channel::ChannelControl,
     utils::random_string,
-    websocket::{axum_on_connected, datetime_handler, State},
+    websocket::{add_channel, axum_on_connected, datetime_handler, State},
 };
 use clap::Parser;
 use redis::Client;
@@ -45,7 +45,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 设置 tracing 使用 EnvFilter
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    tracing_subscriber::fmt().with_env_filter(env_filter).with_span_events(FmtSpan::CLOSE).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(env_filter)
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
 
     let options = Options::parse(); // exit on error
     if options.redis_url.is_none() || options.redis_topic.is_none() {
@@ -70,18 +73,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         jwt_secret: random_string(8),
     });
 
-    state.ctl.lock().await.channel_add("phoenix".into(), None).await;
+    // state.ctl.lock().await.channel_add("phoenix".into(), None).await;
+    {
+        let channel_name: String = "phoenix".into();
+        add_channel(&state.ctl, state.redis_client.clone(), channel_name.clone()).await;
+    }
 
-    // 并不需要一致监听，应该是有 agent subscribe 的时候才 sub 到 redis
-    state.ctl.lock().await.channel_add("admin".into(), None).await;
-    tokio::spawn(listen_to_redis(state.clone(), "admin".to_string()));
+    {
+        let channel_name: String = "admin".into();
+        add_channel(&state.ctl, state.redis_client.clone(), channel_name.clone()).await;
+    }
 
-    state.ctl.lock().await.channel_add("system".into(), None).await;
-    tokio::spawn(listen_to_redis(state.clone(), "system".to_string()));
-    tokio::spawn(datetime_handler(state.clone(), "system"));
-
-    // state.ctl.lock().await.channel_add("streaming".into(), None).await;
-    // tokio::spawn(listen_to_redis(state.clone(), "streaming".to_string()));
+    {
+        let channel_name: String = "system".into();
+        add_channel(&state.ctl, state.redis_client.clone(), channel_name.clone()).await;
+        tokio::spawn(datetime_handler(state.clone(), channel_name.clone()));
+    }
 
     let host = options.host.unwrap();
     let port = options.port.unwrap();

@@ -1,4 +1,4 @@
-use crate::channel::{listen_to_redis, ChannelError};
+use crate::channel::{listen_to_redis, Channel, ChannelError};
 use crate::channel::{ChannelControl, ChannelMessage};
 use futures::SinkExt;
 use futures::StreamExt;
@@ -96,7 +96,11 @@ struct RequestMessage {
 
 impl Display for RequestMessage {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> Result<(), Error> {
-        write!(formatter, "<RequestMessage: join_ref={:?}, ref={}, topic={}, event={}, payload=...>", self.join_ref, self.event_ref, self.topic, self.event)
+        write!(
+            formatter,
+            "<RequestMessage: join_ref={:?}, ref={}, topic={}, event={}, payload=...>",
+            self.join_ref, self.event_ref, self.topic, self.event
+        )
     }
 }
 
@@ -202,6 +206,7 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
 
     state.ctl.lock().await.conn_cleanup(conn_id.clone()).await;
     info!("AXUM / CONNECTION CLOSED");
+    // phoenix/admin/system 之外，如果是 channel 的最后一个 agent，清理 channel 相关
 }
 
 /// handle websocket connection
@@ -326,21 +331,45 @@ async fn dispatch_by_redis(
     Ok(())
 }
 
+pub fn is_special_channel(ch: &str) -> bool {
+    let excludes: Vec<&str> = vec!["phoenix", "admin", "system"];
+    excludes.contains(&ch)
+}
+
+pub async fn add_channel(ctl: &Mutex<ChannelControl>, redis_client: redis::Client, channel_name: String) {
+    let ctl = ctl.lock().await;
+
+    let mut channels = ctl.channels.lock().await;
+    let channel_exists = channels.contains_key(&channel_name);
+    if channel_exists {
+        warn!("ADD_CH / channel {} already exists", channel_name);
+    }
+
+    channels
+        .entry(channel_name.clone())
+        .or_insert_with(|| Channel::new(channel_name.clone(), None));
+    warn!("ADD_CH / {} added", channel_name);
+
+    let channel: &mut Channel = channels.get_mut(&channel_name).unwrap();
+    channel.redis_listen_task = Some(tokio::spawn(listen_to_redis(channel.tx.clone(), redis_client, channel_name.clone())));
+    warn!("ADD_CH / {} redis_listen_task launched", channel_name);
+
+    let channel_names = channels.keys().cloned().collect::<Vec<String>>();
+    info!("ADD_CH / {} created, channels: {} {:?}", channel_name, channel_names.len(), channel_names);
+}
+
 // 添加 agent tx, join channel, spawn agent/conn relay task, ack joining
 async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> Result<JoinHandle<()>, ChannelError> {
-    let channel_name = rm.topic.clone(); // ?
+    let channel_name = rm.topic.clone();
+    if is_special_channel(&channel_name) {
+        info!("ADD_CH / channel {} is special, ignored", channel_name);
+    } else {
+        add_channel(&state.ctl, state.redis_client.clone(), channel_name.clone()).await;
+    }
 
     let agent_id = format!("{}:{}:{}", conn_id, channel_name.clone(), rm.join_ref.clone().unwrap());
     let join_ref = rm.join_ref.clone();
     let event_ref = rm.event_ref.clone();
-
-    if !state.ctl.lock().await.channel_exists(&channel_name).await {
-        warn!("JOIN / channel not found, creating: {}", channel_name);
-        let ctl = state.ctl.lock().await;
-        ctl.channel_add(channel_name.clone(), None).await;
-        ctl.channel_add_redis_listen_task(channel_name.clone(), tokio::spawn(listen_to_redis(state.clone(), channel_name.clone())))
-            .await;
-    }
 
     info!("JOIN / agent joining ({} => {}) ...", agent_id, channel_name);
     state.ctl.lock().await.agent_add(agent_id.to_string(), None).await;
@@ -355,12 +384,12 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> R
 
     // agent rx 到 conn tx 转发消息
     // 这个需要在 join 完整之前准备好，才不会丢失消息
-    let local_state = state.clone();
+    let relay_state = state.clone();
     let local_join_ref = rm.join_ref.clone();
     let local_conn_id = conn_id.to_string();
     let relay_task = tokio::spawn(async move {
-        let mut agent_rx = local_state.ctl.lock().await.agent_rx(agent_id.clone()).await.unwrap();
-        let conn_tx = local_state.ctl.lock().await.conn_tx(local_conn_id.to_string()).await.unwrap();
+        let mut agent_rx = relay_state.ctl.lock().await.agent_rx(agent_id.clone()).await.unwrap();
+        let conn_tx = relay_state.ctl.lock().await.conn_tx(local_conn_id.to_string()).await.unwrap();
 
         debug!("agent {} => conn {}", agent_id.clone(), local_conn_id.clone());
         loop {
@@ -389,8 +418,16 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> R
 async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: String) {
     let agent_id = format!("{}:{}:{}", conn_id, channel_name.clone(), join_ref.clone().unwrap());
     state.ctl.lock().await.agent_rm(agent_id.clone()).await;
-
-    state.ctl.lock().await.channel_leave(channel_name.clone(), agent_id.clone()).await.unwrap();
+    let agent_count = state
+        .ctl
+        .lock()
+        .await
+        .channel_leave(channel_name.clone(), agent_id.clone())
+        .await
+        .unwrap();
+    if agent_count == 0 {
+        warn!("LEAVE / channel {} is empty, cleaning up ...", channel_name);
+    }
     ok_reply(conn_id, join_ref, event_ref, &channel_name, state.clone()).await;
 }
 
@@ -418,7 +455,7 @@ async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, chan
 }
 
 // 每秒发送一个时间戳
-pub async fn datetime_handler(state: Arc<State>, channel_name: &str) {
+pub async fn datetime_handler(state: Arc<State>, channel_name: String) {
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
     info!("launch system/datetime task...");
@@ -585,7 +622,13 @@ mod tests {
         let channels = ctl.channels.lock().await;
 
         let channel_names: HashSet<String> = channels.keys().cloned().collect();
-        assert_eq!(channel_names, ["phoenix", "system", "streaming"].iter().map(|&s| s.to_string()).collect::<HashSet<String>>());
+        assert_eq!(
+            channel_names,
+            ["phoenix", "system", "streaming"]
+                .iter()
+                .map(|&s| s.to_string())
+                .collect::<HashSet<String>>()
+        );
 
         let agents = channels.get("system").unwrap().agents.lock().await;
         assert_eq!(agents.len(), 0);
@@ -669,7 +712,13 @@ mod tests {
         let channels = ctl.channels.lock().await;
 
         let channel_names: HashSet<String> = channels.keys().cloned().collect();
-        assert_eq!(channel_names, ["phoenix", "system", "streaming"].iter().map(|&s| s.to_string()).collect::<HashSet<String>>());
+        assert_eq!(
+            channel_names,
+            ["phoenix", "system", "streaming"]
+                .iter()
+                .map(|&s| s.to_string())
+                .collect::<HashSet<String>>()
+        );
 
         let agents = channels.get("system").unwrap().agents.lock().await;
         assert_eq!(*agents, vec!["a".to_string()]);
