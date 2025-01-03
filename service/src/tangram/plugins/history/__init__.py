@@ -2,16 +2,17 @@
 # coding: utf8
 
 import asyncio
-from asyncio.tasks import Task
 import json
+import logging
+from asyncio.tasks import Task
 from dataclasses import dataclass
 from typing import List, Sequence
-import logging
 
 from redis.commands.timeseries import TimeSeries
 
 from tangram.plugins import redis_subscriber
 from tangram.util import logging as tangram_logging
+
 from .storage import HistoryDB
 
 tangram_log = logging.getLogger("tangram")
@@ -85,7 +86,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
         icao24 = message["icao24"]
         timestamp_ms = int(float(message["timestamp"]) * 1000)
-        altitude = float(message["altitude"])
+        altitude = float(message["altitude"]) if message["altitude"] is not None else None
 
         altitude_key = f"altitude:{icao24}"
         labels = {"type": "altitude", "icao24": icao24}
