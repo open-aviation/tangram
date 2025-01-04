@@ -46,11 +46,11 @@
 
     /* Channels Table Styles */
     .channels-overview {
-      margin-bottom: 20px;
       height: 300px;
       overflow-y: auto;
       border: 1px solid #e9ecef;
       border-radius: 6px;
+      margin-bottom: 20px;
     }
 
     .channels-table {
@@ -63,6 +63,7 @@
     .channels-table th {
       position: sticky;
       top: 0;
+      z-index: 1;
       background: #f8f9fa;
       padding: 6px 8px;
       text-align: left;
@@ -90,6 +91,7 @@
       color: #495057;
       display: flex;
       align-items: center;
+      gap: 8px;
     }
 
     .agent-count {
@@ -98,28 +100,16 @@
       background: #e9ecef;
       padding: 1px 6px;
       border-radius: 3px;
-      margin-left: 8px;
     }
 
     .connection-id {
+      font-family: Monaco, monospace;
       color: #004085;
-      font-family: Monaco, monospace;
-    }
-
-    .agent-channel {
-      color: #28a745;
-      font-family: Monaco, monospace;
     }
 
     .join-ref {
+      font-family: Monaco, monospace;
       color: #6c757d;
-      font-family: Monaco, monospace;
-    }
-
-    .full-id {
-      color: #666;
-      font-family: Monaco, monospace;
-      font-size: 11px;
     }
 
     /* Event Log Styles */
@@ -165,7 +155,7 @@
     }
 
     .event-channel {
-      width: 100px;
+      width: 120px;
       color: #6c757d;
     }
 
@@ -190,9 +180,7 @@
             <tr>
               <th>Channel</th>
               <th>Connection ID</th>
-              <th>Agent Channel</th>
               <th>Join Ref</th>
-              <th>Full ID</th>
             </tr>
           </thead>
           <tbody id="channelsOverview">
@@ -235,13 +223,8 @@
     let channelState = new Map();
 
     function parseAgentId(agentId) {
-      const [connectionId, channel, joinRef] = agentId.split(':');
-      return {
-        connectionId,
-        channel,
-        joinRef,
-        fullId: agentId
-      };
+      const [connectionId, , joinRef] = agentId.split(':');
+      return { connectionId, joinRef };
     }
 
     function updateChannelView() {
@@ -279,26 +262,14 @@
           connectionCell.className = 'connection-id';
           connectionCell.textContent = agent.connectionId;
 
-          // Agent Channel
-          const channelTypeCell = document.createElement('td');
-          channelTypeCell.className = 'agent-channel';
-          channelTypeCell.textContent = agent.channel;
-
           // Join Ref
           const joinRefCell = document.createElement('td');
           joinRefCell.className = 'join-ref';
           joinRefCell.textContent = agent.joinRef;
 
-          // Full ID
-          const fullIdCell = document.createElement('td');
-          fullIdCell.className = 'full-id';
-          fullIdCell.textContent = agent.fullId;
-
           row.appendChild(channelCell);
           row.appendChild(connectionCell);
-          row.appendChild(channelTypeCell);
           row.appendChild(joinRefCell);
-          row.appendChild(fullIdCell);
 
           tbody.appendChild(row);
         });
