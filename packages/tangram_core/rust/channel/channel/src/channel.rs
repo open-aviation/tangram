@@ -201,13 +201,24 @@ impl ChannelControl {
             info!("CONN / {} to be removed", agent.id);
             !k.starts_with(&conn_id)
         });
+
         let mut agent_tx = self.agent_tx.lock().await;
         debug!("CONN / cleanup agent_tx, conn_id: {}, {} {:?}", conn_id, agent_tx.len(), agent_tx.keys().collect::<Vec<&String>>());
         agent_tx.retain(|k, _| !k.starts_with(&conn_id));
         debug!("CONN / agent_tx cleared, conn_id: {}, {} {:?}", conn_id, agent_tx.len(), agent_tx.keys().collect::<Vec<&String>>());
 
         self.conn_tx.lock().await.remove_entry(&conn_id);
-        debug!("CONN / conn cleared, {}", conn_id);
+        debug!("CONN / conn_tx cleared, {}", conn_id);
+
+        for (name, channel) in self.channels.lock().await.iter() {
+            let mut agents = channel.agents.lock().await;
+            debug!("CONN / {}, agents {} {:?}", name, agents.len(), agents);
+            agents.retain(|agent| !agent.starts_with(&conn_id));
+            debug!("CONN / {}, removed agents of conn {}, agents {} {:?}", name, conn_id, agents.len(), agents);
+
+            let meta = json!({"agent": serde_json::Value::Null, "channel": name, "agents": *agents});
+            self.pub_meta_event("channel".into(), "leave".into(), meta).await;
+        }
     }
 
     pub async fn channel_add(&self, channel_name: String, capacity: Option<usize>) {
@@ -280,15 +291,6 @@ impl ChannelControl {
 
         info!("CH_RM / {} cleared, channels: {} {:?}", channel_name, channel_names.len(), channel_names);
     }
-
-    // pub async fn channel_rm_conn_agents(&self, conn_id: String) {
-    //     for (name, channel) in self.channels.lock().await.iter() {
-    //         let mut agents = channel.agents.lock().await;
-    //         debug!("CH / {}, agents {} {:?}", name, agents.len(), agents);
-    //         agents.retain(|agent| !agent.starts_with(&conn_id));
-    //         debug!("CH / {}, removed agents of conn {}, agents {} {:?}", name, conn_id, agents.len(), agents);
-    //     }
-    // }
 
     pub async fn channel_exists(&self, channel_name: &str) -> bool {
         let channels = self.channels.lock().await;
