@@ -5,6 +5,7 @@ use futures::StreamExt;
 use redis::AsyncCommands;
 use redis::RedisResult;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use serde_tuple::{Deserialize_tuple, Serialize_tuple};
 use std::fmt;
 use std::fmt::{Display, Error};
@@ -350,7 +351,11 @@ pub async fn add_channel(ctl: &Mutex<ChannelControl>, redis_client: redis::Clien
     let channel_names = channels.keys().cloned().collect::<Vec<String>>();
     info!("ADD_CH / {} created, channels: {} {:?}", channel_name, channel_names.len(), channel_names);
 
-    let _ = ctl.pub_meta_event().await;
+    let meta = json!({
+        "channel": channel_name,
+        "channels": channels.keys().cloned().collect::<Vec<String>>(),
+    });
+    ctl.pub_meta_event("channe".into(), "add".into(), meta).await;
 }
 
 // 添加 agent tx, join channel, spawn agent/conn relay task, ack joining
