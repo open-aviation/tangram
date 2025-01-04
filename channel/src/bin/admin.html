@@ -21,69 +21,9 @@
       font-weight: 500;
       color: #333;
       margin-bottom: 15px;
-    }
-
-    .status-panel {
-      background: #f5f5f5;
-      border-radius: 6px;
-      padding: 15px;
-      margin: 15px 0;
-    }
-
-    .event-log {
-      height: 600px;
-      overflow-y: auto;
-      font-family: Monaco, monospace;
-      font-size: 13px;
-      background: #f8f9fa;
-      border-radius: 6px;
-      border: 1px solid #e9ecef;
-    }
-
-    .event-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .event-table th {
-      position: sticky;
-      top: 0;
-      background: #f8f9fa;
-      padding: 8px;
-      text-align: left;
-      border-bottom: 2px solid #dee2e6;
-      color: #495057;
-    }
-
-    .event-table td {
-      padding: 8px;
-      border-bottom: 1px solid #e9ecef;
-      vertical-align: top;
-    }
-
-    .event-table tr:nth-child(even) {
-      background: #ffffff;
-    }
-
-    .timestamp {
-      white-space: nowrap;
-      color: #666;
-      width: 180px;
-    }
-
-    .channel-name {
-      width: 100px;
-      color: #6c757d;
-    }
-
-    .event-type {
-      color: #004085;
-      width: 120px;
-    }
-
-    .event-data {
-      font-family: Monaco, monospace;
-      white-space: pre-wrap;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
     .connection-status {
@@ -104,58 +44,160 @@
       color: #721c24;
     }
 
-    /* Channel Overview Styles */
+    /* Channels Table Styles */
     .channels-overview {
       margin-bottom: 20px;
-    }
-
-    .channels-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 15px;
-      margin-top: 15px;
-    }
-
-    .channel-card {
-      background: #f8f9fa;
+      height: 300px;
+      overflow-y: auto;
       border: 1px solid #e9ecef;
       border-radius: 6px;
-      padding: 12px;
     }
 
-    .channel-header {
+    .channels-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: white;
+    }
+
+    .channels-table th {
+      position: sticky;
+      top: 0;
+      background: #f8f9fa;
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 2px solid #dee2e6;
+      color: #495057;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .channels-table td {
+      padding: 4px 8px;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .channel-group {
+      background-color: #f8f9fa;
+    }
+
+    .channel-group + .channel-group {
+      border-top: 2px solid #dee2e6;
+    }
+
+    .channel-name {
       font-weight: 500;
       color: #495057;
-      margin-bottom: 8px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-    }
-
-    .agent-list {
-      margin-left: 12px;
-    }
-
-    .agent-item {
-      font-size: 13px;
-      color: #6c757d;
-      padding: 4px 0;
     }
 
     .agent-count {
-      font-size: 12px;
+      font-size: 11px;
       color: #6c757d;
       background: #e9ecef;
-      padding: 2px 6px;
-      border-radius: 4px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 8px;
+    }
+
+    .connection-id {
+      color: #004085;
+      font-family: Monaco, monospace;
+    }
+
+    .agent-channel {
+      color: #28a745;
+      font-family: Monaco, monospace;
+    }
+
+    .join-ref {
+      color: #6c757d;
+      font-family: Monaco, monospace;
+    }
+
+    .full-id {
+      color: #666;
+      font-family: Monaco, monospace;
+      font-size: 11px;
+    }
+
+    /* Event Log Styles */
+    .event-log {
+      height: 400px;
+      overflow-y: auto;
+      font-family: Monaco, monospace;
+      font-size: 12px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border: 1px solid #e9ecef;
+    }
+
+    .event-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .event-table th {
+      position: sticky;
+      top: 0;
+      background: #f8f9fa;
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 2px solid #dee2e6;
+      color: #495057;
+    }
+
+    .event-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #e9ecef;
+      vertical-align: top;
+    }
+
+    .event-table tr:nth-child(even) {
+      background: #ffffff;
+    }
+
+    .timestamp {
+      white-space: nowrap;
+      color: #666;
+      width: 180px;
+    }
+
+    .event-channel {
+      width: 100px;
+      color: #6c757d;
+    }
+
+    .event-type {
+      color: #004085;
+      width: 120px;
+    }
+
+    .event-data {
+      font-family: Monaco, monospace;
+      white-space: pre-wrap;
     }
   </style>
   <body>
-    <div class="channel-section channels-overview" id="channelsOverview">
+    <div class="channel-section">
       <div class="channel-title">
         Channels Overview
       </div>
-      <div class="channels-grid">
+      <div class="channels-overview">
+        <table class="channels-table">
+          <thead>
+            <tr>
+              <th>Channel</th>
+              <th>Connection ID</th>
+              <th>Agent Channel</th>
+              <th>Join Ref</th>
+              <th>Full ID</th>
+            </tr>
+          </thead>
+          <tbody id="channelsOverview">
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -192,41 +234,77 @@
     // Channel State Management
     let channelState = new Map();
 
+    function parseAgentId(agentId) {
+      const [connectionId, channel, joinRef] = agentId.split(':');
+      return {
+        connectionId,
+        channel,
+        joinRef,
+        fullId: agentId
+      };
+    }
+
     function updateChannelView() {
-      const container = document.getElementById('channelsOverview');
-      if (!container) return;
+      const tbody = document.getElementById('channelsOverview');
+      if (!tbody) return;
 
-      const gridContainer = container.querySelector('.channels-grid');
-      gridContainer.innerHTML = ''; // Clear existing channels
+      tbody.innerHTML = '';
 
-      channelState.forEach((agents, channelName) => {
-        const channelCard = document.createElement('div');
-        channelCard.className = 'channel-card';
+      // Sort channels alphabetically
+      const sortedChannels = Array.from(channelState.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]));
 
-        const header = document.createElement('div');
-        header.className = 'channel-header';
-        header.innerHTML = `
-          <span>${channelName}</span>
-          <span class="agent-count">${agents.length} agents</span>
-        `;
+      sortedChannels.forEach(([channelName, agents]) => {
+        const parsedAgents = agents
+          .map(agent => parseAgentId(agent))
+          .sort((a, b) => a.connectionId.localeCompare(b.connectionId));
 
-        const agentList = document.createElement('div');
-        agentList.className = 'agent-list';
-        
-        agents.forEach(agent => {
-          const agentItem = document.createElement('div');
-          agentItem.className = 'agent-item';
-          agentItem.textContent = agent;
-          agentList.appendChild(agentItem);
+        // Create channel group
+        parsedAgents.forEach((agent, index) => {
+          const row = document.createElement('tr');
+          row.className = 'channel-group';
+          
+          // Channel name cell - only for first agent in group
+          const channelCell = document.createElement('td');
+          if (index === 0) {
+            channelCell.className = 'channel-name';
+            channelCell.innerHTML = `
+              ${channelName}
+              <span class="agent-count">${agents.length} agents</span>
+            `;
+          }
+
+          // Connection ID
+          const connectionCell = document.createElement('td');
+          connectionCell.className = 'connection-id';
+          connectionCell.textContent = agent.connectionId;
+
+          // Agent Channel
+          const channelTypeCell = document.createElement('td');
+          channelTypeCell.className = 'agent-channel';
+          channelTypeCell.textContent = agent.channel;
+
+          // Join Ref
+          const joinRefCell = document.createElement('td');
+          joinRefCell.className = 'join-ref';
+          joinRefCell.textContent = agent.joinRef;
+
+          // Full ID
+          const fullIdCell = document.createElement('td');
+          fullIdCell.className = 'full-id';
+          fullIdCell.textContent = agent.fullId;
+
+          row.appendChild(channelCell);
+          row.appendChild(connectionCell);
+          row.appendChild(channelTypeCell);
+          row.appendChild(joinRefCell);
+          row.appendChild(fullIdCell);
+
+          tbody.appendChild(row);
         });
-
-        channelCard.appendChild(header);
-        channelCard.appendChild(agentList);
-        gridContainer.appendChild(channelCard);
       });
     }
 
-    // Event handlers for channel state
     function handleChannelAdd(data) {
       data.channels.forEach(channel => {
         if (!channelState.has(channel)) {
@@ -257,14 +335,12 @@
       updateChannelView();
     }
 
-    // Existing event logging functions
     function formatTimestamp(date) {
       return date.toISOString().replace('T', ' ').slice(0, -5);
     }
 
     function shouldShowData(data) {
       if (typeof data !== 'object') return true;
-
       if (data.status === 'ok' && data.response) {
         if (typeof data.response === 'object' && Object.keys(data.response).length === 0) {
           return false;
@@ -287,7 +363,7 @@
       timestamp.textContent = formatTimestamp(new Date());
       
       const channel = document.createElement('td');
-      channel.className = 'channel-name';
+      channel.className = 'event-channel';
       channel.textContent = channelName;
 
       const type = document.createElement('td');
