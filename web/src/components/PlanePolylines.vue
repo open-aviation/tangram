@@ -1,5 +1,5 @@
 <template>
-    <l-polyline :lat-lngs="polyline" :color="color"> </l-polyline>
+    <l-polyline ref="polylineRef" :lat-lngs="polyline" :color="color"> </l-polyline>
 </template>
 
 <script>
@@ -44,6 +44,13 @@ export default {
             trajectoryChannel.on("new-data", (data) => {
                 console.log(`${icao24} trajectory updated, ${data.length} points`);
                 this.store.$patch({ trajectory: data });
+                // Force polyline redraw
+                if (this.$refs.polylineRef) {
+                    const leafletObject = this.$refs.polylineRef.leafletObject;
+                    if (leafletObject) {
+                        leafletObject.setLatLngs(data);
+                    }
+                }
             });
 
             trajectoryChannel
