@@ -103,8 +103,62 @@
       background: #f8d7da;
       color: #721c24;
     }
+
+    /* Channel Overview Styles */
+    .channels-overview {
+      margin-bottom: 20px;
+    }
+
+    .channels-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .channel-card {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .channel-header {
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .agent-list {
+      margin-left: 12px;
+    }
+
+    .agent-item {
+      font-size: 13px;
+      color: #6c757d;
+      padding: 4px 0;
+    }
+
+    .agent-count {
+      font-size: 12px;
+      color: #6c757d;
+      background: #e9ecef;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
   </style>
   <body>
+    <div class="channel-section channels-overview" id="channelsOverview">
+      <div class="channel-title">
+        Channels Overview
+      </div>
+      <div class="channels-grid">
+      </div>
+    </div>
+
     <div class="channel-section">
       <div class="channel-title">
         Admin Channel
@@ -135,6 +189,75 @@
     let socket = new Socket("", { debug, params: { userToken }});
     socket.connect();
 
+    // Channel State Management
+    let channelState = new Map();
+
+    function updateChannelView() {
+      const container = document.getElementById('channelsOverview');
+      if (!container) return;
+
+      const gridContainer = container.querySelector('.channels-grid');
+      gridContainer.innerHTML = ''; // Clear existing channels
+
+      channelState.forEach((agents, channelName) => {
+        const channelCard = document.createElement('div');
+        channelCard.className = 'channel-card';
+
+        const header = document.createElement('div');
+        header.className = 'channel-header';
+        header.innerHTML = `
+          <span>${channelName}</span>
+          <span class="agent-count">${agents.length} agents</span>
+        `;
+
+        const agentList = document.createElement('div');
+        agentList.className = 'agent-list';
+        
+        agents.forEach(agent => {
+          const agentItem = document.createElement('div');
+          agentItem.className = 'agent-item';
+          agentItem.textContent = agent;
+          agentList.appendChild(agentItem);
+        });
+
+        channelCard.appendChild(header);
+        channelCard.appendChild(agentList);
+        gridContainer.appendChild(channelCard);
+      });
+    }
+
+    // Event handlers for channel state
+    function handleChannelAdd(data) {
+      data.channels.forEach(channel => {
+        if (!channelState.has(channel)) {
+          channelState.set(channel, []);
+        }
+      });
+      updateChannelView();
+    }
+
+    function handleChannelRemove(data) {
+      const newState = new Map();
+      data.channels.forEach(channel => {
+        if (channelState.has(channel)) {
+          newState.set(channel, channelState.get(channel));
+        }
+      });
+      channelState = newState;
+      updateChannelView();
+    }
+
+    function handleChannelJoin(data) {
+      channelState.set(data.channel, data.agents);
+      updateChannelView();
+    }
+
+    function handleChannelLeave(data) {
+      channelState.set(data.channel, data.agents);
+      updateChannelView();
+    }
+
+    // Existing event logging functions
     function formatTimestamp(date) {
       return date.toISOString().replace('T', ' ').slice(0, -5);
     }
@@ -142,7 +265,6 @@
     function shouldShowData(data) {
       if (typeof data !== 'object') return true;
 
-      // Check if it's a simple {status: "ok", response: {}} pattern
       if (data.status === 'ok' && data.response) {
         if (typeof data.response === 'object' && Object.keys(data.response).length === 0) {
           return false;
@@ -181,7 +303,6 @@
       row.appendChild(type);
       row.appendChild(eventData);
 
-      // Insert at the beginning of the tbody
       if (tbody.firstChild) {
         tbody.insertBefore(row, tbody.firstChild);
       } else {
@@ -235,7 +356,13 @@
 
       const channel = socket.channel('admin', { token });
       
-      // Handle all events generically
+      // Set up channel event handlers
+      channel.on('channel.add', handleChannelAdd);
+      channel.on('channel.remove', handleChannelRemove);
+      channel.on('channel.join', handleChannelJoin);
+      channel.on('channel.leave', handleChannelLeave);
+      
+      // Handle all events for logging
       channel.onMessage = (event, payload) => {
         const channelTopic = payload.channel || 'admin';
         addEventToLog(channelTopic, event, payload);
@@ -263,7 +390,7 @@
       return channel;
     }
 
-    // Initialize admin channel
+    // Initialize
     updateConnectionStatus(false);
     joinAdminChannel();
   </script>
