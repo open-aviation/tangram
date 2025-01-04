@@ -26,28 +26,7 @@
       justify-content: space-between;
     }
 
-    .connection-status {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 0.9em;
-      margin-left: 10px;
-    }
-
-    .status-connected {
-      background: #d4edda;
-      color: #155724;
-    }
-
-    .status-disconnected {
-      background: #f8d7da;
-      color: #721c24;
-    }
-
-    /* Channels Table Styles */
     .channels-overview {
-      height: 300px;
-      overflow-y: auto;
       border: 1px solid #e9ecef;
       border-radius: 6px;
       margin-bottom: 20px;
@@ -61,9 +40,6 @@
     }
 
     .channels-table th {
-      position: sticky;
-      top: 0;
-      z-index: 1;
       background: #f8f9fa;
       padding: 6px 8px;
       text-align: left;
@@ -78,20 +54,16 @@
       border-bottom: 1px solid #e9ecef;
     }
 
-    .channel-group {
-      background-color: #f8f9fa;
-    }
-
-    .channel-group + .channel-group {
-      border-top: 2px solid #dee2e6;
-    }
-
     .channel-name {
       font-weight: 500;
-      color: #495057;
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: space-between;
+      padding-right: 8px;
+    }
+
+    .channel-text {
+      font-weight: 500;
     }
 
     .agent-count {
@@ -100,6 +72,7 @@
       background: #e9ecef;
       padding: 1px 6px;
       border-radius: 3px;
+      margin-left: auto;
     }
 
     .connection-id {
@@ -227,6 +200,16 @@
       return { connectionId, joinRef };
     }
 
+    // Generate a consistent color for a channel
+    function getChannelColor(channelName) {
+      let hash = 0;
+      for (let i = 0; i < channelName.length; i++) {
+        hash = channelName.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const hue = Math.abs(hash) % 360;
+      return `hsl(${hue}, 65%, 40%)`;
+    }
+
     function updateChannelView() {
       const tbody = document.getElementById('channelsOverview');
       if (!tbody) return;
@@ -242,17 +225,18 @@
           .map(agent => parseAgentId(agent))
           .sort((a, b) => a.connectionId.localeCompare(b.connectionId));
 
+        const channelColor = getChannelColor(channelName);
+
         // Create channel group
         parsedAgents.forEach((agent, index) => {
           const row = document.createElement('tr');
-          row.className = 'channel-group';
           
           // Channel name cell - only for first agent in group
           const channelCell = document.createElement('td');
           if (index === 0) {
             channelCell.className = 'channel-name';
             channelCell.innerHTML = `
-              ${channelName}
+              <span class="channel-text" style="color: ${channelColor}">${channelName}</span>
               <span class="agent-count">${agents.length} agents</span>
             `;
           }
@@ -260,17 +244,18 @@
           // Connection ID
           const connectionCell = document.createElement('td');
           connectionCell.className = 'connection-id';
+          connectionCell.style.color = channelColor;
           connectionCell.textContent = agent.connectionId;
 
           // Join Ref
           const joinRefCell = document.createElement('td');
           joinRefCell.className = 'join-ref';
+          joinRefCell.style.color = channelColor;
           joinRefCell.textContent = agent.joinRef;
 
           row.appendChild(channelCell);
           row.appendChild(connectionCell);
           row.appendChild(joinRefCell);
-
           tbody.appendChild(row);
         });
       });
