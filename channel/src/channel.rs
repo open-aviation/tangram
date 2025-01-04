@@ -226,21 +226,27 @@ impl ChannelControl {
         channel.redis_listen_task = Some(redis_listen_task);
         info!("CH / added redis listen task to channel {}", channel_name);
 
-        let _ = self.pub_meta_event().await;
+        let meta = json!({"channel": channel_name});
+        self.pub_meta_event("channel".into(), "add-redis-listener".into(), meta).await;
     }
 
-    pub async fn pub_meta_event(&self) -> RedisResult<()> {
-        let redis_topic = "to:admin:dt";
-        let mut redis_conn = self.redis_client.clone().get_multiplexed_async_connection().await?;
-        let json_value = json!({
-            "type": "message",
-            "message": "admin channel added ..."
-        });
-        let message = serde_json::to_string(&json_value).unwrap();
-        let _result: String = redis_conn.publish(redis_topic, message.clone()).await?;
+    pub async fn pub_meta_event(&self, topic: String, event: String, meta: serde_json::Value) {
+        let redis_topic = format!("to:admin:{}.{}", topic, event);
+
+        let redis_conn_result = self.redis_client.clone().get_multiplexed_async_connection().await;
+        if redis_conn_result.is_err() {
+            error!("ADMIN_PUB / fail to get redis connection");
+            return;
+        }
+
+        let message = serde_json::to_string(&meta).unwrap();
+        let result: RedisResult<String> = redis_conn_result.unwrap().publish(redis_topic, message.clone()).await;
+        if result.is_err() {
+            error!("ADMIN_PUB / fail to publish to redis");
+            return;
+        }
 
         info!("ADMIN_PUB / event published to redis");
-        Ok(())
     }
 
     // 删除一个 channel
@@ -268,6 +274,10 @@ impl ChannelControl {
             }
         }
         let channel_names = channels.keys().cloned().collect::<Vec<String>>();
+
+        let meta = json!({"channel": channel_name, "channels": channel_names});
+        self.pub_meta_event("channel".into(), "remove".into(), meta).await;
+
         info!("CH_RM / {} cleared, channels: {} {:?}", channel_name, channel_names.len(), channel_names);
     }
 
@@ -311,19 +321,23 @@ impl ChannelControl {
             }
             Entry::Vacant(entry) => {
                 entry.insert(Agent {
-                    id: agent_id,
+                    id: agent_id.clone(),
                     channel: channel_name.to_string().clone(),
                     relay_task,
                 });
             }
         }
+
+        let meta = json!({"agent": agent_id.clone(), "channel": channel_name, "agents": *channel.agents.lock().await});
+        self.pub_meta_event("channel".into(), "join".into(), meta).await;
+
         Ok(channel_tx)
     }
 
-    pub async fn channel_leave(&self, name: String, agent_id: String) -> Result<usize, ChannelError> {
-        info!("CH / leave {} from {} ...", agent_id, name);
+    pub async fn channel_leave(&self, channel_name: String, agent_id: String) -> Result<usize, ChannelError> {
+        info!("CH / leave {} from {} ...", agent_id, channel_name);
         let channels = self.channels.lock().await;
-        let channel = channels.get(&name).ok_or(ChannelError::ChannelNotFound)?;
+        let channel = channels.get(&channel_name).ok_or(ChannelError::ChannelNotFound)?;
         channel.leave(agent_id.clone()).await;
         match self.agent_relay_task.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(entry) => {
@@ -333,6 +347,10 @@ impl ChannelControl {
             }
             Entry::Vacant(_) => {}
         }
+
+        let meta = json!({"agent": agent_id.clone(), "channel": channel_name.clone(), "agents": *channel.agents.lock().await});
+        self.pub_meta_event("channel".into(), "leave".into(), meta).await;
+
         Ok(channel.count.load(Ordering::SeqCst) as usize)
     }
 
