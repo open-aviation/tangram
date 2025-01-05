@@ -1,5 +1,4 @@
-use crate::channel::{listen_to_redis, Channel, ChannelError};
-use crate::channel::{ChannelControl, ChannelMessage};
+use crate::channel::{listen_to_redis, Channel, ChannelControl, ChannelError, ChannelMessage};
 use futures::SinkExt;
 use futures::StreamExt;
 use redis::AsyncCommands;
@@ -43,7 +42,7 @@ pub struct ServerResponse {
 #[serde(untagged)]
 pub enum Response {
     #[serde(rename = "join")]
-    Join {},
+    Join { id: String },
 
     #[serde(rename = "heartbeat")]
     Heartbeat {},
@@ -430,6 +429,12 @@ async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>
 }
 
 async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: &str, state: Arc<State>) {
+    let response = match join_ref {
+        None => Response::Empty {}, // heartbeat
+        Some(ref join_ref) => Response::Join {
+            id: format!("{}:{}:{}", conn_id, channel_name, join_ref),
+        }, // join
+    };
     let join_reply_message = ServerMessage {
         join_ref: join_ref.clone(),
         event_ref: event_ref.to_string(),
@@ -437,8 +442,7 @@ async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, chan
         event: "phx_reply".to_string(),
         payload: ServerPayload::ServerResponse(ServerResponse {
             status: "ok".to_string(),
-            // response: serde_json::json!({}),
-            response: Response::Empty {},
+            response,
         }),
     };
     state
