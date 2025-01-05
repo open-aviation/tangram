@@ -46,7 +46,8 @@ chrono = "*"
 # hex = "0.4.3"
 redis = { version = "0.27", features = ["tokio-comp"] }
 
-clap = { version = "4.5", features = ["color", "derive", "wrap_help"] }
+clap = { version = "4.5", features = ["color", "derive", "wrap_help", "env"] }
 dotenv = { version = "0.15" }
 jsonwebtoken = { version = "9.3" }
 rand = { version = "0.8" }
+itertools = "0.14"

@@ -9,9 +9,9 @@ pub fn random_string(length: usize) -> String {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    id: String,
-    channel: String,
-    exp: usize,
+    pub id: String,
+    pub channel: String,
+    pub exp: usize,
 }
 
 pub async fn generate_jwt(id: String, channel: String, jwt_secret: String) -> jsonwebtoken::errors::Result<String> {

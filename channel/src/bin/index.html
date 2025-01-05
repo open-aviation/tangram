@@ -372,11 +372,10 @@
 
     async function getChannelToken(channelName) {
       const storageKey = `token_${channelName}`;
-      const storedToken = localStorage.getItem(storageKey);
-      
-      if (storedToken) {
-        return storedToken;
-      }
+      // const storedToken = localStorage.getItem(storageKey);
+      // if (storedToken) {
+      //   return storedToken;
+      // }
 
       try {
         const response = await fetch('/token', {
@@ -395,7 +394,7 @@
         }
 
         const data = await response.json();
-        localStorage.setItem(storageKey, data.token);
+        // localStorage.setItem(storageKey, data.token);
         return data.token;
       } catch (error) {
         console.error('Error fetching token:', error);

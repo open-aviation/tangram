@@ -350,11 +350,10 @@
 
     async function getChannelToken() {
       const storageKey = 'token_admin';
-      const storedToken = localStorage.getItem(storageKey);
-      
-      if (storedToken) {
-        return storedToken;
-      }
+      // const storedToken = localStorage.getItem(storageKey);
+      // if (storedToken) {
+      //   return storedToken;
+      // }
 
       try {
         const response = await fetch('/token', {
@@ -362,7 +361,7 @@
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ channel: 'admin' })
+          body: JSON.stringify({ channel: 'admin', id: 'yes' })
         });
 
         if (!response.ok) {
@@ -370,7 +369,7 @@
         }
 
         const data = await response.json();
-        localStorage.setItem(storageKey, data.token);
+        // localStorage.setItem(storageKey, data.token);
         return data.token;
       } catch (error) {
         console.error('Error fetching token:', error);
@@ -380,7 +379,7 @@
     }
 
     async function joinAdminChannel() {
-      const token = 'admin-token'; // await getChannelToken();
+      const token = await getChannelToken();
       if (!token) {
         console.error('Failed to get admin channel token');
         return;
