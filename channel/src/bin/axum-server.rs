@@ -7,11 +7,10 @@ use axum::{
 };
 use channel::{
     channel::ChannelControl,
-    utils::random_string,
+    utils::{generate_jwt, random_string},
     websocket::{add_channel, axum_on_connected, datetime_handler, State},
 };
 use clap::Parser;
-use jsonwebtoken::{encode, EncodingKey, Header};
 use redis::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -24,13 +23,6 @@ use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 struct TokenRequest {
     channel: String,
     id: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    id: String,
-    channel: String,
-    exp: usize,
 }
 
 #[derive(Debug)]
@@ -58,26 +50,11 @@ async fn generate_token(AxumState(state): AxumState<Arc<State>>, Json(req): Json
         error!("channel {} not found", req.channel);
         return Err(TokenError::ChannelNotFound);
     }
-
     let id = req
         .id
         .filter(|id| !id.trim().is_empty())
         .unwrap_or_else(|| nanoid::nanoid!(8).to_string());
-
-    let expiration = chrono::Utc::now()
-        .checked_add_signed(chrono::Duration::hours(24))
-        .expect("valid timestamp")
-        .timestamp() as usize;
-
-    let claims = Claims {
-        id: id.clone(),
-        channel: req.channel.clone(),
-        exp: expiration,
-    };
-
-    let key = EncodingKey::from_secret(state.jwt_secret.as_bytes());
-
-    match encode(&Header::default(), &claims, &key) {
+    match generate_jwt(id.clone(), req.channel.clone(), state.jwt_secret.clone()).await {
         Ok(token) => Ok(Json(serde_json::json!({
             "id": id.clone(),
             "channel": req.channel.clone(),
