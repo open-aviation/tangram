@@ -22,7 +22,6 @@ use tracing::{debug, error, info, warn};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
-use uuid::Uuid;
 use warp::ws::Message;
 use warp::ws::WebSocket;
 use warp::Filter;
@@ -55,7 +54,7 @@ async fn generate_token(req: TokenRequest, state: Arc<State>) -> Result<impl war
         return Err(warp::reject::custom(TokenError::ChannelNotFound));
     }
 
-    let id = Uuid::new_v4().to_string();
+    let id = nanoid::nanoid!(8);
     let expiration = chrono::Utc::now()
         .checked_add_signed(chrono::Duration::hours(24))
         .expect("valid timestamp")
@@ -109,7 +108,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // RUST_LOG=redis_subscriber=debug,redis=info,tokio=warn
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-    tracing_subscriber::fmt().with_env_filter(env_filter).with_span_events(FmtSpan::CLOSE).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(env_filter)
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
 
     let options = Options::parse(); // exit on error
     if options.redis_url.is_none() || options.redis_topic.is_none() {
@@ -170,7 +172,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and(warp::any().map(move || state_for_channel_token.clone()))
         .and_then(generate_token);
 
-    let routes = warp::path::end().and(warp::fs::file("src/bin/index.html")).or(ws_route).or(channel_token_route);
+    let routes = warp::path::end()
+        .and(warp::fs::file("src/bin/index.html"))
+        .or(ws_route)
+        .or(channel_token_route);
 
     let host = options.host.unwrap().parse::<std::net::IpAddr>().unwrap();
     let port = options.port.unwrap();
