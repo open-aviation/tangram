@@ -3,24 +3,24 @@
   <style>
     body {
       max-width: 1200px;
-      margin: 20px auto;
-      padding: 20px;
+      margin: 12px auto;
+      padding: 12px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
 
     .channel-section {
       background: #ffffff;
-      border-radius: 8px;
-      padding: 20px;
-      margin: 20px 0;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border-radius: 6px;
+      padding: 12px;
+      margin: 12px 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .channel-title {
-      font-size: 1.2em;
+      font-size: 1.1em;
       font-weight: 500;
       color: #333;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -28,8 +28,7 @@
 
     .channels-overview {
       border: 1px solid #e9ecef;
-      border-radius: 6px;
-      margin-bottom: 20px;
+      border-radius: 4px;
     }
 
     .channels-table {
@@ -41,9 +40,9 @@
 
     .channels-table th {
       background: #f8f9fa;
-      padding: 6px 8px;
+      padding: 4px 8px;
       text-align: left;
-      border-bottom: 2px solid #dee2e6;
+      border-bottom: 1px solid #dee2e6;
       color: #495057;
       font-weight: 500;
       white-space: nowrap;
@@ -92,7 +91,7 @@
       font-family: Monaco, monospace;
       font-size: 12px;
       background: #f8f9fa;
-      border-radius: 6px;
+      border-radius: 4px;
       border: 1px solid #e9ecef;
     }
 
@@ -105,16 +104,18 @@
       position: sticky;
       top: 0;
       background: #f8f9fa;
-      padding: 6px 8px;
+      padding: 4px 8px;
       text-align: left;
-      border-bottom: 2px solid #dee2e6;
+      border-bottom: 1px solid #dee2e6;
       color: #495057;
+      font-size: 12px;
     }
 
     .event-table td {
-      padding: 6px 8px;
+      padding: 4px 8px;
       border-bottom: 1px solid #e9ecef;
       vertical-align: top;
+      font-size: 12px;
     }
 
     .event-table tr:nth-child(even) {
@@ -124,22 +125,63 @@
     .timestamp {
       white-space: nowrap;
       color: #666;
-      width: 180px;
+      width: 160px;
     }
 
     .event-channel {
-      width: 120px;
+      width: 100px;
       color: #6c757d;
     }
 
     .event-type {
       color: #004085;
-      width: 120px;
+      width: 100px;
     }
 
     .event-data {
       font-family: Monaco, monospace;
       white-space: pre-wrap;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .event-data.collapsed {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 500px;
+    }
+
+    .event-data.collapsed::after {
+      content: "⌄";
+      position: absolute;
+      right: 8px;
+      color: #6c757d;
+    }
+    .event-data.collapsed::after {
+      content: ">";
+      position: absolute;
+      right: 8px;
+      color: #6c757d;
+      transform: rotate(90deg);
+    }
+
+    .event-data.expanded::after {
+      content: ">";
+      position: absolute;
+      right: 8px;
+      color: #6c757d;
+      transform: rotate(-90deg);
+    }
+
+    .status-connected {
+      color: #155724;
+      background: #d4edda;
+    }
+
+    .status-disconnected {
+      color: #721c24;
+      background: #f8d7da;
     }
   </style>
   <body>
@@ -164,7 +206,7 @@
 
     <div class="channel-section">
       <div class="channel-title">
-        Admin Channel
+        Events 
         <span id="connectionStatus" class="connection-status"></span>
       </div>
       <div class="event-log">
@@ -182,7 +224,7 @@
         </table>
       </div>
     </div>
-  </body>
+
   <script src='https://unpkg.com/phoenix@1.7.11/priv/static/phoenix.min.js'></script>
   <script>
     const { Socket } = Phoenix;
@@ -332,8 +374,17 @@
       type.textContent = eventType;
       
       const eventData = document.createElement('td');
-      eventData.className = 'event-data';
-      eventData.textContent = formatEventData(data);
+      eventData.className = 'event-data collapsed';
+      const formattedData = formatEventData(data);
+      eventData.textContent = formattedData;
+      
+      // Add click handler for expand/collapse
+      if (formattedData) {
+        eventData.addEventListener('click', () => {
+          eventData.classList.toggle('collapsed');
+          eventData.classList.toggle('expanded');
+        });
+      }
       
       row.appendChild(timestamp);
       row.appendChild(channel);
