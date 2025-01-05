@@ -183,9 +183,63 @@
       color: #721c24;
       background: #f8d7da;
     }
+    .channel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .channel-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-label {
+      color: #666;
+    }
+
+    .status-value {
+      font-weight: 500;
+      color: #333;
+    }
   </style>
   <body>
     <div class="channel-section">
+      <div class="channel-title">
+        <div class="channel-header">
+          <div class="channel-info">
+            Events
+            <span id="connectionStatus" class="connection-status"></span>
+          </div>
+          <div class="status-info">
+            <div class="status-item">
+              <!-- <span class="status-label">Time:</span> -->
+              <span id="currentTime" class="status-value">-</span>
+            </div>
+            <div>/</div>
+            <div class="status-item">
+              <!-- <span class="status-label">Counter:</span> -->
+              <span id="currentCounter" class="status-value">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="channel-title">
         Channels Overview
       </div>
@@ -250,6 +304,31 @@
       }
       const hue = Math.abs(hash) % 360;
       return `hsl(${hue}, 65%, 40%)`;
+    }
+
+    function formatLocalTime(isoString) {
+      const date = new Date(isoString);
+      
+      // Format date as YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const datePart = `${year}-${month}-${day}`;
+
+      // Format time with milliseconds using toLocaleString
+      const timePart = date.toLocaleTimeString('default', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        fractionalSecondDigits: 3
+      });
+
+      return `${datePart} ${timePart}`;
+    }
+
+    function updateHeaderStatus(datetime, counter) {
+      document.getElementById('currentTime').textContent = formatLocalTime(datetime);
+      document.getElementById('currentCounter').textContent = counter;
     }
 
     function updateChannelView() {
@@ -339,7 +418,7 @@
     }
 
     function formatTimestamp(date) {
-      return date.toISOString().replace('T', ' ').slice(0, -5);
+      return date.toISOString().replace('T', ' ').slice(0, -2);
     }
 
     function shouldShowData(data) {
@@ -404,8 +483,8 @@
       statusEl.className = `connection-status ${status ? 'status-connected' : 'status-disconnected'}`;
     }
 
-    async function getChannelToken() {
-      const storageKey = 'token_admin';
+    async function getChannelToken(channel, id) {
+      // const storageKey = 'token_admin';
       // const storedToken = localStorage.getItem(storageKey);
       // if (storedToken) {
       //   return storedToken;
@@ -417,7 +496,7 @@
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ channel: 'admin', id: 'yes' })
+          body: JSON.stringify({ channel,  id })
         });
 
         if (!response.ok) {
@@ -435,11 +514,18 @@
     }
 
     async function joinAdminChannel() {
-      const token = await getChannelToken();
+      const token = await getChannelToken('admin', 'admin');
       if (!token) {
         console.error('Failed to get admin channel token');
         return;
       }
+      const systemChannel = socket.channel('system', { token: await getChannelToken('system', 'admin') });
+      systemChannel.on('datetime', ({response: {datetime, counter}} = data) => {
+        console.log(`system - ${counter} - `, datetime);
+        document.getElementById('currentTime').textContent = formatLocalTime(datetime);
+        document.getElementById('currentCounter').textContent = counter;
+      })
+      systemChannel.join()
 
       const channel = socket.channel('admin', { token });
       
@@ -450,10 +536,19 @@
       channel.on('channel.leave', handleChannelLeave);
       channel.on('channel.list', handleChannelList);
       
-      // Handle all events for logging
+      // Update the channel event handler
       channel.onMessage = (event, payload) => {
         console.log(`${event} -`, payload);
-        const channelTopic = payload.channel || 'admin';
+        
+        // Check if this is a datetime message
+        if (Array.isArray(payload) && payload.length === 5 && payload[3] === 'datetime') {
+          const data = payload[4];
+          if (data?.status === 'ok' && data?.response) {
+            updateHeaderStatus(data.response.datetime, data.response.counter);
+          }
+        }
+
+        const channelTopic = Array.isArray(payload) ? payload[2] : (payload.channel || 'admin');
         addEventToLog(channelTopic, event, payload);
         return payload;
       };
