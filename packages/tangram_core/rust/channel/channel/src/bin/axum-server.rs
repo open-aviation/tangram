@@ -1,7 +1,8 @@
 use axum::{
-    extract::{State as AxumState, WebSocketUpgrade},
-    response::IntoResponse,
-    routing::get,
+    extract::{Json, State as AxumState, WebSocketUpgrade},
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    routing::{get, post},
     Router,
 };
 use channel::{
@@ -10,13 +11,74 @@ use channel::{
     websocket::{add_channel, axum_on_connected, datetime_handler, State},
 };
 use clap::Parser;
+use jsonwebtoken::{encode, EncodingKey, Header};
 use redis::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 use tracing::{error, info};
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct TokenRequest {
+    channel: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    id: String,
+    channel: String,
+    exp: usize,
+}
+
+#[derive(Debug)]
+enum TokenError {
+    ChannelNotFound,
+    GenerationFailed,
+}
+
+impl IntoResponse for TokenError {
+    fn into_response(self) -> Response {
+        let (status, message) = match self {
+            TokenError::ChannelNotFound => (StatusCode::NOT_FOUND, "Channel not found"),
+            TokenError::GenerationFailed => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to generate token"),
+        };
+
+        (status, message).into_response()
+    }
+}
+
+async fn generate_token(AxumState(state): AxumState<Arc<State>>, Json(req): Json<TokenRequest>) -> Result<impl IntoResponse, TokenError> {
+    // Check if channel exists
+    let ctl = state.ctl.lock().await;
+    let channels = ctl.channels.lock().await;
+    if !channels.contains_key(&req.channel) {
+        return Err(TokenError::ChannelNotFound);
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let expiration = chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::hours(24))
+        .expect("valid timestamp")
+        .timestamp() as usize;
+
+    let claims = Claims {
+        id,
+        channel: req.channel,
+        exp: expiration,
+    };
+
+    let key = EncodingKey::from_secret(state.jwt_secret.as_bytes());
+
+    match encode(&Header::default(), &claims, &key) {
+        Ok(token) => Ok(Json(serde_json::json!({
+            "token": token
+        }))),
+        Err(_) => Err(TokenError::GenerationFailed),
+    }
+}
 
 async fn websocket_handler(ws: WebSocketUpgrade, AxumState(state): AxumState<Arc<State>>) -> impl IntoResponse {
     ws.on_upgrade(move |socket| axum_on_connected(socket, state))
@@ -76,6 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/websocket", get(websocket_handler))
+        .route("/token", post(generate_token))
         .nest_service("/", ServeDir::new("channel/src/bin")) // 需要把 html 直接包含到 binary 中，方便发布
         .with_state(state.clone());
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await.unwrap();
