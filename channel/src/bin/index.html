@@ -1,55 +1,68 @@
+<!DOCTYPE html>
 <html>
-  <title id="title">Channel Example</title>
+<head>
+  <title>Channel Example</title>
   <style>
     body {
       max-width: 800px;
-      margin: 20px auto;
-      padding: 20px;
+      margin: 12px auto;
+      padding: 12px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    #user-info {
+      color: #666;
+      font-size: 0.9em;
+      margin-bottom: 12px;
+      padding: 8px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      display: inline-block;
     }
 
     .channel-section {
       background: #ffffff;
-      border-radius: 8px;
-      padding: 20px;
-      margin: 20px 0;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border-radius: 6px;
+      padding: 12px;
+      margin: 12px 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .channel-title {
-      font-size: 1.2em;
+      font-size: 1.1em;
       font-weight: 500;
       color: #333;
-      margin-bottom: 15px;
+      margin-bottom: 8px;
     }
 
-    .toggle-label {
-      display: inline-block;
-      padding: 10px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all 0.2s ease;
-      background: transparent;
-      border: 2px solid #4CAF50;
-      color: #4CAF50;
-      user-select: none;
+    .channel-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .toggle-label:hover {
-      background: rgba(76, 175, 80, 0.1);
+    .channel-label {
+      color: #666;
+      font-size: 13px;
     }
 
-    .toggle-label.active {
-      background: #4CAF50;
-      color: white;
+    .channel-id {
+      color: #666;
+      font-size: 0.85em;
+      margin-top: 4px;
+      margin-left: 54px;
+      display: none;
+    }
+
+    .channel-id.visible {
+      display: block;
     }
 
     .status-panel {
       background: #f5f5f5;
-      border-radius: 6px;
-      padding: 15px;
-      margin: 15px 0;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin: 8px 0;
       max-height: 0;
       overflow: hidden;
       opacity: 0;
@@ -59,61 +72,222 @@
     .status-panel.visible {
       max-height: 100px;
       opacity: 1;
-      margin: 15px 0;
+      margin: 8px 0;
     }
 
     .status-label {
       color: #666;
-      font-size: 0.9em;
-      margin-right: 10px;
+      font-size: 0.85em;
+      margin-right: 8px;
     }
 
     .status-value {
       font-weight: 500;
       color: #333;
-      margin-right: 20px;
+      margin-right: 16px;
+      font-size: 0.9em;
     }
 
     .status-group {
       display: inline-block;
     }
-  </style>
-  <body> 
-    <div id="system-section" class="channel-section">
-      <div class="channel-title">System Channel</div>
-      <div id="system-controls">
-        <span id="systemToggle" class="toggle-label" onclick="toggleSystemChannel()">System Channel</span>
-      </div>
-      <div id="systemStatus" class="status-panel">
-        <div class="status-group">
-          <span class="status-label">Counter:</span>
-          <b id="counter" class="status-value">-</b>
-        </div>
-        <div class="status-group">
-          <span class="status-label">Current Time:</span>
-          <b id="datetime" class="status-value">-</b>
-        </div>
-      </div>
-    </div>
 
-    <div id="streaming-section" class="channel-section">
-      <div class="channel-title">Streaming Channel</div>
-      <div id="streaming-controls">
-        <span id="streamingToggle" class="toggle-label" onclick="toggleStreamingChannel()">Streaming Channel</span>
+    .reconnecting {
+      color: #f57c00;
+      font-size: 0.85em;
+      margin-left: 8px;
+    }
+
+    /* Switch Component */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #4CAF50;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    .switch.loading .slider {
+      opacity: 0.7;
+    }
+
+    .switch.loading .slider:before {
+      animation: slideLoading 1s infinite;
+    }
+
+    @keyframes slideLoading {
+      0% { transform: translateX(3px); }
+      50% { transform: translateX(25px); }
+      100% { transform: translateX(3px); }
+    }
+  </style>
+</head>
+<body> 
+  <div id="user-info">
+    User ID: <span id="userId">-</span>
+  </div>
+
+  <div id="system-section" class="channel-section">
+    <div class="channel-title">System Channel</div>
+    <div class="channel-controls">
+      <label class="switch">
+        <input type="checkbox" id="systemSwitch" onchange="toggleSystemChannel()">
+        <span class="slider"></span>
+      </label>
+      <span class="channel-label">System Channel</span>
+      <span id="systemReconnecting" class="reconnecting" style="display: none">Reconnecting...</span>
+    </div>
+    <div id="systemChannelId" class="channel-id">Channel ID: -</div>
+    <div id="systemStatus" class="status-panel">
+      <div class="status-group">
+        <span class="status-label">Counter:</span>
+        <b id="counter" class="status-value">-</b>
+      </div>
+      <div class="status-group">
+        <span class="status-label">Current Time:</span>
+        <b id="datetime" class="status-value">-</b>
       </div>
     </div>
-  </body>
+  </div>
+
+  <div id="streaming-section" class="channel-section">
+    <div class="channel-title">Streaming Channel</div>
+    <div class="channel-controls">
+      <label class="switch">
+        <input type="checkbox" id="streamingSwitch" onchange="toggleStreamingChannel()">
+        <span class="slider"></span>
+      </label>
+      <span class="channel-label">Streaming Channel</span>
+    </div>
+    <div id="streamingChannelId" class="channel-id">Channel ID: -</div>
+  </div>
+
   <script src='https://unpkg.com/phoenix@1.7.11/priv/static/phoenix.min.js'></script>
   <script>
     const { Socket, Channel } = Phoenix;
     
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
+    }
+
+    // Set user ID in UI
+    const userId = getQueryParam('name') || 'anonymous';
+    document.getElementById('userId').textContent = userId;
+
     function onDatetime({ status, response: { datetime, counter }}) {
       document.getElementById('datetime').innerText = datetime;
       document.getElementById('counter').innerHTML = counter;
-    };
+    }
     
     function dump({ status, response }) {
       console.log(`Status: ${status}, Response:`, response);
+    }
+
+    // Reconnection manager for system channel
+    class ReconnectionManager {
+      constructor(channelName) {
+        this.channelName = channelName;
+        this.attempts = 0;
+        this.maxAttempts = 10;
+        this.baseDelay = 1000;
+        this.timer = null;
+      }
+
+      async start() {
+        if (this.attempts >= this.maxAttempts) {
+          console.error(`${this.channelName} - Max reconnection attempts reached`);
+          this.reset();
+          return;
+        }
+
+        const delay = Math.min(this.baseDelay * Math.pow(1.5, this.attempts), 10000);
+        this.attempts++;
+
+        if (this.channelName === 'system') {
+          document.getElementById('systemReconnecting').style.display = 'inline';
+        }
+
+        console.log(`${this.channelName} - Attempting reconnect in ${delay}ms (attempt ${this.attempts})`);
+        
+        this.timer = setTimeout(async () => {
+          const token = await getChannelToken(this.channelName);
+          if (token) {
+            if (this.channelName === 'system') {
+              window.systemChannel = joinChannel('system', token);
+            } else if (this.channelName === 'streaming') {
+              window.streamingChannel = joinChannel('streaming', token);
+            }
+          } else {
+            this.start();
+          }
+        }, delay);
+      }
+
+      reset() {
+        this.attempts = 0;
+        if (this.timer) {
+          clearTimeout(this.timer);
+          this.timer = null;
+        }
+        if (this.channelName === 'system') {
+          document.getElementById('systemReconnecting').style.display = 'none';
+        }
+      }
+    }
+
+    const systemReconnectionManager = new ReconnectionManager('system');
+    
+    function handleChannelError(channelName) {
+      if (channelName === 'system') {
+        window.systemChannel = null;
+        document.getElementById('systemChannelId').textContent = 'Channel ID: -';
+        document.getElementById('systemChannelId').classList.remove('visible');
+        systemReconnectionManager.start();
+      } else if (channelName === 'streaming') {
+        window.streamingChannel = null;
+        document.getElementById('streamingChannelId').textContent = 'Channel ID: -';
+        document.getElementById('streamingChannelId').classList.remove('visible');
+        window.streamingJoining = false;
+      }
+      updateToggleStates();
     }
     
     let userToken = 'userSocketToken';
@@ -122,25 +296,33 @@
     socket.connect();
     
     function updateToggleStates() {
-      const systemToggle = document.getElementById('systemToggle');
-      const streamingToggle = document.getElementById('streamingToggle');
+      const systemSwitch = document.getElementById('systemSwitch');
+      const streamingSwitch = document.getElementById('streamingSwitch');
+      const systemControls = systemSwitch.closest('.switch');
+      const streamingControls = streamingSwitch.closest('.switch');
       const systemStatus = document.getElementById('systemStatus');
       
       if (window.systemChannel) {
-        systemToggle.classList.add('active');
+        systemSwitch.checked = true;
+        systemControls.classList.remove('loading');
         systemStatus.classList.add('visible');
+        document.getElementById('systemReconnecting').style.display = 'none';
       } else {
-        systemToggle.classList.remove('active');
+        systemSwitch.checked = false;
         systemStatus.classList.remove('visible');
       }
 
       if (window.streamingChannel) {
-        streamingToggle.classList.add('active');
-        streamingToggle.classList.remove('loading');
-      } else if (window.streamingJoining) {
-        streamingToggle.classList.add('loading');
+        streamingSwitch.checked = true;
+        streamingControls.classList.remove('loading');
       } else {
-        streamingToggle.classList.remove('active', 'loading');
+        streamingSwitch.checked = false;
+      }
+      
+      if (window.streamingJoining) {
+        streamingControls.classList.add('loading');
+      } else {
+        streamingControls.classList.remove('loading');
       }
     }
     
@@ -152,36 +334,41 @@
       
       if (channelName === 'streaming') {
         window.streamingJoining = true;
-        updateToggleStates();
       }
+      updateToggleStates();
       
       channel
         .join()
         .receive('ok', (ev) => {
           console.log(`${channelName} - Joined successfully:`, ev);
-          if (channelName === 'streaming') {
+          const channelId = ev.id || '-';
+          if (channelName === 'system') {
+            systemReconnectionManager.reset();
+            document.getElementById('systemChannelId').textContent = `Channel ID: ${channelId}`;
+            document.getElementById('systemChannelId').classList.add('visible');
+          } else if (channelName === 'streaming') {
             window.streamingJoining = false;
+            document.getElementById('streamingChannelId').textContent = `Channel ID: ${channelId}`;
+            document.getElementById('streamingChannelId').classList.add('visible');
           }
           updateToggleStates();
         })
         .receive('error', ({ reason }) => {
           console.error(`${channelName} - Failed to join:`, reason);
-          if (channelName === 'streaming') {
-            window.streamingJoining = false;
-            window.streamingChannel = null;
-          }
-          updateToggleStates();
+          handleChannelError(channelName);
         })
         .receive('timeout', () => {
           console.warn(`${channelName} - Join request timed out`);
-          if (channelName === 'streaming') {
-            window.streamingJoining = false;
-            window.streamingChannel = null;
-          }
-          updateToggleStates();
+          handleChannelError(channelName);
         });
+
+      channel.onError(() => {
+        console.error(`${channelName} - Channel error occurred`);
+        handleChannelError(channelName);
+      });
+      
       return channel;
-    }   
+    }
 
     async function getChannelToken(channelName) {
       const storageKey = `token_${channelName}`;
@@ -197,7 +384,10 @@
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ channel: channelName })
+          body: JSON.stringify({ 
+            channel: channelName,
+            id: userId
+          })
         });
 
         if (!response.ok) {
@@ -219,6 +409,9 @@
           .receive('ok', () => {
             console.log('Left system channel successfully');
             window.systemChannel = null;
+            document.getElementById('systemChannelId').textContent = 'Channel ID: -';
+            document.getElementById('systemChannelId').classList.remove('visible');
+            systemReconnectionManager.reset();
             updateToggleStates();
           });
       } else {
@@ -238,6 +431,8 @@
           .receive('ok', () => {
             console.log('Left streaming channel successfully');
             window.streamingChannel = null;
+            document.getElementById('streamingChannelId').textContent = 'Channel ID: -';
+            document.getElementById('streamingChannelId').classList.remove('visible');
             updateToggleStates();
           });
       } else {
@@ -253,5 +448,9 @@
 
     // Initial toggle states
     updateToggleStates();
+
+    // Auto-connect system channel
+    toggleSystemChannel();
   </script>
+</body>
 </html>

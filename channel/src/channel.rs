@@ -455,7 +455,7 @@ pub enum ResponseFromRedis {
     Empty {},
 
     #[serde(rename = "join")]
-    Join {},
+    Join { id: String },
 
     #[serde(rename = "heartbeat")]
     Heartbeat {},
@@ -471,7 +471,7 @@ impl Into<Response> for ResponseFromRedis {
     fn into(self) -> Response {
         match self {
             ResponseFromRedis::Empty {} => Response::Empty {},
-            ResponseFromRedis::Join {} => Response::Join {},
+            ResponseFromRedis::Join { id } => Response::Join { id },
             ResponseFromRedis::Heartbeat {} => Response::Heartbeat {},
             ResponseFromRedis::Datetime { datetime, counter } => Response::Datetime { datetime, counter },
             ResponseFromRedis::Message { message } => Response::Message { message },
