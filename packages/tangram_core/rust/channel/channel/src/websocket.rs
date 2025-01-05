@@ -1,12 +1,15 @@
 use crate::channel::{listen_to_redis, Channel, ChannelControl, ChannelError, ChannelMessage};
-use crate::utils::decode_jwt;
+use crate::utils::{decode_jwt, Claims};
 use futures::SinkExt;
 use futures::StreamExt;
+use itertools::Itertools;
+use redis::aio::MultiplexedConnection;
 use redis::AsyncCommands;
 use redis::RedisResult;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_tuple::{Deserialize_tuple, Serialize_tuple};
+use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Error};
 use std::sync::Arc;
@@ -304,15 +307,11 @@ async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn
 
     // all events are dispatched to reids
     // iredis --url redis://localhost:6379 psubscribe 'from*'
-    // dispatch_by_redis(redis_conn, channel_name.clone(), event.clone(), payload).await?;
     let redis_topic = format!("from:{}:{}", channel_name, event.clone());
     let message = serde_json::to_string(&payload).unwrap();
-    let result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
-    match result {
-        Err(e) => error!("fail to publish to redis: {}", e),
-        _ => {
-            // info!("published to redis {}, {}", redis_topic, message.clone());
-        }
+    let publish_result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
+    if let Err(e) = publish_result {
+        error!("fail to publish to redis: {}", e)
     }
     Ok(())
 }
@@ -352,7 +351,7 @@ pub async fn add_channel(ctl: &Mutex<ChannelControl>, redis_client: redis::Clien
 
 // 添加 agent tx, join channel, spawn agent/conn relay task, ack joining
 async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> Result<JoinHandle<()>, ChannelError> {
-    let claims = match &rm.payload {
+    let claims: Claims = match &rm.payload {
         RequestPayload::Join { token } => match decode_jwt(token, state.jwt_secret.clone()).await {
             Ok(claims) => claims,
             Err(e) => {
@@ -379,8 +378,14 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> R
     let event_ref = rm.event_ref.clone();
 
     info!("JOIN / agent joining ({} => {}) ...", agent_id, channel_name);
-    state.ctl.lock().await.agent_add(agent_id.to_string(), None).await;
-    match state.ctl.lock().await.channel_join(&channel_name.clone(), agent_id.to_string()).await {
+    state.ctl.lock().await.agent_add(agent_id.to_string(), None).await; // Agent 并不是在这里创建的
+    match state
+        .ctl
+        .lock()
+        .await
+        .channel_join(&channel_name.clone(), agent_id.to_string(), claims.id.clone())
+        .await
+    {
         Ok(_) => {}
         Err(e) => {
             // relay task 在连接断开的时候会发生什么?
@@ -394,11 +399,12 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> R
     let relay_state = state.clone();
     let local_join_ref = rm.join_ref.clone();
     let local_conn_id = conn_id.to_string();
+    let local_agent_id = agent_id.clone();
     let relay_task = tokio::spawn(async move {
-        let mut agent_rx = relay_state.ctl.lock().await.agent_rx(agent_id.clone()).await.unwrap();
+        let mut agent_rx = relay_state.ctl.lock().await.agent_rx(local_agent_id.clone()).await.unwrap();
         let conn_tx = relay_state.ctl.lock().await.conn_tx(local_conn_id.to_string()).await.unwrap();
 
-        debug!("agent {} => conn {}", agent_id.clone(), local_conn_id.clone());
+        debug!("agent {} => conn {}", local_agent_id.clone(), local_conn_id.clone());
         loop {
             let message_opt = agent_rx.recv().await;
             if message_opt.is_err() {
@@ -408,9 +414,9 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> R
             let mut channel_message = message_opt.unwrap();
             let ChannelMessage::Reply(ref mut reply) = channel_message;
             reply.join_ref = local_join_ref.clone();
-            let result = conn_tx.send(channel_message.clone()); // agent rx => conn tx => conn rx => ws tx
-            if result.is_err() {
-                error!("agent {}, conn: {}, sending failure: {:?}", agent_id, &local_conn_id, result.err().unwrap());
+            let send_result = conn_tx.send(channel_message.clone()); // agent rx => conn tx => conn rx => ws tx
+            if send_result.is_err() {
+                error!("agent {}, conn: {}, sending failure: {:?}", &local_agent_id, &local_conn_id, send_result.err().unwrap());
                 break; // fails when there's no reciever, stop forwarding
             }
             // debug!("F {}", channel_message);
@@ -419,17 +425,21 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> R
 
     // phx_reply, 确认 join 事件
     ok_reply(conn_id, join_ref.clone(), &event_ref, &channel_name, state.clone()).await;
+    info!("JOIN / acked");
 
-    // presence
+    // presence state, to current agent
     presence_state(conn_id, join_ref.clone(), &event_ref, &channel_name, state.clone()).await;
-    presence_diff(channel_name.clone(), &mut state.redis_client.get_multiplexed_async_connection().await.unwrap()).await;
+
+    // presence diff, broadcast
+    let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
+    presence_diff(&mut redis_conn, channel_name.clone(), agent_id.clone(), claims.id.clone(), PresenceAction::Join).await;
 
     Ok(relay_task)
 }
 
 async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: String) {
     let agent_id = format!("{}:{}:{}", conn_id, channel_name.clone(), join_ref.clone().unwrap());
-    state.ctl.lock().await.agent_rm(agent_id.clone()).await;
+    let external_id_opt = state.ctl.lock().await.agent_rm(agent_id.clone()).await;
     let agent_count = state
         .ctl
         .lock()
@@ -442,6 +452,14 @@ async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>
         state.ctl.lock().await.channel_rm(channel_name.clone()).await;
     }
     ok_reply(conn_id, join_ref, event_ref, &channel_name, state.clone()).await;
+
+    if external_id_opt.is_none() {
+        error!("LEAVE / agent {} not found", agent_id);
+        return;
+    }
+    info!("LEAVE / send presense_diff");
+    let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
+    presence_diff(&mut redis_conn, channel_name.clone(), agent_id.clone(), external_id_opt.unwrap(), PresenceAction::Leave).await;
 }
 
 async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: &str, state: Arc<State>) {
@@ -473,34 +491,87 @@ async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, chan
 }
 
 async fn presence_state(conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: &str, state: Arc<State>) {
-    let values = json!({});
-    let join_reply_message = ServerMessage {
+    let hashed_agents = state
+        .ctl
+        .lock()
+        .await
+        .agents
+        .lock()
+        .await
+        .iter()
+        .filter(|(_, agent)| agent.channel == channel_name)
+        .into_group_map_by(|(_, agent)| &agent.external_id)
+        .into_iter()
+        .map(|(external_id, group)| {
+            (external_id.clone(), {
+                json!({
+                    "metas": group.into_iter()
+                        .map(|(id, _)| json!({ "phx_ref": id }))
+                        .collect::<Vec<_>>()
+                })
+            })
+        })
+        .collect::<HashMap<_, _>>();
+    let reply = ServerMessage {
         join_ref: join_ref.clone(),
         event_ref: event_ref.to_string(),
         topic: channel_name.to_string(),
-        event: "phx_reply".to_string(),
-        payload: ServerPayload::ServerJsonValue(values),
+        event: "presence_state".to_string(),
+        payload: ServerPayload::ServerJsonValue(json!(hashed_agents)),
     };
     state
         .ctl
         .lock()
         .await
-        .conn_send(conn_id.to_string(), ChannelMessage::Reply(join_reply_message))
+        .conn_send(conn_id.to_string(), ChannelMessage::Reply(reply))
         .await
         .unwrap();
+    info!("P_STATE / sent");
 }
 
-async fn presence_diff(channel_name: String, redis_conn: &mut redis::aio::MultiplexedConnection) {
-    // let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
-    let redis_topic = format!("from:{}:presence_diff", channel_name);
-    let payload = json!({});
-    let message = serde_json::to_string(&payload).unwrap();
-    let result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
-    match result {
-        Err(e) => error!("fail to publish to redis: {}", e),
-        _ => {
-            // info!("published to redis {}, {}", redis_topic, message.clone());
-        }
+#[derive(Debug)]
+pub enum PresenceAction {
+    Join,
+    Leave,
+}
+
+pub async fn presence_diff_many(redis_conn: &mut MultiplexedConnection, channel_name: String, action: PresenceAction, items: serde_json::Value) {
+    let diff = match action {
+        PresenceAction::Join => json!({"joins": items, "leaves": {}}),
+        PresenceAction::Leave => json!({"joins": {}, "leaves": items}),
+    };
+    let redis_topic = format!("to:{}:presence_diff", channel_name);
+    let message = serde_json::to_string(&diff).unwrap();
+    let publish_result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
+    if let Err(e) = publish_result {
+        error!("P_DIFF_MANY / fail to publish to redis: {}", e)
+    } else {
+        info!("P_DIFF_MANY / sent, {:?}", action);
+    }
+}
+
+/// broadcast presence_diff oever redis
+pub async fn presence_diff(
+    redis_conn: &mut MultiplexedConnection, channel_name: String, agent_id: String, external_id: String, action: PresenceAction,
+) {
+    let items = json!({
+        external_id.clone(): {
+            "metas": [
+                {"phx_ref": agent_id.clone()}
+            ],
+        },
+    });
+    let diff = match action {
+        PresenceAction::Join => json!({"joins": items, "leaves": {}}),
+        PresenceAction::Leave => json!({"joins": {}, "leaves": items}),
+    };
+    let redis_topic = format!("to:{}:presence_diff", channel_name);
+    let message = serde_json::to_string(&diff).unwrap();
+    let publish_result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
+    if let Err(e) = publish_result {
+        error!("P_DIFF / fail to publish to redis: {}", e)
+    } else {
+        info!("P_DIFF / sent, {:?}", action);
     }
 }
 

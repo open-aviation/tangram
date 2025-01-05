@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -72,14 +72,17 @@ async fn websocket_handler(ws: WebSocketUpgrade, AxumState(state): AxumState<Arc
 #[derive(Debug, Deserialize, Parser)]
 #[command(name = "wd", about = "channel server")]
 struct Options {
-    #[arg(long, default_value = "127.0.0.1")]
+    #[arg(long, env, default_value = "127.0.0.1")]
     host: Option<String>,
 
-    #[arg(long, default_value = "5000")]
+    #[arg(long, env, default_value = "5000")]
     port: Option<u16>,
 
-    #[arg(long, default_value = None)]
+    #[arg(long, env, default_value = None)]
     redis_url: Option<String>,
+
+    #[arg(long, env, default_value = None)]
+    jwt_secret: Option<String>,
 }
 
 #[tokio::main]
@@ -103,10 +106,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let redis_client = Client::open(redis_url.clone())?;
     let channel_control = ChannelControl::new(Arc::new(redis_client.clone()));
 
+    let jwt_secret = options.jwt_secret.unwrap_or_else(|| {
+        let random_secret = random_string(8);
+        warn!("no secret proviced, generated: {}", random_secret);
+        random_secret
+    });
+
     let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
         redis_client,
-        jwt_secret: random_string(8), // 从命令行、环境变量中获取，或者生成一个随机的
+        jwt_secret, // 从命令行、环境变量中获取，或者生成一个随机的
     });
 
     // phoenix & admin are special

@@ -1,4 +1,5 @@
 use futures::StreamExt;
+use itertools::Itertools;
 use redis::{AsyncCommands, RedisResult};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -50,21 +51,22 @@ pub struct Channel {
 pub struct ChannelControl {
     pub channels: Mutex<HashMap<String, Channel>>, // channel name -> Channel
     redis_client: Arc<redis::Client>,
-    agent_relay_task: Mutex<HashMap<String, Agent>>,                     // agent_id -> JoinHandle
-    agent_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // agent_id -> Sender
+    pub agents: Mutex<HashMap<String, Agent>>,                           // agent_id -> JoinHandle
+    agent_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // agent_id -> Sender, TODO: replace with `agents`
     conn_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>,  // conn_id -> Sender
 }
 
 #[derive(Debug)]
-struct Agent {
-    channel: String,
-    id: String,
+pub struct Agent {
+    pub channel: String,
+    pub id: String,
+    pub external_id: String,
     relay_task: JoinHandle<()>,
 }
 
 impl Display for Agent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<Agent: id={} channel={}, task={:?}>", self.id, self.channel, self.relay_task)
+        write!(f, "<Agent: id={} external_id={} channel={}, task={:?}>", self.id, self.external_id, self.channel, self.relay_task)
     }
 }
 
@@ -157,7 +159,7 @@ impl ChannelControl {
             channels: Mutex::new(HashMap::new()),
             redis_client,
             agent_tx: Mutex::new(HashMap::new()),
-            agent_relay_task: Mutex::new(HashMap::new()),
+            agents: Mutex::new(HashMap::new()),
             conn_tx: Mutex::new(HashMap::new()),
         }
     }
@@ -192,18 +194,52 @@ impl ChannelControl {
             .map_err(|_| ChannelError::MessageSendError)
     }
 
+    async fn conn_cleanup_presense_leave(&self, conn_id: String, channel_name: String) {
+        let grouped_agents = self
+            .agents
+            .lock()
+            .await
+            .iter()
+            .filter(|(_, agent)| agent.id.starts_with(&conn_id))
+            .into_group_map_by(|(_, agent)| &agent.external_id)
+            .into_iter()
+            .map(|(external_id, group)| {
+                (external_id.clone(), {
+                    json!({
+                        "metas": group.into_iter()
+                            .map(|(id, _)| json!({ "phx_ref": id }))
+                            .collect::<Vec<_>>()
+                    })
+                })
+            })
+            .collect::<HashMap<_, _>>();
+        info!("CONN_CLEANUP / grouped_agents {:?}", grouped_agents);
+        if grouped_agents.is_empty() {
+            info!("CONN_CLEANUP / no agents to leave");
+            return;
+        }
+
+        let diff = json!({"joins": {}, "leaves": grouped_agents});
+
+        let redis_conn_result = self.redis_client.clone().get_multiplexed_async_connection().await;
+        if redis_conn_result.is_err() {
+            error!("CONN_CLEANUP / fail to get redis connection");
+            return;
+        }
+        let mut redis_conn = redis_conn_result.unwrap();
+        let redis_topic = format!("to:{}:presence_diff", channel_name);
+        let message = serde_json::to_string(&diff).unwrap();
+        let publish_result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
+        if let Err(e) = publish_result {
+            error!("CONN_CLEANUP / fail to publish to redis: {}", e)
+        } else {
+            info!("CONN_CLEANUP / sent");
+        }
+    }
+
     // 清理所有和conn 有关的: conn, channel, agent
     // agent_id: {conn_id}:{channel}:{join_ref}
     pub async fn conn_cleanup(&self, conn_id: String) {
-        self.agent_relay_task.lock().await.retain(|k, agent| {
-            if k.starts_with(&conn_id) {
-                agent.relay_task.abort();
-                info!("CONN / {} relay task aborts.", agent.id);
-            }
-            info!("CONN / {} to be removed", agent.id);
-            !k.starts_with(&conn_id)
-        });
-
         let mut agent_tx = self.agent_tx.lock().await;
         debug!("CONN / cleanup agent_tx, conn_id: {}, {} {:?}", conn_id, agent_tx.len(), agent_tx.keys().collect::<Vec<&String>>());
         agent_tx.retain(|k, _| !k.starts_with(&conn_id));
@@ -213,6 +249,8 @@ impl ChannelControl {
         debug!("CONN / conn_tx cleared, {}", conn_id);
 
         for (name, channel) in self.channels.lock().await.iter() {
+            self.conn_cleanup_presense_leave(conn_id.clone(), name.clone()).await;
+
             let mut agents = channel.agents.lock().await;
             debug!("CONN / {}, agents {} {:?}", name, agents.len(), agents);
             agents.retain(|agent| !agent.starts_with(&conn_id));
@@ -221,6 +259,15 @@ impl ChannelControl {
             let meta = json!({"agent": serde_json::Value::Null, "channel": name, "agents": *agents});
             self.pub_meta_event("channel".into(), "leave".into(), meta).await;
         }
+
+        self.agents.lock().await.retain(|k, agent| {
+            if k.starts_with(&conn_id) {
+                agent.relay_task.abort();
+                info!("CONN / {} relay task aborts.", agent.id);
+            }
+            info!("CONN / {} to be removed", agent.id);
+            !k.starts_with(&conn_id)
+        });
     }
 
     pub async fn channel_add(&self, channel_name: String, capacity: Option<usize>) {
@@ -271,7 +318,7 @@ impl ChannelControl {
             Entry::Occupied(entry) => {
                 let channel = entry.get();
                 for agent_id in channel.agents().await.iter() {
-                    if let Entry::Occupied(agent_task) = self.agent_relay_task.lock().await.entry(agent_id.into()) {
+                    if let Entry::Occupied(agent_task) = self.agents.lock().await.entry(agent_id.into()) {
                         agent_task.get().relay_task.abort();
                         info!("CH_RM / channel {}, agent {}, relay_task aborted", channel_name, agent_id);
                         agent_task.remove();
@@ -299,7 +346,9 @@ impl ChannelControl {
         channels.contains_key(channel_name)
     }
     /// join agent to a channel
-    pub async fn channel_join(&self, channel_name: &str, agent_id: String) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
+    pub async fn channel_join(
+        &self, channel_name: &str, agent_id: String, external_id: String,
+    ) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
         let channels = self.channels.lock().await;
 
         // join
@@ -319,13 +368,14 @@ impl ChannelControl {
             }
         });
 
-        match self.agent_relay_task.lock().await.entry(agent_id.clone()) {
+        match self.agents.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(_) => {
                 warn!("AGENT / {} already has a relay task", agent_id);
             }
             Entry::Vacant(entry) => {
                 entry.insert(Agent {
                     id: agent_id.clone(),
+                    external_id: external_id.clone(),
                     channel: channel_name.to_string().clone(),
                     relay_task,
                 });
@@ -343,7 +393,7 @@ impl ChannelControl {
         let channels = self.channels.lock().await;
         let channel = channels.get(&channel_name).ok_or(ChannelError::ChannelNotFound)?;
         channel.leave(agent_id.clone()).await;
-        match self.agent_relay_task.lock().await.entry(agent_id.clone()) {
+        match self.agents.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(entry) => {
                 entry.get().relay_task.abort();
                 entry.remove();
@@ -414,11 +464,14 @@ impl ChannelControl {
         info!("AGENT / list: {} {:?}", agents.len(), agents);
     }
 
-    /// remove the agent after leaving all channels
-    pub async fn agent_rm(&self, agent_id: String) {
-        match self.agent_relay_task.lock().await.entry(agent_id.clone()) {
+    /// remove the agent after leaving all channels, returns external_id
+    pub async fn agent_rm(&self, agent_id: String) -> Option<String> {
+        let mut external_id: Option<String> = None;
+
+        match self.agents.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(entry) => {
                 entry.get().relay_task.abort();
+                external_id = Some(entry.get().external_id.clone());
                 entry.remove();
                 debug!("AGENT / {} relay task removed", agent_id);
             }
@@ -439,6 +492,8 @@ impl ChannelControl {
 
         let agents = self.agent_list().await;
         info!("AGENT / list {} {:?}", agents.len(), agents);
+
+        external_id
     }
 
     /// list all agents
@@ -559,19 +614,19 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
     }
 }
 
-async fn _channel_publish(counter: i32, value: serde_json::Value, tx: broadcast::Sender<ChannelMessage>, channel_name: &str, event_name: &str) {
-    let reply_message = ServerMessage {
-        join_ref: None,
-        event_ref: counter.to_string(),
-        topic: channel_name.to_string(),
-        event: event_name.to_string(),
-        payload: ServerPayload::ServerJsonValue(value),
-    };
-    match tx.send(ChannelMessage::Reply(reply_message.clone())) {
-        Ok(_) => debug!("REDIS_PUB / published, {} > {}", event_name, reply_message),
-        Err(e) => error!("REDIS_PUB / fail to send, channel: {}, event: {}, err: {}", channel_name, event_name, e),
-    }
-}
+// async fn _channel_publish(counter: i32, value: serde_json::Value, tx: broadcast::Sender<ChannelMessage>, channel_name: &str, event_name: &str) {
+//     let reply_message = ServerMessage {
+//         join_ref: None,
+//         event_ref: counter.to_string(),
+//         topic: channel_name.to_string(),
+//         event: event_name.to_string(),
+//         payload: ServerPayload::ServerJsonValue(value),
+//     };
+//     match tx.send(ChannelMessage::Reply(reply_message.clone())) {
+//         Ok(_) => debug!("REDIS_PUB / published, {} > {}", event_name, reply_message),
+//         Err(e) => error!("REDIS_PUB / fail to send, channel: {}, event: {}, err: {}", channel_name, event_name, e),
+//     }
+// }
 
 #[cfg(test)]
 mod test {
