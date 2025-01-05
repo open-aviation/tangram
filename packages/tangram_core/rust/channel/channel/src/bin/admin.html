@@ -291,6 +291,11 @@
       updateChannelView();
     }
 
+    function handleChannelList(data) {
+      channelState.set(data.channel, data.agents);
+      updateChannelView();
+    }
+
     function formatTimestamp(date) {
       return date.toISOString().replace('T', ' ').slice(0, -5);
     }
@@ -392,9 +397,11 @@
       channel.on('channel.remove', handleChannelRemove);
       channel.on('channel.join', handleChannelJoin);
       channel.on('channel.leave', handleChannelLeave);
+      channel.on('channel.list', handleChannelList);
       
       // Handle all events for logging
       channel.onMessage = (event, payload) => {
+        console.log(`${event} -`, payload);
         const channelTopic = payload.channel || 'admin';
         addEventToLog(channelTopic, event, payload);
         return payload;
