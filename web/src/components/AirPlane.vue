@@ -12,14 +12,14 @@
             altitude: <code>{{ item.altitude }}</code>
           </p>
         </l-tooltip>
-        <l-popup class="popup-leaflet-hidden">
+        <l-popup class="popup-leaflet-hidden" :autofocus="false" :options="{ autoPan: false }">
           <div ref="popup" :id="'popup-' + item.icao24">{{ item.icao24 }}</div>
         </l-popup>
       </v-rotated-marker>
     </l-marker-cluster-group>
   </l-layer-group>
   <l-layer-group v-else>
-    <v-rotated-marker v-for="(item, index) in planeData" :key='index' @click="showRoute" :icon="getIcon(item)"
+    <v-rotated-marker v-for="(item, index) in planeData" :key='index' @click="showRoute" :icon="getIcon(item)" :autofocus="false"
       :rotationAngle="getRotate(item)" :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'"
       :lat-lng.sync="[item.latitude, item.longitude]">
       <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10] }">
@@ -30,7 +30,7 @@
           altitude: <code>{{ item.altitude }}</code>
         </p>
       </l-tooltip>
-      <l-popup class="popup-leaflet-hidden">
+      <l-popup class="popup-leaflet-hidden" :options="{ autoPan: false }">
         <div ref="popup" :id="'popup-' + item.icao24">{{ item.icao24 }}</div>
       </l-popup>
     </v-rotated-marker>
@@ -88,14 +88,19 @@ export default {
 
       this.streamingChannel.on("new-data", data => {
         if (data && data.length > 0) {
-          this.planeData = data.filter(item => item.latitude && item.longitude && item.altitude >= this.altitude[0] && item.altitude <= this.altitude[1])
+          const arr = data.filter(item => item.latitude && item.longitude && item.altitude >= this.altitude[0] && item.altitude <= this.altitude[1])
+          arr.forEach(item => {
+            item.latitude = Number(item.latitude);
+            item.longitude = Number(item.longitude);
+          })
+          this.planeData = arr.concat()
         }
       });
 
       this.streamingChannel.on("new-selected", data => {
-        console.log('server event, new selected aircraft: ', data.icao24);
+        console.info('server event, new selected aircraft: ', data.icao24);
 
-        console.dir(this.planeData);
+        console.info(this.planeData);
         this.selected = this.planeData.find(e => e.icao24 === data.icao24);
         console.log('new selected aircraft: ', this.selected);
 
@@ -142,7 +147,7 @@ export default {
       var newPath = Raphael.mapPath(iconProps.path, Raphael.toMatrix(iconProps.path, transform));
       let viewBox = 'viewBox="' + [-16, -16, 32, 32].join(" ") + '"';
       let svgDynProps = { stroke: "#0014aa", strokeWdt: 0.65 };
-      let pathPlain = "<path stroke=" + svgDynProps.stroke + " stroke-width=" + svgDynProps.strokeWdt + " d=" + newPath + "/>";
+      let pathPlain = "<path stroke=" + svgDynProps.stroke + " stroke-width=" + svgDynProps.strokeWdt + " d=" + newPath+ "/>";
       let svgPlain = '<svg id="' + feature.icao24 + '"version="1.1" shape-rendering="geometricPrecision" width="32px" height="32px" ' + viewBox + ' xmlns="http://www.w3.org/2000/svg">' + pathPlain + "</svg>";
 
       return L.divIcon({

@@ -53,7 +53,7 @@ export default {
       zoom: 6,
       position: '',
       store: useMapStore(),
-      center: [52.3169, 4.7459]  // Add this line
+      center: [48.3169, 6.9459]  // Add this line
     };
   },
   computed: {
