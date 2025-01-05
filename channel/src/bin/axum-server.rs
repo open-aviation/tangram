@@ -19,11 +19,11 @@ use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 use tracing::{error, info};
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
-use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TokenRequest {
     channel: String,
+    id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -55,18 +55,23 @@ async fn generate_token(AxumState(state): AxumState<Arc<State>>, Json(req): Json
     let ctl = state.ctl.lock().await;
     let channels = ctl.channels.lock().await;
     if !channels.contains_key(&req.channel) {
+        error!("channel {} not found", req.channel);
         return Err(TokenError::ChannelNotFound);
     }
 
-    let id = Uuid::new_v4().to_string();
+    let id = req
+        .id
+        .filter(|id| !id.trim().is_empty())
+        .unwrap_or_else(|| nanoid::nanoid!(8).to_string());
+
     let expiration = chrono::Utc::now()
         .checked_add_signed(chrono::Duration::hours(24))
         .expect("valid timestamp")
         .timestamp() as usize;
 
     let claims = Claims {
-        id,
-        channel: req.channel,
+        id: id.clone(),
+        channel: req.channel.clone(),
         exp: expiration,
     };
 
@@ -74,6 +79,8 @@ async fn generate_token(AxumState(state): AxumState<Arc<State>>, Json(req): Json
 
     match encode(&Header::default(), &claims, &key) {
         Ok(token) => Ok(Json(serde_json::json!({
+            "id": id.clone(),
+            "channel": req.channel.clone(),
             "token": token
         }))),
         Err(_) => Err(TokenError::GenerationFailed),

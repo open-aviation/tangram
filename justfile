@@ -93,8 +93,8 @@ pub-bool value="true":
   #!/usr/bin/env bash
   redis-cli -u redis://192.168.11.37:6379 publish to:admin:dt '{{value}}'
 
-token:
-  curl -s -X POST http://localhost:5000/token -H "Content-Type: application/json" -d '{"channel": "system"}' | jq -r .
+token id="":
+  curl -s -X POST http://localhost:5000/token -H "Content-Type: application/json" -d '{"channel": "system", "id": "{{id}}"}' | jq -r .
 
 
 _build-image:

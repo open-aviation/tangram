@@ -13,7 +13,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
-use uuid::Uuid;
 use warp::filters::ws::WebSocket;
 
 /// reply data structures
@@ -121,7 +120,7 @@ pub struct State {
 impl State {}
 
 pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<State>) {
-    let conn_id = Uuid::new_v4().to_string();
+    let conn_id = nanoid::nanoid!(8).to_string();
     state.ctl.lock().await.conn_add_tx(conn_id.clone()).await;
     info!("AXUM / WS_TX / new connection connected: {}", conn_id);
 
@@ -206,7 +205,7 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
 
 /// handle websocket connection
 pub async fn warp_on_connected(ws: WebSocket, state: Arc<State>) {
-    let conn_id = Uuid::new_v4().to_string(); // 服务端生成的，内部使用
+    let conn_id = nanoid::nanoid!(8).to_string(); // 服务端生成的，内部使用
     state.ctl.lock().await.conn_add_tx(conn_id.clone()).await;
     info!("on_connected, 新连接: {}", conn_id);
 
@@ -304,16 +303,9 @@ async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn
     }
 
     // all events are dispatched to reids
-    dispatch_by_redis(redis_conn, channel_name.clone(), event.clone(), payload).await?;
-    Ok(())
-}
-
-/// events from client are published over redis
-/// iredis --url redis://localhost:6379 psubscribe 'from*'
-async fn dispatch_by_redis(
-    redis_conn: &mut redis::aio::MultiplexedConnection, channel_name: String, event_name: String, payload: &RequestPayload,
-) -> RedisResult<()> {
-    let redis_topic = format!("from:{}:{}", channel_name, event_name);
+    // iredis --url redis://localhost:6379 psubscribe 'from*'
+    // dispatch_by_redis(redis_conn, channel_name.clone(), event.clone(), payload).await?;
+    let redis_topic = format!("from:{}:{}", channel_name, event.clone());
     let message = serde_json::to_string(&payload).unwrap();
     let result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
     match result {
@@ -412,6 +404,11 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> R
 
     // phx_reply, 确认 join 事件
     ok_reply(conn_id, join_ref.clone(), &event_ref, &channel_name, state.clone()).await;
+
+    // presence
+    presence_state(conn_id, join_ref.clone(), &event_ref, &channel_name, state.clone()).await;
+    presence_diff(channel_name.clone(), &mut state.redis_client.get_multiplexed_async_connection().await.unwrap()).await;
+
     Ok(relay_task)
 }
 
@@ -453,6 +450,38 @@ async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, chan
         .unwrap();
     // let text = serde_json::to_string(&join_reply_message).unwrap();
     // debug!("sent to connection {}: {}", &conn_id, text);
+}
+
+async fn presence_state(conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: &str, state: Arc<State>) {
+    let values = json!({});
+    let join_reply_message = ServerMessage {
+        join_ref: join_ref.clone(),
+        event_ref: event_ref.to_string(),
+        topic: channel_name.to_string(),
+        event: "phx_reply".to_string(),
+        payload: ServerPayload::ServerJsonValue(values),
+    };
+    state
+        .ctl
+        .lock()
+        .await
+        .conn_send(conn_id.to_string(), ChannelMessage::Reply(join_reply_message))
+        .await
+        .unwrap();
+}
+
+async fn presence_diff(channel_name: String, redis_conn: &mut redis::aio::MultiplexedConnection) {
+    // let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
+    let redis_topic = format!("from:{}:presence_diff", channel_name);
+    let payload = json!({});
+    let message = serde_json::to_string(&payload).unwrap();
+    let result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
+    match result {
+        Err(e) => error!("fail to publish to redis: {}", e),
+        _ => {
+            // info!("published to redis {}, {}", redis_topic, message.clone());
+        }
+    }
 }
 
 // 每秒发送一个时间戳
