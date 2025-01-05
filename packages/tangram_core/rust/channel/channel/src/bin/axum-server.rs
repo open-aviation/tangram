@@ -44,12 +44,12 @@ impl IntoResponse for TokenError {
 
 async fn generate_token(AxumState(state): AxumState<Arc<State>>, Json(req): Json<TokenRequest>) -> Result<impl IntoResponse, TokenError> {
     // Check if channel exists
-    let ctl = state.ctl.lock().await;
-    let channels = ctl.channels.lock().await;
-    if !channels.contains_key(&req.channel) {
-        error!("channel {} not found", req.channel);
-        return Err(TokenError::ChannelNotFound);
-    }
+    // let ctl = state.ctl.lock().await;
+    // let channels = ctl.channels.lock().await;
+    // if !channels.contains_key(&req.channel) {
+    //     error!("channel {} not found", req.channel);
+    //     return Err(TokenError::ChannelNotFound);
+    // }
     let id = req
         .id
         .filter(|id| !id.trim().is_empty())
