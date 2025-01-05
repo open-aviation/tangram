@@ -27,14 +27,14 @@ struct TokenRequest {
 
 #[derive(Debug)]
 enum TokenError {
-    ChannelNotFound,
+    // ChannelNotFound,
     GenerationFailed,
 }
 
 impl IntoResponse for TokenError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
-            TokenError::ChannelNotFound => (StatusCode::NOT_FOUND, "Channel not found"),
+            // TokenError::ChannelNotFound => (StatusCode::NOT_FOUND, "Channel not found"),
             TokenError::GenerationFailed => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to generate token"),
         };
 

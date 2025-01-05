@@ -427,6 +427,17 @@ async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> R
     ok_reply(conn_id, join_ref.clone(), &event_ref, &channel_name, state.clone()).await;
     info!("JOIN / acked");
 
+    if channel_name == "admin" {
+        info!("JOIN / handling admin initialization ...");
+        let ctl = state.ctl.lock().await;
+        let channels = ctl.channels.lock().await;
+        for (name, channel) in channels.iter() {
+            // let channel = channels.get(&channel_name).unwrap();
+            let meta = json!({"channel": name, "agents": *channel.agents.lock().await});
+            ctl.pub_meta_event("channel".into(), "list".into(), meta).await;
+        }
+    }
+
     // presence state, to current agent
     presence_state(conn_id, join_ref.clone(), &event_ref, &channel_name, state.clone()).await;
 
