@@ -74,6 +74,7 @@ pub enum ChannelError {
     ChannelEmpty,
     MessageSendError,
     AgentNotInitiated,
+    BadToken,
 }
 
 impl Error for ChannelError {}
@@ -85,6 +86,7 @@ impl fmt::Display for ChannelError {
             ChannelError::ChannelEmpty => write!(formatter, "<ChannelEmpty: channel has not agents>"),
             ChannelError::AgentNotInitiated => write!(formatter, "<AgentNotInitiated>"),
             ChannelError::MessageSendError => write!(formatter, "<MessageSendError: failed to send a message to the channel>"),
+            ChannelError::BadToken => write!(formatter, "<InvalidPayload: invalid payload format>"),
         }
     }
 }

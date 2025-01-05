@@ -1,4 +1,5 @@
 use crate::channel::{listen_to_redis, Channel, ChannelControl, ChannelError, ChannelMessage};
+use crate::utils::decode_jwt;
 use futures::SinkExt;
 use futures::StreamExt;
 use redis::AsyncCommands;
@@ -351,6 +352,21 @@ pub async fn add_channel(ctl: &Mutex<ChannelControl>, redis_client: redis::Clien
 
 // 添加 agent tx, join channel, spawn agent/conn relay task, ack joining
 async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> Result<JoinHandle<()>, ChannelError> {
+    let claims = match &rm.payload {
+        RequestPayload::Join { token } => match decode_jwt(token, state.jwt_secret.clone()).await {
+            Ok(claims) => claims,
+            Err(e) => {
+                error!("JOIN / fail to decode JWT, {}", e);
+                return Err(ChannelError::BadToken);
+            }
+        },
+        _ => {
+            error!("JOIN / invalid payload: {:?}", rm.payload);
+            return Err(ChannelError::BadToken);
+        }
+    };
+    debug!("JOIN / claims: {:?}", claims);
+
     let channel_name = rm.topic.clone();
     if is_special_channel(&channel_name) {
         info!("ADD_CH / channel {} is special, ignored", channel_name);
