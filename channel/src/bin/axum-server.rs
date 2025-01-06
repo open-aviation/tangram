@@ -84,13 +84,13 @@ struct Options {
     #[arg(long, env, default_value = None)]
     jwt_secret: Option<String>,
 
-    #[arg(long, env, default_value = "channel/assets")]
+    #[arg(long, env, default_value = "assets")]
     static_path: Option<String>,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv::dotenv().ok(); // load .env if possible
+    // dotenv::dotenv().ok(); // load .env if possible
 
     // 设置 tracing 使用 EnvFilter
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));

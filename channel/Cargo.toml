@@ -1,16 +1,20 @@
 [package]
 name = "channel"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 license = "MIT"
 description = "Websocket channels compatible with Phixnix"
 repository = "https://github.com/emctoo/channels"
 keywords = ["axum", "axum-ws", "warp", "websocket", "channels"]
 
+# https://doc.rust-lang.org/cargo/reference/cargo-targets.html#configuring-a-target
+autobins = false
+
 [[bin]]
-name = "channeld"
+name = "channel"
 path = "src/bin/axum-server.rs"
 
+# diabled for now, it does not work
 # [[bin]]
 # name = "channel-warp"
 # path = "src/bin/warp-server.rs"
