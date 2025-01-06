@@ -2,6 +2,7 @@ FROM python:3.12-slim
 
 # this image is debian based, configure apt proxy if available
 COPY ./container/add-apt-proxy.sh /usr/local/bin/add-apt-proxy.sh
+RUN chmod +x /usr/local/bin/add-apt-proxy.sh
 RUN /usr/local/bin/add-apt-proxy.sh
 
 RUN apt-get update \
