@@ -9,13 +9,13 @@ log_level: debug
 processes:
   web:
     working_dir: /home/user/tangram/web
-    command: just run-web
+    command: just tangram-web
     availability:
       restart: "always"
 
   service:
     environment:
-    command: just run-service
+    command: just tangram-service
     working_dir: /home/user/tangram/service
     availability:
       restart: "always"

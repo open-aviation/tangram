@@ -7,37 +7,40 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
 
 ## Quick start
 
-1. Install [just](https://github.com/casey/just) - a command project-sepcific runner
+### 1. Install [just](https://github.com/casey/just) - a command project-sepcific runner
 
-2. Install [podman](https://podman.io/docs/installation) - a container runtime
+### 2. Install [podman](https://podman.io/docs/installation) - a container runtime
 
-3. create a `.env` file from the template:
+### 3. create a `.env` file from the template:
 
-  ```shell
-  cp .env.example .env
+```shell
+cp .env.example .env
   ```
 
-  Set the `JET1090_SOURCE` to the source for the `jet1090`. For example, you can use an example web socket provided by us:
+### 4. pull and run a `Redis` container
 
-  ```shell
-  JET1090_SOURCE=ws://feedme.mode-s.org:9876/40128@EHRD
-  ```
+This container is used for message caching between different services:
 
-4. pull and run a `Redis` container, this is used for message caching between different services:
-
-  ```shell
-  just redis
-  ```
+```shell
+just redis
+```
 
 
-5. build the `tangram` and `jet1090` container:
+### 5. build the `tangram` and `jet1090` container:
 
   ```shell
   just build
   just build-jet1090
   ```
 
-6. run the `jet1090` container:
+### 6. run the `jet1090` container:
+
+
+  Set the `JET1090_PARAMS`. For example, here you can use an example web socket provided by us:
+
+  ```shell
+  JET1090_PARAMS=ws://feedme.mode-s.org:9876/40128@EHRD
+  ```
 
   ```shell
   just jet1090
@@ -46,7 +49,7 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
 
   ![jet1090 console](./web/screenshot/jet1090.png)
 
-7. run the `tangram` container, in a new terminal:
+### 7. run the `tangram` container, in a new terminal:
 
   ```shell
   just run
@@ -57,17 +60,13 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
   ![process composer](./web/screenshot/process.png)
 
 
-8. Visualize the live data:
+### 8. visualize the live data:
 
   Visit <http://localhost:2024> in your browser.
 
+  Here is an example screenshot of the tool running in real-time:
 
-
-## Results
-
-Here is a screenshot of the tool running in real-time:
-
-![web interface](./web/screenshot/web.png)
+  ![web interface](./web/screenshot/web.png)
 
 
 ## Funding

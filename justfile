@@ -4,7 +4,7 @@ set positional-arguments
 set export
 
 # read from .env file
-JET1090_SOURCE := env_var("JET1090_SOURCE")
+JET1090_PARAMS := env_var("JET1090_PARAMS")
 
 # set default values
 NETWORK := "tangram"
@@ -92,7 +92,7 @@ redis: network
 
 # watch current dir and run the service
 # presumbly, you have uv installed and the virtualenv is created
-run-service port="18000" host="0.0.0.0":
+tangram-service port="18000" host="0.0.0.0":
   #!/usr/bin/env bash
   set -x -euo pipefail
 
@@ -101,7 +101,7 @@ run-service port="18000" host="0.0.0.0":
   watchexec -r -w . -e py -- \
     uv run uvicorn --host {{host}} --port {{port}} tangram.app:app --ws websockets --log-config logging.yml
 
-run-web host="0.0.0.0" port="2024":
+tangram-web host="0.0.0.0" port="2024":
   #!/usr/bin/env bash
 
   echo "- checking env ..."
@@ -126,11 +126,11 @@ run-web host="0.0.0.0" port="2024":
   npx vite --host {{host}} --port {{port}}
 
 # build process-compose based tangram image
-build:
+build-tangram:
   podman image build -f container/tangram.Containerfile -t tangram:0.1 .
 
 # launch tangram container
-run: network
+tangram: network
   #!/usr/bin/env bash
 
   if [ "$(uname)" = "Linux" ]; then \
@@ -204,7 +204,7 @@ jet1090: network redis jet1090-basestation
         -i \
         --serve-port 8080 \
         --redis-url redis://redis:6379 --redis-topic jet1090-full \
-        {{JET1090_SOURCE}}
+        {{JET1090_PARAMS}}
 
 # run jet1090 (0.3.8) as a service
 jet1090-daemon: network redis jet1090-basestation
@@ -215,4 +215,4 @@ jet1090-daemon: network redis jet1090-basestation
       jet1090 \
         --serve-port 8080 \
         --redis-url redis://redis:6379 --redis-topic jet1090-full \
-        {{JET1090_SOURCE}}
+        {{JET1090_PARAMS}}
