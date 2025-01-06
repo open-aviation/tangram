@@ -83,6 +83,9 @@ struct Options {
 
     #[arg(long, env, default_value = None)]
     jwt_secret: Option<String>,
+
+    #[arg(long, env, default_value = "channel/assets")]
+    static_path: Option<String>,
 }
 
 #[tokio::main]
@@ -132,7 +135,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/websocket", get(websocket_handler))
         .route("/token", post(generate_token))
-        .nest_service("/", ServeDir::new("channel/src/bin")) // 需要把 html 直接包含到 binary 中，方便发布
+        .nest_service("/", ServeDir::new(options.static_path.unwrap())) // 需要把 html 直接包含到 binary 中，方便发布
         .with_state(state.clone());
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await.unwrap();
 
