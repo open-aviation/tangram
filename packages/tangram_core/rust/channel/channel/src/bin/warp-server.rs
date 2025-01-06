@@ -121,6 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let redis_url = options.redis_url.unwrap();
     let redis_topic = options.redis_topic.unwrap();
+    let redis_client = Client::open(redis_url.clone())?;
 
     let jwt_secret = options.jwt_secret.unwrap_or_else(|| {
         let generate_jwt_secret = random_string(8);
@@ -128,14 +129,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         generate_jwt_secret
     });
 
-    let channel_control = ChannelControl::new();
+    let channel_control = ChannelControl::new(Arc::new(redis_client.clone()));
 
     // create channels
     channel_control.channel_add("phoenix".into(), None).await; // channel for server to publish heartbeat
     channel_control.channel_add("system".into(), None).await; // system channel
     channel_control.channel_add("streaming".into(), None).await; // streaming channel
-
-    let redis_client = Client::open(redis_url.clone())?;
 
     let mut redis_connection = redis_client.get_multiplexed_async_connection().await?;
     let result: RedisResult<String> = redis::cmd("PING").query_async(&mut redis_connection).await;
@@ -144,13 +143,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // shared state among channels, used by websocket
     let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
-        redis_url: redis_url.clone(),
         redis_client,
         jwt_secret,
     });
 
     // system channel
-    tokio::spawn(datetime_handler(state.clone(), "system"));
+    tokio::spawn(datetime_handler(state.clone(), "system".into()));
 
     let state_for_ws = state.clone();
     let ws_route = warp::path("websocket")
