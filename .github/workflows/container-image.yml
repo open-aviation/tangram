@@ -37,12 +37,6 @@ jobs:
           RESPONSE=$(curl -s https://api.github.com/repos/emctoo/channel/releases/latest)
           LATEST_VERSION=$(echo $RESPONSE | jq -r .tag_name)
 
-          # 验证版本号格式
-          if [[ ! $LATEST_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            echo "Invalid or empty version number: $LATEST_VERSION"
-            LATEST_VERSION="0.0.1"  # 使用默认版本号
-          fi
-
           echo "version=${LATEST_VERSION}" >> $GITHUB_OUTPUT
           echo "Found version: ${LATEST_VERSION}"
 
