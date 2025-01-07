@@ -2,7 +2,6 @@
 members = ["cargo:."]
 
 # Config for 'cargo dist'
-# https://opensource.axo.dev/cargo-dist/book/reference/config.html
 [dist]
 # The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
 cargo-dist-version = "0.23.0"
@@ -17,6 +16,7 @@ install-path = "CARGO_HOME"
 # Whether to install an updater program
 install-updater = false
 source-tarbal = false
-
+# Whether to auto-include files like READMEs, LICENSEs, and CHANGELOGs (default true)
 auto-includes = false
-include = ["channel/assets"] # relative to config file dist-workspace.toml
+# Extra static files to include in each App (path relative to this Cargo.toml's dir)
+include = ["channel/assets"]
