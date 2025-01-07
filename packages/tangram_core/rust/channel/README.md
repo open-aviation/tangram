@@ -1,7 +1,12 @@
-# Websocket Channel in Rust
+# WebSocket Channel in Rust
 
 
-## test
+## Intro
 
-```cargo test
+A Phoenix Channels implemented in Rust.
+
+## Test
+
+```shell
+cargo test
 ```
