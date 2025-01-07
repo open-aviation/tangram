@@ -8,7 +8,11 @@ JET1090_PARAMS := env_var("JET1090_PARAMS")
 
 # set default values
 NETWORK := "tangram"
-JET1090_VERSION := "v0.4.1"
+
+REDIS_URL := env_var("REDIS_URL")
+
+JET1090_VERSION := "v0.4.2"
+JET1090_IMAGE := "ghcr.io/xoolive/jet1090:" + JET1090_VERSION
 JET1090_VOL := "jet1090-vol"
 BASESTATION_ZIP_URL := env_var_or_default("BASESTATION_ZIP_URL", "https://jetvision.de/resources/sqb_databases/basestation.zip")
 
@@ -82,11 +86,17 @@ network:
 redis: network
   #!/usr/bin/env bash
 
+  if [[ "$REDIS_URL" != "redis://redis:6379" ]]; then
+    echo "use external ${REDIS_URL}, skip creation"
+    exit 0
+  fi
+
   if podman container exists redis; then
     echo "container redis exists"
     exit 0
   fi
 
+  echo "launch a new Redis container .."
   podman container run -d --rm --name redis --network {{NETWORK}} -p 6379:6379 \
     docker.io/library/redis:8.0-M02
 
@@ -134,16 +144,16 @@ tangram: network
   #!/usr/bin/env bash
 
   if [ "$(uname)" = "Linux" ]; then \
-    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 --env-file .env \
+    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 \
+      --env-file .env \
       --userns=keep-id \
-      -e REDIS_URL=redis://redis:6379 \
       -v .:/home/user/tangram:z \
       tangram:0.1; \
   elif [ "$(uname)" = "Darwin" ]; then \
     # TODO: verify it's necessary to include `--userns=keep-id` here
-    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 --env-file .env \
+    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 \
+      --env-file .env \
       --userns=keep-id --security-opt label=disable \
-      -e REDIS_URL=redis://redis:6379 \
       -v $PWD:/home/user/tangram \
       tangram:0.1; \
   fi
@@ -158,6 +168,7 @@ rate-limiting: network
     -w /home/user/tangram/service \
     tangram:0.1 uv run -- python -m tangram.plugins.rate_limiting --dest-topic=coordinate
 
+# table view of jet1090 data
 table:
   podman container run -it --rm --name rate_limiting \
     --network {{NETWORK}} \
@@ -190,20 +201,21 @@ jet1090-vol: jet1090-basestation
   podman volume import {{JET1090_VOL}} ~/.cache/jet1090/basestation.sqb.tgz
   podman volume inspect {{JET1090_VOL}}
 
-# build jet1090 image
+# pull jet1090 image from ghcr.io
 build-jet1090:
-  podman image build -t jet1090:{{JET1090_VERSION}} --build-arg VERSION={{JET1090_VERSION}} -f container/jet1090.Dockerfile .
+  # podman image build -t jet1090:{{JET1090_VERSION}} --build-arg VERSION={{JET1090_VERSION}} -f container/jet1090.Dockerfile .
+  podman pull {{JET1090_IMAGE}}
 
 # run jet1090 interactively, as a container
 jet1090: network redis jet1090-basestation
   podman run -it --rm --name jet1090 \
     --network {{NETWORK}} -p 8080:8080 \
     -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
-    localhost/jet1090:{{JET1090_VERSION}} \
+    {{JET1090_IMAGE}} \
       jet1090 \
         -i \
         --serve-port 8080 \
-        --redis-url redis://redis:6379 --redis-topic jet1090-full \
+        --redis-url {{REDIS_URL}} --redis-topic jet1090-full \
         {{JET1090_PARAMS}}
 
 # run jet1090 (0.3.8) as a service
@@ -211,8 +223,8 @@ jet1090-daemon: network redis jet1090-basestation
   podman run -d --rm --name jet1090 \
     --network {{NETWORK}} -p 8080:8080 \
     -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
-    localhost/jet1090:{{JET1090_VERSION}} \
+    {{JET1090_IMAGE}} \
       jet1090 \
         --serve-port 8080 \
-        --redis-url redis://redis:6379 --redis-topic jet1090-full \
+        --redis-url {{REDIS_URL}} --redis-topic jet1090-full \
         {{JET1090_PARAMS}}
