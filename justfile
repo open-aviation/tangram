@@ -117,8 +117,17 @@ tangram-web host="0.0.0.0" port="2024":
   echo "- checking env ..."
   env
 
+  if [[ "$HTTPS_PROXY" != "" ]]; then
+    echo "- setting up npm proxy (use HTTPS_PROXY) ..."
+    npm config set proxy "$HTTPS_PROXY"
+    npm config set https-proxy "$HTTPS_PROXY"
+  fi
+
   cd /home/user/tangram/web
   echo "- working directory: ${PWD}"
+
+  # uncomment the following lines if you want to always reinstall node_modules
+  # rm -f /tmp/npm-installed.txt
 
   if [ ! -f /tmp/npm-installed.txt ]; then
     echo "- removing node_modules ..."
