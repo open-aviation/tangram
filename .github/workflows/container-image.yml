@@ -35,10 +35,13 @@ jobs:
         id: release
         run: |
           RESPONSE=$(curl -s https://api.github.com/repos/emctoo/channel/releases/latest)
-          LATEST_VERSION=$(echo $RESPONSE | jq -r .tag_name)
+          TAG_VERSION=$(echo $RESPONSE | jq -r .tag_name)
+
+          # 移除版本号前缀的 'v'
+          LATEST_VERSION=${TAG_VERSION#v}
 
           echo "version=${LATEST_VERSION}" >> $GITHUB_OUTPUT
-          echo "Found version: ${LATEST_VERSION}"
+          echo "Found version: ${LATEST_VERSION} (from tag: ${TAG_VERSION})"
 
       - name: Set Docker tags
         id: meta
