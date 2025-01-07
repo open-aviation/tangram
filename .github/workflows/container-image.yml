@@ -1,0 +1,67 @@
+name: Build and Push Docker Images
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+  push:
+    branches:
+      - main
+    paths:
+      - "container/**"
+  pull_request:
+    paths:
+      - "container/**"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+  IMAGE_NAME: channel
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get latest release version
+        id: release
+        run: |
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/emctoo/channel/releases/latest | jq -r .tag_name)
+          echo "version=${LATEST_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Set Docker tags
+        id: meta
+        run: |
+          # $GITHUB_OUTPUT 是 GitHub Actions 的环境文件
+          # 通过 echo 写入的变量可以在后续步骤中通过 steps.<step_id>.outputs.<var_name> 引用
+          echo "tags=${REGISTRY}/${OWNER}/${IMAGE_NAME}:latest,${REGISTRY}/${OWNER}/${IMAGE_NAME}:${LATEST_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ github.workspace }}/container
+          file: ${{ github.workspace }}/container/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
