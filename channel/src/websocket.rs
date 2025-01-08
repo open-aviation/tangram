@@ -122,7 +122,9 @@ pub struct State {
 
 impl State {}
 
-pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<State>) {
+pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<State>, user_token: String) {
+    info!("params: {:?}", user_token);
+
     let conn_id = nanoid::nanoid!(8).to_string();
     state.ctl.lock().await.conn_add_tx(conn_id.clone()).await;
     info!("AXUM / WS_TX / new connection connected: {}", conn_id);
