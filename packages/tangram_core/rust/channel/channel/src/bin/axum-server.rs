@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Json, State as AxumState, WebSocketUpgrade},
+    extract::{Json, Query, State as AxumState, WebSocketUpgrade},
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -64,8 +64,20 @@ async fn generate_token(AxumState(state): AxumState<Arc<State>>, Json(req): Json
     }
 }
 
-async fn websocket_handler(ws: WebSocketUpgrade, AxumState(state): AxumState<Arc<State>>) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| axum_on_connected(socket, state))
+#[derive(Debug, Deserialize)]
+struct WebSocketParams {
+    #[serde(rename = "userToken")]
+    user_token: String,
+
+    #[serde(rename = "vsn")]
+    version: String,
+}
+
+async fn websocket_handler(
+    ws: WebSocketUpgrade, Query(params): Query<WebSocketParams>, AxumState(state): AxumState<Arc<State>>,
+) -> impl IntoResponse {
+    info!("websocket version: {}", params.version);
+    ws.on_upgrade(move |socket| axum_on_connected(socket, state, params.user_token))
 }
 
 // use clap to parse command line arguments
