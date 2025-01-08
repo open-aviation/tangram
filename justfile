@@ -120,9 +120,11 @@ tangram-web host="0.0.0.0" port="2024":
   cd /home/user/tangram/web
   echo "- working directory: ${PWD}"
 
+  # rm -f /tmp/npm-installed.txt
+
   if [ ! -f /tmp/npm-installed.txt ]; then
-    echo "- removing node_modules ..."
-    rm -rf node_modules
+    # echo "- removing node_modules ..."
+    # rm -rf node_modules
 
     echo "- npm install now ..."
     npm install --verbose
@@ -144,14 +146,14 @@ tangram: network
   #!/usr/bin/env bash
 
   if [ "$(uname)" = "Linux" ]; then \
-    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 \
+    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 -p 18000:18000 \
       --env-file .env \
       --userns=keep-id \
       -v .:/home/user/tangram:z \
       tangram:0.1; \
   elif [ "$(uname)" = "Darwin" ]; then \
     # TODO: verify it's necessary to include `--userns=keep-id` here
-    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 \
+    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 -p 18000:18000 \
       --env-file .env \
       --userns=keep-id --security-opt label=disable \
       -v $PWD:/home/user/tangram \
@@ -163,8 +165,8 @@ rate-limiting: network
   podman container run -it --rm --name rate_limiting \
     --network {{NETWORK}} \
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
+    --env-file .env \
     -e UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram \
-    -e REDIS_URL=redis://redis:6379 \
     -w /home/user/tangram/service \
     tangram:0.1 uv run -- python -m tangram.plugins.rate_limiting --dest-topic=coordinate
 
@@ -173,8 +175,8 @@ table:
   podman container run -it --rm --name rate_limiting \
     --network {{NETWORK}} \
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
+    --env-file .env \
     -e UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram \
-    -e REDIS_URL=redis://redis:6379 \
     -w /home/user/tangram/service \
     tangram:0.1 uv run -- python -m tangram.plugins.table
 

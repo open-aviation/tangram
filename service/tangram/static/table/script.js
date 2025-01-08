@@ -124,13 +124,22 @@ function updateEl(data) {
 document.addEventListener('DOMContentLoaded', () => {
   const { Socket } = Phoenix;
   const debug = false;
-  const userToken = "joining-token";
+  // const userToken = "joining-token";
 
-  let socket = new Socket("", { debug, params: { userToken } });
+  // const url = "";
+  const url = "ws://192.168.11.34:5000";
+  let resp = {
+    "channel": "table",
+    "id": "random",
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6InJhbmRvbSIsImNoYW5uZWwiOiJ0YWJsZSIsImV4cCI6MTczNjQxMTAwNH0.Jdk3hRffB285HeHIwRQyeC0K17djcg9nOdGcxeCJC-g"
+  };
+  let socket = new Socket(url, { debug, params: { userToken: resp.token } });
   socket.connect();
 
-  const channelName = "channel:table";
-  const channelToken = "channel-token";
+  // const channelName = 'channel:table';
+  // const channelToken = "channel-token";
+  const channelName = "table";
+  const channelToken = resp.token;
 
   let tableChannel = socket.channel(channelName, { token: channelToken });
   tableChannel.on('update-row', updateEl);
