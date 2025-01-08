@@ -1,10 +1,10 @@
 <template>
   <div class="main-container" :class="{ 'hasItem': show }">
-    <TopNavBar />
+    <TopNavBar @changeMap="onMapChanged" />
     <LeftSideBar ref="leftBar" />
     <l-map @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map"
       v-model:zoom="zoom" :center="center">
-      <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png" layer-type="base"
+      <l-tile-layer :url="tileUrl" layer-type="base"
         name="OpenStreetMap"></l-tile-layer>
       <PlaneData />
       <PolyLines />
@@ -33,6 +33,7 @@ import { useMapStore } from './store'
 import HoverDisplay from "./components/HoverDisplay.vue";
 import Timeline from "./components/Timeline.vue";
 //import Timeline from "./components/Timeline.vue";
+import mapOptions from "./config/mapTileConfig.js";
 
 export default {
   components: {
@@ -53,7 +54,8 @@ export default {
       zoom: 6,
       position: '',
       store: useMapStore(),
-      center: [48.3169, 6.9459]  // Add this line
+      center: [48.3169, 6.9459],  // Add this line
+      tileUrl: mapOptions[0].url
     };
   },
   computed: {
@@ -101,6 +103,9 @@ export default {
   },
 
   methods: {
+    onMapChanged(v) {
+      this.tileUrl = v
+    },
     getPosition(event) {
       this.position = event.latlng.toString()
     },

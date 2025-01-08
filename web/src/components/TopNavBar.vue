@@ -6,6 +6,10 @@
         <AltitudeSlider />
         <span class="mr-1 ml-2">Show cluster</span>
         <input :checked="showCluster" type="checkbox" @change="onChange" />
+        <span class="mr-1 ml-2">Map style</span>
+        <select class="ml-1" @change="onChangeMap">
+          <option v-for="item in mapOptions" :key="item.name" :value="item.url">{{item.name}}</option>
+        </select>
       </div>
       <ul class="nav nav-tabs navbar-nav">
         <li class="nav-item clock">
@@ -21,14 +25,19 @@
 <script>
 import {useMapStore} from "../store";
 import AltitudeSlider from "./AltitudeSlider.vue";
+import mapOptions from "../config/mapTileConfig.js";
 export default {
   components: {AltitudeSlider},
   data() {
     return {
-      store: useMapStore()
+      store: useMapStore(),
+      mapOptions
     }
   },
   methods: {
+    onChangeMap(e) {
+      this.$emit("changeMap", e.target.value);
+    },
     onChange(v) {
       this.store.setCluster(v.target.checked)
     }
