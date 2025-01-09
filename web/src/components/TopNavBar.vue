@@ -53,7 +53,7 @@ export default {
   },
   methods: {
     onChangeDefault(e) {
-      this.store.setDefaultUrl(this.store.defaultUrl);
+      this.store.setDefaultUrl(this.selectedOption ? this.selectedOption : this.store.defaultUrl);
     },
     onChangeMap(e) {
       this.setAsDefault = false
