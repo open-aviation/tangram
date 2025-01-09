@@ -16,6 +16,7 @@ export const useMapStore = defineStore("map", {
     hoverItem: null,
     altitude: [0, 40000],
     showCluster: false,
+    defaultUrl: ''
   }),
   getters: {
     doubleCount: ({ count }) => count * 2,
@@ -23,10 +24,25 @@ export const useMapStore = defineStore("map", {
       console.log(`in store, getting trajectory of ${selectedPlane}, length: ${planeTrajectory.length}`);
       return selectedPlane ? planeTrajectory : [];
     },
+    getDefaultUrl: (state) => {
+      const url = localStorage.getItem("defaultUrl");
+      state.defaultUrl = url || null
+      return url || null;
+    }
   },
   actions: {
     setInfoUtc(v) {
       this.info_utc = v;
+    },
+    setDefaultUrl(v) {
+      if(v) {
+        localStorage.setItem('defaultUrl', v);
+      } else {
+        localStorage.removeItem('defaultUrl');
+      }
+    },
+    setUrl(v) {
+      this.defaultUrl = v;
     },
     setCluster(v) {
       this.showCluster = v;

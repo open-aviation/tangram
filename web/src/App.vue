@@ -12,6 +12,7 @@
       <!-- <LatLngBar :position="position" />-->
       <HoverDisplay />
     </l-map>
+    <MapCustomStyleModal ref="mapCustomStyleModal" @save="onMapChanged" />
     <Timeline
       :styles="{ width: 'calc(100% - 40px)', position: 'absolute', bottom: 0, zIndex: 500, left: '40px', background: '#ffffff80', color: 'black' }" />
 
@@ -34,9 +35,11 @@ import HoverDisplay from "./components/HoverDisplay.vue";
 import Timeline from "./components/Timeline.vue";
 //import Timeline from "./components/Timeline.vue";
 import mapOptions from "./config/mapTileConfig.js";
+import MapCustomStyleModal from "./components/MapCustomStyleModal.vue";
 
 export default {
   components: {
+    MapCustomStyleModal,
     Timeline,
     //Timeline,
     HoverDisplay,
@@ -61,17 +64,18 @@ export default {
   computed: {
     show() {
       return this.store.showDrawer
+    },
+    getDefault() {
+      return this.store.defaultUrl
     }
   },
   mounted() {
-    console.log('initiating socket');
     const userToken = "joining-token";
     const debug = false
     const socket = new Socket("", { debug, params: { userToken } });
     socket.connect();
     this.store.setSocket(socket)
 
-    console.log('joining system channel')
     const systemChannelName = "channel:system";
     const systemChannelToken = "channel-token";
     let systemChannel = socket.channel(systemChannelName, { token: systemChannelToken });
@@ -104,7 +108,15 @@ export default {
 
   methods: {
     onMapChanged(v) {
-      this.tileUrl = v
+      if(v) {
+        this.tileUrl = v
+      } else {
+        this.$refs.mapCustomStyleModal.visible = true
+        const d = mapOptions.find(item => item.url === this.getDefault)
+        if(!d) {
+          this.$refs.mapCustomStyleModal.url = this.getDefault
+        }
+      }
     },
     getPosition(event) {
       this.position = event.latlng.toString()

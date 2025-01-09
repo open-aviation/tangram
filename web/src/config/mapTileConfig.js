@@ -44,4 +44,7 @@ export default [
   }, {
     name: 'Terrain',
     url: 'https://tiles.stadiamaps.com/tiles/stamen_terrain_background/{z}/{x}/{y}{r}.png'
+  }, {
+    name: 'Custom',
+    url: ''
   }]
