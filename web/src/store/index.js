@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import radiusConfig from "./../config/zoomLevelConfig.js"
 // import axios from 'axios'
 
 export const useMapStore = defineStore("map", {
@@ -16,7 +17,9 @@ export const useMapStore = defineStore("map", {
     hoverItem: null,
     altitude: [0, 40000],
     showCluster: false,
-    defaultUrl: ''
+    defaultUrl: '',
+    mapCenter: null,
+    circleRadius: radiusConfig[6]
   }),
   getters: {
     doubleCount: ({ count }) => count * 2,
@@ -33,6 +36,12 @@ export const useMapStore = defineStore("map", {
   actions: {
     setInfoUtc(v) {
       this.info_utc = v;
+    },
+    setMapCenter(v) {
+      this.mapCenter = v
+    },
+    setCircleRadius(v) {
+      this.circleRadius = radiusConfig[v]
     },
     setDefaultUrl(v) {
       if(v) {

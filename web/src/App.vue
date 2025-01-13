@@ -2,7 +2,7 @@
   <div class="main-container" :class="{ 'hasItem': show }">
     <TopNavBar @changeMap="onMapChanged" />
     <LeftSideBar ref="leftBar" />
-    <l-map @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map"
+    <l-map :max-zoom="23" :min-zoom="2" @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map"
       v-model:zoom="zoom" :center="center">
       <l-tile-layer :url="tileUrl" layer-type="base"
         name="OpenStreetMap"></l-tile-layer>
@@ -40,8 +40,7 @@ import Timeline from "./components/Timeline.vue";
 //import Timeline from "./components/Timeline.vue";
 import mapOptions from "./config/mapTileConfig.js";
 import MapCustomStyleModal from "./components/MapCustomStyleModal.vue";
-import radiusZoomLevel from "./config/zoomLevelConfig.js"
-import zoomLevelConfig from "./config/zoomLevelConfig.js";
+
 
 export default {
   components: {
@@ -66,16 +65,20 @@ export default {
       store: useMapStore(),
       center: [48.3169, 6.9459],  // Add this line
       tileUrl: mapOptions[0].url,
-      radius: 0
     };
   },
   watch: {
     zoom(val) {
-      console.log(val)
-      this.radius = zoomLevelConfig[val]
+      this.store.setCircleRadius(val)
     },
+    center(v) {
+      this.store.setMapCenter(v)
+    }
   },
   computed: {
+    radius() {
+      return this.store.circleRadius;
+    },
     show() {
       return this.store.showDrawer
     },
