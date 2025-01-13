@@ -11,6 +11,10 @@
       <Charts v-show="show" />
       <!-- <LatLngBar :position="position" />-->
       <HoverDisplay />
+      <l-circle
+          :lat-lng="center"
+          :radius="radius"
+          color="#808080" />
     </l-map>
     <MapCustomStyleModal ref="mapCustomStyleModal" @save="onMapChanged" />
     <Timeline
@@ -22,7 +26,7 @@
 
 <script>
 import "leaflet/dist/leaflet.css";
-import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
+import { LMap, LTileLayer, LCircle } from "@vue-leaflet/vue-leaflet";
 import { Socket } from "phoenix"
 import TopNavBar from "./components/TopNavBar.vue"
 import LeftSideBar from "./components/LeftSideBar.vue";
@@ -36,6 +40,8 @@ import Timeline from "./components/Timeline.vue";
 //import Timeline from "./components/Timeline.vue";
 import mapOptions from "./config/mapTileConfig.js";
 import MapCustomStyleModal from "./components/MapCustomStyleModal.vue";
+import radiusZoomLevel from "./config/zoomLevelConfig.js"
+import zoomLevelConfig from "./config/zoomLevelConfig.js";
 
 export default {
   components: {
@@ -50,7 +56,8 @@ export default {
     LTileLayer,
     TopNavBar,
     PlaneData,
-    Charts
+    Charts,
+    LCircle
   },
   data() {
     return {
@@ -58,8 +65,15 @@ export default {
       position: '',
       store: useMapStore(),
       center: [48.3169, 6.9459],  // Add this line
-      tileUrl: mapOptions[0].url
+      tileUrl: mapOptions[0].url,
+      radius: 0
     };
+  },
+  watch: {
+    zoom(val) {
+      console.log(val)
+      this.radius = zoomLevelConfig[val]
+    },
   },
   computed: {
     show() {
