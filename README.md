@@ -68,6 +68,15 @@ just redis
 
   ![web interface](./web/screenshot/web.png)
 
+### 9. auto import custom plugins:
+
+1. Create custom component files in `src/components/plugins` directory, (for example: Test.vue)
+2. Use it directly by typing `<PluginTest />` or `<plugin-test />`
+
+Here is an example screenshot of the tool running in real-time:
+
+![web interface](./web/screenshot/web.png)
+
 
 ## Funding
 
