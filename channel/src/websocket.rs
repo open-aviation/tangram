@@ -1,5 +1,5 @@
 use crate::channel::{listen_to_redis, Channel, ChannelControl, ChannelError, ChannelMessage};
-use crate::utils::{decode_jwt, Claims};
+use crate::utils::decode_jwt;
 use futures::SinkExt;
 use futures::StreamExt;
 use itertools::Itertools;
@@ -122,7 +122,7 @@ pub struct State {
 
 impl State {}
 
-pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<State>, user_token: String) {
+pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<State>, user_token: Option<String>) {
     info!("params: {:?}", user_token);
 
     let conn_id = nanoid::nanoid!(8).to_string();
@@ -164,6 +164,7 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
 
     let ws_rx_state = state.clone();
     let ws_rx_conn_id = conn_id.clone();
+    let ws_rx_user_token = user_token.clone();
     let mut ws_rx_task = tokio::spawn(async move {
         info!("AXUM / WS_RX / websocket rx handling (ws rx =>) ...");
         let mut redis_conn = ws_rx_state.redis_client.get_multiplexed_async_connection().await.unwrap();
@@ -181,7 +182,7 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
                 break;
             }
             let msg = msg_result.unwrap();
-            handle_message(ws_rx_state.clone(), &ws_rx_conn_id, msg.to_text().unwrap(), &mut redis_conn)
+            handle_message(ws_rx_state.clone(), ws_rx_user_token.clone(), &ws_rx_conn_id, msg.to_text().unwrap(), &mut redis_conn)
                 .await
                 .unwrap();
         }
@@ -250,7 +251,9 @@ pub async fn warp_on_connected(ws: WebSocket, state: Arc<State>) {
             }
             let msg = msg_result.unwrap();
             let text = msg.to_str().unwrap();
-            handle_message(state_clone.clone(), &conn_id_clone, text, &mut redis_conn).await.unwrap();
+            handle_message(state_clone.clone(), None, &conn_id_clone, text, &mut redis_conn)
+                .await
+                .unwrap();
         }
     });
 
@@ -270,7 +273,9 @@ pub async fn warp_on_connected(ws: WebSocket, state: Arc<State>) {
     info!("client connection closed");
 }
 
-async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn: &mut redis::aio::MultiplexedConnection) -> RedisResult<()> {
+async fn handle_message(
+    state: Arc<State>, user_token: Option<String>, conn_id: &str, text: &str, redis_conn: &mut redis::aio::MultiplexedConnection,
+) -> RedisResult<()> {
     let rm_result = serde_json::from_str::<RequestMessage>(text);
     if rm_result.is_err() {
         error!("WS_RX / conn: {}, error: {:?}", &conn_id, rm_result.err());
@@ -286,8 +291,12 @@ async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn
     let payload = &rm.payload;
 
     if channel_name == "phoenix" && event == "heartbeat" {
+        // it continues to publish events to the Redis
         ok_reply(conn_id, None, event_ref, "phoenix", state.clone()).await;
-        // debug!("WS_RX / heartbeat processed");
+
+        // payload 是 {}, 所以这里增加一些信息
+        let message = format!(r#"{{"conn_id": "{}"}}"#, conn_id); // double {{ and }} to escape
+        publish_event(redis_conn, "from:phoenix:heartbeat".to_string(), message).await;
         // continue;
     }
 
@@ -295,7 +304,7 @@ async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn
         // 如果没有channel，创建
 
         // TODO: 这里启动了一个新的 relay task(agent rx => conn tx), 需要在agent leave 的时候清除
-        let _relay_task = handle_join(&rm, state.clone(), conn_id).await;
+        let _relay_task = handle_join(user_token, &rm, state.clone(), conn_id).await;
         debug!("WS_RX / join processed");
         // continue;
     }
@@ -311,11 +320,16 @@ async fn handle_message(state: Arc<State>, conn_id: &str, text: &str, redis_conn
     // iredis --url redis://localhost:6379 psubscribe 'from*'
     let redis_topic = format!("from:{}:{}", channel_name, event.clone());
     let message = serde_json::to_string(&payload).unwrap();
+    publish_event(redis_conn, redis_topic, message).await;
+    Ok(())
+}
+
+// iredis --url redis://localhost:6379 psubscribe 'from*'
+async fn publish_event(redis_conn: &mut redis::aio::MultiplexedConnection, redis_topic: String, message: String) {
     let publish_result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
     if let Err(e) = publish_result {
         error!("fail to publish to redis: {}", e)
     }
-    Ok(())
 }
 
 pub fn is_special_channel(ch: &str) -> bool {
@@ -352,20 +366,23 @@ pub async fn add_channel(ctl: &Mutex<ChannelControl>, redis_client: redis::Clien
 }
 
 // 添加 agent tx, join channel, spawn agent/conn relay task, ack joining
-async fn handle_join(rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> Result<JoinHandle<()>, ChannelError> {
-    let claims: Claims = match &rm.payload {
-        RequestPayload::Join { token } => match decode_jwt(token, state.jwt_secret.clone()).await {
-            Ok(claims) => claims,
-            Err(e) => {
-                error!("JOIN / fail to decode JWT, {}", e);
-                return Err(ChannelError::BadToken);
-            }
-        },
-        _ => {
+async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> Result<JoinHandle<()>, ChannelError> {
+    // 先尝试 join payload 是否包含, 然后看 user_tokne 时候有
+    let token = match &rm.payload {
+        RequestPayload::Join { token } => Ok(token.clone()),
+        _ => user_token.ok_or_else(|| {
             error!("JOIN / invalid payload: {:?}", rm.payload);
+            ChannelError::BadToken
+        }),
+    }?;
+    let claims = match decode_jwt(&token, state.jwt_secret.clone()).await {
+        Ok(claims) => claims,
+        Err(e) => {
+            error!("JOIN / fail to decode JWT, {}, {}", e, token);
             return Err(ChannelError::BadToken);
         }
     };
+
     debug!("JOIN / claims: {:?}", claims);
 
     let channel_name = rm.topic.clone();

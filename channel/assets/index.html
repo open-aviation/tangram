@@ -378,7 +378,8 @@
           updateToggleStates();
         }
 
-        let userToken = "userSocketToken";
+        // let userToken = "userSocketToken";
+        let userToken = getChannelToken('system');
         let debug = false;
         let socket = new Socket("", { debug, params: { userToken } });
         socket.connect();
