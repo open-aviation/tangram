@@ -283,7 +283,8 @@
   <script>
     const { Socket } = Phoenix;
     
-    let userToken = 'adminSocketToken';
+    // let userToken = 'adminSocketToken';
+    let userToken = getChannelToken('admin', 'admin');
     let debug = false;
     let socket = new Socket("", { debug, params: { userToken }});
     socket.connect();

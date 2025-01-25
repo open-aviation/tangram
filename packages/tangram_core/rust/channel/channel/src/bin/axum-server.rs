@@ -11,7 +11,8 @@ use channel::{
     websocket::{add_channel, axum_on_connected, datetime_handler, State},
 };
 use clap::Parser;
-use redis::Client;
+use futures::StreamExt;
+use redis::{Client, RedisResult};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -67,7 +68,7 @@ async fn generate_token(AxumState(state): AxumState<Arc<State>>, Json(req): Json
 #[derive(Debug, Deserialize)]
 struct WebSocketParams {
     #[serde(rename = "userToken")]
-    user_token: String,
+    user_token: Option<String>,
 
     #[serde(rename = "vsn")]
     version: String,
@@ -76,8 +77,8 @@ struct WebSocketParams {
 async fn websocket_handler(
     ws: WebSocketUpgrade, Query(params): Query<WebSocketParams>, AxumState(state): AxumState<Arc<State>>,
 ) -> impl IntoResponse {
-    info!("websocket version: {}", params.version);
-    ws.on_upgrade(move |socket| axum_on_connected(socket, state, params.user_token))
+    info!("version: {}", params.version);
+    ws.on_upgrade(move |socket| axum_on_connected(socket, state, params.user_token.clone()))
 }
 
 // use clap to parse command line arguments
@@ -98,6 +99,39 @@ struct Options {
 
     #[arg(long, env, default_value = "assets")]
     static_path: Option<String>,
+}
+
+async fn keepalive(state: Arc<State>) -> RedisResult<()> {
+    let redis_client = state.redis_client.clone();
+
+    let redis_topic = "from:*:heartbeat".to_string();
+    let mut redis_pubsub = redis_client.get_async_pubsub().await?;
+    redis_pubsub.psubscribe(redis_topic.clone()).await?;
+    let mut redis_pubsub_stream = redis_pubsub.on_message();
+
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60));
+
+    loop {
+        tokio::select! {
+            _ = interval.tick() => {}
+            optional_message = redis_pubsub_stream.next() => {
+                if optional_message.is_none() {
+                    error!("KEEPALIVE / from redis: none");
+                    continue;
+                }
+                // payload JSON: {"conn_id": conn_id}
+                let payload = optional_message.unwrap().get_payload::<String>().unwrap();
+                let value_result: serde_json::Result<serde_json::Value> = serde_json::from_str(&payload);
+                if value_result.is_err() {
+                    error!("KEEPALIVE / from redis: parse error: {}", payload);
+                    continue;
+                }
+                if let Some(conn_id) = value_result.unwrap()["conn_id"].as_str() {
+                    info!("KEEPALIVE / heartbeat {:?}", conn_id);
+                }
+            }
+        }
+    }
 }
 
 #[tokio::main]
@@ -132,6 +166,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         redis_client,
         jwt_secret, // 从命令行、环境变量中获取，或者生成一个随机的
     });
+
+    tokio::spawn(keepalive(state.clone()));
 
     // phoenix & admin are special
     add_channel(&state.ctl, state.redis_client.clone(), "phoenix".into()).await;

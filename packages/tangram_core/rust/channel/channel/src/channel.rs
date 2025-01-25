@@ -8,10 +8,11 @@ use std::{
     error::Error,
     fmt::{self, Display},
     sync::{
-        atomic::{AtomicU32, Ordering},
+        atomic::{AtomicU32, AtomicU64, Ordering},
         Arc,
     },
 };
+use tokio::time::{self, Duration};
 use tokio::{
     sync::{
         broadcast::{self, error::SendError},
@@ -425,7 +426,7 @@ impl ChannelControl {
         let channels = self.channels.lock().await;
         let channel = channels.get(&channel_name).ok_or(ChannelError::ChannelNotFound)?;
         if channel.agents.lock().await.is_empty() {
-            warn!("CH / no agents, no broadcasting");
+            // warn!("CH / no agents, no broadcasting");
             return Err(ChannelError::ChannelEmpty);
         }
 
@@ -562,7 +563,31 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
     let mut redis_pubsub = redis_client.get_async_pubsub().await?;
     redis_pubsub.psubscribe(redis_topic.clone()).await?;
     let mut redis_pubsub_stream = redis_pubsub.on_message();
-    let mut counter = 0; // TODO: counter 有问题, 在这里完全没有意义
+    // let mut counter = 0; // TODO: counter 有问题, 在这里完全没有意义
+
+    // 使用 Arc<AtomicU64> 来安全地共享计数器
+    let counter = Arc::new(AtomicU64::new(0));
+    info!("LISTENER / subscribed to redis, channel: {}", redis_topic);
+
+    // 克隆一个计数器的引用用于统计线程
+    let counter_for_stats = counter.clone();
+
+    // 启动统计任务
+    let stat_channel_name = channel_name.clone();
+    tokio::spawn(async move {
+        let mut interval = time::interval(Duration::from_secs(1));
+        let mut last_count = 0u64;
+
+        loop {
+            interval.tick().await;
+            let current_count = counter_for_stats.load(Ordering::Relaxed);
+            let delta = current_count.saturating_sub(last_count);
+            if delta > 10 {
+                info!("LISTENER / {} Stats - Total messages: {}, Messages/sec: {}", stat_channel_name, current_count, delta);
+            }
+            last_count = current_count;
+        }
+    });
 
     info!("LISTENER / subscribed to redis, channel: {}", redis_topic);
     loop {
@@ -573,8 +598,16 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
         }
 
         let stream_message = optional_message.unwrap();
+        let ev = match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
+            Ok(ev) => ev,
+            Err(err) => {
+                warn!("LISTENER / invalid redis channel format: {}", err);
+                continue;
+            }
+        };
+
         let payload: String = stream_message.get_payload()?;
-        debug!("LISTENER / from redis, {}, payload: `{}`", stream_message.get_channel_name(), payload.clone());
+        // debug!("LISTENER / from redis, {}, payload: `{}`", stream_message.get_channel_name(), payload.clone());
 
         let response_from_redis_result = serde_json::from_str::<serde_json::Value>(&payload);
         if response_from_redis_result.is_err() {
@@ -586,31 +619,30 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
         // debug!("LISTENER / parsed from redis, response: {:?}", &resp);
 
         let value = response_from_redis_result.unwrap();
-        debug!("LISTENER / parsed from redis, value: {:?}", &value);
+        // debug!("LISTENER / parsed from redis, value: {:?}", &value);
 
-        // the format is to:channel_name:event_name, split it by `:`
-        match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
-            Ok(msg) => {
-                // _channel_publish(counter, value.clone(), tx.clone(), &msg.channel, &msg.event).await;
-                let reply_message = ServerMessage {
-                    join_ref: None,
-                    event_ref: counter.to_string(),
-                    topic: msg.channel.to_string(),
-                    event: msg.event.to_string(),
-                    payload: ServerPayload::ServerJsonValue(value),
-                };
-                match tx.send(ChannelMessage::Reply(reply_message.clone())) {
-                    Ok(_) => debug!("LISTENER / published, to {}:{}, {}", &msg.channel, &msg.event, reply_message),
-                    Err(e) => error!("LISTENER / fail to publish, to {}:{}, err: {}", &msg.channel, &msg.event, e),
-                }
-            }
+        // 检查是否有这个 channel
+        let reply_message = ServerMessage {
+            join_ref: None,
+            event_ref: counter.load(Ordering::Relaxed).to_string(),
+            topic: ev.channel.to_string(),
+            event: ev.event.to_string(),
+            payload: ServerPayload::ServerJsonValue(value),
+        };
+        match tx.send(ChannelMessage::Reply(reply_message.clone())) {
+            Ok(_) => {} // debug!("LISTENER / published, to {}:{}, {}", &msg.channel, &msg.event, reply_message),
             Err(e) => {
-                warn!("LISTENER / invalid redis channel format: {}", e);
-                continue;
+                // channel 没有 agent 时候也会 publish, 其实可以不用处理
+                if ev.channel == "system" || ev.channel == "admin" {
+                    continue;
+                }
+                error!("LISTENER / fail to publish, to {}:{}, err: {}", &ev.channel, &ev.event, e);
             }
         }
-        counter += 1;
-        debug!("LISTENER / publish message from redis, counter: {}", counter);
+
+        // 原子操作增加计数器
+        counter.fetch_add(1, Ordering::Relaxed);
+        // debug!("LISTENER / publish message from redis, counter: {}", counter);
     }
 }
 

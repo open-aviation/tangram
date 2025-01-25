@@ -96,7 +96,6 @@ pub-bool value="true":
 token id="":
   curl -s -X POST http://localhost:5000/token -H "Content-Type: application/json" -d '{"channel": "system", "id": "{{id}}"}' | jq -r .
 
-
 _build-image:
   #!/usr/bin/env bash
 
