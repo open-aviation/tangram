@@ -10,6 +10,7 @@ export default defineConfig({
       // string shorthand: http://localhost:5173/foo -> http://localhost:4567/foo
       // with options: http://localhost:5173/api/bar-> http://jsonplaceholder.typicode.com/bar
       '/data': `http://${tangram_service}`,
+      '/token': `http://${tangram_service}`,
       '^/plugins.*': {
         target: `https://${tangram_service}/plugins.*`,
         changeOrigin: true,

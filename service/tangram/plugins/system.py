@@ -1,28 +1,29 @@
-import asyncio
+import json
 import logging
+import time
 from datetime import UTC, datetime
-
 import pandas as pd
-from fastapi import APIRouter
+import redis
 
-from tangram import channels
-from tangram.plugins.history.storage import HistoryDB
+# from tangram.plugins.history import HistoryDB
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
 
-history_db = HistoryDB(read_only=True)
+# history_db = HistoryDB(read_only=True)
 
 
-DT_FMT = "%H:%M"
+DT_FMT = "%H:%M:%S"
 
 
-def aircraft_on_map():
-    total = history_db.count_tracks()
-    el = "plane_count"
-    return {
-        "el": el,
-        "html": f"""<p style="display: inline" id="{el}">{total}</p>""",
-    }
+# def aircraft_on_map():
+#     total = history_db.count_tracks()
+#     el = "plane_count"
+#     return {
+#         "el": el,
+#         "html": f"""<p style="display: inline" id="{el}">{total}</p>""",
+#     }
+#
 
 
 def uptime_html(counter):
@@ -35,40 +36,43 @@ def uptime_html(counter):
 
 def info_utc_html(dtfmt=DT_FMT):
     el = "info_utc"
+    now_utc = datetime.now(UTC)
     return {
         "el": el,
-        "html": f"""<span id="{el}">{datetime.now(UTC).strftime(dtfmt)}</span>""",
+        "html": f"""<span id="{el}">{now_utc.strftime(dtfmt)}</span>""",
+        'now': now_utc.isoformat(),
     }
 
 
 def info_local_html(dtfmt=DT_FMT):
     el = "info_local"
+    now_utc = datetime.now(UTC)
     return {
         "el": el,
         "html": f"""<span id="{el}">{datetime.now().strftime(dtfmt)}</span>""",
+        'now': now_utc.isoformat(),
     }
 
 
-async def server_events():
+def server_events(redis_url: str):
     counter = 0
+    redis_client = redis.Redis.from_url(redis_url)
 
+    log.info("serving system events ...")
     while True:
-        await channels.publish_any("channel:system", "update-node", uptime_html(counter))
-        await channels.publish_any("channel:system", "update-node", info_utc_html())
-        await channels.publish_any("channel:system", "update-node", info_local_html())
-        await channels.publish_any("channel:system", "update-node", aircraft_on_map())
-
+        redis_client.publish("to:system:update-node", json.dumps(uptime_html(counter)))
+        redis_client.publish("to:system:update-node", json.dumps(info_utc_html()))
+        redis_client.publish("to:system:update-node", json.dumps(info_local_html()))
+        # redis_client.publish("to:system:update-node", json.dumps(aircraft_on_map()))
         counter += 1
-        await asyncio.sleep(1)
+        time.sleep(1)
 
 
-async def startup():
-    asyncio.create_task(server_events())
-    log.info("system plugin is up and running (%s)", log)
+if __name__ == "__main__":
+    import argparse
+    import os
 
-
-async def shutdown():
-    log.info("system plugin ends")
-
-
-app = APIRouter(on_startup=[startup], on_shutdown=[])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--redis-url", dest="redis_url", default=os.getenv("REDIS_URL", "redis://redis:6379"))
+    args = parser.parse_args()
+    server_events(args.redis_url)

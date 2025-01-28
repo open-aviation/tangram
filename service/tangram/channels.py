@@ -197,9 +197,9 @@ async def publish_any(channel: str, event: str, any: Any) -> int:
 
 
 async def system_broadcast(*, channel: str, event: str, data: Any, by_redis: bool = False) -> None:
-    if not channel.startswith("channel:"):
-        log.warning("channel name should start with `channel:`, correcting %s => %s", channel, f"channel:{channel}")
-        channel = f"channel:{channel}"
+    # if not channel.startswith("channel:"):
+    #     log.warning("channel name should start with `channel:`, correcting %s => %s", channel, f"channel:{channel}")
+    #     channel = f"channel:{channel}"
 
     message = [None, None, channel, event, data]
     # (redis_client if by_redis else broadcast).publish(channel, json.dumps(message))

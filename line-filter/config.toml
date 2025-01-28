@@ -1,0 +1,13 @@
+[default]
+redis_url = "redis://localhost:6379"
+redis_topic = "default-topic"
+
+[[rules]]
+expr = 'df == "21"'
+redis_url = "redis://192.168.11.37:6379"
+redis_topic = "just-a-topic"
+
+
+# [[rules]]
+# expr = "user.age > 20"
+# redis_topic = "adult-users"

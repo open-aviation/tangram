@@ -71,15 +71,10 @@ async def search_planes(redis_connection_pool, radius_km=12000, ref_latitude=0, 
         await redis_client.ping()
 
         log.info("search by %s around (%s %s)", radius_km, ref_latitude, ref_longitude)
-        planes = await redis_client.geosearch(
-            "planes", longitude=ref_longitude, latitude=ref_latitude, radius=radius_km, unit="km", withcoord=True
-        )
+        planes = await redis_client.geosearch("planes", longitude=ref_longitude, latitude=ref_latitude, radius=radius_km, unit="km", withcoord=True)
         log.debug("plans[0]: %s", planes[0])
 
-        return [
-            {"icao24": icao24, "latitude": latitude, "longitude": longitude}
-            for [icao24, [latitude, longitude]] in planes
-        ]
+        return [{"icao24": icao24, "latitude": latitude, "longitude": longitude} for [icao24, [latitude, longitude]] in planes]
 
 
 async def plane_history(redis_connection_pool, icao24: str):

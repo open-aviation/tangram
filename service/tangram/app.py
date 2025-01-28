@@ -7,8 +7,9 @@ import os
 import pathlib
 import uuid
 from datetime import datetime
-from math import tan
-from typing import Any
+from typing import Any, Optional
+import random
+import string
 
 import redis.asyncio as redis
 from fastapi import FastAPI, Request, WebSocket, status
@@ -16,13 +17,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 # import anyio
-from httpx import Response, request
+import httpx
 from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 
 from tangram import channels
-from tangram.plugins import coordinate, filter_jet1090, system, trajectory, web_event
 from tangram.plugins.common import rs1090
+# from tangram.plugins import coordinate, web_event
 
 log = logging.getLogger("tangram")
 
@@ -60,22 +61,13 @@ async def lifespan(app: FastAPI):
     await channels.broadcast.connect()  # initialize the websocket broadcast
 
     # listen for web UI events
-    await web_event.startup(REDIS_URL)
-
-    # listen for `jet1090_full`, filter and pulibsh again
-    await filter_jet1090.startup(REDIS_URL)
+    # await web_event.startup(REDIS_URL)
 
     # builds the `planes` geospatial keys
-    await coordinate.startup(REDIS_URL)
-
-    # System UI events
-    await system.startup()
-
-    # Build the history
-    # this now runs as an independent process managed by process-compose
+    # await coordinate.startup(REDIS_URL)
 
     # Trajectory
-    await trajectory.startup(REDIS_URL)
+    # await trajectory.startup(REDIS_URL)
 
     log.debug("yield to request handling ...")
     yield  # The application is now running and serving requests
@@ -83,7 +75,6 @@ async def lifespan(app: FastAPI):
     log.debug("shutting down...")
     # TODO: task for cleanup, they are disabled for now
     #
-    # await system.shutdown()
     # await trajectory.shutdown()
     # await coordinate.shutdown()
     # await history.shutdown()
@@ -151,7 +142,7 @@ async def websocket_handler(ws: WebSocket) -> None:
 async def get_receiver_latlong():
     url = f"{JET1090_URL}/sensors"
     log.info("getting receivers from %s ...", url)
-    resp: Response = request("GET", url)
+    resp: httpx.Response = httpx.request("GET", url)
     receivers = resp.json()
     log.debug("receivers: %s %s", type(receivers), receivers)
 
@@ -165,16 +156,37 @@ async def table_page(request: Request):
     return templates.TemplateResponse("table/index.html", {"request": request})
 
 
-@app.get("/planes")
-async def list_planes():
-    ref_latitude, ref_longitude = await get_receiver_latlong()
-    radius_km = 12000
-    return await coordinate.search_planes(app.redis_connection_pool, radius_km=radius_km, ref_latitude=ref_latitude, ref_longitude=ref_longitude)
+# @app.get("/planes")
+# async def list_planes():
+#     ref_latitude, ref_longitude = await get_receiver_latlong()
+#     radius_km = 12000
+#     return await coordinate.search_planes(app.redis_connection_pool, radius_km=radius_km, ref_latitude=ref_latitude, ref_longitude=ref_longitude)
+#
+#
+# @app.get("/planes/{icao24}")
+# async def get_plane(icao24: str):
+#     return await coordinate.plane_history(app.redis_connection_pool, icao24)
+#
 
 
-@app.get("/planes/{icao24}")
-async def get_plane(icao24: str):
-    return await coordinate.plane_history(app.redis_connection_pool, icao24)
+class TokenRequest(BaseModel):
+    """Request for a new token, for channel, with an optional id"""
+
+    channel: Optional[str] = None
+    id: Optional[str] = None
+
+
+@app.post("/token")
+async def get_channel_token(req: TokenRequest) -> int | dict[str, str]:
+    """forward channel token request to channel service"""
+    channel_service: str = os.getenv("CHANNEL_SERVICE", "channel:5000")
+    url = f"http://{channel_service}/token"
+    req.id = req.id or "".join(random.choices(string.hexdigits, k=6))  # provided or default 6 hexdigits
+    resp = httpx.post(url, json=dict(channel=req.channel, id=req.id))
+    if resp.status_code not in [200]:
+        log.info("fail to get channel token from %s, %s", url, resp.status_code)
+        return status.HTTP_503_SERVICE_UNAVAILABLE
+    return {**resp.json(), "url": f"ws://{channel_service}"}
 
 
 class PublishMessage(BaseModel):

@@ -1,11 +1,21 @@
 <template>
-  <div class="main-container" :class="{ 'hasItem': show }">
+  <div class="main-container" :class="{ hasItem: show }">
     <TopNavBar />
     <LeftSideBar ref="leftBar" />
-    <l-map @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map"
-      v-model:zoom="zoom" :center="center">
-      <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png" layer-type="base"
-        name="OpenStreetMap"></l-tile-layer>
+    <l-map
+      @click="emptySelect"
+      @mousemove="getPosition($event)"
+      @moveend="updateCenter"
+      class="map-container"
+      ref="map"
+      v-model:zoom="zoom"
+      :center="center"
+    >
+      <l-tile-layer
+        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+        layer-type="base"
+        name="OpenStreetMap"
+      ></l-tile-layer>
       <PlaneData />
       <PolyLines />
       <Charts v-show="show" />
@@ -13,22 +23,29 @@
       <HoverDisplay />
     </l-map>
     <Timeline
-      :styles="{ width: 'calc(100% - 40px)', position: 'absolute', bottom: 0, zIndex: 500, left: '40px', background: '#ffffff80', color: 'black' }" />
-
+      :styles="{
+        width: 'calc(100% - 40px)',
+        position: 'absolute',
+        bottom: 0,
+        zIndex: 500,
+        left: '40px',
+        background: '#ffffff80',
+        color: 'black',
+      }"
+    />
   </div>
-
 </template>
 
 <script>
 import "leaflet/dist/leaflet.css";
 import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
-import { Socket } from "phoenix"
-import TopNavBar from "./components/TopNavBar.vue"
+import { Socket } from "phoenix";
+import TopNavBar from "./components/TopNavBar.vue";
 import LeftSideBar from "./components/LeftSideBar.vue";
 import PlaneData from "./components/AirPlane.vue";
 import PolyLines from "./components/PlanePolylines.vue";
 import Charts from "./components/MultiCharts.vue";
-import { useMapStore } from './store'
+import { useMapStore } from "./store";
 //import LatLngBar from "./components/LatLngBar.vue";
 import HoverDisplay from "./components/HoverDisplay.vue";
 import Timeline from "./components/Timeline.vue";
@@ -46,71 +63,85 @@ export default {
     LTileLayer,
     TopNavBar,
     PlaneData,
-    Charts
+    Charts,
   },
   data() {
     return {
       zoom: 6,
-      position: '',
+      position: "",
       store: useMapStore(),
-      center: [48.3169, 6.9459]  // Add this line
+      center: [48.3169, 6.9459], // Add this line
     };
   },
   computed: {
     show() {
-      return this.store.showDrawer
-    }
+      return this.store.showDrawer;
+    },
   },
-  mounted() {
-    console.log('initiating socket');
-    const userToken = "joining-token";
-    const debug = false
-    const socket = new Socket("", { debug, params: { userToken } });
-    socket.connect();
-    this.store.setSocket(socket)
+  async mounted() {
+    const socket = await this.store.createSocket();
 
-    console.log('joining system channel')
-    const systemChannelName = "channel:system";
-    const systemChannelToken = "channel-token";
-    let systemChannel = socket.channel(systemChannelName, { token: systemChannelToken });
-    systemChannel.on('update-node', ({ el, html }) => {
-      this.updateItem = { el, html }
-      if (el === 'plane_count') {
-        this.store.setCount(html)
-      }
-      if (el === 'uptime') {
-        this.store.setUpTime(html)
-      }
-      if (el === 'info_utc') {
-        this.store.setInfoUtc(html)
-      }
-      if (el === 'info_local') {
-        this.store.setInfoLocal(html)
-      }
-    });
-    systemChannel
-      .join()
-      .receive("ok", ({ messages }) => {
-        console.log(`(${systemChannelName}) joined`, messages);
-        this.store.setSystemChannel(systemChannel);
-      })
-      .receive("error", ({ reason }) =>
-        console.log(`failed to join ${systemChannelName}`, reason)
-      )
-      .receive("timeout", () => console.log(`timeout joining ${systemChannelName}`));
+    console.log("joining system channel");
+    const channelName = "system";
+    const callbacks = {
+      "update-node": this.updateNode.bind(this),
+    };
+    await this.joinChannel(socket, channelName, callbacks);
   },
 
   methods: {
+    joinChannel(socket, channelName, callbacks) {
+      return new Promise((resolve, reject) => {
+        console.log(`joining ${channelName} channel ...`);
+
+        let channel = socket.channel(channelName);
+        // channel.on("update-node", this.updateNode.bind(this));
+        for (let [event, handler] of Object.entries(callbacks)) {
+          channel.on(event, handler);
+        }
+        channel
+          .join()
+          .receive("ok", ({ messages }) => {
+            console.log(`${channelName} / joined`, messages);
+            this.store.setSystemChannel(channel);
+            resolve(channel);
+          })
+          .receive("error", ({ reason }) => {
+            console.log(`${channelName} / failed to join`, reason);
+            reject(reason);
+          })
+          .receive("timeout", () => {
+            console.log(`${channelName} / timeout joining`);
+            reject("timeout");
+          });
+      });
+    },
     getPosition(event) {
-      this.position = event.latlng.toString()
+      this.position = event.latlng.toString();
     },
     emptySelect() {
-      this.store.setShowDrawer(false)
+      this.store.setShowDrawer(false);
     },
     updateCenter(event) {
       this.center = event.target.getCenter();
     },
-  }
+    updateNode(arg) {
+      const { el, html, now } = arg;
+      // console.log(`${now} updateNode, `, arg);
+      if (el === "plane_count") {
+        this.store.setCount(html);
+      }
+      if (el === "uptime") {
+        this.store.setUpTime(html);
+      }
+      if (el === "info_utc") {
+        this.store.setInfoUtc({ html, now });
+      }
+      if (el === "info_local") {
+        this.store.setInfoLocal(html);
+      }
+    },
+  },
 };
 </script>
 <style>

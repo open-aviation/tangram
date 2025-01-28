@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 # coding: utf8
 
-import asyncio
+import time
+import redis
 import logging
 from typing import Any, List
-
 import httpx
-
-from tangram import channels
-
-# from redis.asyncio import Redis
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
@@ -31,16 +27,19 @@ def jet1090_all(jet1090_service: str, api_endpoint: str = "/all") -> List[Any]:
         return []
 
 
-async def main(jet1090_restful_service: str):
+def main(jet1090_restful_service: str, redis_url: str, streamping_topic: str):
+    url = f"{jet1090_restful_service}/all"
+    restful_client = httpx.Client()
+
+    redis_client = redis.Redis.from_url(redis_url)
+
+    log.info("streaming jet1090 to WS clients ...")
     while True:
-        source_data = jet1090_all(jet1090_restful_service)
-        log.info("publishing (len: %s)...", len(source_data))
-
-        # icao24_list = set([el["icao24"] for el in source_data])
-        # log.debug("unique total: %s %s", len(icao24_list), icao24_list)
-
-        await channels.system_broadcast(channel="channel:streaming", event="new-data", data=source_data, by_redis=False)
-        await asyncio.sleep(1)
+        # source_data = jet1090_all(jet1090_restful_service)
+        resp = restful_client.get(url)
+        redis_client.publish(streamping_topic, resp.text)
+        log.info("publishing to %s %s (len: %s)...", redis_url, streamping_topic, len(resp.text))
+        time.sleep(1)
 
 
 if __name__ == "__main__":
@@ -48,11 +47,10 @@ if __name__ == "__main__":
     import os
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--redis-url", dest="redis_url", default=os.getenv("REDIS_URL", "redis://redis:6379"))
+    parser.add_argument("--streaming-topic", dest="streaming_topic", default="to:streaming:new-data")
     parser.add_argument("--jet1090-service", dest="jet1090_service", default=os.getenv("JET1090_URL", "http://jet1090:8080"))
     args = parser.parse_args()
 
     jet1090_service = args.jet1090_service
-    if not jet1090_service:
-        log.error("missing jet1090 service")
-        exit(0)
-    asyncio.run(main(jet1090_service))
+    main(jet1090_service, args.redis_url, args.streaming_topic)
