@@ -2,7 +2,9 @@
   <div class="navbar navbar-default navbar-fixed-top" role="navigation">
     <div class="container-fluid">
       <div style="display: flex; align-items: center">
-        <span class="navbar-brand mb-0 mr-2 h" style="color: black">tangram</span>
+        <span class="navbar-brand mb-0 mr-2 h" style="color: black"
+          >tangram</span
+        >
         <AltitudeSlider />
         <span class="mr-1 ml-2">Show cluster</span>
         <input :checked="showCluster" type="checkbox" @change="onChange" />
@@ -18,12 +20,8 @@
 import { useMapStore } from "../store";
 import AltitudeSlider from "./AltitudeSlider.vue";
 
-// FIXME: This is a hack to get the time plugin to work
-// Something like: {PLUGIN_DIR}/status/web/components/Time.vue
-import PluginTime from "../../../plugins/status/web/components/Time.vue";
-
 export default {
-  components: { AltitudeSlider, PluginTime },
+  components: { AltitudeSlider },
   data() {
     return {
       store: useMapStore(),
