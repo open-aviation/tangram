@@ -2,37 +2,26 @@
   <div class="main-container" :class="{ hasItem: show }">
     <TopNavBar />
     <LeftSideBar ref="leftBar" />
-    <l-map
-      @click="emptySelect"
-      @mousemove="getPosition($event)"
-      @moveend="updateCenter"
-      class="map-container"
-      ref="map"
-      v-model:zoom="zoom"
-      :center="center"
-    >
-      <l-tile-layer
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
-        layer-type="base"
-        name="OpenStreetMap"
-      ></l-tile-layer>
+    <l-map @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map"
+      v-model:zoom="zoom" :center="center">
+      <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png" layer-type="base"
+        name="OpenStreetMap"></l-tile-layer>
       <PlaneData />
       <PolyLines />
       <Charts v-show="show" />
       <!-- <LatLngBar :position="position" />-->
       <HoverDisplay />
+      <plugin-foo />
     </l-map>
-    <Timeline
-      :styles="{
-        width: 'calc(100% - 40px)',
-        position: 'absolute',
-        bottom: 0,
-        zIndex: 500,
-        left: '40px',
-        background: '#ffffff80',
-        color: 'black',
-      }"
-    />
+    <Timeline :styles="{
+      width: 'calc(100% - 40px)',
+      position: 'absolute',
+      bottom: 0,
+      zIndex: 500,
+      left: '40px',
+      background: '#ffffff80',
+      color: 'black',
+    }" />
   </div>
 </template>
 

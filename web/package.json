@@ -20,7 +20,8 @@
     "rollup": "4.6.1",
     "unplugin-auto-import": "^0.18.2",
     "vite": "^5.3.1",
-    "vue-leaflet-markercluster": "^0.6.1"
+    "vue-leaflet-markercluster": "^0.6.1",
+    "dotenv": "^16.4.7"
   },
   "dependencies": {
     "@vue-leaflet/vue-leaflet": "^0.10.1",
