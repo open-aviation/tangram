@@ -8,12 +8,12 @@ use std::{
     error::Error,
     fmt::{self, Display},
     sync::{
-        atomic::{AtomicU32, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering},
         Arc,
     },
 };
-use tokio::time::{self, Duration};
 use tokio::{
+    time::{self, Duration},
     sync::{
         broadcast::{self, error::SendError},
         Mutex,
@@ -574,11 +574,21 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
 
     // 启动统计任务
     let stat_channel_name = channel_name.clone();
-    tokio::spawn(async move {
+    
+    // once channel to notify the stats thread to stop
+    let exit_stat = Arc::new(AtomicBool::new(false));
+    let stat_should_exit = exit_stat.clone();
+
+    let stat_handler = tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(1));
         let mut last_count = 0u64;
 
         loop {
+            if stat_should_exit.load(Ordering::Relaxed) {
+                info!("LISTENER / stats thread exit");
+                break;
+            }
+
             interval.tick().await;
             let current_count = counter_for_stats.load(Ordering::Relaxed);
             let delta = current_count.saturating_sub(last_count);
@@ -630,13 +640,18 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
             payload: ServerPayload::ServerJsonValue(value),
         };
         match tx.send(ChannelMessage::Reply(reply_message.clone())) {
-            Ok(_) => {} // debug!("LISTENER / published, to {}:{}, {}", &msg.channel, &msg.event, reply_message),
+            Ok(_count) => {} // debug!("LISTENER / published, to {}:{}, {}", &msg.channel, &msg.event, reply_message),
             Err(e) => {
+                // 只可能在没有 agent 的时候发生
+
                 // channel 没有 agent 时候也会 publish, 其实可以不用处理
                 if ev.channel == "system" || ev.channel == "admin" {
                     continue;
                 }
-                error!("LISTENER / fail to publish, to {}:{}, err: {}", &ev.channel, &ev.event, e);
+                // 如果 channel 已经close 了，也不需要publish
+                error!("LISTENER / fail to publish, dest: {}:{}, err: {}", &ev.channel, &ev.event, e);
+                
+                break; // 选择退出当前线程，但是需要注意的是如果有新的agent 加入，需要重启这个线程
             }
         }
 
@@ -644,6 +659,11 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
         counter.fetch_add(1, Ordering::Relaxed);
         // debug!("LISTENER / publish message from redis, counter: {}", counter);
     }
+
+    exit_stat.store(true, Ordering::Relaxed);
+    stat_handler.await.unwrap();
+
+    Ok(())
 }
 
 // async fn _channel_publish(counter: i32, value: serde_json::Value, tx: broadcast::Sender<ChannelMessage>, channel_name: &str, event_name: &str) {
