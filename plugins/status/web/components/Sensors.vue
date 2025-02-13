@@ -20,6 +20,7 @@ export default {
     computed: {
     },
     async mounted() {
+        // FIXME: hard coded for now
         const response = await fetch("http://192.168.11.37:8080/sensors");
         const sensors = await response.json();
         console.log(sensors);
@@ -28,7 +29,7 @@ export default {
             type: "FeatureCollection",
             features: Object.values(sensors)
               // .filter(sensor => sensor.aircraft_count > 0)
-      .map((sensor) => ({
+              .map((sensor) => ({
                 type: "Feature",
                 geometry: {
                     type: "Point",

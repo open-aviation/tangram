@@ -142,7 +142,7 @@ build-tangram:
   podman image build -f container/tangram.Containerfile -t tangram:0.1 .
 
 # launch tangram container
-tangram: network
+tangram: network channel
   #!/usr/bin/env bash
 
   if [ "$(uname)" = "Linux" ]; then \
@@ -159,6 +159,22 @@ tangram: network
       -v $PWD:/home/user/tangram \
       tangram:0.1; \
   fi
+
+channel:
+  #!/usr/bin/env bash
+
+  podman pull ghcr.io/emctoo/channel:latest
+  podman run -d --rm --name channel --network {{NETWORK}} -p 5000:5000 \
+    --env-file .env --userns=keep-id \
+    ghcr.io/emctoo/channel:latest --host 0.0.0.0 --port 5000 --jwt-secret secret --redis-url {{REDIS_URL}}
+
+channel-stop:
+  podman stop channel
+
+channel-restart:
+  just channel-stop
+  just channel
+
 
 # rate-limiting plugin container
 rate-limiting: network
@@ -209,16 +225,20 @@ build-jet1090:
   podman pull {{JET1090_IMAGE}}
 
 # run jet1090 interactively, as a container
-jet1090: network redis jet1090-basestation
+jet1090: network redis jet1090-basestation _build-filter
   podman run -it --rm --name jet1090 \
     --network {{NETWORK}} -p 8080:8080 \
     -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
     {{JET1090_IMAGE}} \
       jet1090 \
-        -i \
+        --verbose \
         --serve-port 8080 \
         --redis-url {{REDIS_URL}} --redis-topic jet1090-full \
-        {{JET1090_PARAMS}}
+        {{JET1090_PARAMS}} | \
+        line-filter/target/release/fast \
+          --redis-url {{REDIS_URL}} \
+          --match '(AND "altitude" "longitude"):::coordinate:::1000' \
+          --match '("altitude"):::altitude:::1000'
 
 # run jet1090 (0.3.8) as a service
 jet1090-daemon: network redis jet1090-basestation
@@ -230,3 +250,12 @@ jet1090-daemon: network redis jet1090-basestation
         --serve-port 8080 \
         --redis-url {{REDIS_URL}} --redis-topic jet1090-full \
         {{JET1090_PARAMS}}
+
+# build jet1090 filter
+_build-filter:
+  #!/usr/bin/env bash
+
+  pushd line-filter
+    cargo build fast --release
+  popd
+

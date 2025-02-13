@@ -36,11 +36,11 @@ export default defineConfig({
     vue(),
     AutoImport({ imports: ["vue", "vue-router"] }), // vue、vue-router imported automatically
     dynamicComponentsPlugin({
-      envPath: "../.env", // 指定 .env 文件路径
+      envPath: "../.env",
       fallbackDir: "/src/components/",
       availablePlugins: [
         "time",
-        // "foo"
+        // "sensors",
       ],
     }),
   ],
