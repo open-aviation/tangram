@@ -337,7 +337,7 @@ pub fn is_special_channel(ch: &str) -> bool {
     excludes.contains(&ch)
 }
 
-pub async fn add_channel(ctl: &Mutex<ChannelControl>, redis_client: redis::Client, channel_name: String) {
+pub async fn add_channel(ctl: &Mutex<ChannelControl>, channel_name: String) {
     let ctl = ctl.lock().await;
 
     let mut channels = ctl.channels.lock().await;
@@ -351,10 +351,6 @@ pub async fn add_channel(ctl: &Mutex<ChannelControl>, redis_client: redis::Clien
         .or_insert_with(|| Channel::new(channel_name.clone(), None));
     warn!("ADD_CH / {} added", channel_name);
 
-    let channel: &mut Channel = channels.get_mut(&channel_name).unwrap();
-    channel.redis_listen_task = Some(tokio::spawn(listen_to_redis(channel.tx.clone(), redis_client, channel_name.clone())));
-    warn!("ADD_CH / {} redis_listen_task launched", channel_name);
-
     let channel_names = channels.keys().cloned().collect::<Vec<String>>();
     info!("ADD_CH / {} created, channels: {} {:?}", channel_name, channel_names.len(), channel_names);
 
@@ -363,6 +359,18 @@ pub async fn add_channel(ctl: &Mutex<ChannelControl>, redis_client: redis::Clien
         "channels": channels.keys().cloned().collect::<Vec<String>>(),
     });
     ctl.pub_meta_event("channe".into(), "add".into(), meta).await;
+}
+
+/// launch a tokio thread to listen to redis topic
+pub async fn launch_channel_redis_listen_task(ctl: &Mutex<ChannelControl>, channel_name: String, redis_client: redis::Client) {
+    let ctl = ctl.lock().await;
+    let mut channels = ctl.channels.lock().await;
+    let channel: &mut Channel = channels.get_mut(&channel_name).unwrap();
+    if channel.redis_listen_task.is_some() {
+        warn!("LAUNCH_REDIS_TASK / channel {} redis_listen_task already exists", channel_name);
+        return;
+    }
+    channel.redis_listen_task = Some(tokio::spawn(listen_to_redis(channel.tx.clone(), redis_client, channel_name.clone())));
 }
 
 // 添加 agent tx, join channel, spawn agent/conn relay task, ack joining
@@ -389,7 +397,8 @@ async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc
     if is_special_channel(&channel_name) {
         info!("ADD_CH / channel {} is special, ignored", channel_name);
     } else {
-        add_channel(&state.ctl, state.redis_client.clone(), channel_name.clone()).await;
+        add_channel(&state.ctl, channel_name.clone()).await;
+        launch_channel_redis_listen_task(&state.ctl, channel_name.clone(), state.redis_client.clone()).await;
     }
 
     let agent_id = format!("{}:{}:{}", conn_id, channel_name.clone(), rm.join_ref.clone().unwrap());

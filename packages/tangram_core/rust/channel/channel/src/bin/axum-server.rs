@@ -8,7 +8,7 @@ use axum::{
 use channel::{
     channel::ChannelControl,
     utils::{generate_jwt, random_string},
-    websocket::{add_channel, axum_on_connected, datetime_handler, State},
+    websocket::{add_channel, axum_on_connected, datetime_handler, launch_channel_redis_listen_task, State},
 };
 use clap::Parser;
 use futures::StreamExt;
@@ -170,11 +170,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(keepalive(state.clone()));
 
     // phoenix & admin are special
-    add_channel(&state.ctl, state.redis_client.clone(), "phoenix".into()).await;
-    add_channel(&state.ctl, state.redis_client.clone(), "admin".into()).await;
+    add_channel(&state.ctl, "phoenix".into()).await;
+    launch_channel_redis_listen_task(&state.ctl, "phoenix".into(), state.redis_client.clone()).await;
+
+    add_channel(&state.ctl, "admin".into()).await;
+    launch_channel_redis_listen_task(&state.ctl, "admin".into(), state.redis_client.clone()).await;
 
     // predefined channel
-    add_channel(&state.ctl, state.redis_client.clone(), "system".into()).await;
+    add_channel(&state.ctl, "system".into()).await;
+    launch_channel_redis_listen_task(&state.ctl, "system".into(), state.redis_client.clone()).await;
+
     tokio::spawn(datetime_handler(state.clone(), "system".into()));
 
     let host = options.host.unwrap();
