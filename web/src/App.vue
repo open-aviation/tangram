@@ -5,7 +5,8 @@
 
     <l-map @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map"
       v-model:zoom="zoom" :center="center">
-      <l-tile-layer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png" layer-type="base"
+
+      <l-tile-layer :url="map_url" layer-type="base"
         name="OpenStreetMap"></l-tile-layer>
 
       <PlaneData />
@@ -62,6 +63,7 @@ export default {
     return {
       zoom: 6,
       position: "",
+      map_url: import.meta.env.VITE_TANGRAM_MAP_URL || "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
       store: useMapStore(),
       center: [48.3169, 6.9459], // Add this line
     };
