@@ -74,7 +74,7 @@ jobs:
           file: ${{ github.workspace }}/container/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           build-args: |
             VERSION=${{ steps.release.outputs.version }}
           cache-from: type=gha
