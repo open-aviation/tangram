@@ -61,16 +61,19 @@
         in {
           devShells.default = pkgs.mkShell {
             inputsFrom = builtins.attrValues self.checks;
-            buildInputs = [
+            buildInputs = with pkgs; [
               rustToolchain
-              pkgs.pkg-config
-              pkgs.openssl
-              pkgs.cargo-dist
-              pkgs.redis
-              pkgs.iredis
+              pkg-config
+              openssl
+              cargo-dist
+              redis
+              iredis
             ];
             shellHook = ''
               export RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=${pkgs.mold}/bin/mold"
+              mkdir -p ~/.cargo/bin
+              ln -s ${pkgs.cargo-dist}/bin/dist ~/.cargo/bin/cargo-dist
+              export PATH=$PATH:${pkgs.cargo-dist}/bin:~/.cargo/bin
             '';
           };
 
