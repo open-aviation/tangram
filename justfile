@@ -127,8 +127,8 @@ tangram-web host="0.0.0.0" port="2024":
   cd /home/user/tangram/web
   echo "- working directory: ${PWD}"
 
-  # node_modules dependencies are installed and this file is created as a flag
-  # always remove this file if you want to install them every time
+  # `node_modules` dependencies are installed and this file is created as a flag
+  # Remove this file (uncomment the following line) if you want to install them every time
   rm -f /tmp/npm-installed.txt
 
   if [ ! -f /tmp/npm-installed.txt ]; then
@@ -136,9 +136,7 @@ tangram-web host="0.0.0.0" port="2024":
     # rm -rf node_modules
 
     echo "- npm install now ..."
-    npm install --verbose
-    npm install --dev --verbose
-
+    npm install
     touch /tmp/npm-installed.txt
   else
     echo "- node_modules exists, skip npm install."
@@ -155,14 +153,16 @@ tangram: network
   #!/usr/bin/env bash
 
   if [ "$(uname)" = "Linux" ]; then \
-    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 -p 2025:2025 -p 18000:18000 \
+    podman container run -it --rm --name tangram \
+      --network {{NETWORK}} -p 2024:2024 -p 2025:2025 -p 18000:18000 \
       --env-file .env \
       --userns=keep-id \
       -v .:/home/user/tangram:z \
       tangram:0.1; \
   elif [ "$(uname)" = "Darwin" ]; then \
     # TODO: verify it's necessary to include `--userns=keep-id` here
-    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 -p 2025:2025 -p 18000:18000 \
+    podman container run -it --rm --name tangram \
+      --network {{NETWORK}} -p 2024:2024 -p 2025:2025 -p 18000:18000 \
       --env-file .env \
       --userns=keep-id --security-opt label=disable \
       -v $PWD:/home/user/tangram \

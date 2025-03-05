@@ -22,7 +22,9 @@ async function fetchToken(name) {
 async function newSocket() {
   // Specify channel here but it's not restricted.Treat it as a socket/connection token.
   const resp = await fetchToken("system");
-  let { id: connectionId, token: userToken, url: wsUrl } = resp;
+  let { id: connectionId, token: userToken } = resp;
+
+  let wsUrl = '';
   console.log(`${connectionId} is connecting ${wsUrl} ...`);
 
   const socket = new Socket(wsUrl, { debug: false, params: { userToken } });
