@@ -4,7 +4,7 @@ set positional-arguments
 set export
 
 # read from .env file
-JET1090_PARAMS := env_var("JET1090_PARAMS")
+JET1090_PARAMS := env_var_or_default("JET1090_PARAMS", "")
 
 # set default values
 NETWORK := "tangram"
@@ -35,11 +35,11 @@ install-dependent-binaries:
 
   DEST_DIR="$HOME/.local/bin"
 
+  # watchexec
   cleanup() {
     rm -rf /tmp/watchexec*
   }
   trap cleanup EXIT
-
   LATEST_TAG=$(curl -sL https://api.github.com/repos/watchexec/watchexec/releases/latest | jq -r '.tag_name')
   DL_URL="https://github.com/watchexec/watchexec/releases/download/${LATEST_TAG}/watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl.tar.xz"
   curl -L "$DL_URL" -o /tmp/watchexec.tar.xz
@@ -47,11 +47,18 @@ install-dependent-binaries:
   tar -xvf /tmp/watchexec.tar.xz --strip-components=1 -C $DEST_DIR "watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl/watchexec"
   echo "watchexec has been installed to $DEST_DIR/watchexec."
 
+  # uv
   curl -LsSf https://astral.sh/uv/install.sh | sh # uv
   echo "uv has been installed to $DEST_DIR/{uv,uvx}."
 
-  sh -c "$(curl --location https://raw.githubusercontent.com/F1bonacc1/process-compose/main/scripts/get-pc.sh)" -- -d -b $DEST_DIR # process-compose
+  # process-compose
+  sh -c "$(curl --location https://raw.githubusercontent.com/F1bonacc1/process-compose/main/scripts/get-pc.sh)" -- -d -b $DEST_DIR
   echo "process-compose has been installed to $DEST_DIR/process-compose."
+
+  # channel
+  # installer script installs it at ~/.cargo/bin, so we add soft link to it in $DEST_DIR
+  curl --proto '=https' --tlsv1.2 -LsSf https://github.com/emctoo/channels/releases/download/v0.2.5/channel-installer.sh | sh
+  ln -s ~/.cargo/bin/channel $DEST_DIR/channel
 
   ls -al $DEST_DIR
 
@@ -120,7 +127,9 @@ tangram-web host="0.0.0.0" port="2024":
   cd /home/user/tangram/web
   echo "- working directory: ${PWD}"
 
-  # rm -f /tmp/npm-installed.txt
+  # node_modules dependencies are installed and this file is created as a flag
+  # always remove this file if you want to install them every time
+  rm -f /tmp/npm-installed.txt
 
   if [ ! -f /tmp/npm-installed.txt ]; then
     # echo "- removing node_modules ..."
@@ -142,18 +151,18 @@ build-tangram:
   podman image build -f container/tangram.Containerfile -t tangram:0.1 .
 
 # launch tangram container
-tangram: network channel
+tangram: network
   #!/usr/bin/env bash
 
   if [ "$(uname)" = "Linux" ]; then \
-    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 -p 18000:18000 \
+    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 -p 2025:2025 -p 18000:18000 \
       --env-file .env \
       --userns=keep-id \
       -v .:/home/user/tangram:z \
       tangram:0.1; \
   elif [ "$(uname)" = "Darwin" ]; then \
     # TODO: verify it's necessary to include `--userns=keep-id` here
-    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 -p 18000:18000 \
+    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 -p 2025:2025 -p 18000:18000 \
       --env-file .env \
       --userns=keep-id --security-opt label=disable \
       -v $PWD:/home/user/tangram \
@@ -166,7 +175,7 @@ channel:
   podman pull ghcr.io/emctoo/channel:latest
   podman run -d --rm --name channel --network {{NETWORK}} -p 5000:5000 \
     --env-file .env --userns=keep-id \
-    ghcr.io/emctoo/channel:latest --host 0.0.0.0 --port 5000 --jwt-secret secret --redis-url {{REDIS_URL}}
+    ghcr.io/emctoo/channel:latest channel --host 0.0.0.0 --port 5000 --jwt-secret secret --redis-url {{REDIS_URL}}
 
 channel-stop:
   podman stop channel
