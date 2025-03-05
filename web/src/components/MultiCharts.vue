@@ -11,17 +11,7 @@
 </template>
 
 <script>
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-} from 'chart.js'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js'
 import { Line as LineChart } from 'vue-chartjs'
 import dayjs from 'dayjs'
 import { useMapStore} from '../store'
@@ -34,15 +24,11 @@ const plugin = {
     dash: [3, 3],
   },
   afterInit: (chart, args, opts) => {
-    chart.corsair = {
-      x: 0,
-      y: 0,
-    }
+    chart.corsair = { x: 0, y: 0 }
   },
   afterEvent: (chart, args) => {
     const {inChartArea} = args
     const {type,x,y} = args.event
-
     chart.corsair = {x, y, draw: inChartArea}
     chart.draw()
   },
@@ -90,6 +76,7 @@ export default {
       chartData: {},
       defaultData: [],
       option: null,
+      pollInterval: null, // Add polling interval reference
     }
   },
   computed: {
@@ -97,258 +84,289 @@ export default {
       return this.store.selectedPlane
     }
   },
+  mounted() {
+    // Start polling when component is mounted
+    this.startPolling();
+  },
+  beforeUnmount() {
+    // Clean up interval when component is destroyed
+    this.stopPolling();
+  },
   watch: {
     selected: {
       deep: true,
-      handler(newValue) {
+      handler(newValue, oldValue) {
+        console.dir('chart type updated: ', newValue);
         if(newValue && newValue.icao24) {
-          this.fetchChartData(newValue)
+          // Initial fetch when selection changes
+          this.fetchChartData(newValue);
         } else {
-          this.defaultData = []
-          this.chartData = {}
+          this.defaultData = [];
+          this.chartData = {};
         }
       }
     }
   },
   methods: {
+    startPolling() {
+      // Clear any existing interval
+      this.stopPolling();
+      
+      // Set up new polling interval (every 5 seconds)
+      const interval_ms = 1000 * 1; 
+      this.pollInterval = setInterval(() => {
+        if (this.selected && this.selected.icao24) {
+          this.fetchChartData(this.selected);
+        }
+      }, interval_ms); 
+    },
+    
+    stopPolling() {
+      if (this.pollInterval) {
+        clearInterval(this.pollInterval);
+        this.pollInterval = null;
+      }
+    },
+    
     handleChartClick(evt, item) {
+      if (!item) return; // Add check to prevent error when item is undefined
       const index = item.index
       const label = evt.chart.data.labels[index]
       const value = evt.chart.data.datasets[0].data[index]
       this.store.setHoverItem(value)
     },
+
     onClick() {
       console.log('prevent the click event')
     },
+
     onSelectOption(e) {
       switch(e.target.value) {
         case 'speed':
-          if(this.defaultData && this.defaultData.length > 0) {
-            this.option = null
-            this.chartData = {
-              labels: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
-              datasets: [
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#0000bb30',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'IAS',
-                  backgroundColor: 'blue',
-                  data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.IAS)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#bb000030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'TAS',
-                  backgroundColor: 'red',
-                  data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.TAS)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#00bb0030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'groundspeed',
-                  backgroundColor: 'green',
-                  data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.groundspeed)
-                }
-              ]
-            }
-          }
+          this.updateSpeedChart();
           break;
         case 'vertical_rate':
-          if(this.defaultData && this.defaultData.length > 0) {
-            this.option = null
-            this.chartData = {
-              labels: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
-              datasets: [
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#0000bb30',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'vrate_barometric',
-                  backgroundColor: 'blue',
-                  data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vrate_barometric)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#bb000030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'vrate_inertial',
-                  backgroundColor: 'red',
-                  data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vrate_inertial)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#00bb0030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'vertical_rate',
-                  backgroundColor: 'green',
-                  data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vertical_rate)
-                }
-              ]
-            }
-          }
+          this.updateVerticalRateChart();
           break;
         case 'track':
-          if(this.defaultData && this.defaultData.length > 0) {
-            this.option = null
-            this.chartData = {
-              labels: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
-              datasets: [
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#0000bb30',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'track',
-                  backgroundColor: 'blue',
-                  fillColor: "rgba(100,100,255,0.5)",
-                  strokeColor: "blue",
-                  data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.track)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#bb000030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'heading',
-                  backgroundColor: 'red',
-                  data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.heading)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#00bb0030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'roll',
-                  backgroundColor: 'green',
-                  data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.roll)
-                }
-              ]
-            }
-          }
+          this.updateTrackChart();
           break;
         default:
-          if(this.defaultData && this.defaultData.length > 0) {
-            this.chartData = {
-              labels: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
-              datasets: [
-                {
-                  borderWidth: 2,
-                  label: 'altitude',
-                  radius: 0,
-                  fill: {
-                    target: 'origin',
-                    above: '#80808030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  tension: 0.25,
-                  backgroundColor: '#80800',
-                  borderColor: ["#808080"],
-                  data: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => item.altitude)
-                },
-                {
-                  borderWidth: 2,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#0000bb30',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'selected_altitude',
-                  borderColor: ["#0000bb"],
-                  backgroundColor: '#0000bb',
-                  data: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => item.selected_altitude)
-                }
-              ]
-            }
-
-            this.option = {
-              onHover: (e) => {
-                const chart = this.$refs.chart.chart;
-                const item = chart.getElementsAtEventForMode(
-                    e,
-                    'index',
-                    { intersect: false },
-                    false
-                )[0]
-                this.handleChartClick(e, item)
-              },
-              legend: {
-                display: false,
-              },
-              scales: {
-                y: {
-                  border: {
-                    width: 0
-                  },
-                  max: 40000,
-                  grid: {
-                    display: false,
-                    drawBorder: false,
-                  }
-                },
-                x: {
-                  border: {
-                    width: 0
-                  },
-                  grid: {
-                    display: false,
-                    drawBorder: false,
-                  }
-                }
-              },
-              plugins: {
-                tooltip: {
-                  backgroundColor: "#227799",
-                  mode: 'nearest',
-                  intersect: false
-                },
-                filler: {
-                  propagate: true
-                },
-                corsair: {
-                  color: 'black',
-                }
-              }
-            }
-          }
+          this.updateAltitudeChart();
       }
     },
+
+    updateSpeedChart() {
+      if(this.defaultData && this.defaultData.length > 0) {
+        this.option = null;
+        this.chartData = {
+          labels: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
+          datasets: [
+            {
+              borderWidth: 1,
+              pointRadius: 0.2,
+              fill: {
+                target: 'origin',
+                above: '#0000bb30',
+                below: '#ffffff30'
+              },
+              label: 'IAS',
+              backgroundColor: 'blue',
+              data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.IAS)
+            },
+            {
+              borderWidth: 1,
+              pointRadius: 0.2,
+              fill: {
+                target: 'origin',
+                above: '#bb000030',
+                below: '#ffffff30'
+              },
+              label: 'TAS',
+              backgroundColor: 'red',
+              data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.TAS)
+            },
+            {
+              borderWidth: 1,
+              pointRadius: 0.2,
+              fill: {
+                target: 'origin',
+                above: '#00bb0030',
+                below: '#ffffff30'
+              },
+              label: 'groundspeed',
+              backgroundColor: 'green',
+              data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.groundspeed)
+            }
+          ]
+        }
+      }
+    },
+
+    updateVerticalRateChart() {
+      if(this.defaultData && this.defaultData.length > 0) {
+        this.option = null;
+        this.chartData = {
+          labels: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
+          datasets: [
+            {
+              borderWidth: 1,
+              pointRadius: 0.2,
+              fill: {
+                target: 'origin',
+                above: '#0000bb30',
+                below: '#ffffff30'
+              },
+              label: 'vrate_barometric',
+              backgroundColor: 'blue',
+              data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vrate_barometric)
+            },
+            {
+              borderWidth: 1,
+              pointRadius: 0.2,
+              fill: {
+                target: 'origin',
+                above: '#bb000030',
+                below: '#ffffff30'
+              },
+              label: 'vrate_inertial',
+              backgroundColor: 'red',
+              data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vrate_inertial)
+            },
+            {
+              borderWidth: 1,
+              pointRadius: 0.2,
+              fill: {
+                target: 'origin',
+                above: '#00bb0030',
+                below: '#ffffff30'
+              },
+              label: 'vertical_rate',
+              backgroundColor: 'green',
+              data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vertical_rate)
+            }
+          ]
+        }
+      }
+    },
+
+    updateTrackChart() {
+      if(this.defaultData && this.defaultData.length > 0) {
+        this.option = null;
+        this.chartData = {
+          labels: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
+          datasets: [
+            {
+              borderWidth: 1,
+              pointRadius: 0.2,
+              fill: {
+                target: 'origin',
+                above: '#0000bb30',
+                below: '#ffffff30'
+              },
+              label: 'track',
+              backgroundColor: 'blue',
+              fillColor: "rgba(100,100,255,0.5)",
+              strokeColor: "blue",
+              data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.track)
+            },
+            {
+              borderWidth: 1,
+              pointRadius: 0.2,
+              fill: {
+                target: 'origin',
+                above: '#bb000030',
+                below: '#ffffff30'
+              },
+              label: 'heading',
+              backgroundColor: 'red',
+              data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.heading)
+            },
+            {
+              borderWidth: 1,
+              pointRadius: 0.2,
+              fill: {
+                target: 'origin',
+                above: '#00bb0030',
+                below: '#ffffff30'
+              },
+              label: 'roll',
+              backgroundColor: 'green',
+              data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.roll)
+            }
+          ]
+        }
+      }
+    },
+
+    updateAltitudeChart() {
+      if(this.defaultData && this.defaultData.length > 0) {
+        this.chartData = {
+          labels: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
+          datasets: [
+            {
+              borderWidth: 2,
+              label: 'altitude',
+              radius: 0,
+              fill: {
+                target: 'origin',
+                above: '#80808030',
+                below: '#ffffff30'
+              },
+              tension: 0.25,
+              backgroundColor: '#80800',
+              borderColor: ["#808080"],
+              data: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => item.altitude)
+            },
+            {
+              borderWidth: 2,
+              pointRadius: 0.2,
+              fill: {
+                target: 'origin',
+                above: '#0000bb30',
+                below: '#ffffff30'
+              },
+              label: 'selected_altitude',
+              borderColor: ["#0000bb"],
+              backgroundColor: '#0000bb',
+              data: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => item.selected_altitude)
+            }
+          ]
+        }
+
+        this.configureAltitudeChartOptions();
+      }
+    },
+
+    configureAltitudeChartOptions() {
+      this.option = {
+        onHover: (e) => {
+          const chart = this.$refs.chart.chart;
+          const item = chart.getElementsAtEventForMode(e, 'index', { intersect: false }, false)[0];
+          if (item) {
+            this.handleChartClick(e, item);
+          }
+        },
+        legend: { display: false },
+        scales: {
+          y: {
+            border: { width: 0 },
+            max: 40000,
+            grid: { display: false, drawBorder: false }
+          },
+          x: {
+            border: { width: 0 },
+            grid: { display: false, drawBorder: false }
+          }
+        },
+        plugins: {
+          tooltip: { backgroundColor: "#227799", mode: 'nearest', intersect: false },
+          filler: { propagate: true },
+          corsair: { color: 'black' }
+        }
+      };
+    },
+
     fetchChartData(item) {
       const {icao24} = item;
       console.log(`fetching ${icao24} data ...`);
@@ -359,13 +377,19 @@ export default {
           return resp;
         })
         .then((ret) => {
-          const newValue = ret
-          this.defaultData = newValue
-          this.store.setPlaneData(newValue);
+          // Only update if this is still the selected plane
+          if (this.selected && this.selected.icao24 === icao24) {
+            const newValue = ret;
+            this.defaultData = newValue;
+            this.store.setPlaneData(newValue);
 
-          const e = {target: {value: this.selectedItem}}
-          this.onSelectOption(e)
+            const e = {target: {value: this.selectedItem}};
+            this.onSelectOption(e);
+          }
         })
+        .catch(error => {
+          console.error('Error fetching chart data:', error);
+        });
     }
   }
 }
