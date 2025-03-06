@@ -15,7 +15,7 @@ podman run -d --rm --name redis --network host docker.io/library/redis:8.0-M02
 podman pull ghcr.io/emctoo/channel:latest
 
 # To get help information
-podman run -it --rm --name channel -p 5000:5000 ghcr.io/emctoo/channel:latest
+podman run -it --rm --name channel -p 2025:2025 ghcr.io/emctoo/channel:latest
 
 # run it
 podman run -it --rm --name channel --network host \
@@ -23,9 +23,9 @@ podman run -it --rm --name channel --network host \
   channel --redis-url redis://localhost:6379 --jwt-secret you-cant-see-me
 
 # now open a browser and visit:
-#   - http://localhost:5000?name=alice
-#   - http://localhost:5000?name=bob
-#   - http://localhost:5000/admin.html
+#   - http://localhost:2025?name=alice
+#   - http://localhost:2025?name=bob
+#   - http://localhost:2025/admin.html
 ```
 
 ## Test
