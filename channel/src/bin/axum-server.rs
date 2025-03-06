@@ -88,7 +88,7 @@ struct Options {
     #[arg(long, env, default_value = "127.0.0.1")]
     host: Option<String>,
 
-    #[arg(long, env, default_value = "5000")]
+    #[arg(long, env, default_value = "2025")]
     port: Option<u16>,
 
     #[arg(long, env, default_value = None)]

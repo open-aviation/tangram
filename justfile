@@ -19,7 +19,7 @@ fmt:
 
 run target="channel":
   watchexec -w . -e rs -r -- RUST_LOG=debug cargo run --bin {{target}} -- \
-    --host 0.0.0.0 --port 5000 --jwt-secret secret --redis-url redis://192.168.11.37:6379 --static-path ./channel/assets
+    --host 0.0.0.0 --port 2025 --jwt-secret secret --redis-url redis://192.168.11.37:6379 --static-path ./channel/assets
 
 pub message channel="system" event="default":
   redis-cli -u redis://192.168.11.37:6379 publish to:{{channel}}:{{event}} '{"type": "message", "message": "{{message}}"}'
@@ -94,7 +94,7 @@ pub-bool value="true":
   redis-cli -u redis://192.168.11.37:6379 publish to:admin:dt '{{value}}'
 
 token id="":
-  curl -s -X POST http://localhost:5000/token -H "Content-Type: application/json" -d '{"channel": "system", "id": "{{id}}"}' | jq -r .
+  curl -s -X POST http://localhost:2025/token -H "Content-Type: application/json" -d '{"channel": "system", "id": "{{id}}"}' | jq -r .
 
 _build-image:
   #!/usr/bin/env bash
@@ -109,6 +109,6 @@ _build-image:
   buildah run "$ctr" -- curl --proto '=https' --tlsv1.2 -LsSf ${REPO_URL}/releases/download/${VERSION}/channel-installer.sh | sh
 
   buildah config --cmd "channel --help" "$ctr"
-  buildah config --port 5000 "$ctr"
+  buildah config --port 2025 "$ctr"
 
   buildah commit "$ctr1" "channel:${VERSION}"
