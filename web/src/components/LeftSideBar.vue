@@ -1,9 +1,11 @@
 <template>
-  <div id="sidebar" class="leaflet-sidebar" :class="{'collapsed' : !showDrawer}">
+  <div id="sidebar" class="leaflet-sidebar"
+    :class="{ 'collapsed': !showDrawer }">
     <div class="leaflet-sidebar-tabs">
       <ul role="tablist">
         <li>
-          <a @click="closeDrawer" href="#info_box" role="tab"><span class="fa fa-plane"></span></a>
+          <a @click="closeDrawer" href="#info_box" role="tab"><span
+              class="fa fa-plane"></span></a>
         </li>
       </ul>
     </div>
@@ -13,66 +15,57 @@
       <div class="leaflet-sidebar-pane" id="info_box">
         <table class="info_box_table" id="flight">
           <thead>
-          <tr class="info_header">
-            <td colspan="2">Flight</td>
-          </tr>
+            <tr class="info_header">
+              <td colspan="2">Flight</td>
+            </tr>
           </thead>
 
           <tbody>
-          <tr class="info_label">
-            <td>icao24</td>
-            <td class="info_value">
-              <p style="display: inline" id="icao24">{{selected?.icao24}}</p>
-            </td>
-          </tr>
-          <tr class="info_label">
-            <td>callsign</td>
-            <td class="info_value">
-              <p style="display: inline" id="aircraft_id">{{selected?.callsign}}</p>
-            </td>
-          </tr>
+            <tr class="info_label">
+              <td>icao24</td>
+              <td class="info_value">
+                <p style="display: inline" id="icao24">{{ selected?.icao24 }}
+                </p>
+              </td>
+            </tr>
+            <tr class="info_label">
+              <td>callsign</td>
+              <td class="info_value">
+                <p style="display: inline" id="aircraft_id">
+                  {{ selected?.callsign }}</p>
+              </td>
+            </tr>
           </tbody>
 
           <tbody>
-          <tr class="info_label">
-            <td>typecode</td>
-            <td>
-              <p style="display: inline" id="typecode">{{selected?.typecode}}</p>
-            </td>
-          </tr>
-          <tr class="info_label">
-            <td>tail</td>
-            <td>
-              <p style="display: inline" id="tail">{{selected?.tail}}</p>
-            </td>
-          </tr>
-          <tr class="info_label">
-            <td>origin</td>
-            <td>
-              <p style="display: inline" id="departure">{{selected?.departure}}</p>
-            </td>
-          </tr>
-          <tr class="info_label">
-            <td>destination</td>
-            <td>
-              <p style="display: inline" id="destination">{{selected?.destination}}</p>
-            </td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="bottom-bar-info">
-        <table class="info_box_table">
-          <tbody>
-          <tr class="info_label">
-            <td>aircraft on map</td>
-            <td>
-              <b>
-                <p style="display: inline" id="plane_count" v-html="count"></p>
-              </b>
-            </td>
-          </tr>
+            <tr class="info_label">
+              <td>typecode</td>
+              <td>
+                <p style="display: inline" id="typecode">{{ selected?.typecode
+                  }}
+                </p>
+              </td>
+            </tr>
+            <tr class="info_label">
+              <td>tail</td>
+              <td>
+                <p style="display: inline" id="tail">{{ selected?.tail }}</p>
+              </td>
+            </tr>
+            <tr class="info_label">
+              <td>origin</td>
+              <td>
+                <p style="display: inline" id="departure">
+                  {{ selected?.departure }}</p>
+              </td>
+            </tr>
+            <tr class="info_label">
+              <td>destination</td>
+              <td>
+                <p style="display: inline" id="destination">
+                  {{ selected?.destination }}</p>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -80,7 +73,7 @@
   </div>
 </template>
 <script>
-import {useMapStore} from "../store";
+import { useMapStore } from "../store";
 
 export default {
   data() {

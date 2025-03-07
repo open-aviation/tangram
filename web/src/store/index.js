@@ -24,7 +24,7 @@ async function newSocket() {
   const resp = await fetchToken("system");
   let { id: connectionId, token: userToken } = resp;
 
-  let wsUrl = '';
+  let wsUrl = "";
   console.log(`${connectionId} is connecting ${wsUrl} ...`);
 
   const socket = new Socket(wsUrl, { debug: false, params: { userToken } });
@@ -71,6 +71,8 @@ export const useMapStore = defineStore("map", {
     planeTrajectory: [],
 
     count: 0,
+    bounds: null,
+    visible: 0,
     uptime: "",
     info_utc: "",
     info_local: "local",
@@ -84,9 +86,7 @@ export const useMapStore = defineStore("map", {
   getters: {
     trajectory: ({ selectedPlane, planeTrajectory }) => {
       let selectedIcao24 = selectedPlane ? selectedPlane.icao24 : null;
-      console.log(
-        `S/TRAJ, getting trajectory of ${selectedIcao24}, length: ${planeTrajectory.length}`,
-      );
+      console.log(`S/TRAJ, getting trajectory of ${selectedIcao24}, length: ${planeTrajectory.length}`);
       return selectedPlane ? planeTrajectory : [];
     },
     local_time: (store) => {
@@ -113,6 +113,12 @@ export const useMapStore = defineStore("map", {
     },
     setUpTime(v) {
       this.uptime = v;
+    },
+    setVisible(v) {
+      this.visible = v;
+    },
+    setBounds(v) {
+      this.bounds = v;
     },
     setCount(v) {
       this.count = v;
@@ -168,9 +174,7 @@ export const useMapStore = defineStore("map", {
     setPlaneData(planeData) {
       this.planeData = planeData;
       this.planeTrajectory = planeData
-        .filter(
-          ({ latitude, longitude }) => latitude !== null && longitude !== null,
-        )
+        .filter(({ latitude, longitude }) => latitude !== null && longitude !== null)
         .map(({ latitude, longitude }) => [latitude, longitude]); // used by VPolyline, lat-lngs
     },
     appendPlaneTrajectory([lat, longi]) {

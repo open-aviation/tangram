@@ -5,7 +5,7 @@
 
     <l-map @click="emptySelect" @mousemove="getPosition($event)"
       @moveend="updateCenter" class="map-container" ref="map"
-      v-model:zoom="zoom" :center="center">
+      v-model:zoom="zoom" :center="center" @update:bounds="updateBounds">
 
       <l-tile-layer :url="map_url" layer-type="base"
         name="OpenStreetMap"></l-tile-layer>
@@ -33,6 +33,7 @@
 
 <script>
 import "leaflet/dist/leaflet.css";
+
 import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
 import TopNavBar from "./components/TopNavBar.vue";
 import LeftSideBar from "./components/LeftSideBar.vue";
@@ -42,11 +43,11 @@ import Charts from "./components/MultiCharts.vue";
 import { useMapStore } from "./store";
 import LatLngBar from "./components/LatLngBar.vue";
 import HoverDisplay from "./components/HoverDisplay.vue";
-import Timeline from "./components/Timeline.vue";
+//import Timeline from "./components/Timeline.vue";
 
 export default {
   components: {
-    Timeline,
+    //Timeline,
     HoverDisplay,
     LatLngBar,
     PolyLines,
@@ -57,6 +58,7 @@ export default {
     PlaneData,
     Charts,
   },
+
   data() {
     return {
       zoom: 6,
@@ -118,12 +120,12 @@ export default {
     updateCenter(event) {
       this.center = event.target.getCenter();
     },
+    updateBounds(bounds) {
+      this.store.setBounds(bounds);
+    },
     updateNode(arg) {
       const { el, html, now } = arg;
       // console.log(`${now} updateNode, `, arg);
-      if (el === "plane_count") {
-        this.store.setCount(html);
-      }
       if (el === "uptime") {
         this.store.setUpTime(html);
       }

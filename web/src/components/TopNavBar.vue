@@ -9,6 +9,10 @@
         <input :checked="showCluster" type="checkbox" @change="onChange" /> -->
       </div>
 
+      <!-- this is to flush all other blocks to the right -->
+      <div style="margin-left: auto;" />
+
+      <AircraftCount />
       <plugin-time />
 
       <div class="navbar-collapse collapse"></div>
@@ -18,9 +22,10 @@
 <script>
 import { useMapStore } from "../store";
 import AltitudeSlider from "./AltitudeSlider.vue";
+import AircraftCount from "./AircraftCount.vue";
 
 export default {
-  components: { AltitudeSlider },
+  components: { AltitudeSlider, AircraftCount },
   data() {
     return {
       store: useMapStore(),
@@ -46,6 +51,12 @@ export default {
     },
     uptime() {
       return this.store.uptime;
+    },
+    count() {
+      return this.store.count;
+    },
+    visible() {
+      return this.store.visible;
     },
   },
 };

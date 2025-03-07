@@ -32,10 +32,10 @@ export default defineConfig({
         rewriteWsOrigin: true,
       },
       "/sensors": {
-        target: `http://${jet1090_service}/sensors`,
+        target: `${jet1090_service}/sensors`,
         changeOrigin: true,
         secure: false,
-        /* configure: (proxy, _options) => {
+        /*  configure: (proxy, _options) => {
           proxy.on("error", (err, _req, _res) => {
             console.log("proxy error", err);
           });

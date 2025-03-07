@@ -123,11 +123,15 @@ export default {
           item.latitude = Number(item.latitude);
           item.longitude = Number(item.longitude);
         });
-        const plane_count = document.getElementById("plane_count");
-        if (plane_count) {
-          plane_count.textContent = `${arr.length}`;
-        }
         this.planeData = arr.concat();
+        // update metrics
+        this.store.setCount(arr.length);
+        console.log(this.store.bounds);
+        const visible = arr.filter(item =>
+          this.store.bounds == null ||
+          this.store.bounds.contains([item.latitude, item.longitude])
+        );
+        this.store.setVisible(visible.length);
       }
     },
     // newSelectedHandler(data) {
