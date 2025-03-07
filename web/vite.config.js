@@ -6,16 +6,16 @@ import vue from "@vitejs/plugin-vue";
 import AutoImport from "unplugin-auto-import/dist/vite";
 import dynamicComponentsPlugin from "./dynamic-components";
 
-
-let tangram_service = process.env.TANGRAM_SERVICE || "127.0.0.1:18000";
+let tangram_service = process.env.TANGRAM_SERVICE || "127.0.0.1:18001";
 let channel_service = process.env.CHANNEL_SERVICE || "127.0.0.1:2025";
+let jet1090_service = process.env.JET1090_URL || "172.17.0.1:8080";
 
 export default defineConfig({
   envDir: "..",
   resolve: {
     alias: {
-      '@store': path.resolve(__dirname, './src/store'),
-    }
+      "@store": path.resolve(__dirname, "./src/store"),
+    },
   },
   server: {
     proxy: {
@@ -31,6 +31,22 @@ export default defineConfig({
         ws: true,
         rewriteWsOrigin: true,
       },
+      "/sensors": {
+        target: `http://${jet1090_service}/sensors`,
+        changeOrigin: true,
+        secure: false,
+        /* configure: (proxy, _options) => {
+          proxy.on("error", (err, _req, _res) => {
+            console.log("proxy error", err);
+          });
+          proxy.on("proxyReq", (proxyReq, req, _res) => {
+            console.log("Sending Request to the Target:", req.method, req.url);
+          });
+          proxy.on("proxyRes", (proxyRes, req, _res) => {
+            console.log("Received Response from the Target:", proxyRes.statusCode, req.url);
+          });
+        }, */
+      },
     },
   },
   plugins: [
@@ -41,7 +57,8 @@ export default defineConfig({
       fallbackDir: "/src/components/",
       availablePlugins: [
         "time",
-        // "sensors",
+        "sensors",
+        // "route"
       ],
     }),
   ],

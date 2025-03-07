@@ -32,7 +32,7 @@ just redis
 Build the `tangram` and `jet1090` containers:
 
 ```shell
-just build
+just build-tangram
 just build-jet1090
 ```
 
@@ -81,11 +81,13 @@ You'll see the Tangram web interface displaying real-time aviation data:
 If you encounter issues:
 
 1. Check the logs with:
+
    ```shell
    just log tangram
    ```
 
 2. Ensure all containers are running:
+
    ```shell
    podman container ls
    ```

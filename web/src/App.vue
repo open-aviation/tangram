@@ -3,10 +3,12 @@
     <TopNavBar />
     <LeftSideBar ref="leftBar" />
 
-    <l-map @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map" 
+    <l-map @click="emptySelect" @mousemove="getPosition($event)"
+      @moveend="updateCenter" class="map-container" ref="map"
       v-model:zoom="zoom" :center="center">
 
-      <l-tile-layer :url="map_url" layer-type="base" name="OpenStreetMap"></l-tile-layer>
+      <l-tile-layer :url="map_url" layer-type="base"
+        name="OpenStreetMap"></l-tile-layer>
 
       <PlaneData />
       <PolyLines />
@@ -14,18 +16,18 @@
       <LatLngBar :position="position" />
       <HoverDisplay />
 
-      <!-- <plugin-sensors /> -->
+      <plugin-sensors />
     </l-map>
 
-    <Timeline :styles="{
+    <!-- <timeline :styles="{
       width: 'calc(100% - 40px)',
       position: 'absolute',
       bottom: 0,
-      zIndex: 500,
+      zindex: 500,
       left: '40px',
       background: '#ffffff80',
       color: 'black',
-    }" />
+    }" /> -->
   </div>
 </template>
 
@@ -44,7 +46,7 @@ import Timeline from "./components/Timeline.vue";
 
 export default {
   components: {
-    Timeline,    
+    Timeline,
     HoverDisplay,
     LatLngBar,
     PolyLines,

@@ -268,3 +268,5 @@ _build-filter:
     cargo build fast --release
   popd
 
+docs-serve:
+  uvx --with "mkdocs-material[imaging]" mkdocs serve

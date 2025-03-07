@@ -1,40 +1,23 @@
 <template>
   <l-layer-group v-if="showCluster">
-    <l-marker-cluster-group
-      :maxClusterRadius="20"
-      :removeOutsideVisibleBounds="true"
-    >
-      <v-rotated-marker
-        v-for="(item, index) in planeData"
-        :key="index"
-        @click="showRoute"
-        :icon="getIcon(item)"
+    <l-marker-cluster-group :maxClusterRadius="20"
+      :removeOutsideVisibleBounds="true">
+      <v-rotated-marker v-for="(item, index) in planeData" :key="index"
+        @click="showRoute" :icon="getIcon(item)"
         :rotationAngle="getRotate(item)"
-        :class="
-          selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'
-        "
-        :lat-lng.sync="[item.latitude, item.longitude]"
-      >
-        <l-tooltip
-          class="leaflet-tooltip-custom"
-          :id="item.icao24"
-          :options="{ direction: 'top', offset: [0, -10] }"
-        >
+        :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'"
+        :lat-lng="[item.latitude, item.longitude]">
+        <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24"
+          :options="{ direction: 'top', offset: [0, -10] }">
           <p style="font-size: 14px">
-            icao24: <code>{{ item.icao24 }}</code
-            ><br />
-            callsign: <code>{{ item.callsign }}</code
-            ><br />
-            tail: <code>{{ item.registration }}</code
-            ><br />
+            icao24: <code>{{ item.icao24 }}</code><br />
+            callsign: <code>{{ item.callsign }}</code><br />
+            tail: <code>{{ item.registration }}</code><br />
             altitude: <code>{{ item.altitude }}</code>
           </p>
         </l-tooltip>
-        <l-popup
-          class="popup-leaflet-hidden"
-          :autofocus="false"
-          :options="{ autoPan: false }"
-        >
+        <l-popup class="popup-leaflet-hidden" :autofocus="false"
+          :options="{ autoPan: false }">
           <div ref="popup" :id="'popup-' + item.icao24">
             {{ item.icao24 }}
           </div>
@@ -43,30 +26,17 @@
     </l-marker-cluster-group>
   </l-layer-group>
   <l-layer-group v-else>
-    <v-rotated-marker
-      v-for="(item, index) in planeData"
-      :key="index"
-      @click="showRoute"
-      :icon="getIcon(item)"
-      :autofocus="false"
+    <v-rotated-marker v-for="(item, index) in planeData" :key="index"
+      @click="showRoute" :icon="getIcon(item)" :autofocus="false"
       :rotationAngle="getRotate(item)"
-      :class="
-        selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'
-      "
-      :lat-lng.sync="[item.latitude, item.longitude]"
-    >
-      <l-tooltip
-        class="leaflet-tooltip-custom"
-        :id="item.icao24"
-        :options="{ direction: 'top', offset: [0, -10] }"
-      >
+      :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'"
+      :lat-lng="[item.latitude, item.longitude]">
+      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24"
+        :options="{ direction: 'top', offset: [0, -10] }">
         <p style="font-size: 14px">
-          icao24: <code>{{ item.icao24 }}</code
-          ><br />
-          callsign: <code>{{ item.callsign }}</code
-          ><br />
-          tail: <code>{{ item.registration }}</code
-          ><br />
+          icao24: <code>{{ item.icao24 }}</code><br />
+          callsign: <code>{{ item.callsign }}</code><br />
+          tail: <code>{{ item.registration }}</code><br />
           altitude: <code>{{ item.altitude }}</code>
         </p>
       </l-tooltip>
@@ -137,8 +107,12 @@ export default {
   },
   methods: {
     newDataHandler(data) {
+      console.log(data);
+      const now = Math.floor(Date.now() / 1000);
       if (data && data.length > 0) {
-        const arr = data.filter(
+        // only the aircraft has been seen in the last 10 minutes
+        var recent = data.filter(item => item.lastseen >= now - 600);
+        const arr = recent.filter(
           (item) =>
             item.latitude &&
             item.longitude &&
@@ -149,6 +123,10 @@ export default {
           item.latitude = Number(item.latitude);
           item.longitude = Number(item.longitude);
         });
+        const plane_count = document.getElementById("plane_count");
+        if (plane_count) {
+          plane_count.textContent = `${arr.length}`;
+        }
         this.planeData = arr.concat();
       }
     },
@@ -258,8 +236,8 @@ export default {
         html: svgPlain,
         className:
           feature.icao24 === this.selected.icao24 &&
-          feature.callsign === this.selected.callsign &&
-          feature.typecode === this.selected.typecode
+            feature.callsign === this.selected.callsign &&
+            feature.typecode === this.selected.typecode
             ? "aircraft_selected"
             : "aircraft_img",
         iconSize: [33, 35], // width and height of the image in pixels

@@ -2,12 +2,11 @@
   <div class="navbar navbar-default navbar-fixed-top" role="navigation">
     <div class="container-fluid">
       <div style="display: flex; align-items: center">
-        <span class="navbar-brand mb-0 mr-2 h" style="color: black"
-          >tangram</span
-        >
+        <span class="navbar-brand mb-0 mr-2 h"
+          style="color: black">tangram</span>
         <AltitudeSlider />
-        <span class="mr-1 ml-2">Show cluster</span>
-        <input :checked="showCluster" type="checkbox" @change="onChange" />
+        <!--         <span class="mr-1 ml-2">Show cluster</span>
+        <input :checked="showCluster" type="checkbox" @change="onChange" /> -->
       </div>
 
       <plugin-time />
