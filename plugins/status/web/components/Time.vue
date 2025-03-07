@@ -11,8 +11,7 @@
 </template>
 
 <script>
-// FIXME: This is a temporary workaround, maybe {TANGRAM_WEB}/src/store?
-import { useMapStore } from "../../../../web/src/store";
+import { useMapStore } from "@store"; // use the alias instead of relative path
 
 export default {
     data() {

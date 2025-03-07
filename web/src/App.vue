@@ -3,16 +3,15 @@
     <TopNavBar />
     <LeftSideBar ref="leftBar" />
 
-    <l-map @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map"
+    <l-map @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map" 
       v-model:zoom="zoom" :center="center">
 
-      <l-tile-layer :url="map_url" layer-type="base"
-        name="OpenStreetMap"></l-tile-layer>
+      <l-tile-layer :url="map_url" layer-type="base" name="OpenStreetMap"></l-tile-layer>
 
       <PlaneData />
       <PolyLines />
       <Charts v-show="show" />
-      <!-- <LatLngBar :position="position" />-->
+      <LatLngBar :position="position" />
       <HoverDisplay />
 
       <!-- <plugin-sensors /> -->
@@ -33,24 +32,21 @@
 <script>
 import "leaflet/dist/leaflet.css";
 import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
-import { Socket } from "phoenix";
 import TopNavBar from "./components/TopNavBar.vue";
 import LeftSideBar from "./components/LeftSideBar.vue";
 import PlaneData from "./components/AirPlane.vue";
 import PolyLines from "./components/PlanePolylines.vue";
 import Charts from "./components/MultiCharts.vue";
 import { useMapStore } from "./store";
-//import LatLngBar from "./components/LatLngBar.vue";
+import LatLngBar from "./components/LatLngBar.vue";
 import HoverDisplay from "./components/HoverDisplay.vue";
 import Timeline from "./components/Timeline.vue";
-//import Timeline from "./components/Timeline.vue";
 
 export default {
   components: {
-    Timeline,
-    //Timeline,
+    Timeline,    
     HoverDisplay,
-    //LatLngBar,
+    LatLngBar,
     PolyLines,
     LeftSideBar,
     LMap,

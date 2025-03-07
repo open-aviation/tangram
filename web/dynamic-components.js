@@ -83,8 +83,8 @@ export default function dynamicComponentsPlugin(options = {}) {
               console.log(`Using env path for ${pluginName}: ${absPath}`);
             } else {
               // Fallback if env path doesn't exist
-              const fileName = path.basename(envPath);
-              const fallbackPath = `${fallbackDir}${fileName.replace(".vue", "Plugin.vue")}`;
+              const fileName = path.basename(envPath);              
+              const fallbackPath = `${fallbackDir}${fileName}`;
               imports.push(`import ${componentVarName} from '${fallbackPath}'`);
               console.warn(
                 `Env path ${absPath} not found for ${pluginName}, falling back to ${fallbackPath}`,

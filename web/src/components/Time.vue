@@ -11,7 +11,6 @@
 </template>
 
 <script>
-// FIXME: This is a temporary workaround, maybe {TANGRAM_WEB}/src/store?
 import { useMapStore } from "../store";
 
 export default {

@@ -7,6 +7,7 @@
 
 <script>
 import { LGeoJson } from "@vue-leaflet/vue-leaflet";
+
 export default {
     name: "SensorLayer",
     components: {
@@ -17,11 +18,10 @@ export default {
             geoJsonData: null,
         };
     },
-    computed: {
-    },
-    async mounted() {
-        // FIXME: hard coded for now
-        const response = await fetch("http://192.168.11.37:8080/sensors");
+    computed: {},
+    async mounted() {        
+        // `/sensors` is served by jet1090, we'll just let vite proxy it
+        const response = await fetch("/sensors");
         const sensors = await response.json();
         console.log(sensors);
         // Convert sensor data to GeoJSON format
