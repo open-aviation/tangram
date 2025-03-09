@@ -371,6 +371,7 @@ pub async fn launch_channel_redis_listen_task(ctl: &Mutex<ChannelControl>, chann
         return;
     }
     channel.redis_listen_task = Some(tokio::spawn(listen_to_redis(channel.tx.clone(), redis_client, channel_name.clone())));
+    info!("LAUNCH_REDIS_TASK / channel {} redis_listen_task launched", channel_name);
 }
 
 // 添加 agent tx, join channel, spawn agent/conn relay task, ack joining
@@ -488,7 +489,7 @@ async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>
         .unwrap();
     if agent_count == 0 && !is_special_channel(&channel_name) {
         warn!("LEAVE / channel {} is empty, cleaning up ...", channel_name);
-        state.ctl.lock().await.channel_rm(channel_name.clone()).await;
+        state.ctl.lock().await.channel_rm(channel_name.clone()).await; // 空的 channel 会被清理
     }
     ok_reply(conn_id, join_ref, event_ref, &channel_name, state.clone()).await;
 
