@@ -16,7 +16,11 @@
       <LatLngBar :position="position" />
       <HoverDisplay />
 
+      <AirportSearch @airport-selected="centerMapTo" />
+
       <plugin-sensors />
+      <plugin-sigmet />
+
     </l-map>
 
     <!-- <timeline :styles="{
@@ -34,13 +38,15 @@
 <script>
 import "leaflet/dist/leaflet.css";
 
+import { useMapStore } from "./store";
 import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
+
+import AirportSearch from "./components/AirportSearch.vue";
 import TopNavBar from "./components/TopNavBar.vue";
 import LeftSideBar from "./components/LeftSideBar.vue";
 import PlaneData from "./components/AirPlane.vue";
 import PolyLines from "./components/PlanePolylines.vue";
 import Charts from "./components/MultiCharts.vue";
-import { useMapStore } from "./store";
 import LatLngBar from "./components/LatLngBar.vue";
 import HoverDisplay from "./components/HoverDisplay.vue";
 //import Timeline from "./components/Timeline.vue";
@@ -57,6 +63,7 @@ export default {
     TopNavBar,
     PlaneData,
     Charts,
+    AirportSearch,
   },
 
   data() {
@@ -85,6 +92,13 @@ export default {
   },
 
   methods: {
+    centerMapTo(airport) {
+      const map = this.$refs.map.leafletObject;
+      console.log(airport.icao + "selected", map);
+      if (map && airport.lat && airport.lon) {
+        map.setView([airport.lat, airport.lon], 13);
+      }
+    },
     joinChannel(socket, channelName, callbacks) {
       return new Promise((resolve, reject) => {
         console.log(`joining ${channelName} channel ...`);

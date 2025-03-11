@@ -2,6 +2,7 @@ import json
 import logging
 import time
 from datetime import UTC, datetime
+
 import pandas as pd
 import redis
 
@@ -13,7 +14,7 @@ log = logging.getLogger(__name__)
 # history_db = HistoryDB(read_only=True)
 
 
-DT_FMT = "%H:%M:%S"
+DT_FMT = "%H:%M:%S %Z"
 
 
 # def aircraft_on_map():
@@ -40,7 +41,7 @@ def info_utc_html(dtfmt=DT_FMT):
     return {
         "el": el,
         "html": f"""<span id="{el}">{now_utc.strftime(dtfmt)}</span>""",
-        'now': now_utc.isoformat(),
+        "now": now_utc.isoformat(),
     }
 
 
@@ -50,7 +51,7 @@ def info_local_html(dtfmt=DT_FMT):
     return {
         "el": el,
         "html": f"""<span id="{el}">{datetime.now().strftime(dtfmt)}</span>""",
-        'now': now_utc.isoformat(),
+        "now": now_utc.isoformat(),
     }
 
 

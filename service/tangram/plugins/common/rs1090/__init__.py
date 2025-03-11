@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Any
 
 import dotenv
 import httpx
@@ -26,16 +27,17 @@ class Jet1090Data(BaseModel):
     altitude: float | None = None
     # callsign: str | None = None
     # squawk: str | None = None
-    # selected_altitude: float | None = None
-    # groundspeed: float | None = None
-    # vertical_rate: float | None = None
-    # track: float | None = None
-    # ias: float | None = None
-    # tas: float | None = None
-    # mach: float | None = None
-    # roll: float | None = None
-    # heading: float | None = None
-    # nacp: float | None = None
+    selected_altitude: float | None = None
+    groundspeed: float | None = None
+    vertical_rate: float | None = None
+    track: float | None = None
+    IAS: float | None = None
+    TAS: float | None = None
+    Mach: float | None = None
+    roll: float | None = None
+    heading: float | None = None
+    vrate_barometric: float | None = None
+    vrate_inertial: float | None = None
 
 
 class Reference(BaseModel):
@@ -133,7 +135,17 @@ class Rs1090Client:
 
         results = []
         for item in items:
+            # ASK why??
             if "last" not in item:
                 item["last"] = item["timestamp"]
-            results.append(Jet1090Data(**item))
+            results.append(self.flatten(item))
         return results
+
+    def flatten(self, item: dict[str, Any]) -> Jet1090Data:
+        if bds50 := item.get("bds50", None):
+            item |= bds50
+            del item["bds50"]
+        if bds60 := item.get("bds60", None):
+            item |= bds60
+            del item["bds60"]
+        return Jet1090Data(**item)

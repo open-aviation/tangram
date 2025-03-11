@@ -2,6 +2,8 @@
   <div class="navbar navbar-default navbar-fixed-top" role="navigation">
     <div class="container-fluid">
       <div style="display: flex; align-items: center">
+        <img src="/favicon/favicon.png" alt="tangram"
+          style="height: 30px; margin-right: 5px" />
         <span class="navbar-brand mb-0 mr-2 h"
           style="color: black">tangram</span>
         <AltitudeSlider />
@@ -61,7 +63,7 @@ export default {
   },
 };
 </script>
-<style>
+<style scoped>
 .navbar {
   min-height: 50px;
   background: white;

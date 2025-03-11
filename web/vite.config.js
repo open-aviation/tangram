@@ -14,6 +14,7 @@ export default defineConfig({
   envDir: "..",
   resolve: {
     alias: {
+      // eslint-disable-next-line no-undef
       "@store": path.resolve(__dirname, "./src/store"),
     },
   },
@@ -46,6 +47,11 @@ export default defineConfig({
             console.log("Received Response from the Target:", proxyRes.statusCode, req.url);
           });
         }, */
+      },
+      "/airports": {
+        target: `${jet1090_service}/airports`,
+        changeOrigin: true,
+        secure: false,
       },
     },
   },

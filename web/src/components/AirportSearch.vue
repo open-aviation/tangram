@@ -1,0 +1,102 @@
+<template>
+    <div class="airport-search">
+        <input v-model="query" type="text" placeholder="Search for airports..."
+            @click="$event.target.select()" @input="onInput" />
+        <ul v-if="results.length" class="search-results">
+            <li v-for="airport in results" :key="airport.id"
+                @click="selectAirport(airport)">
+                {{ airport.name }} ({{ airport.iata }} | {{ airport.icao }})
+            </li>
+        </ul>
+    </div>
+</template>
+
+<script>
+export default {
+    name: 'AirportSearch',
+    data() {
+        return {
+            query: "",
+            results: [],
+            timeoutId: null
+        }
+    },
+    methods: {
+        onInput() {
+            clearTimeout(this.timeoutId);
+            if (this.query.length >= 3) {
+                // Debounce the search by 300ms.
+                this.timeoutId = setTimeout(() => {
+                    this.searchAirports();
+                }, 300);
+            } else {
+                // Clear results if fewer than 3 letters.
+                this.results = [];
+            }
+        },
+        async searchAirports() {
+            try {
+                const response = await fetch(`/airports?q=${encodeURIComponent(this.query)}`);
+                if (response.ok) {
+                    this.results = await response.json();
+                } else {
+                    console.error("Search error", response.statusText);
+                }
+            } catch (error) {
+                console.error("Search error", error);
+            }
+        },
+        selectAirport(airport) {
+            // Emit an event with the selected airport details.
+            // Parent component should listen to 'airport-selected' to center the map.
+            this.$emit('airport-selected', airport);
+            // Optionally update the query and clear results.
+            this.query = ""; //airport.name;
+            this.results = [];
+        }
+    }
+}
+</script>
+
+<style scoped>
+.airport-search {
+    position: absolute;
+    width: 300px;
+    z-index: 1000;
+    top: 15px;
+    right: 10px;
+}
+
+.airport-search input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: "B612", sans-serif;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    padding: 0;
+    margin: 4px 0 0 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #ccc;
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: "B612", sans-serif;
+}
+
+.search-results li {
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.search-results li:hover {
+    background-color: #eee;
+}
+</style>

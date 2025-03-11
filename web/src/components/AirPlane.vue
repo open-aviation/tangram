@@ -1,5 +1,5 @@
 <template>
-  <l-layer-group v-if="showCluster">
+  <!-- <l-layer-group v-if="showCluster">
     <l-marker-cluster-group :maxClusterRadius="20"
       :removeOutsideVisibleBounds="true">
       <v-rotated-marker v-for="(item, index) in planeData" :key="index"
@@ -25,7 +25,8 @@
       </v-rotated-marker>
     </l-marker-cluster-group>
   </l-layer-group>
-  <l-layer-group v-else>
+  <l-layer-group v-else> -->
+  <l-layer-group>
     <v-rotated-marker v-for="(item, index) in planeData" :key="index"
       @click="showRoute" :icon="getIcon(item)" :autofocus="false"
       :rotationAngle="getRotate(item)"
@@ -58,7 +59,7 @@ import Raphael from "raphael";
 
 import { get_image_object } from "./PlanePath";
 import { useMapStore } from "../store";
-import { LMarkerClusterGroup } from "vue-leaflet-markercluster";
+//import { LMarkerClusterGroup } from "vue-leaflet-markercluster";
 
 import "leaflet/dist/leaflet.css";
 import "vue-leaflet-markercluster/dist/style.css";
@@ -69,7 +70,7 @@ export default {
     LTooltip,
     LPopup,
     "v-rotated-marker": LMarkerRotate,
-    LMarkerClusterGroup,
+    //LMarkerClusterGroup,
   },
   data() {
     return {
@@ -294,5 +295,9 @@ export default {
 
 .leaflet-tooltip:not(:last-child) {
   display: none;
+}
+
+.leaflet-tooltip-custom {
+  font-family: "B612", sans-serif;
 }
 </style>

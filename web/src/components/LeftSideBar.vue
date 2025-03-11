@@ -42,14 +42,15 @@
               <td>typecode</td>
               <td>
                 <p style="display: inline" id="typecode">{{ selected?.typecode
-                  }}
+                }}
                 </p>
               </td>
             </tr>
             <tr class="info_label">
               <td>tail</td>
               <td>
-                <p style="display: inline" id="tail">{{ selected?.tail }}</p>
+                <p style="display: inline" id="tail">{{ selected?.registration
+                  }}</p>
               </td>
             </tr>
             <tr class="info_label">

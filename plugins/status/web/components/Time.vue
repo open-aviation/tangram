@@ -1,9 +1,10 @@
 <template>
     <div>
         <ul class="nav nav-tabs navbar-nav">
-            <li class="nav-item clock">
-                <span id="info_utc" v-html="info_utc"></span>Z |
-                <span id="info_local" v-html="info_local"></span>
+            <li class="nav-item clock" @mouseover="hovered = true"
+                @mouseleave="hovered = false">
+                <span id="info_time" v-html="hovered ? info_local : info_utc">
+                </span>
             </li>
             <span id="uptime" v-html="uptime"></span>
         </ul>
@@ -34,7 +35,13 @@ export default {
 </script>
 
 <style scoped>
-#info_local {
-    color: green;
+#uptime {
+    color: #79706e;
+    font-size: 9pt;
+    text-align: center;
+}
+
+.nav {
+    align-items: center;
 }
 </style>

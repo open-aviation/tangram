@@ -121,7 +121,7 @@ async def home(request: Request, history: int = 0) -> HTMLResponse:
 @app.get("/data/{icao24}")
 async def data(icao24: str) -> list[rs1090.Jet1090Data]:
     records = await jet1090_restful_client.icao24_track(icao24) or []
-    return [r for r in records if r.latitude is not None and r.longitude is not None]
+    return [r for r in records if r.df in [17, 18, 20, 21]]
 
 
 @app.websocket("/websocket")
