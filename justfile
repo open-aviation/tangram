@@ -8,6 +8,9 @@ JB := "podman run -it --rm --name jb ghcr.io/h4l/json.bash/jb"
 default:
     @just --list
 
+redis:
+  podman container run --rm -d --name redis -p 6379:6379 docker.io/library/redis:8.0-M03-alpine
+
 # Auto-format the source tree
 fmt:
     treefmt
@@ -19,17 +22,17 @@ fmt:
 
 run target="channel":
   watchexec -w . -e rs -r -- RUST_LOG=debug cargo run --bin {{target}} -- \
-    --host 0.0.0.0 --port 2025 --jwt-secret secret --redis-url redis://192.168.11.37:6379 --static-path ./channel/assets
+    --host 0.0.0.0 --port 2025 --jwt-secret secret --redis-url redis://192.168.9.37:6379 --static-path ./channel/assets
 
 pub message channel="system" event="default":
-  redis-cli -u redis://192.168.11.37:6379 publish to:{{channel}}:{{event}} '{"type": "message", "message": "{{message}}"}'
+  redis-cli -u redis://192.168.9.37:6379 publish to:{{channel}}:{{event}} '{"type": "message", "message": "{{message}}"}'
 
 admin-dt:
   #!/usr/bin/env bash
   set -x -euo pipefail
 
   MESSAGE="hello, world!"
-  redis-cli -u redis://192.168.11.37:6379 publish to:admin:dt '{"type": "message", "message": "${MESSAGE}"}'
+  redis-cli -u redis://192.168.9.37:6379 publish to:admin:dt '{"type": "message", "message": "${MESSAGE}"}'
 
 jb *args:
   @{{JB}} {{args}}
@@ -77,21 +80,21 @@ msg c="":
 
   echo "${MESSAGE}"
   # Echo the MESSAGE, then use xargs to insert it into the publish command
-  echo "$MESSAGE" | xargs -I {} redis-cli -u redis://192.168.11.37:6379 publish to:admin:dt "{\"type\": \"message\", \"message\": \"{}\"}"
+  echo "$MESSAGE" | xargs -I {} redis-cli -u redis://192.168.9.37:6379 publish to:admin:dt "{\"type\": \"message\", \"message\": \"{}\"}"
 
 pub-object *args:
   #!/usr/bin/env bash
   
   MESSAGE=$(just jb {{args}})
   echo "publishing: $MESSAGE"
-  redis-cli -u redis://192.168.11.37:6379 publish to:admin:dt "${MESSAGE}"
+  redis-cli -u redis://192.168.9.37:6379 publish to:admin:dt "${MESSAGE}"
 
 pub-string value="":
-  redis-cli -u redis://192.168.11.37:6379 publish to:admin:dt '"{{value}}"'
+  redis-cli -u redis://192.168.9.37:6379 publish to:admin:dt '"{{value}}"'
 
 pub-bool value="true":
   #!/usr/bin/env bash
-  redis-cli -u redis://192.168.11.37:6379 publish to:admin:dt '{{value}}'
+  redis-cli -u redis://192.168.9.37:6379 publish to:admin:dt '{{value}}'
 
 token id="":
   curl -s -X POST http://localhost:2025/token -H "Content-Type: application/json" -d '{"channel": "system", "id": "{{id}}"}' | jq -r .

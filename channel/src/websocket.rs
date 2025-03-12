@@ -303,7 +303,8 @@ async fn handle_message(
     if event == "phx_join" {
         // 如果没有channel，创建
 
-        // TODO: 这里启动了一个新的 relay task(agent rx => conn tx), 需要在agent leave 的时候清除
+        // 启动一个新的 relay task (agent rx => conn tx), 需要在agent leave 的时候清除
+        // connection 中每个 join 都会产生这个 task；connection 断掉的时候会自动退出
         let _relay_task = handle_join(user_token, &rm, state.clone(), conn_id).await;
         debug!("WS_RX / join processed");
         // continue;
@@ -311,9 +312,7 @@ async fn handle_message(
 
     if event == "phx_leave" {
         handle_leave(state.clone(), conn_id, join_ref.clone(), event_ref, channel_name.clone()).await;
-        // TODO: cleanup _relay_task
         debug!("WS_RX / leave processed");
-        // continue;
     }
 
     // all events are dispatched to reids
@@ -362,7 +361,9 @@ pub async fn add_channel(ctl: &Mutex<ChannelControl>, channel_name: String) {
 }
 
 /// launch a tokio thread to listen to redis topic
-pub async fn launch_channel_redis_listen_task(ctl: &Mutex<ChannelControl>, channel_name: String, redis_client: redis::Client) {
+/// 每个 channel 第一个 agent 连上来的时候创建这个 thread，最后一个离开时候会销毁
+/// phoenix, system, admin 这3个的是直接创建的，并一致存在
+pub async fn launch_channel_redis_listen_task(state: Arc<State>, ctl: &Mutex<ChannelControl>, channel_name: String, redis_client: redis::Client) {
     let ctl = ctl.lock().await;
     let mut channels = ctl.channels.lock().await;
     let channel: &mut Channel = channels.get_mut(&channel_name).unwrap();
@@ -370,7 +371,7 @@ pub async fn launch_channel_redis_listen_task(ctl: &Mutex<ChannelControl>, chann
         warn!("LAUNCH_REDIS_TASK / channel {} redis_listen_task already exists", channel_name);
         return;
     }
-    channel.redis_listen_task = Some(tokio::spawn(listen_to_redis(channel.tx.clone(), redis_client, channel_name.clone())));
+    channel.redis_listen_task = Some(tokio::spawn(listen_to_redis(state, channel.tx.clone(), redis_client, channel_name.clone())));
     info!("LAUNCH_REDIS_TASK / channel {} redis_listen_task launched", channel_name);
 }
 
@@ -399,7 +400,7 @@ async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc
         info!("ADD_CH / channel {} is special, ignored", channel_name);
     } else {
         add_channel(&state.ctl, channel_name.clone()).await;
-        launch_channel_redis_listen_task(&state.ctl, channel_name.clone(), state.redis_client.clone()).await;
+        launch_channel_redis_listen_task(state.clone(), &state.ctl, channel_name.clone(), state.redis_client.clone()).await;
     }
 
     let agent_id = format!("{}:{}:{}", conn_id, channel_name.clone(), rm.join_ref.clone().unwrap());
@@ -433,11 +434,11 @@ async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc
         let mut agent_rx = relay_state.ctl.lock().await.agent_rx(local_agent_id.clone()).await.unwrap();
         let conn_tx = relay_state.ctl.lock().await.conn_tx(local_conn_id.to_string()).await.unwrap();
 
-        debug!("agent {} => conn {}", local_agent_id.clone(), local_conn_id.clone());
+        debug!("R / agent {} => conn {}", local_agent_id.clone(), local_conn_id.clone());
         loop {
             let message_opt = agent_rx.recv().await;
             if message_opt.is_err() {
-                error!("fail to get message from agent rx: {}", message_opt.err().unwrap());
+                error!("R / fail to get message from agent rx: {}", message_opt.err().unwrap());
                 break;
             }
             let mut channel_message = message_opt.unwrap();
@@ -445,10 +446,10 @@ async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc
             reply.join_ref = local_join_ref.clone();
             let send_result = conn_tx.send(channel_message.clone()); // agent rx => conn tx => conn rx => ws tx
             if send_result.is_err() {
-                error!("agent {}, conn: {}, sending failure: {:?}", &local_agent_id, &local_conn_id, send_result.err().unwrap());
-                break; // fails when there's no reciever, stop forwarding
+                error!("R / agent {}, conn: {}, sending failure: {:?}, exit ...", &local_agent_id, &local_conn_id, send_result.err().unwrap());
+                break; // fails when there's no reciever, connection lost, stop forwarding
             }
-            // debug!("F {}", channel_message);
+            // debug!("R / agent {}, sent", &local_agent_id);
         }
     });
 
@@ -478,7 +479,7 @@ async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc
 }
 
 async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: String) {
-    let agent_id = format!("{}:{}:{}", conn_id, channel_name.clone(), join_ref.clone().unwrap());
+    let agent_id = format!("{}:{}:{}", conn_id, channel_name, join_ref.clone().unwrap());
     let external_id_opt = state.ctl.lock().await.agent_rm(agent_id.clone()).await;
     let agent_count = state
         .ctl
@@ -660,22 +661,45 @@ pub async fn datetime_handler(state: Arc<State>, channel_name: String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::{
+        extract::{Query, State as AxumState, WebSocketUpgrade},
+        response::IntoResponse,
+        routing::get,
+        Router,
+    };
     use futures::{SinkExt, StreamExt};
+    use serde::Deserialize;
     use serde_json::json;
     use std::collections::HashSet;
     use std::sync::Arc;
+    use tokio::net::{TcpListener, TcpStream};
     use tokio::sync::Mutex;
-    use tokio_tungstenite::connect_async;
-    use tokio_tungstenite::tungstenite::Message;
-    use warp::Filter;
+    use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
+
+    #[derive(Debug, Deserialize)]
+    struct WebSocketParams {
+        #[serde(rename = "userToken")]
+        user_token: Option<String>,
+
+        #[serde(rename = "vsn")]
+        version: Option<String>,
+    }
+
+    async fn axum_websocket_handler(
+        ws: WebSocketUpgrade, Query(params): Query<WebSocketParams>, AxumState(state): AxumState<Arc<State>>,
+    ) -> impl IntoResponse {
+        let user_token = params.user_token.clone();
+        ws.on_upgrade(move |socket| axum_on_connected(socket, state, user_token))
+    }
 
     async fn setup_test_server() -> (String, Arc<State>) {
-        let redis_url = "redis://192.168.11.37:6379".to_string(); // FIXME
+        let redis_url = "redis://127.0.0.1:6379".to_string();
         let redis_client = redis::Client::open(redis_url.clone()).unwrap();
+        let channel_control = ChannelControl::new(Arc::new(redis_client.clone()));
         let state = Arc::new(State {
-            ctl: Mutex::new(ChannelControl::new()),
+            ctl: Mutex::new(channel_control),
             redis_client,
-            jwt_secret: "secret".clone(),
+            jwt_secret: "secret".into(),
         });
 
         // Setup channels
@@ -684,37 +708,37 @@ mod tests {
         state.ctl.lock().await.channel_add("streaming".into(), None).await;
 
         // Spawn system task
-        tokio::spawn(datetime_handler(state.clone(), "system"));
+        tokio::spawn(datetime_handler(state.clone(), "system".into()));
 
-        let websocket_shared_state = state.clone();
-        let websocket_shared_state = warp::any().map(move || websocket_shared_state.clone());
-        let ws = warp::path("websocket")
-            .and(warp::ws())
-            .and(websocket_shared_state)
-            .map(|ws: warp::ws::Ws, state| ws.on_upgrade(move |socket| warp_on_connected(socket, state)));
+        // Create Axum router with websocket handler
+        let app = Router::new().route("/websocket", get(axum_websocket_handler)).with_state(state.clone());
 
-        let (addr, server) = warp::serve(ws).bind_ephemeral(([127, 0, 0, 1], 0));
-        let addr = format!("ws://127.0.0.1:{}/websocket", addr.port());
-        tokio::spawn(server);
+        // Bind to a random available port
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let addr = format!("ws://127.0.0.1:{}/websocket", port);
 
+        // Start the server
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        // Return the websocket URL and state
         (addr, state)
     }
 
     async fn connect_client(
         addr: &str,
     ) -> (
-        futures::stream::SplitSink<
-            tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
-            tokio_tungstenite::tungstenite::Message,
-        >,
-        futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>,
+        futures::stream::SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tokio_tungstenite::tungstenite::Message>,
+        futures::stream::SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
     ) {
         let (ws_stream, _) = connect_async(addr).await.expect("Failed to connect");
         ws_stream.split()
     }
 
     #[tokio::test]
-    async fn test_websocket_connection() {
+    async fn test_ws_websocket_connection() {
         let (addr, _) = setup_test_server().await;
         let (mut tx, mut rx) = connect_client(&addr).await;
 
@@ -729,53 +753,180 @@ mod tests {
         }
     }
 
-    // FIXME: not cleaned up
-    //
-    // #[tokio::test]
-    // async fn test_channel_join_leave_flow() {
-    //     let (addr, state) = setup_test_server().await;
-    //     let (mut tx, mut rx) = connect_client(&addr).await;
-    //
-    //     // Join system channel
-    //     let join_msg = r#"["1","ref1","system","phx_join",{"token":"test"}]"#;
-    //     tx.send(Message::text(join_msg)).await.unwrap();
-    //
-    //     // Verify join response
-    //     if let Some(Ok(msg)) = rx.next().await {
-    //         let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
-    //         assert_eq!(resp[1], "ref1");
-    //         assert_eq!(resp[2], "system");
-    //         assert_eq!(resp[4]["status"], "ok");
-    //     }
-    //
-    //     // Leave channel
-    //     let leave_msg = r#"["1","ref2","system","phx_leave",{}]"#;
-    //     tx.send(Message::text(leave_msg)).await.unwrap();
-    //
-    //     // Verify leave response
-    //     if let Some(Ok(msg)) = rx.next().await {
-    //         let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
-    //         assert_eq!(resp[1], "ref2");
-    //         assert_eq!(resp[2], "system");
-    //         assert_eq!(resp[4]["status"], "ok");
-    //     }
-    //
-    //     // Verify channel state
-    //     assert!(state
-    //         .ctl
-    //         .lock()
-    //         .await
-    //         .channel_map
-    //         .lock()
-    //         .await
-    //         .get("system")
-    //         .unwrap()
-    //         .empty());
-    // }
-    //
+    #[tokio::test]
+    async fn test_ws_channel_join_leave_flow() {
+        let (addr, state) = setup_test_server().await;
+        let (mut tx, mut rx) = connect_client(&addr).await;
+
+        // Join system channel
+        let join_msg = r#"["1","ref1","system","phx_join",{"token":"test"}]"#;
+        tx.send(Message::text(join_msg)).await.unwrap();
+
+        // Wait for and verify join response (may need to skip other messages)
+        let mut join_confirmed = false;
+        // Use a longer timeout and handle timeout error properly
+        let timeout_duration = std::time::Duration::from_secs(5);
+        'join_loop: for _ in 0..10 {
+            // Try up to 10 messages before giving up
+            match tokio::time::timeout(timeout_duration, rx.next()).await {
+                Ok(Some(Ok(msg))) => {
+                    let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+
+                    // Print for debugging purposes during test development
+                    // println!("Received message: {}", resp);
+
+                    // Check if this is the join response we're looking for
+                    if resp[1] == "ref1" && resp[2] == "system" && resp[3] == "phx_reply" {
+                        assert_eq!(resp[4]["status"], "ok");
+                        join_confirmed = true;
+                        break 'join_loop;
+                    }
+                    // Otherwise it's some other message like presence_state - ignore and continue
+                }
+                Ok(Some(Err(_))) => panic!("WebSocket error during join"),
+                Ok(None) => panic!("WebSocket closed unexpectedly during join"),
+                Err(_) => panic!("Timed out waiting for join response"),
+            }
+        }
+
+        assert!(join_confirmed, "Never received join confirmation after reading multiple messages");
+
+        // Check system channel has our agent
+        {
+            let ctl = state.ctl.lock().await;
+            let channels = ctl.channels.lock().await;
+            let agents = channels.get("system").unwrap().agents.lock().await;
+            assert_eq!(agents.len(), 1);
+        }
+
+        // Leave channel
+        let leave_msg = r#"["1","ref2","system","phx_leave",{}]"#;
+        tx.send(Message::text(leave_msg)).await.unwrap();
+
+        // Wait for and verify leave response
+        let mut leave_confirmed = false;
+        'leave_loop: for _ in 0..10 {
+            // Try up to 10 messages before giving up
+            match tokio::time::timeout(timeout_duration, rx.next()).await {
+                Ok(Some(Ok(msg))) => {
+                    let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+
+                    // Print for debugging purposes during test development
+                    // println!("Received message: {}", resp);
+
+                    // Check if this is the leave response we're looking for
+                    if resp[1] == "ref2" && resp[2] == "system" && resp[3] == "phx_reply" {
+                        assert_eq!(resp[4]["status"], "ok");
+                        leave_confirmed = true;
+                        break 'leave_loop;
+                    }
+                    // Otherwise it's some other message - ignore and continue
+                }
+                Ok(Some(Err(_))) => panic!("WebSocket error during leave"),
+                Ok(None) => panic!("WebSocket closed unexpectedly during leave"),
+                Err(_) => panic!("Timed out waiting for leave response"),
+            }
+        }
+
+        assert!(leave_confirmed, "Never received leave confirmation after reading multiple messages");
+
+        // Verify channel state
+        {
+            let ctl = state.ctl.lock().await;
+            let channels = ctl.channels.lock().await;
+            let agents = channels.get("system").unwrap().agents.lock().await;
+            assert_eq!(agents.len(), 0);
+        }
+
+        // Explicitly close the connection and wait for it to finish
+        drop(tx);
+        drop(rx);
+
+        // Give time for cleanup tasks to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    }
 
     #[tokio::test]
-    async fn test_flow_server() {
+    async fn test_ws_connection_close_websocket() {
+        let (addr, state) = setup_test_server().await;
+        let (mut tx, mut rx) = connect_client(&addr).await;
+
+        // Join system channel
+        let join_msg = r#"["1","ref1","system","phx_join",{"token":"test"}]"#;
+        tx.send(Message::text(join_msg)).await.unwrap();
+
+        // Wait for join response
+        if let Some(Ok(_)) = rx.next().await {}
+
+        // Give time for join to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+
+        // Verify agent joined
+        let agent_count = {
+            let ctl = state.ctl.lock().await;
+            let channels = ctl.channels.lock().await;
+            let agents = channels.get("system").unwrap().agents.lock().await;
+            agents.len()
+        };
+        assert_eq!(agent_count, 1, "Agent should be joined");
+
+        // Close connection by dropping handles
+        drop(tx);
+        drop(rx);
+
+        // Give time for cleanup
+        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+        // Verify agent was removed
+        let agent_count = {
+            let ctl = state.ctl.lock().await;
+            let channels = ctl.channels.lock().await;
+            let agents = channels.get("system").unwrap().agents.lock().await;
+            agents.len()
+        };
+        assert_eq!(agent_count, 0, "Agent should be removed after connection close");
+    }
+
+    // Add a new test for multiple clients that doesn't depend on specific agent IDs
+    #[tokio::test]
+    async fn test_ws_multiple_clients_fixed() {
+        let (addr, state) = setup_test_server().await;
+
+        // Connect and join with multiple clients
+        let mut clients = vec![];
+        for i in 0..3 {
+            let (mut tx, mut rx) = connect_client(&addr).await;
+
+            // Join system channel
+            let join_msg = format!(r#"["{}","ref{}","system","phx_join",{{"token":"test"}}]"#, i, i);
+            tx.send(Message::text(join_msg)).await.unwrap();
+
+            // Verify join response
+            if let Some(Ok(_)) = tokio::time::timeout(std::time::Duration::from_secs(1), rx.next()).await.unwrap() {}
+
+            clients.push((tx, rx));
+        }
+
+        // Give time for all joins to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // Verify channel has 3 agents
+        let agent_count = {
+            let ctl = state.ctl.lock().await;
+            let channels = ctl.channels.lock().await;
+            let system_channel = channels.get("system").unwrap();
+            let agents = system_channel.agents.lock().await;
+            agents.len()
+        };
+
+        assert_eq!(agent_count, 3, "Should have 3 agents connected");
+
+        // Clean up
+        drop(clients);
+    }
+
+    #[tokio::test]
+    async fn test_ws_flow_server() {
         let (_addr, state) = setup_test_server().await;
 
         let ctl = state.ctl.lock().await;
@@ -795,7 +946,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_flow_join_leave() {
+    async fn test_ws_flow_join_leave() {
         let (addr, state) = setup_test_server().await;
         let (mut tx, mut rx) = connect_client(&addr).await;
 
@@ -844,7 +995,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_multiple_clients() {
+    async fn test_ws_multiple_clients() {
         let (addr, state) = setup_test_server().await;
 
         // Connect multiple clients
@@ -885,7 +1036,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_message_broadcast() {
+    async fn test_ws_message_broadcast() {
         let (addr, state) = setup_test_server().await;
         let (mut tx1, mut rx1) = connect_client(&addr).await;
         let (mut tx2, mut rx2) = connect_client(&addr).await;
@@ -905,15 +1056,12 @@ mod tests {
             event_ref: "broadcast".to_string(),
             topic: "system".to_string(),
             event: "test".to_string(),
-            payload: ServerPayload {
+            payload: ServerPayload::ServerResponse(ServerResponse {
                 status: "ok".to_string(),
-                // response: json!({
-                //     "message": "test broadcast".to_string(),
-                // }),
                 response: Response::Message {
                     message: "test broadcast".to_string(),
                 },
-            },
+            }),
         };
 
         state
@@ -934,35 +1082,8 @@ mod tests {
         }
     }
 
-    // FIXME: not cleaned up
-    //
-    // #[tokio::test]
-    // async fn test_connection_close() {
-    //     let (addr, state) = setup_test_server().await;
-    //     let (mut tx, mut rx) = connect_client(&addr).await;
-    //
-    //     let join_msg = r#"["1","ref1","system","phx_join",{"token":"test"}]"#;
-    //     tx.send(Message::text(join_msg)).await.unwrap();
-    //     rx.next().await;
-    //
-    //     drop(tx);
-    //     drop(rx);
-    //
-    //     tokio::time::sleep(Duration::from_millis(100)).await;
-    //     assert!(state
-    //         .ctl
-    //         .lock()
-    //         .await
-    //         .channel_map
-    //         .lock()
-    //         .await
-    //         .get("system")
-    //         .unwrap()
-    //         .empty());
-    // }
-
     #[tokio::test]
-    async fn test_invalid_messages() {
+    async fn test_ws_invalid_messages() {
         let (addr, _) = setup_test_server().await;
         let (mut tx, mut rx) = connect_client(&addr).await;
 
@@ -988,7 +1109,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_system_channel() {
+    async fn test_ws_system_channel() {
         let (addr, _) = setup_test_server().await;
         let (mut tx, mut rx) = connect_client(&addr).await;
 
@@ -1027,7 +1148,7 @@ mod tests {
     // }
 
     #[test]
-    fn test_request_json_heartbeat() {
+    fn test_ws_request_json_heartbeat() {
         // Test full message with join payload
         let msg: RequestMessage = serde_json::from_str(r#"["1", "ref1", "room123", "heartbeat", {}]"#).unwrap();
 
@@ -1039,7 +1160,7 @@ mod tests {
     }
 
     #[test]
-    fn test_request_json_join() {
+    fn test_ws_request_json_join() {
         // Test full message with join payload
         let msg: RequestMessage = serde_json::from_str(r#"["1", "ref1", "room123", "phx_join", {"token": "secret_token"}]"#).unwrap();
 
@@ -1056,7 +1177,7 @@ mod tests {
     }
 
     #[test]
-    fn test_request_json_message() {
+    fn test_ws_request_json_message() {
         let json = r#"["1", "ref4", "room123", "message", {"message": "Hello, World!"}]"#;
 
         let msg: RequestMessage = serde_json::from_str(json).unwrap();
@@ -1074,7 +1195,7 @@ mod tests {
     }
 
     #[test]
-    fn test_request_json_message_payload() {
+    fn test_ws_request_json_message_payload() {
         let payload: RequestPayload = serde_json::from_value(json!({})).unwrap();
         assert_eq!(payload, RequestPayload::JsonValue(json!({})));
 
@@ -1096,7 +1217,7 @@ mod tests {
     }
 
     #[test]
-    fn test_request_json_invalid() {
+    fn test_ws_request_json_invalid() {
         // Invalid array length
         assert!(serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123"]"#).is_err());
         assert!(serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123", "phx_join"]"#).is_err());

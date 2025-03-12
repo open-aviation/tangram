@@ -171,14 +171,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // phoenix & admin are special
     add_channel(&state.ctl, "phoenix".into()).await;
-    launch_channel_redis_listen_task(&state.ctl, "phoenix".into(), state.redis_client.clone()).await;
+    launch_channel_redis_listen_task(state.clone(), &state.ctl, "phoenix".into(), state.redis_client.clone()).await;
 
     add_channel(&state.ctl, "admin".into()).await;
-    launch_channel_redis_listen_task(&state.ctl, "admin".into(), state.redis_client.clone()).await;
+    launch_channel_redis_listen_task(state.clone(), &state.ctl, "admin".into(), state.redis_client.clone()).await;
 
     // predefined channel
     add_channel(&state.ctl, "system".into()).await;
-    launch_channel_redis_listen_task(&state.ctl, "system".into(), state.redis_client.clone()).await;
+    launch_channel_redis_listen_task(state.clone(), &state.ctl, "system".into(), state.redis_client.clone()).await;
 
     tokio::spawn(datetime_handler(state.clone(), "system".into()));
 

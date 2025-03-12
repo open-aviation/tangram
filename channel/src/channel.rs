@@ -8,12 +8,11 @@ use std::{
     error::Error,
     fmt::{self, Display},
     sync::{
-        atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering},
+        atomic::{AtomicU32, AtomicU64, Ordering},
         Arc,
     },
 };
 use tokio::{
-    time::{self, Duration},
     sync::{
         broadcast::{self, error::SendError},
         Mutex,
@@ -22,7 +21,7 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 
-use crate::websocket::{Response, ServerMessage, ServerPayload};
+use crate::websocket::{Response, ServerMessage, ServerPayload, State};
 
 #[derive(Clone, Debug, Serialize)]
 pub enum ChannelMessage {
@@ -253,9 +252,10 @@ impl ChannelControl {
             self.conn_cleanup_presense_leave(conn_id.clone(), name.clone()).await;
 
             let mut agents = channel.agents.lock().await;
-            debug!("CONN / {}, agents {} {:?}", name, agents.len(), agents);
+            debug!("CH / {}, agents {} {:?}", name, agents.len(), agents);
             agents.retain(|agent| !agent.starts_with(&conn_id));
-            debug!("CONN / {}, removed agents of conn {}, agents {} {:?}", name, conn_id, agents.len(), agents);
+            // channel 可能空了，需要清空里面
+            debug!("CH / {}, removed agents of conn {}, agents {} {:?}", name, conn_id, agents.len(), agents);
 
             let meta = json!({"agent": serde_json::Value::Null, "channel": name, "agents": *agents});
             self.pub_meta_event("channel".into(), "leave".into(), meta).await;
@@ -558,7 +558,9 @@ impl ChannelEventFromRedis {
 }
 
 /// 从redis 监听消息, per channel 的任务
-pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client: redis::Client, channel_name: String) -> RedisResult<()> {
+pub async fn listen_to_redis(
+    state: Arc<State>, tx: broadcast::Sender<ChannelMessage>, redis_client: redis::Client, channel_name: String,
+) -> RedisResult<()> {
     let redis_topic = format!("to:{}:*", channel_name);
     let mut redis_pubsub = redis_client.get_async_pubsub().await?;
     redis_pubsub.psubscribe(redis_topic.clone()).await?;
@@ -570,34 +572,34 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
     info!("LISTENER / subscribed to redis, channel: {}", redis_topic);
 
     // 克隆一个计数器的引用用于统计线程
-    let counter_for_stats = counter.clone();
+    // let counter_for_stats = counter.clone();
 
     // 启动统计任务
-    let stat_channel_name = channel_name.clone();
-    
+    // let stat_channel_name = channel_name.clone();
+
     // once channel to notify the stats thread to stop
-    let exit_stat = Arc::new(AtomicBool::new(false));
-    let stat_should_exit = exit_stat.clone();
+    // let exit_stat = Arc::new(AtomicBool::new(false));
+    // let stat_should_exit = exit_stat.clone();
 
-    let stat_handler = tokio::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(1));
-        let mut last_count = 0u64;
-
-        loop {
-            if stat_should_exit.load(Ordering::Relaxed) {
-                info!("LISTENER / stats thread exit");
-                break;
-            }
-
-            interval.tick().await;
-            let current_count = counter_for_stats.load(Ordering::Relaxed);
-            let delta = current_count.saturating_sub(last_count);
-            if delta > 10 {
-                info!("LISTENER / {} Stats - Total messages: {}, Messages/sec: {}", stat_channel_name, current_count, delta);
-            }
-            last_count = current_count;
-        }
-    });
+    // let stat_handler = tokio::spawn(async move {
+    //     let mut interval = time::interval(Duration::from_secs(1));
+    //     let mut last_count = 0u64;
+    //
+    //     loop {
+    //         if stat_should_exit.load(Ordering::Relaxed) {
+    //             info!("LISTENER / stats thread exit");
+    //             break;
+    //         }
+    //
+    //         interval.tick().await;
+    //         let current_count = counter_for_stats.load(Ordering::Relaxed);
+    //         let delta = current_count.saturating_sub(last_count);
+    //         if delta > 10 {
+    //             info!("LISTENER / {} Stats - Total messages: {}, Messages/sec: {}", stat_channel_name, current_count, delta);
+    //         }
+    //         last_count = current_count;
+    //     }
+    // });
 
     info!("LISTENER / subscribed to redis, channel: {}", redis_topic);
     loop {
@@ -640,7 +642,9 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
             payload: ServerPayload::ServerJsonValue(value),
         };
         match tx.send(ChannelMessage::Reply(reply_message.clone())) {
-            Ok(_count) => {} // debug!("LISTENER / published, to {}:{}, {}", &msg.channel, &msg.event, reply_message),
+            Ok(_count) => {
+                // debug!("LISTENER / published, channel: {}, event: {}, receiver count {}", ev.channel, ev.event, count);
+            }
             Err(e) => {
                 // 只可能在没有 agent 的时候发生
 
@@ -650,7 +654,6 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
                 }
                 // 如果 channel 已经close 了，也不需要publish
                 error!("LISTENER / fail to publish, dest: {}:{}, err: {}", &ev.channel, &ev.event, e);
-                
                 break; // 选择退出当前线程，但是需要注意的是如果有新的agent 加入，需要重启这个线程
             }
         }
@@ -660,8 +663,13 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
         // debug!("LISTENER / publish message from redis, counter: {}", counter);
     }
 
-    exit_stat.store(true, Ordering::Relaxed);
-    stat_handler.await.unwrap();
+    // exit_stat.store(true, Ordering::Relaxed);
+    // stat_handler.await.unwrap();
+
+    let ctl = state.ctl.lock().await;
+    let mut channels = ctl.channels.lock().await;
+    let channel: &mut Channel = channels.get_mut(&channel_name).unwrap();
+    channel.redis_listen_task = None;
 
     Ok(())
 }
@@ -682,8 +690,13 @@ pub async fn listen_to_redis(tx: broadcast::Sender<ChannelMessage>, redis_client
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
+    use tokio::sync::broadcast;
+
     use crate::channel::{Channel, ChannelControl, ChannelError, ChannelMessage};
-    use crate::websocket::{Response, ServerMessage, ServerPayload};
+    use crate::utils::random_string;
+    use crate::websocket::{Response, ServerMessage, ServerPayload, ServerResponse};
 
     fn create_test_message(topic: &str, reference: &str, message: &str) -> ChannelMessage {
         ChannelMessage::Reply(ServerMessage {
@@ -691,16 +704,169 @@ mod test {
             event_ref: reference.to_string(),
             topic: topic.to_string(),
             event: "test_event".to_string(),
-            payload: ServerPayload {
+            payload: ServerPayload::ServerResponse(ServerResponse {
                 status: "ok".to_string(),
-                // response: json!({
-                //     "message": message.to_string(),
-                // }),
                 response: Response::Message {
                     message: message.to_string(),
                 },
-            },
+            }),
         })
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_capacity() {
+        let capacity = 2;
+        let (tx, mut rx1) = broadcast::channel::<&str>(capacity);
+        let mut rx2 = tx.subscribe();
+
+        // Send more messages than capacity
+        tx.send("msg1").unwrap();
+        tx.send("msg2").unwrap();
+        tx.send("msg3").unwrap();
+
+        // Explicitly check what's available in the channel now
+        let msg1_rx1 = rx1.try_recv();
+        let msg1_rx2 = rx2.try_recv();
+
+        // Both receivers should get msg2 (not msg1, which was pushed out)
+        assert!(msg1_rx1.is_ok());
+        assert!(msg1_rx2.is_ok());
+        assert_eq!(msg1_rx1.unwrap(), "msg2");
+        assert_eq!(msg1_rx2.unwrap(), "msg2");
+
+        // Next message should be msg3
+        assert_eq!(rx1.try_recv().unwrap(), "msg3");
+        assert_eq!(rx2.try_recv().unwrap(), "msg3");
+
+        // No more messages
+        assert!(rx1.try_recv().is_err());
+        assert!(rx2.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn test_channel_capacity() {
+        let channel = Channel::new("test".to_string(), Some(2));
+        let agent_id = "agent1".to_string();
+        let tx = channel.join(agent_id.clone()).await;
+        let mut rx = tx.subscribe();
+
+        // Create messages
+        let msg1 = create_test_message("test", "0", "msg0");
+        let msg2 = create_test_message("test", "1", "msg1");
+        let msg3 = create_test_message("test", "2", "msg2");
+
+        // Send messages (exceeding capacity)
+        channel.send(msg1).unwrap();
+        channel.send(msg2).unwrap();
+        channel.send(msg3).unwrap();
+
+        // First message should be "msg1" as "msg0" is lagged out
+        if let Ok(ChannelMessage::Reply(reply)) = rx.try_recv() {
+            if let ServerPayload::ServerResponse(server_response) = reply.payload {
+                if let Response::Message { message } = server_response.response {
+                    assert_eq!(message, "msg1");
+                    assert_eq!(reply.event_ref, "1");
+                } else {
+                    panic!("Wrong response type");
+                }
+            }
+        } else {
+            panic!("Failed to receive first message");
+        }
+
+        // Second message should be "msg2"
+        if let Ok(ChannelMessage::Reply(reply)) = rx.try_recv() {
+            if let ServerPayload::ServerResponse(server_response) = reply.payload {
+                if let Response::Message { message } = server_response.response {
+                    assert_eq!(message, "msg2");
+                    assert_eq!(reply.event_ref, "2");
+                } else {
+                    panic!("Wrong response type");
+                }
+            }
+        } else {
+            panic!("Failed to receive second message");
+        }
+
+        // No more messages
+        assert!(rx.try_recv().is_err());
+    }
+
+    // Fix test_channel_control_operations with manual setup and steps
+    #[tokio::test]
+    async fn test_channel_control_operations() {
+        let redis_client = redis::Client::open("redis://127.0.0.1:6379").unwrap();
+        let ctl = ChannelControl::new(Arc::new(redis_client));
+
+        // Add channels
+        ctl.channel_add("room1".into(), None).await;
+        ctl.channel_add("room2".into(), None).await;
+
+        // Add agents
+        ctl.agent_add("user1".into(), None).await;
+        ctl.agent_add("user2".into(), None).await;
+
+        // Join channels
+        let join1 = ctl.channel_join("room1", "user1".into(), random_string(8)).await;
+        assert!(join1.is_ok());
+        let join2 = ctl.channel_join("room2", "user1".into(), random_string(8)).await;
+        assert!(join2.is_ok());
+        let join3 = ctl.channel_join("room1", "user2".into(), random_string(8)).await;
+        assert!(join3.is_ok());
+
+        // Broadcast message to room1
+        let msg = create_test_message("room1", "1", "hello room1");
+        let result = ctl.channel_broadcast("room1".into(), msg).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 2); // Both users should receive
+
+        // Leave room1
+        let leave = ctl.channel_leave("room1".into(), "user1".into()).await;
+        assert!(leave.is_ok());
+
+        // Broadcast again - only user2 should receive
+        let msg = create_test_message("room1", "2", "hello again");
+        let result = ctl.channel_broadcast("room1".into(), msg).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 1);
+    }
+
+    // Fix test_connection_close with explicit cleanup
+    #[tokio::test]
+    async fn test_connection_close() {
+        let redis_client = redis::Client::open("redis://127.0.0.1:6379").unwrap();
+        let ctl = ChannelControl::new(Arc::new(redis_client));
+
+        // Setup the connection and channel
+        let conn_id = "test_conn_id";
+        let agent_id = format!("{}:system:1", conn_id);
+
+        ctl.channel_add("system".into(), None).await;
+        ctl.conn_add_tx(conn_id.to_string()).await;
+        ctl.agent_add(agent_id.clone(), None).await;
+
+        // Join the channel
+        let join = ctl.channel_join("system", agent_id.clone(), random_string(8)).await;
+        assert!(join.is_ok());
+
+        // Verify agent is in channel
+        {
+            let channels = ctl.channels.lock().await;
+            let channel = channels.get("system").unwrap();
+            let agents = channel.agents.lock().await;
+            assert!(agents.contains(&agent_id));
+        }
+
+        // Simulate connection close
+        ctl.conn_cleanup(conn_id.to_string()).await;
+
+        // Verify agent is removed from channel
+        {
+            let channels = ctl.channels.lock().await;
+            let channel = channels.get("system").unwrap();
+            let agents = channel.agents.lock().await;
+            assert!(!agents.contains(&agent_id));
+        }
     }
 
     // FIXEME: test is flaky
@@ -809,18 +975,21 @@ mod test {
         if let Ok(ChannelMessage::Reply(msg)) = rx.try_recv() {
             assert_eq!(msg.topic, "test");
 
-            // let value = from_value(msg.payload.response);
-            if let Response::Message { message } = msg.payload.response {
-                assert_eq!(message, "hello");
+            if let ServerPayload::ServerResponse(server_response) = msg.payload {
+                if let Response::Message { message } = server_response.response {
+                    assert_eq!(message, "hello");
+                } else {
+                    panic!("Wrong response type");
+                }
             } else {
-                panic!("Wrong response type");
+                panic!("Wrong payload type");
             }
         } else {
             panic!("Failed to receive message");
         }
     }
 
-    // FIXME: Test is flaky
+    // FIXEME: test is flaky
     //
     // #[tokio::test]
     // async fn test_channel_control_operations() {
@@ -856,15 +1025,15 @@ mod test {
 
     #[tokio::test]
     async fn test_channel_error_cases() {
-        let ctl = ChannelControl::new();
+        let ctl = ChannelControl::default();
 
         // Test non-existent channel
-        let result = ctl.channel_join("nonexistent", "user1".into()).await;
+        let result = ctl.channel_join("nonexistent", "user1".into(), random_string(8)).await;
         assert!(matches!(result.unwrap_err(), ChannelError::ChannelNotFound));
 
         // Test non-initiated agent
         ctl.channel_add("room1".into(), None).await;
-        let result = ctl.channel_join("room1", "user1".into()).await;
+        let result = ctl.channel_join("room1", "user1".into(), random_string(8)).await;
         assert!(matches!(result.unwrap_err(), ChannelError::AgentNotInitiated));
 
         // Test leave non-existent channel
@@ -874,7 +1043,7 @@ mod test {
 
     #[tokio::test]
     async fn test_agent_subscription() {
-        let ctl = ChannelControl::new();
+        let ctl = ChannelControl::default();
 
         // Setup channels and agent
         ctl.channel_add("room1".into(), None).await;
@@ -885,7 +1054,7 @@ mod test {
         assert!(sub.is_ok());
 
         // Join channel and test broadcasting
-        ctl.channel_join("room1", "user1".into()).await.unwrap();
+        ctl.channel_join("room1", "user1".into(), random_string(8)).await.unwrap();
         let msg = create_test_message("room1", "1", "test");
         let count = ctl.channel_broadcast("room1".into(), msg).await.unwrap();
         assert_eq!(count, 1);
@@ -898,9 +1067,8 @@ mod test {
 
     #[tokio::test]
     async fn test_ctl_add_remove() {
-        let ctl = ChannelControl::new();
+        let ctl = ChannelControl::default();
         assert_eq!(ctl.channels.lock().await.len(), 0);
-        // assert!(ctl.empty().await, "Should have no channels");
 
         ctl.channel_add("test".into(), None).await;
         assert_eq!(ctl.channels.lock().await.len(), 1);
@@ -911,7 +1079,7 @@ mod test {
 
     #[tokio::test]
     async fn test_join_leave() {
-        let ctl = ChannelControl::new();
+        let ctl = ChannelControl::default();
 
         ctl.channel_add("test".into(), None).await; // new channel
 
@@ -920,7 +1088,7 @@ mod test {
         ctl.agent_add(agent_id.clone(), None).await;
 
         // join channel
-        let result = ctl.channel_join("test", agent_id.clone()).await;
+        let result = ctl.channel_join("test", agent_id.clone(), random_string(8)).await;
         assert!(result.is_ok(), "Should successfully join channel");
 
         // leave channel
@@ -930,7 +1098,7 @@ mod test {
 
     #[tokio::test]
     async fn test_channel_basics() {
-        let ctl = ChannelControl::new();
+        let ctl = ChannelControl::default();
 
         // new channel
         ctl.channel_add("test".into(), None).await;
@@ -940,7 +1108,7 @@ mod test {
         ctl.agent_add(agent_id.clone(), None).await;
 
         // join channel
-        let result = ctl.channel_join("test", agent_id.clone()).await;
+        let result = ctl.channel_join("test", agent_id.clone(), random_string(8)).await;
         assert!(result.is_ok(), "Should successfully join channel");
 
         // broadcast message
@@ -949,15 +1117,12 @@ mod test {
             event_ref: "1".to_string(),
             topic: "test".to_string(),
             event: "test_event".to_string(),
-            payload: crate::websocket::ServerPayload {
+            payload: ServerPayload::ServerResponse(ServerResponse {
                 status: "ok".to_string(),
-                // response: json!({
-                //     "message": "test message".to_string(),
-                // }),
                 response: Response::Message {
                     message: "test message".to_string(),
                 },
-            },
+            }),
         });
 
         let result = ctl.channel_broadcast("test".to_string(), message).await;
@@ -971,14 +1136,14 @@ mod test {
 
     #[tokio::test]
     async fn test_multiple_agents() {
-        let ctl = ChannelControl::new();
+        let ctl = ChannelControl::default();
         ctl.channel_add("room1".into(), None).await;
 
         // Add multiple agents
         let agent_ids = vec!["agent1", "agent2", "agent3"];
         for agent_id in &agent_ids {
             ctl.agent_add(agent_id.to_string(), None).await;
-            let result = ctl.channel_join("room1", agent_id.to_string()).await;
+            let result = ctl.channel_join("room1", agent_id.to_string(), random_string(8)).await;
             assert!(result.is_ok(), "Agent should join successfully");
         }
 
@@ -988,15 +1153,12 @@ mod test {
             event_ref: "1".to_string(),
             topic: "room1".to_string(),
             event: "broadcast".to_string(),
-            payload: crate::websocket::ServerPayload {
+            payload: ServerPayload::ServerResponse(ServerResponse {
                 status: "ok".to_string(),
-                // response: json!({
-                //     "message": "hello all".to_string(),
-                // }),
                 response: Response::Message {
                     message: "hello all".to_string(),
                 },
-            },
+            }),
         });
 
         let result = ctl.channel_broadcast("room1".to_string(), message).await;
@@ -1046,11 +1208,11 @@ mod test {
     // Test message ordering
     #[tokio::test]
     async fn test_message_ordering() {
-        let ctl = ChannelControl::new();
+        let ctl = ChannelControl::default();
         ctl.channel_add("room1".into(), None).await;
         ctl.agent_add("agent1".into(), None).await;
 
-        let _ = ctl.channel_join("room1", "agent1".into()).await.unwrap();
+        let _ = ctl.channel_join("room1", "agent1".into(), random_string(8)).await.unwrap();
 
         let mut rx = ctl.agent_rx("agent1".into()).await.unwrap();
 
@@ -1071,10 +1233,10 @@ mod test {
     // Test error handling
     #[tokio::test]
     async fn test_error_handling() {
-        let ctl = ChannelControl::new();
+        let ctl = ChannelControl::default();
 
         // Test joining non-existent channel
-        let result = ctl.channel_join("nonexistent", "agent1".into()).await;
+        let result = ctl.channel_join("nonexistent", "agent1".into(), random_string(8)).await;
         assert!(result.is_err());
 
         // Test leaving non-existent channel
@@ -1090,14 +1252,14 @@ mod test {
     // Test resource cleanup
     #[tokio::test]
     async fn test_resource_cleanup() {
-        let ctl = ChannelControl::new();
+        let ctl = ChannelControl::default();
         ctl.channel_add("room1".into(), None).await;
 
         // Add multiple agents and join channel
         for i in 0..5 {
             let agent_id = format!("agent{}", i);
             ctl.agent_add(agent_id.clone(), None).await;
-            let _ = ctl.channel_join("room1", agent_id.clone()).await;
+            let _ = ctl.channel_join("room1", agent_id.clone(), random_string(8)).await;
         }
 
         // Remove channel
@@ -1144,6 +1306,106 @@ mod test {
     //     }
     // }
 
+    // #[tokio::test]
+    // async fn test_message_ordering() {
+    //     let ctl = ChannelControl::new();
+    //     ctl.channel_add("room1".into(), None).await;
+    //     ctl.agent_add("agent1".into(), None).await;
+    //
+    //     let _ = ctl.channel_join("room1", "agent1".into()).await.unwrap();
+    //
+    //     let mut rx = ctl.agent_rx("agent1".into()).await.unwrap();
+    //
+    //     // Send multiple messages
+    //     for i in 0..5 {
+    //         let msg = create_test_message("room1", &i.to_string(), &format!("msg{}", i));
+    //         ctl.channel_broadcast("room1".into(), msg).await.unwrap();
+    //     }
+    //
+    //     // Verify messages are received in order
+    //     for i in 0..5 {
+    //         if let Ok(ChannelMessage::Reply(reply)) = rx.recv().await {
+    //             assert_eq!(reply.event_ref, i.to_string());
+    //         }
+    //     }
+    // }
+
+    // Test error handling
+    // #[tokio::test]
+    // async fn test_error_handling() {
+    //     let ctl = ChannelControl::new();
+    //
+    //     // Test joining non-existent channel
+    //     let result = ctl.channel_join("nonexistent", "agent1".into()).await;
+    //     assert!(result.is_err());
+    //
+    //     // Test leaving non-existent channel
+    //     let result = ctl.channel_leave("nonexistent".into(), "agent1".into()).await;
+    //     assert!(result.is_err());
+    //
+    //     // Test broadcasting to non-existent channel
+    //     let msg = create_test_message("nonexistent", "1", "test");
+    //     let result = ctl.channel_broadcast("nonexistent".into(), msg).await;
+    //     assert!(result.is_err());
+    // }
+
+    // Test resource cleanup
+    // #[tokio::test]
+    // async fn test_resource_cleanup() {
+    //     let ctl = ChannelControl::new();
+    //     ctl.channel_add("room1".into(), None).await;
+    //
+    //     // Add multiple agents and join channel
+    //     for i in 0..5 {
+    //         let agent_id = format!("agent{}", i);
+    //         ctl.agent_add(agent_id.clone(), None).await;
+    //         let _ = ctl.channel_join("room1", agent_id.clone()).await;
+    //     }
+    //
+    //     // Remove channel
+    //     ctl.channel_rm("room1".into()).await;
+    //
+    //     // Verify cleanup
+    //     assert!(ctl.channels.lock().await.is_empty());
+    //
+    //     // Attempt to send message to removed channel
+    //     let msg = create_test_message("room1", "1", "test");
+    //     let result = ctl.channel_broadcast("room1".into(), msg).await;
+    //     assert!(result.is_err());
+    // }
+
+    // ctl 可以 clone 么?
+    // Test simultaneous broadcasting
+    // #[tokio::test]
+    // async fn test_concurrent_broadcasting() {
+    //     let ctl = ChannelControl::new();
+    //     ctl.new_channel("room1".into(), None).await;
+    //
+    //     // Add multiple agents
+    //     for i in 0..3 {
+    //         let agent_id = format!("agent{}", i);
+    //         ctl.add_agent(agent_id.clone(), None).await;
+    //         let _ = ctl.join_channel("room1", agent_id).await;
+    //     }
+    //
+    //     let mut handles = vec![];
+    //
+    //     // Spawn multiple tasks to broadcast messages
+    //     for i in 0..5 {
+    //         let ctl = ctl.clone();
+    //         let handle = tokio::spawn(async move {
+    //             let msg = create_test_message("room1", &i.to_string(), &format!("msg{}", i));
+    //             ctl.broadcast("room1".into(), msg).await.unwrap();
+    //         });
+    //         handles.push(handle);
+    //     }
+    //
+    //     // Wait for all broadcasts to complete
+    //     for handle in handles {
+    //         handle.await.unwrap();
+    //     }
+    // }
+
     #[test]
     fn test_reply_message_display() {
         // Test message response
@@ -1152,15 +1414,12 @@ mod test {
             event_ref: "ref1".to_string(),
             topic: "test".to_string(),
             event: "msg".to_string(),
-            payload: ServerPayload {
+            payload: ServerPayload::ServerResponse(ServerResponse {
                 status: "ok".to_string(),
-                // response: json!({
-                //     "message": "hello".to_string(),
-                // }),
                 response: Response::Message {
                     message: "hello".to_string(),
                 },
-            },
+            }),
         };
         assert_eq!(message.to_string(), r#"Message join_ref=1, ref=ref1, topic=test, event=msg, <Payload status=ok, response=...>"#);
 
@@ -1170,17 +1429,13 @@ mod test {
             event_ref: "ref2".to_string(),
             topic: "system".to_string(),
             event: "datetime".to_string(),
-            payload: ServerPayload {
+            payload: ServerPayload::ServerResponse(ServerResponse {
                 status: "ok".to_string(),
-                // response: json!({
-                //     "datetime": "2024-01-01T00:00:00".to_string(),
-                //     "counter": 42,
-                // }),
                 response: Response::Datetime {
                     datetime: "2024-01-01T00:00:00".to_string(),
                     counter: 42,
                 },
-            },
+            }),
         };
         assert_eq!(datetime.to_string(), r#"Message join_ref=None, ref=ref2, topic=system, event=datetime, <Payload status=ok, response=...>"#);
 
@@ -1190,11 +1445,10 @@ mod test {
             event_ref: "ref3".to_string(),
             topic: "test".to_string(),
             event: "phx_reply".to_string(),
-            payload: ServerPayload {
+            payload: ServerPayload::ServerResponse(ServerResponse {
                 status: "ok".to_string(),
-                // response: json!({}),
                 response: Response::Empty {},
-            },
+            }),
         };
         assert_eq!(empty.to_string(), r#"Message join_ref=None, ref=ref3, topic=test, event=phx_reply, <Payload status=ok, response=...>"#);
     }
