@@ -10,10 +10,10 @@
       <l-tile-layer :url="map_url" layer-type="base"
         name="OpenStreetMap"></l-tile-layer>
 
+
       <PlaneData />
       <PolyLines />
-      <Charts v-show="show" />
-      <LatLngBar :position="position" />
+      <!--       <LatLngBar :position="position" /> -->
       <HoverDisplay />
 
       <AirportSearch @airport-selected="centerMapTo" />
@@ -46,8 +46,7 @@ import TopNavBar from "./components/TopNavBar.vue";
 import LeftSideBar from "./components/LeftSideBar.vue";
 import PlaneData from "./components/AirPlane.vue";
 import PolyLines from "./components/PlanePolylines.vue";
-import Charts from "./components/MultiCharts.vue";
-import LatLngBar from "./components/LatLngBar.vue";
+//import LatLngBar from "./components/LatLngBar.vue";
 import HoverDisplay from "./components/HoverDisplay.vue";
 //import Timeline from "./components/Timeline.vue";
 
@@ -55,24 +54,27 @@ export default {
   components: {
     //Timeline,
     HoverDisplay,
-    LatLngBar,
+    //LatLngBar,
     PolyLines,
     LeftSideBar,
     LMap,
     LTileLayer,
     TopNavBar,
     PlaneData,
-    Charts,
     AirportSearch,
   },
 
   data() {
+    const lat = import.meta.env.VITE_LEAFLET_CENTER_LAT || 48.3169;
+    const lon = import.meta.env.VITE_LEAFLET_CENTER_LON || 6.9459;
+    const zoom = import.meta.env.VITE_LEAFLET_ZOOM || 6;
+    const map_url = import.meta.env.VITE_TANGRAM_MAP_URL || "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
     return {
-      zoom: 6,
       position: "",
-      map_url: import.meta.env.VITE_TANGRAM_MAP_URL || "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+      center: [lat, lon],
+      zoom: zoom,
+      map_url: map_url,
       store: useMapStore(),
-      center: [48.3169, 6.9459], // Add this line
     };
   },
   computed: {
@@ -172,6 +174,13 @@ body {
   flex-direction: column;
 }
 
+.leaflet-control-container {
+  position: absolute;
+  right: 55px;
+  bottom: 90px;
+}
+
+/*
 @media (min-width: 768px) {
   .leaflet-control-container .leaflet-left {
     transition: left 80ms;
@@ -193,7 +202,7 @@ body {
 .leaflet-control-container .leaflet-left {
   left: 50px;
 }
-
+*/
 .main-container .map-container {
   flex: 1;
   flex-grow: 1;
@@ -203,7 +212,7 @@ body {
   fill: #f9fd15;
 }
 
-.leaflet-attribution-flag {
+.leaflet-control-attribution {
   display: none !important;
 }
 

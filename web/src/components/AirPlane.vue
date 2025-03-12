@@ -34,12 +34,7 @@
       :lat-lng="[item.latitude, item.longitude]">
       <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24"
         :options="{ direction: 'top', offset: [0, -10] }">
-        <p style="font-size: 14px">
-          icao24: <code>{{ item.icao24 }}</code><br />
-          callsign: <code>{{ item.callsign }}</code><br />
-          tail: <code>{{ item.registration }}</code><br />
-          altitude: <code>{{ item.altitude }}</code>
-        </p>
+        <AircraftTooltip :aircraft="item" />
       </l-tooltip>
       <l-popup class="popup-leaflet-hidden" :options="{ autoPan: false }">
         <div ref="popup" :id="'popup-' + item.icao24">
@@ -64,11 +59,14 @@ import { useMapStore } from "../store";
 import "leaflet/dist/leaflet.css";
 import "vue-leaflet-markercluster/dist/style.css";
 
+import AircraftTooltip from "./AircraftTooltip.vue";
+
 export default {
   components: {
     LLayerGroup,
     LTooltip,
     LPopup,
+    AircraftTooltip,
     "v-rotated-marker": LMarkerRotate,
     //LMarkerClusterGroup,
   },

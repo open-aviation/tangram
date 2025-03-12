@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css?family=Ubuntu:400,700,400italic");
+@import url("https://fonts.googleapis.com/css?family=Roboto Condensed:400,500,700,400italic");
 @import url("https://fonts.googleapis.com/css?family=B612:400,700,400italic");
 
 html,
@@ -9,10 +10,12 @@ body,
   width: 100%;
 }
 
-/*body {
-  // height of .navbar, customize with @navbar-height variable
-  padding-top: 50px;
-}*/
+h5 {
+  font-family: "Roboto Condensed", sans-serif;
+  font-weight: 500;
+  font-size: 1.3rem;
+}
+
 #map {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   height: 100%;

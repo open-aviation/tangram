@@ -1,13 +1,17 @@
 <template>
-  <div @click.stop="onClick" class="chart-container"
-    v-if="defaultData.length > 0">
+
+  <h5>Flight data</h5>
+  <div @click.stop="onClick" v-if="defaultData.length > 0">
     <select id="plot-select" @change="onSelectOption" v-model="selectedItem">
       <option value="altitude">Altitude (in ft)</option>
       <option value="speed">Speed (in kts)</option>
       <option value="vertical_rate">Vertical rate (in ft/mn)</option>
       <option value="track">Directions</option>
     </select>
-    <LineChart ref="chart" class="chart" :data="chartData" :options="option" />
+    <div class="chart-container" v-if="defaultData.length > 0">
+      <LineChart ref="chart" class="chart" :data="chartData"
+        :options="option" />
+    </div>
   </div>
 </template>
 
@@ -73,9 +77,9 @@ const PLUGINS = {
   corsair: { color: 'black' },
   legend: {
     display: true,
-    position: 'bottom',
+    position: 'top',
     labels: {
-      font: { family: "B612" },
+      font: { family: "B612", size: 10 },
       usePointStyle: true,
       pointStyle: 'line',
     }
@@ -84,8 +88,9 @@ const PLUGINS = {
 
 const X_SCALE = {
   ticks: {
+    font: { family: "B612", size: 9 },
     autoSkip: true,
-    maxTicksLimit: 10,
+    maxTicksLimit: 7,
     maxRotation: 0,
     minRotation: 0,
     padding: 5
@@ -369,10 +374,13 @@ export default {
           y: {
             border: { width: 0 },
             min: 0,
+            ticks: { font: { family: "B612", size: 9 } },
             grid: { display: false, drawBorder: false }
           },
           x: X_SCALE
         },
+        responsive: true,
+        maintainAspectRatio: false
       };
     },
 
@@ -386,8 +394,6 @@ export default {
           }
         },
         plugins: PLUGINS,
-
-        responsive: true,
         interaction: {
           mode: 'index',
           intersect: false,
@@ -400,6 +406,7 @@ export default {
             display: true,
             position: 'left',
             min: 0,
+            ticks: { font: { family: "B612", size: 9 } },
             grid: { display: false, drawBorder: false }
           },
           mach: {
@@ -408,9 +415,12 @@ export default {
             position: 'right',
             min: 0,
             max: 1,
+            ticks: { font: { family: "B612", size: 9 } },
             grid: { drawOnChartArea: false },
           }
-        }
+        },
+        responsive: true,
+        maintainAspectRatio: false
       };
     },
 
@@ -423,15 +433,18 @@ export default {
             this.handleChartClick(e, item);
           }
         },
+        plugins: PLUGINS,
         legend: { display: false },
         scales: {
           x: X_SCALE,
           y: {
             border: { width: 0 },
+            ticks: { font: { family: "B612", size: 9 } },
             grid: { display: false, drawBorder: false }
           },
         },
-        plugins: PLUGINS
+        responsive: true,
+        maintainAspectRatio: false
       };
     },
 
@@ -445,7 +458,6 @@ export default {
           }
         },
         plugins: PLUGINS,
-        responsive: true,
         interaction: {
           mode: 'index',
           intersect: false,
@@ -459,15 +471,19 @@ export default {
             position: 'left',
             min: 0,
             max: 360,
+            ticks: { font: { family: "B612", size: 9 } },
             grid: { display: false, drawBorder: false }
           },
           roll: {
             type: 'linear',
             display: true,
             position: 'right',
+            ticks: { font: { family: "B612", size: 9 } },
             grid: { drawOnChartArea: false },
           }
-        }
+        },
+        responsive: true,
+        maintainAspectRatio: false
       };
     },
 
@@ -500,22 +516,18 @@ export default {
 </script>
 <style scoped>
 .chart-container {
-  position: absolute;
-  left: 15px;
-  bottom: 15px;
-  z-index: 1001;
   background: white;
-  height: 250px;
-  width: 450px;
-  border: 1px solid #e0e0e0;
-  border-radius: 10px;
-  padding: 10px;
+  height: 180px;
+  width: auto;
+  padding: 5px;
   display: flex;
   flex-direction: column;
 }
 
 #plot-select {
   margin-bottom: 10px;
+  font-family: "Roboto Condensed", sans-serif;
+  font-size: 10pt;
 }
 
 .chart-container .chart {
