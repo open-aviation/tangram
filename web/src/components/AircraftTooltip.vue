@@ -6,8 +6,9 @@
         <span id="registration">{{ aircraft.registration }}</span>
         <span id="icao24">{{ aircraft.icao24 }}</span>
         <br />
-        <span id="altitude">FL{{ Math.round(aircraft.altitude / 1000) * 10
-            }}</span>
+        <span id="altitude" v-if="aircraft.altitude > 0">
+            FL{{ Math.round(aircraft.altitude / 1000) * 10 }}
+        </span>
     </p>
 </template>
 

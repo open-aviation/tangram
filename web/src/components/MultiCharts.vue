@@ -535,4 +535,10 @@ export default {
   flex: 1;
   height: 200px;
 }
+
+h5 {
+  border-top: solid 1px #bab0ac;
+  padding-top: 4px;
+  font-size: 97%;
+}
 </style>

@@ -32,6 +32,16 @@ export default defineConfig({
         ws: true,
         rewriteWsOrigin: true,
       },
+      "/sigmet": {
+        //target: `http://192.168.1.171:12345/`,
+        target: `http://172.17.0.1:12345/`,
+        changeOrigin: true,
+      },
+      "/network": {
+        //target: `http://192.168.1.171:12345/`,
+        target: `http://172.17.0.1:12346/`,
+        changeOrigin: true,
+      },
       "/sensors": {
         target: `${jet1090_service}/sensors`,
         changeOrigin: true,
@@ -61,11 +71,7 @@ export default defineConfig({
     dynamicComponentsPlugin({
       envPath: "../.env",
       fallbackDir: "/src/components/",
-      availablePlugins: [
-        "time",
-        "sensors",
-        // "route"
-      ],
+      availablePlugins: ["time", "sensors", "sigmet", "cityPair"],
     }),
   ],
 });

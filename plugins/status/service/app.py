@@ -3,7 +3,6 @@
 
 import anyio
 import redis_om
-
 from tangram import Tangram
 
 

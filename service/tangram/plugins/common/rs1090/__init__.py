@@ -133,13 +133,7 @@ class Rs1090Client:
         if not items:
             return None
 
-        results = []
-        for item in items:
-            # ASK why??
-            if "last" not in item:
-                item["last"] = item["timestamp"]
-            results.append(self.flatten(item))
-        return results
+        return [self.flatten(item) for item in items]
 
     def flatten(self, item: dict[str, Any]) -> Jet1090Data:
         if bds50 := item.get("bds50", None):

@@ -1,40 +1,47 @@
 <template>
-  <div>
-    <ul class="nav nav-tabs navbar-nav">
-      <li class="nav-item clock">
-        <span id="info_utc" v-html="info_utc"></span>Z |
-        <span id="info_local" v-html="info_local"></span>
-      </li>
-      <span id="uptime" v-html="uptime"></span>
-    </ul>
-  </div>
+    <div>
+        <ul class="nav nav-tabs navbar-nav">
+            <li class="nav-item clock" @mouseover="hovered = true"
+                @mouseleave="hovered = false">
+                <span id="info_time" v-html="hovered ? info_local : info_utc">
+                </span>
+            </li>
+            <span id="uptime" v-html="uptime"></span>
+        </ul>
+    </div>
 </template>
 
 <script>
-import { useMapStore } from "../store";
+import { useMapStore } from "@store"; // use the alias instead of relative path
 
 export default {
-  data() {
-    return {
-      store: useMapStore(),
-    };
-  },
-  computed: {
-    info_utc() {
-      return this.store.info_utc;
+    data() {
+        return {
+            store: useMapStore(),
+        };
     },
-    info_local() {
-      return this.store.local_time;
+    computed: {
+        info_utc() {
+            return this.store.info_utc;
+        },
+        info_local() {
+            return this.store.local_time;
+        },
+        uptime() {
+            return this.store.uptime;
+        },
     },
-    uptime() {
-      return this.store.uptime;
-    },
-  },
 };
 </script>
 
 <style scoped>
-#info_local {
-  color: red;
+#uptime {
+    color: #79706e;
+    font-size: 9pt;
+    text-align: center;
+}
+
+.nav {
+    align-items: center;
 }
 </style>

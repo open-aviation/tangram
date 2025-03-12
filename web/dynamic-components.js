@@ -28,10 +28,7 @@ function createEnvVarsMap() {
 }
 
 function generateComponentName(pluginName) {
-  return (
-    "plugin-" +
-    pluginName.toLowerCase().replace("_plugin", "").replace(/_/g, "-")
-  );
+  return "plugin-" + pluginName.toLowerCase().replace("_plugin", "").replace(/_/g, "-");
 }
 
 export default function dynamicComponentsPlugin(options = {}) {
@@ -39,9 +36,7 @@ export default function dynamicComponentsPlugin(options = {}) {
   const resolvedVirtualModuleId = "\0" + virtualModuleId;
   const customEnvPath = options.envPath ? path.resolve(options.envPath) : null;
   const fallbackDir = options.fallbackDir ?? "/src/components/";
-  const availablePlugins = (options.availablePlugins ?? []).map(
-    (el) => `${el}_plugin`,
-  );
+  const availablePlugins = (options.availablePlugins ?? []).map((el) => `${el}_plugin`);
 
   console.log("Available plugins:", availablePlugins);
 
@@ -65,6 +60,7 @@ export default function dynamicComponentsPlugin(options = {}) {
         const registrations = [];
         const envVarsMap = createEnvVarsMap();
 
+        console.log(availablePlugins);
         // Process each available plugin
         availablePlugins.forEach((pluginName, index) => {
           const componentVarName = `Component${index}`;
@@ -77,37 +73,29 @@ export default function dynamicComponentsPlugin(options = {}) {
             // Try to use the environment variable path
             const absPath = path.resolve(envPath);
             if (fs.existsSync(absPath)) {
-              imports.push(
-                `import ${componentVarName} from '${normalizePath(absPath)}'`,
-              );
+              imports.push(`import ${componentVarName} from '${normalizePath(absPath)}'`);
               console.log(`Using env path for ${pluginName}: ${absPath}`);
             } else {
               // Fallback if env path doesn't exist
-              const fileName = path.basename(envPath);              
+              const fileName = path.basename(envPath);
               const fallbackPath = `${fallbackDir}${fileName}`;
               imports.push(`import ${componentVarName} from '${fallbackPath}'`);
-              console.warn(
-                `Env path ${absPath} not found for ${pluginName}, falling back to ${fallbackPath}`,
-              );
+              console.warn(`Env path ${absPath} not found for ${pluginName}, falling back to ${fallbackPath}`);
             }
           } else {
-            // No env var, use default fallback path, convert time_plugin to TimePlugin
+            // No env var, use default fallback path, convert time_plugin to Time
             const fileName =
               pluginName
-                .toLowerCase()
                 .split("_")
+                .slice(0, 1)
                 .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
                 .join("") + ".vue";
             const fallbackPath = `${fallbackDir}${fileName}`;
             imports.push(`import ${componentVarName} from '${fallbackPath}'`);
-            console.log(
-              `No env path for ${pluginName}, using fallback: ${fallbackPath}`,
-            );
+            console.log(`No env path for ${pluginName}, using fallback: ${fallbackPath}`);
           }
 
-          registrations.push(
-            `app.component('${componentName}', ${componentVarName})`,
-          );
+          registrations.push(`app.component('${componentName}', ${componentVarName})`);
         });
 
         if (imports.length === 0) {
@@ -125,7 +113,7 @@ export default function dynamicComponentsPlugin(options = {}) {
             ${registrations.join("\n")}
           }
         `;
-        console.log('the result: \n', result);
+        console.log("the result: \n", result);
         return result;
       }
     },

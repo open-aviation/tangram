@@ -180,29 +180,6 @@ body {
   bottom: 90px;
 }
 
-/*
-@media (min-width: 768px) {
-  .leaflet-control-container .leaflet-left {
-    transition: left 80ms;
-  }
-}
-
-@media (min-width: 768px) and (max-width: 1199px) {
-  .hasItem .leaflet-control-container .leaflet-left {
-    left: 315px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .hasItem .leaflet-control-container .leaflet-left {
-    left: 305px;
-  }
-}
-
-.leaflet-control-container .leaflet-left {
-  left: 50px;
-}
-*/
 .main-container .map-container {
   flex: 1;
   flex-grow: 1;

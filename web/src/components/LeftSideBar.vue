@@ -11,7 +11,8 @@
       </ul>
     </div>
     <div class="leaflet-sidebar-content">
-      <MultiCharts v-show="show" />
+      <AircraftInfo />
+      <MultiCharts />
 
     </div>
 
@@ -20,9 +21,11 @@
 <script>
 import { useMapStore } from "../store";
 import MultiCharts from "./MultiCharts.vue";
+import AircraftInfo from "./AircraftInfo.vue";
 
 export default {
   components: {
+    AircraftInfo,
     MultiCharts
   },
   data() {
@@ -276,36 +279,5 @@ export default {
 .leaflet-sidebar-right~.leaflet-control-container .leaflet-right {
   right: 50px;
 }
-
-table.info_box_table {
-  width: 100%;
-  margin: 0px 0px 0px 0px;
-  font-family: "B612", sans-serif;
-}
-
-.info_header td {
-  background-color: #e7e7e7;
-  font-family: "B612", sans-serif;
-  padding: 3px 8px 2px 8px;
-  font-size: 15pt;
-  height: 40px;
-}
-
-.info_label td {
-  font-family: "B612", sans-serif;
-  font-size: 12pt;
-  color: #555555;
-  background-color: #ffffff;
-  padding: 2px 8px 0px 8px;
-  margin: 0px;
-}
-
-.info_value td {
-  font-family: "B612", sans-serif;
-  font-weight: bold;
-  padding: 1px 8px 4px 8px;
-  margin: 0px;
-  border-bottom: 1px solid #e7e7e7;
-  background-color: #ffffff;
-}*/
+*/
 </style>
