@@ -202,7 +202,11 @@ export default {
           datasets: [
             {
               label: 'Barometric altitude',
-              data: data.map(item => item.altitude),
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'altitude'
+              },
               borderColor: '#4c78a8',
               backgroundColor: '#9ecae9',
               borderWidth: 2,
@@ -214,7 +218,11 @@ export default {
             {
               label: 'Selected altitude',
               borderColor: "#f58518",
-              data: data.map(item => item.selected_altitude),
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'selected_altitude'
+              },
               borderWidth: 3,
               spanGaps: true,
               pointRadius: 0.2,
@@ -236,6 +244,10 @@ export default {
             {
               label: 'Ground speed',
               data: data.map(item => item.groundspeed),
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'groundspeed'
+              },
               borderColor: '#4c78a8',
               borderWidth: 2,
               pointRadius: 0.01,
@@ -246,6 +258,10 @@ export default {
             {
               label: 'IAS',
               data: data.map(item => item.IAS),
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'IAS'
+              },
               borderColor: '#f58518',
               spanGaps: true,
               borderWidth: 2,
@@ -256,6 +272,10 @@ export default {
             {
               label: 'TAS',
               data: data.map(item => item.TAS),
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'TAS'
+              },
               borderColor: '#54a24b',
               spanGaps: true,
               borderWidth: 2,
@@ -266,6 +286,10 @@ export default {
             {
               label: 'Mach',
               data: data.map(item => item.Mach),
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'Mach'
+              },
               borderColor: '#b79a20',
               spanGaps: true,
               borderWidth: 2,
@@ -288,7 +312,11 @@ export default {
           datasets: [
             {
               label: 'Vertical rate',
-              data: data.map(item => item.vertical_rate),
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'vertical_rate'
+              },
               borderColor: '#4c78a8',
               borderWidth: 1,
               pointRadius: 0.2,
@@ -298,7 +326,11 @@ export default {
             {
               label: 'Barometric',
               type: 'scatter',
-              data: data.map(item => item.vrate_barometric),
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'vrate_barometric'
+              },
               borderWidth: 0.5,
               pointRadius: 2,
               borderColor: "#f58518",
@@ -307,7 +339,11 @@ export default {
             {
               label: 'Inertial',
               type: 'scatter',
-              data: data.map(item => item.vrate_inertial),
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'vrate_inertial'
+              },
               borderWidth: 0.5,
               pointRadius: 2,
               borderColor: "#54a24b",
@@ -328,7 +364,11 @@ export default {
           datasets: [
             {
               label: "Track",
-              data: data.map(item => item.track),
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'track'
+              },
               borderWidth: 2,
               borderColor: '#4c78a8',
               pointRadius: 0.2,
@@ -337,7 +377,11 @@ export default {
             },
             {
               label: 'Magnetic heading',
-              data: data.map(item => item.heading),
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'heading'
+              },
               borderWidth: 2,
               borderColor: "#f58518",
               pointRadius: 0.2,
@@ -346,7 +390,11 @@ export default {
             },
             {
               label: 'Roll angle',
-              data: data.map(item => item.roll),
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'roll'
+              },
               type: "scatter",
               borderWidth: .5,
               borderColor: '#54a24b',
