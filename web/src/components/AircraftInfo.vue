@@ -5,25 +5,32 @@
         <span>{{ aircraft.callsign }}</span>
         <span id="icao24">{{ aircraft.icao24 }}</span><br />
         <span id="registration" v-if="aircraft.registration">
-            Registration: {{ aircraft.registration }} </span><br />
+            Registration: {{ flag }} {{ aircraft.registration }} </span><br />
     </div>
     <plugin-citypair />
 </template>
 
 <script>
 import { useMapStore } from "../store";
+import { aircraft_information } from 'rs1090-wasm';
+
 export default {
     data() {
         return {
-            store: useMapStore()
+            store: useMapStore(),
         }
     },
     computed: {
         aircraft() {
             return this.store.selectedPlane;
         },
+        flag() {
+            const aircraft = aircraft_information(this.aircraft.icao24, this.aircraft.registration);
+            return aircraft?.flag || 'flag';
+        }
     },
 }
+
 </script>
 
 <style scoped>

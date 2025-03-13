@@ -12,6 +12,8 @@
 </template>
 
 <script>
+import { airport_information } from 'rs1090-wasm';
+
 export default {
     name: 'AirportSearch',
     data() {
@@ -34,17 +36,8 @@ export default {
                 this.results = [];
             }
         },
-        async searchAirports() {
-            try {
-                const response = await fetch(`/airports?q=${encodeURIComponent(this.query)}`);
-                if (response.ok) {
-                    this.results = await response.json();
-                } else {
-                    console.error("Search error", response.statusText);
-                }
-            } catch (error) {
-                console.error("Search error", error);
-            }
+        searchAirports() {
+            this.results = airport_information(this.query);
         },
         selectAirport(airport) {
             // Emit an event with the selected airport details.
