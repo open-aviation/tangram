@@ -1,0 +1,78 @@
+site_name: tangram
+site_description:
+repo_name: open-aviation/tangram
+repo_url: https://github.com/open-aviation/tangram
+site_url: https://mode-s.org/tangram/
+nav:
+  - Home: "index.md"
+  - Quickstart: "quickstart.md"
+  - Configuration: "configuration.md"
+  - Architecture: "architecture.md"
+  - Channel: "channel.md"
+  - Data flow: "data-flow.md"
+  - Data source: "data-source.md"
+  - Service plugin: "service-plugin.md"
+  - Web plugin: "web-plugin.md"
+
+theme:
+  name: material
+  # logo: images/jet1090-logo.png
+  # favicon: images/favicon.png
+  features:
+    - content.code.annotate
+    - content.code.copy
+    - navigation.expand
+    - navigation.footer
+    - navigation.indexes
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - search.highlight
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/link
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch-off
+        name: Switch to system preference
+  font:
+    text: Roboto
+    code: Roboto Mono
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - social
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.blocks.tab:
+      alternate_style: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.highlight:
+      pygments_lang_class: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+      baselevel: 1

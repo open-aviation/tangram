@@ -1,0 +1,4 @@
+max_width = 150                 # Trigger line breaks sooner
+fn_params_layout = "Compressed" # Put function parameters on the same line
+fn_call_width = 150
+fn_single_line = true

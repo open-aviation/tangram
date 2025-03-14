@@ -4,9 +4,8 @@
 import asyncio
 import logging
 import json
-import redis
 import operator
-
+import redis
 from tangram import channels
 
 
@@ -37,8 +36,10 @@ async def main(redis_url: str, redis_topic: str):
             #     "el": f"data-{icao24}",
             #     "html": f"""<div class="alert alert-success" role="alert">{timestamp}, {icao24}</div>""",
             # }
-            client_count = await channels.system_broadcast(channel="channel:table", event="update-row", data=raw_json_data, by_redis=False)
-            log.info("%s / get message for %s, to %s", seq, raw_json_data.get("icao24"), client_count)
+
+            # client_count = await channels.system_broadcast(channel="channel:table", event="update-row", data=raw_json_data, by_redis=False)
+            # log.info("%s / get message for %s, to %s", seq, raw_json_data.get("icao24"), client_count)
+            redis_client.publish("to:table:update-row", json.dumps(raw_json_data))
             seq += 1
 
 
@@ -48,7 +49,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--redis", dest="redis_url", default=os.getenv("REDIS_URL"))
-    parser.add_argument("--redis-topic", dest="redis_topic", default="jet1090-full")
+    parser.add_argument("--redis-topic", dest="redis_topic", default=os.getenv("REDIS_TOPIC", "jet1090-full"))
     args = parser.parse_args()
     redis_url, redis_topic = args.redis_url, args.redis_topic
 

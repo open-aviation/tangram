@@ -4,10 +4,9 @@
 <script>
 import "leaflet/dist/leaflet.css";
 import {LPolyline} from '@vue-leaflet/vue-leaflet';
+
 export default {
-  components: {
-    LPolyline
-  },
+  components: { LPolyline },
   data() {
     return {
       staticAnchor: [16, 37],

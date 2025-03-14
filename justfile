@@ -4,7 +4,7 @@ set positional-arguments
 set export
 
 # read from .env file
-JET1090_PARAMS := env_var("JET1090_PARAMS")
+JET1090_PARAMS := env_var_or_default("JET1090_PARAMS", "")
 
 # set default values
 NETWORK := "tangram"
@@ -35,11 +35,11 @@ install-dependent-binaries:
 
   DEST_DIR="$HOME/.local/bin"
 
+  # watchexec
   cleanup() {
     rm -rf /tmp/watchexec*
   }
   trap cleanup EXIT
-
   LATEST_TAG=$(curl -sL https://api.github.com/repos/watchexec/watchexec/releases/latest | jq -r '.tag_name')
   DL_URL="https://github.com/watchexec/watchexec/releases/download/${LATEST_TAG}/watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl.tar.xz"
   curl -L "$DL_URL" -o /tmp/watchexec.tar.xz
@@ -47,11 +47,18 @@ install-dependent-binaries:
   tar -xvf /tmp/watchexec.tar.xz --strip-components=1 -C $DEST_DIR "watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl/watchexec"
   echo "watchexec has been installed to $DEST_DIR/watchexec."
 
+  # uv
   curl -LsSf https://astral.sh/uv/install.sh | sh # uv
   echo "uv has been installed to $DEST_DIR/{uv,uvx}."
 
-  sh -c "$(curl --location https://raw.githubusercontent.com/F1bonacc1/process-compose/main/scripts/get-pc.sh)" -- -d -b $DEST_DIR # process-compose
+  # process-compose
+  sh -c "$(curl --location https://raw.githubusercontent.com/F1bonacc1/process-compose/main/scripts/get-pc.sh)" -- -d -b $DEST_DIR
   echo "process-compose has been installed to $DEST_DIR/process-compose."
+
+  # channel
+  # installer script installs it at ~/.cargo/bin, so we add soft link to it in $DEST_DIR
+  curl --proto '=https' --tlsv1.2 -LsSf https://github.com/emctoo/channels/releases/download/v0.2.5/channel-installer.sh | sh
+  ln -s ~/.cargo/bin/channel $DEST_DIR/channel
 
   ls -al $DEST_DIR
 
@@ -129,14 +136,13 @@ tangram-web host="0.0.0.0" port="2024":
   # uncomment the following lines if you want to always reinstall node_modules
   # rm -f /tmp/npm-installed.txt
 
+
   if [ ! -f /tmp/npm-installed.txt ]; then
-    echo "- removing node_modules ..."
-    rm -rf node_modules
+    # echo "- removing node_modules ..."
+    # rm -rf node_modules
 
     echo "- npm install now ..."
-    npm install --verbose
-    npm install --dev --verbose
-
+    npm install
     touch /tmp/npm-installed.txt
   else
     echo "- node_modules exists, skip npm install."
@@ -153,27 +159,45 @@ tangram: network
   #!/usr/bin/env bash
 
   if [ "$(uname)" = "Linux" ]; then \
-    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 \
+    podman container run -it --rm --name tangram \
+      --network {{NETWORK}} -p 2024:2024 \
       --env-file .env \
       --userns=keep-id \
       -v .:/home/user/tangram:z \
       tangram:0.1; \
   elif [ "$(uname)" = "Darwin" ]; then \
     # TODO: verify it's necessary to include `--userns=keep-id` here
-    podman container run -it --rm --name tangram --network {{NETWORK}} -p 2024:2024 \
+    podman container run -it --rm --name tangram \
+      --network {{NETWORK}} -p 2024:2024 \
       --env-file .env \
       --userns=keep-id --security-opt label=disable \
       -v $PWD:/home/user/tangram \
       tangram:0.1; \
   fi
 
+channel:
+  #!/usr/bin/env bash
+
+  podman pull ghcr.io/emctoo/channel:latest
+  podman run -d --rm --name channel --network {{NETWORK}} -p 5000:5000 \
+    --env-file .env --userns=keep-id \
+    ghcr.io/emctoo/channel:latest channel --host 0.0.0.0 --port 5000 --jwt-secret secret --redis-url {{REDIS_URL}}
+
+channel-stop:
+  podman stop channel
+
+channel-restart:
+  just channel-stop
+  just channel
+
+
 # rate-limiting plugin container
 rate-limiting: network
   podman container run -it --rm --name rate_limiting \
     --network {{NETWORK}} \
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
+    --env-file .env \
     -e UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram \
-    -e REDIS_URL=redis://redis:6379 \
     -w /home/user/tangram/service \
     tangram:0.1 uv run -- python -m tangram.plugins.rate_limiting --dest-topic=coordinate
 
@@ -182,8 +206,8 @@ table:
   podman container run -it --rm --name rate_limiting \
     --network {{NETWORK}} \
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
+    --env-file .env \
     -e UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram \
-    -e REDIS_URL=redis://redis:6379 \
     -w /home/user/tangram/service \
     tangram:0.1 uv run -- python -m tangram.plugins.table
 
@@ -216,16 +240,20 @@ build-jet1090:
   podman pull {{JET1090_IMAGE}}
 
 # run jet1090 interactively, as a container
-jet1090: network redis jet1090-basestation
+jet1090: network redis jet1090-basestation _build-filter
   podman run -it --rm --name jet1090 \
     --network {{NETWORK}} -p 8080:8080 \
     -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
     {{JET1090_IMAGE}} \
       jet1090 \
-        -i \
+        --verbose \
         --serve-port 8080 \
         --redis-url {{REDIS_URL}} --redis-topic jet1090-full \
-        {{JET1090_PARAMS}}
+        {{JET1090_PARAMS}} | \
+        line-filter/target/release/fast \
+          --redis-url {{REDIS_URL}} \
+          --match '(AND "altitude" "longitude"):::coordinate:::1000' \
+          --match '("altitude"):::altitude:::1000'
 
 # run jet1090 (0.3.8) as a service
 jet1090-daemon: network redis jet1090-basestation
@@ -237,3 +265,14 @@ jet1090-daemon: network redis jet1090-basestation
         --serve-port 8080 \
         --redis-url {{REDIS_URL}} --redis-topic jet1090-full \
         {{JET1090_PARAMS}}
+
+# build jet1090 filter
+_build-filter:
+  #!/usr/bin/env bash
+
+  pushd line-filter
+    cargo build fast --release
+  popd
+
+docs-serve:
+  uvx --with "mkdocs-material[imaging]" mkdocs serve

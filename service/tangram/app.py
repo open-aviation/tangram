@@ -7,22 +7,20 @@ import os
 import pathlib
 import uuid
 from datetime import datetime
-from math import tan
 from typing import Any
 
+# import anyio
+import httpx
 import redis.asyncio as redis
-from fastapi import FastAPI, Request, WebSocket, status
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
-# import anyio
-from httpx import Response, request
-from pydantic import BaseModel
 from starlette.responses import HTMLResponse
 
 from tangram import channels
-from tangram.plugins import coordinate, filter_jet1090, system, trajectory, web_event
 from tangram.plugins.common import rs1090
+
+# from tangram.plugins import coordinate, web_event
 
 log = logging.getLogger("tangram")
 
@@ -60,22 +58,13 @@ async def lifespan(app: FastAPI):
     await channels.broadcast.connect()  # initialize the websocket broadcast
 
     # listen for web UI events
-    await web_event.startup(REDIS_URL)
-
-    # listen for `jet1090_full`, filter and pulibsh again
-    await filter_jet1090.startup(REDIS_URL)
+    # await web_event.startup(REDIS_URL)
 
     # builds the `planes` geospatial keys
-    await coordinate.startup(REDIS_URL)
-
-    # System UI events
-    await system.startup()
-
-    # Build the history
-    # this now runs as an independent process managed by process-compose
+    # await coordinate.startup(REDIS_URL)
 
     # Trajectory
-    await trajectory.startup(REDIS_URL)
+    # await trajectory.startup(REDIS_URL)
 
     log.debug("yield to request handling ...")
     yield  # The application is now running and serving requests
@@ -83,7 +72,6 @@ async def lifespan(app: FastAPI):
     log.debug("shutting down...")
     # TODO: task for cleanup, they are disabled for now
     #
-    # await system.shutdown()
     # await trajectory.shutdown()
     # await coordinate.shutdown()
     # await history.shutdown()
@@ -133,7 +121,7 @@ async def home(request: Request, history: int = 0) -> HTMLResponse:
 @app.get("/data/{icao24}")
 async def data(icao24: str) -> list[rs1090.Jet1090Data]:
     records = await jet1090_restful_client.icao24_track(icao24) or []
-    return [r for r in records if r.latitude is not None and r.longitude is not None]
+    return [r for r in records if r.df in [17, 18, 20, 21]]
 
 
 @app.websocket("/websocket")
@@ -151,7 +139,7 @@ async def websocket_handler(ws: WebSocket) -> None:
 async def get_receiver_latlong():
     url = f"{JET1090_URL}/sensors"
     log.info("getting receivers from %s ...", url)
-    resp: Response = request("GET", url)
+    resp: httpx.Response = httpx.request("GET", url)
     receivers = resp.json()
     log.debug("receivers: %s %s", type(receivers), receivers)
 
@@ -163,47 +151,3 @@ async def get_receiver_latlong():
 @app.get("/table")
 async def table_page(request: Request):
     return templates.TemplateResponse("table/index.html", {"request": request})
-
-
-@app.get("/planes")
-async def list_planes():
-    ref_latitude, ref_longitude = await get_receiver_latlong()
-    radius_km = 12000
-    return await coordinate.search_planes(app.redis_connection_pool, radius_km=radius_km, ref_latitude=ref_latitude, ref_longitude=ref_longitude)
-
-
-@app.get("/planes/{icao24}")
-async def get_plane(icao24: str):
-    return await coordinate.plane_history(app.redis_connection_pool, icao24)
-
-
-class PublishMessage(BaseModel):
-    """Message for Channel publishing"""
-
-    channel: str
-    event: str = "new-data"
-    message: str | None = None
-
-
-@app.post("/admin/publish")
-async def channel_publish(message: PublishMessage) -> int:
-    if not message.message:
-        log.error("empty payload, no publish in channels")
-        return status.HTTP_400_BAD_REQUEST
-    await channels.publish_any(message.channel, message.event, message.message)
-    return status.HTTP_204_NO_CONTENT
-
-
-@app.get("/admin/channel-clients")
-async def get_map() -> dict[str, set[str]]:
-    return channels.hub.channel_clients()
-
-
-@app.get("/admin/channels")
-async def list_channels() -> list[str]:
-    return channels.hub.channels()
-
-
-@app.get("/admin/clients")
-async def clients() -> list[str]:
-    return channels.hub.clients()

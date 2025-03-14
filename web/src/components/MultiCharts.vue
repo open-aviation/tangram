@@ -1,31 +1,27 @@
 <template>
-  <div @click.stop="onClick" class="chart-container" v-if="defaultData.length > 0">
+
+  <h5>Flight data</h5>
+  <div @click.stop="onClick" v-if="defaultData.length > 0">
     <select id="plot-select" @change="onSelectOption" v-model="selectedItem">
       <option value="altitude">Altitude (in ft)</option>
       <option value="speed">Speed (in kts)</option>
       <option value="vertical_rate">Vertical rate (in ft/mn)</option>
       <option value="track">Directions</option>
     </select>
-    <LineChart ref="chart"  class="chart" :data="chartData" :options="option" />
+    <div class="chart-container" v-if="defaultData.length > 0">
+      <LineChart ref="chart" class="chart" :data="chartData"
+        :options="option" />
+    </div>
   </div>
 </template>
 
 <script>
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-} from 'chart.js'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js'
 import { Line as LineChart } from 'vue-chartjs'
 import dayjs from 'dayjs'
-import { useMapStore} from '../store'
+import { useMapStore } from '../store'
 
+// ASK: What is this corsair doing?
 const plugin = {
   id: 'corsair',
   defaults: {
@@ -33,23 +29,19 @@ const plugin = {
     color: '#FF4949',
     dash: [3, 3],
   },
-  afterInit: (chart, args, opts) => {
-    chart.corsair = {
-      x: 0,
-      y: 0,
-    }
+  afterInit: (chart) => {
+    chart.corsair = { x: 0, y: 0 }
   },
   afterEvent: (chart, args) => {
-    const {inChartArea} = args
-    const {type,x,y} = args.event
-
-    chart.corsair = {x, y, draw: inChartArea}
+    const { inChartArea } = args
+    const { x, y } = args.event
+    chart.corsair = { x, y, draw: inChartArea }
     chart.draw()
   },
-  beforeDatasetsDraw: (chart, args, opts) => {
-    const {ctx} = chart
-    const {top, bottom, left, right} = chart.chartArea
-    const {x, y, draw} = chart.corsair
+  beforeDatasetsDraw: (chart, _args, opts) => {
+    const { ctx } = chart
+    const { top, bottom, left, right } = chart.chartArea
+    const { x, y, draw } = chart.corsair
     if (!draw) return
 
     ctx.save()
@@ -68,16 +60,44 @@ const plugin = {
   }
 }
 ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler,
-    plugin
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  plugin
 )
+
+const PLUGINS = {
+  tooltip: { backgroundColor: "#bab0ac", mode: 'nearest', intersect: false },
+  filler: { propagate: true },
+  corsair: { color: 'black' },
+  legend: {
+    display: true,
+    position: 'top',
+    labels: {
+      font: { family: "B612", size: 10 },
+      usePointStyle: true,
+      pointStyle: 'line',
+    }
+  }
+}
+
+const X_SCALE = {
+  ticks: {
+    font: { family: "B612", size: 9 },
+    autoSkip: true,
+    maxTicksLimit: 7,
+    maxRotation: 0,
+    minRotation: 0,
+    padding: 5
+  },
+  border: { width: 0 },
+  grid: { display: true, drawBorder: false }
+}
 
 export default {
   components: {
@@ -90,6 +110,7 @@ export default {
       chartData: {},
       defaultData: [],
       option: null,
+      pollInterval: null, // Add polling interval reference
     }
   },
   computed: {
@@ -97,260 +118,425 @@ export default {
       return this.store.selectedPlane
     }
   },
+  mounted() {
+    // Start polling when component is mounted
+    this.startPolling();
+  },
+  beforeUnmount() {
+    // Clean up interval when component is destroyed
+    this.stopPolling();
+  },
   watch: {
     selected: {
       deep: true,
       handler(newValue) {
-        if(newValue && newValue.icao24) {
-          this.fetchChartData(newValue)
+        console.dir('chart type updated: ', newValue);
+        if (newValue && newValue.icao24) {
+          // Initial fetch when selection changes
+          this.fetchChartData(newValue);
         } else {
-          this.defaultData = []
-          this.chartData = {}
+          this.defaultData = [];
+          this.chartData = {};
         }
       }
     }
   },
   methods: {
+    startPolling() {
+      // Clear any existing interval
+      this.stopPolling();
+
+      // Set up new polling interval (every 5 seconds)
+      const interval_ms = 1000 * 5;
+      this.pollInterval = setInterval(() => {
+        if (this.selected && this.selected.icao24) {
+          this.fetchChartData(this.selected);
+        }
+      }, interval_ms);
+    },
+
+    stopPolling() {
+      if (this.pollInterval) {
+        clearInterval(this.pollInterval);
+        this.pollInterval = null;
+      }
+    },
+
     handleChartClick(evt, item) {
+      if (!item) return; // Add check to prevent error when item is undefined
       const index = item.index
-      const label = evt.chart.data.labels[index]
       const value = evt.chart.data.datasets[0].data[index]
       this.store.setHoverItem(value)
     },
+
     onClick() {
       console.log('prevent the click event')
     },
+
     onSelectOption(e) {
-      switch(e.target.value) {
+      switch (e.target.value) {
+        case 'altitude':
+          this.updateAltitudeChart();
+          break;
         case 'speed':
-          if(this.defaultData && this.defaultData.length > 0) {
-            this.option = null
-            this.chartData = {
-              labels: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
-              datasets: [
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#0000bb30',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'IAS',
-                  backgroundColor: 'blue',
-                  data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.IAS)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#bb000030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'TAS',
-                  backgroundColor: 'red',
-                  data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.TAS)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#00bb0030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'groundspeed',
-                  backgroundColor: 'green',
-                  data: this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS)).map(item => item.groundspeed)
-                }
-              ]
-            }
-          }
+          this.updateSpeedChart();
           break;
         case 'vertical_rate':
-          if(this.defaultData && this.defaultData.length > 0) {
-            this.option = null
-            this.chartData = {
-              labels: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
-              datasets: [
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#0000bb30',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'vrate_barometric',
-                  backgroundColor: 'blue',
-                  data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vrate_barometric)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#bb000030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'vrate_inertial',
-                  backgroundColor: 'red',
-                  data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vrate_inertial)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#00bb0030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'vertical_rate',
-                  backgroundColor: 'green',
-                  data: this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate)).map(item => item.vertical_rate)
-                }
-              ]
-            }
-          }
+          this.updateVerticalRateChart();
           break;
         case 'track':
-          if(this.defaultData && this.defaultData.length > 0) {
-            this.option = null
-            this.chartData = {
-              labels: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
-              datasets: [
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#0000bb30',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'track',
-                  backgroundColor: 'blue',
-                  fillColor: "rgba(100,100,255,0.5)",
-                  strokeColor: "blue",
-                  data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.track)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#bb000030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'heading',
-                  backgroundColor: 'red',
-                  data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.heading)
-                },
-                {
-                  borderWidth: 1,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#00bb0030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'roll',
-                  backgroundColor: 'green',
-                  data: this.defaultData.filter(item => (item.track || item.heading || item.roll)).map(item => item.roll)
-                }
-              ]
-            }
-          }
+          this.updateTrackChart();
           break;
         default:
-          if(this.defaultData && this.defaultData.length > 0) {
-            this.chartData = {
-              labels: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => dayjs.unix(item.timestamp).format('HH:mm')),
-              datasets: [
-                {
-                  borderWidth: 2,
-                  label: 'altitude',
-                  radius: 0,
-                  fill: {
-                    target: 'origin',
-                    above: '#80808030',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  tension: 0.25,
-                  backgroundColor: '#80800',
-                  borderColor: ["#808080"],
-                  data: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => item.altitude)
-                },
-                {
-                  borderWidth: 2,
-                  pointRadius: 0.2,
-                  fill: {
-                    target: 'origin',
-                    above: '#0000bb30',   // Area will be red above the origin
-                    below: '#ffffff30'    // And blue below the origin
-                  },
-                  label: 'selected_altitude',
-                  borderColor: ["#0000bb"],
-                  backgroundColor: '#0000bb',
-                  data: this.defaultData.filter(item => (item.altitude || item.selected_altitude)).map(item => item.selected_altitude)
-                }
-              ]
-            }
-
-            this.option = {
-              onHover: (e) => {
-                const chart = this.$refs.chart.chart;
-                const item = chart.getElementsAtEventForMode(
-                    e,
-                    'index',
-                    { intersect: false },
-                    false
-                )[0]
-                this.handleChartClick(e, item)
-              },
-              legend: {
-                display: false,
-              },
-              scales: {
-                y: {
-                  border: {
-                    width: 0
-                  },
-                  max: 40000,
-                  grid: {
-                    display: false,
-                    drawBorder: false,
-                  }
-                },
-                x: {
-                  border: {
-                    width: 0
-                  },
-                  grid: {
-                    display: false,
-                    drawBorder: false,
-                  }
-                }
-              },
-              plugins: {
-                tooltip: {
-                  backgroundColor: "#227799",
-                  mode: 'nearest',
-                  intersect: false
-                },
-                filler: {
-                  propagate: true
-                },
-                corsair: {
-                  color: 'black',
-                }
-              }
-            }
-          }
+          this.updateAltitudeChart();
       }
     },
+
+
+    updateAltitudeChart() {
+      if (this.defaultData && this.defaultData.length > 0) {
+        var data = this.defaultData.filter(item => ((item.df === 17 && item.altitude) || item.selected_altitude));
+
+        this.chartData = {
+          labels: data.map(item => dayjs.unix(item.timestamp).format('HH:mm')),
+          datasets: [
+            {
+              label: 'Barometric altitude',
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'altitude'
+              },
+              borderColor: '#4c78a8',
+              backgroundColor: '#9ecae9',
+              borderWidth: 2,
+              radius: 0,
+              spanGaps: true,
+              order: 2,
+              fill: { target: 'origin' },
+            },
+            {
+              label: 'Selected altitude',
+              borderColor: "#f58518",
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'selected_altitude'
+              },
+              borderWidth: 3,
+              spanGaps: true,
+              pointRadius: 0.2,
+              order: 1,
+            }
+          ]
+        }
+        this.configureAltitudeChartOptions();
+      }
+    },
+
+    updateSpeedChart() {
+      if (this.defaultData && this.defaultData.length > 0) {
+        const data = this.defaultData.filter(item => ((item.df === 17 && item.groundspeed) || item.IAS || item.TAS));
+        this.option = null;
+        this.chartData = {
+          labels: data.map(item => dayjs.unix(item.timestamp).format('HH:mm')),
+          datasets: [
+            {
+              label: 'Ground speed',
+              data: data.map(item => item.groundspeed),
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'groundspeed'
+              },
+              borderColor: '#4c78a8',
+              borderWidth: 2,
+              pointRadius: 0.01,
+              spanGaps: true,
+              tension: 0.4,
+              yAxisID: 'kts',
+            },
+            {
+              label: 'IAS',
+              data: data.map(item => item.IAS),
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'IAS'
+              },
+              borderColor: '#f58518',
+              spanGaps: true,
+              borderWidth: 2,
+              pointRadius: 0.2,
+              tension: 0.4,
+              yAxisID: 'kts',
+            },
+            {
+              label: 'TAS',
+              data: data.map(item => item.TAS),
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'TAS'
+              },
+              borderColor: '#54a24b',
+              spanGaps: true,
+              borderWidth: 2,
+              pointRadius: 0.2,
+              tension: 0.4,
+              yAxisID: 'kts',
+            },
+            {
+              label: 'Mach',
+              data: data.map(item => item.Mach),
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'Mach'
+              },
+              borderColor: '#b79a20',
+              spanGaps: true,
+              borderWidth: 2,
+              pointRadius: 0.2,
+              tension: 0.4,
+              yAxisID: 'mach',
+            }
+          ],
+        }
+        this.configureSpeedChartOptions();
+      }
+    },
+
+    updateVerticalRateChart() {
+      if (this.defaultData && this.defaultData.length > 0) {
+        const data = this.defaultData.filter(item => (item.vrate_barometric || item.vrate_inertial || item.vertical_rate));
+        this.option = null;
+        this.chartData = {
+          labels: data.map(item => dayjs.unix(item.timestamp).format('HH:mm')),
+          datasets: [
+            {
+              label: 'Vertical rate',
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'vertical_rate'
+              },
+              borderColor: '#4c78a8',
+              borderWidth: 1,
+              pointRadius: 0.2,
+              spanGaps: true,
+              tension: 0.4,
+            },
+            {
+              label: 'Barometric',
+              type: 'scatter',
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'vrate_barometric'
+              },
+              borderWidth: 0.5,
+              pointRadius: 2,
+              borderColor: "#f58518",
+              backgroundColor: "#f58518",
+            },
+            {
+              label: 'Inertial',
+              type: 'scatter',
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'vrate_inertial'
+              },
+              borderWidth: 0.5,
+              pointRadius: 2,
+              borderColor: "#54a24b",
+              backgroundColor: "#54a24b",
+            },
+          ]
+        }
+      }
+      this.configureVerticalRateChartOptions();
+    },
+
+    updateTrackChart() {
+      if (this.defaultData && this.defaultData.length > 0) {
+        const data = this.defaultData.filter(item => (item.track || item.heading || item.roll));
+        this.option = null;
+        this.chartData = {
+          labels: data.map(item => dayjs.unix(item.timestamp).format('HH:mm')),
+          datasets: [
+            {
+              label: "Track",
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'track'
+              },
+              borderWidth: 2,
+              borderColor: '#4c78a8',
+              pointRadius: 0.2,
+              spanGaps: true,
+              yAxisID: 'bearing',
+            },
+            {
+              label: 'Magnetic heading',
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'heading'
+              },
+              borderWidth: 2,
+              borderColor: "#f58518",
+              pointRadius: 0.2,
+              spanGaps: true,
+              yAxisID: 'bearing',
+            },
+            {
+              label: 'Roll angle',
+              data: data,
+              parsing: {
+                xAxisKey: 'timestamp',
+                yAxisKey: 'roll'
+              },
+              type: "scatter",
+              borderWidth: .5,
+              borderColor: '#54a24b',
+              backgroundColor: '#54a24b',
+              pointRadius: 1.5,
+              yAxisID: 'roll',
+            }
+          ]
+        }
+      }
+      this.configureTrackChartOptions();
+    },
+
+    configureAltitudeChartOptions() {
+      this.option = {
+        onHover: (e) => {
+          const chart = this.$refs.chart.chart;
+          const item = chart.getElementsAtEventForMode(e, 'index', { intersect: false }, false)[0];
+          if (item) {
+            this.handleChartClick(e, item);
+          }
+        },
+        plugins: PLUGINS,
+        scales: {
+          y: {
+            border: { width: 0 },
+            min: 0,
+            ticks: { font: { family: "B612", size: 9 } },
+            grid: { display: false, drawBorder: false }
+          },
+          x: X_SCALE
+        },
+        responsive: true,
+        maintainAspectRatio: false
+      };
+    },
+
+    configureSpeedChartOptions() {
+      this.option = {
+        onHover: (e) => {
+          const chart = this.$refs.chart.chart;
+          const item = chart.getElementsAtEventForMode(e, 'index', { intersect: false }, false)[0];
+          if (item) {
+            this.handleChartClick(e, item);
+          }
+        },
+        plugins: PLUGINS,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        stacked: false,
+        scales: {
+          x: X_SCALE,
+          kts: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            min: 0,
+            ticks: { font: { family: "B612", size: 9 } },
+            grid: { display: false, drawBorder: false }
+          },
+          mach: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            min: 0,
+            max: 1,
+            ticks: { font: { family: "B612", size: 9 } },
+            grid: { drawOnChartArea: false },
+          }
+        },
+        responsive: true,
+        maintainAspectRatio: false
+      };
+    },
+
+    configureVerticalRateChartOptions() {
+      this.option = {
+        onHover: (e) => {
+          const chart = this.$refs.chart.chart;
+          const item = chart.getElementsAtEventForMode(e, 'index', { intersect: false }, false)[0];
+          if (item) {
+            this.handleChartClick(e, item);
+          }
+        },
+        plugins: PLUGINS,
+        legend: { display: false },
+        scales: {
+          x: X_SCALE,
+          y: {
+            border: { width: 0 },
+            ticks: { font: { family: "B612", size: 9 } },
+            grid: { display: false, drawBorder: false }
+          },
+        },
+        responsive: true,
+        maintainAspectRatio: false
+      };
+    },
+
+    configureTrackChartOptions() {
+      this.option = {
+        onHover: (e) => {
+          const chart = this.$refs.chart.chart;
+          const item = chart.getElementsAtEventForMode(e, 'index', { intersect: false }, false)[0];
+          if (item) {
+            this.handleChartClick(e, item);
+          }
+        },
+        plugins: PLUGINS,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        stacked: false,
+        scales: {
+          x: X_SCALE,
+          bearing: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            min: 0,
+            max: 360,
+            ticks: { font: { family: "B612", size: 9 } },
+            grid: { display: false, drawBorder: false }
+          },
+          roll: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            ticks: { font: { family: "B612", size: 9 } },
+            grid: { drawOnChartArea: false },
+          }
+        },
+        responsive: true,
+        maintainAspectRatio: false
+      };
+    },
+
     fetchChartData(item) {
-      const {icao24} = item;
+      const { icao24 } = item;
       console.log(`fetching ${icao24} data ...`);
       fetch('/data/' + icao24)
         .then(async (data) => {
@@ -359,37 +545,48 @@ export default {
           return resp;
         })
         .then((ret) => {
-          const newValue = ret
-          this.defaultData = newValue
-          this.store.setPlaneData(newValue);
+          // Only update if this is still the selected plane
+          if (this.selected && this.selected.icao24 === icao24) {
+            const newValue = ret;
+            this.defaultData = newValue;
+            this.store.setPlaneData(newValue);
 
-          const e = {target: {value: this.selectedItem}}
-          this.onSelectOption(e)
+            const e = { target: { value: this.selectedItem } };
+            this.onSelectOption(e);
+          }
         })
+        .catch(error => {
+          console.error('Error fetching chart data:', error);
+        });
     }
   }
 }
 </script>
-<style>
+<style scoped>
 .chart-container {
-  position: absolute;
-  right: 0;
-  z-index: 999;
   background: white;
-  height: 250px;
-  width: 450px;
-  border: 1px solid #e0e0e0;
-  border-radius: 10px;
-  padding: 10px;
+  height: 180px;
+  width: auto;
+  padding: 5px;
   display: flex;
   flex-direction: column;
 }
+
 #plot-select {
   margin-bottom: 10px;
+  font-family: "Roboto Condensed", sans-serif;
+  font-size: 10pt;
 }
+
 .chart-container .chart {
   width: 100%;
   flex: 1;
   height: 200px;
+}
+
+h5 {
+  border-top: solid 1px #bab0ac;
+  padding-top: 4px;
+  font-size: 97%;
 }
 </style>

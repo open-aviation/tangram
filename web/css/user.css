@@ -1,4 +1,5 @@
-@import url("https://fonts.googleapis.com/css?family=Ubuntu:400,700,400italic");
+@import url("https://fonts.googleapis.com/css?family=Inconsolata:400,700,400italic");
+@import url("https://fonts.googleapis.com/css?family=Roboto Condensed:400,500,700,400italic");
 @import url("https://fonts.googleapis.com/css?family=B612:400,700,400italic");
 
 html,
@@ -9,12 +10,10 @@ body,
   width: 100%;
 }
 
-/*body {
-  // height of .navbar, customize with @navbar-height variable
-  padding-top: 50px;
-}*/
-.navbar {
-  min-height: 50px;
+h5 {
+  font-family: "Roboto Condensed", sans-serif;
+  font-weight: 500;
+  font-size: 1.3rem;
 }
 
 #map {
@@ -23,27 +22,6 @@ body,
   width: auto;
 }
 
-.chart-container {
-  height: fit-content;
-  width: fit-content;
-}
-
-#myChart {
-  width: 100%;
-  height: 100%;
-}
-
-#chart-pane {
-  position: absolute;
-  right: 10px;
-  z-index: 400;
-  padding: 1em;
-  background: white;
-  display: none;
-  width: 500px;
-  height: auto;
-  opacity: 0.8;
-}
 
 #chart {
   border: none;
@@ -183,22 +161,3 @@ a.flag:hover::after {
     max-width: 460px;
   }
 } */
-
-.leaflet-tooltip-custom {
-  font-family: "B612", sans-serif;
-}
-
-
-.info_value_normal td {
-  padding: 1px 8px 4px 8px;
-  font-family: "B612", sans-serif;
-  margin: 0px;
-  vertical-align: top;
-  border-bottom: 1px solid #e7e7e7;
-  background-color: #ffffff;
-}
-
-span#uptime {
-  font-size: 9pt;
-  text-align: center;
-}

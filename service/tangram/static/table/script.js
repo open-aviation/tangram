@@ -121,16 +121,32 @@ function updateEl(data) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const { Socket } = Phoenix;
-  const debug = false;
-  const userToken = "joining-token";
+let userId = null;
 
-  let socket = new Socket("", { debug, params: { userToken } });
+async function main() {
+  const { Socket } = Phoenix;
+
+  let resp = null;
+  try {
+    console.log('getting token ...');
+    let r = await fetch('/channel-token',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'table' })
+      })
+    resp = await r.json(); // { channel, url, id, token }
+    userId = resp.id; // global
+  } catch (err) {
+    console.log('fail to get token: ', err);
+  }
+
+  console.log(`create socket ${resp.url} ...`);
+  let socket = new Socket(resp.url, { debug: false, params: { userToken: resp.token } });
   socket.connect();
 
-  const channelName = "channel:table";
-  const channelToken = "channel-token";
+  const channelName = "table";
+  const channelToken = resp.token;
 
   let tableChannel = socket.channel(channelName, { token: channelToken });
   tableChannel.on('update-row', updateEl);
@@ -163,4 +179,5 @@ document.addEventListener('DOMContentLoaded', () => {
     // fow now, it timeouts
     // iredis --url redis://redis:6379 subscribe channel:table:event:flight-hover
   });
-});
+}
+document.addEventListener('DOMContentLoaded', main);;
