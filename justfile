@@ -124,12 +124,18 @@ tangram-web host="0.0.0.0" port="2024":
   echo "- checking env ..."
   env
 
+  if [[ "$HTTPS_PROXY" != "" ]]; then
+    echo "- setting up npm proxy (use HTTPS_PROXY) ..."
+    npm config set proxy "$HTTPS_PROXY"
+    npm config set https-proxy "$HTTPS_PROXY"
+  fi
+
   cd /home/user/tangram/web
   echo "- working directory: ${PWD}"
 
-  # `node_modules` dependencies are installed and this file is created as a flag
-  # Remove this file (uncomment the following line) if you want to install them every time
-  rm -f /tmp/npm-installed.txt
+  # uncomment the following lines if you want to always reinstall node_modules
+  # rm -f /tmp/npm-installed.txt
+
 
   if [ ! -f /tmp/npm-installed.txt ]; then
     # echo "- removing node_modules ..."
@@ -154,7 +160,7 @@ tangram: network
 
   if [ "$(uname)" = "Linux" ]; then \
     podman container run -it --rm --name tangram \
-      --network {{NETWORK}} -p 2024:2024 -p 2025:2025 -p 18000:18000 \
+      --network {{NETWORK}} -p 2024:2024 \
       --env-file .env \
       --userns=keep-id \
       -v .:/home/user/tangram:z \
@@ -162,7 +168,7 @@ tangram: network
   elif [ "$(uname)" = "Darwin" ]; then \
     # TODO: verify it's necessary to include `--userns=keep-id` here
     podman container run -it --rm --name tangram \
-      --network {{NETWORK}} -p 2024:2024 -p 2025:2025 -p 18000:18000 \
+      --network {{NETWORK}} -p 2024:2024 \
       --env-file .env \
       --userns=keep-id --security-opt label=disable \
       -v $PWD:/home/user/tangram \
