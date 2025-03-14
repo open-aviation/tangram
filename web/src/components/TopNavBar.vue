@@ -6,7 +6,6 @@
           style="height: 30px; margin-right: 5px" />
         <span class="navbar-brand mb-0 mr-2 h"
           style="color: black">tangram</span>
-        <AltitudeSlider />
         <!--         <span class="mr-1 ml-2">Show cluster</span>
         <input :checked="showCluster" type="checkbox" @change="onChange" /> -->
       </div>
@@ -23,11 +22,10 @@
 </template>
 <script>
 import { useMapStore } from "../store";
-import AltitudeSlider from "./AltitudeSlider.vue";
 import AircraftCount from "./AircraftCount.vue";
 
 export default {
-  components: { AltitudeSlider, AircraftCount },
+  components: { AircraftCount },
   data() {
     return {
       store: useMapStore(),

@@ -13,6 +13,7 @@
     <div class="leaflet-sidebar-content">
       <AircraftInfo />
       <MultiCharts />
+      <AltitudeSlider />
 
     </div>
 
@@ -22,9 +23,11 @@
 import { useMapStore } from "../store";
 import MultiCharts from "./MultiCharts.vue";
 import AircraftInfo from "./AircraftInfo.vue";
+import AltitudeSlider from "./AltitudeSlider.vue";
 
 export default {
   components: {
+    AltitudeSlider,
     AircraftInfo,
     MultiCharts
   },

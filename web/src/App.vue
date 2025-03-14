@@ -13,8 +13,6 @@
 
       <PlaneData />
       <PolyLines />
-      <!--       <LatLngBar :position="position" /> -->
-      <HoverDisplay />
 
       <AirportSearch @airport-selected="centerMapTo" />
 
