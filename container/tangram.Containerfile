@@ -6,7 +6,7 @@ RUN chmod +x /usr/local/bin/add-apt-proxy.sh
 RUN /usr/local/bin/add-apt-proxy.sh
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl jq build-essential gcc gnupg2 libgeos-dev nodejs npm \
+  && apt-get install -y --no-install-recommends curl jq build-essential git gcc gnupg2 libgeos-dev nodejs npm \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Create a new user, with home directory and shell
