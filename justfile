@@ -3,19 +3,19 @@ set dotenv-load
 set positional-arguments
 set export
 
-# read from .env file
-JET1090_PARAMS := env_var_or_default("JET1090_PARAMS", "")
-
 # set default values
 NETWORK := "tangram"
-
 REDIS_URL := env_var("REDIS_URL")
 
+# TODO channel version or latest version
+# TODO env_var or latest version
 JET1090_VERSION := "v0.4.2"
 JET1090_IMAGE := "ghcr.io/xoolive/jet1090:" + JET1090_VERSION
 JET1090_VOL := "jet1090-vol"
-BASESTATION_ZIP_URL := env_var_or_default("BASESTATION_ZIP_URL", "https://jetvision.de/resources/sqb_databases/basestation.zip")
+# read from .env file, JET1090_CONFIG only
+JET1090_PARAMS := env_var_or_default("JET1090_PARAMS", "")
 
+# TODO clearly separate the build steps from the run steps
 
 _default:
   @just _check-env
@@ -57,13 +57,13 @@ install-dependent-binaries:
 
   # channel
   # installer script installs it at ~/.cargo/bin, so we add soft link to it in $DEST_DIR
-  curl --proto '=https' --tlsv1.2 -LsSf https://github.com/emctoo/channels/releases/download/v0.2.5/channel-installer.sh | sh
+  curl --proto '=https' --tlsv1.2 -LsSf https://github.com/emctoo/channels/releases/download/v0.2.6/channel-installer.sh | sh
   ln -s ~/.cargo/bin/channel $DEST_DIR/channel
 
   ls -al $DEST_DIR
 
 # create virtualenv
-create-uv-venv wd="~/tangram/service":
+create-uv-venv wd="~/tangram/":
   #!/usr/bin/env bash
   set -x -euo pipefail
 
@@ -75,7 +75,7 @@ create-uv-venv wd="~/tangram/service":
   # https://docs.astral.sh/uv/concepts/projects/#configuring-the-project-environment-path
   export UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram
   uv venv --verbose
-  uv sync --dev --verbose --no-cache && uv cache clean
+  uv sync --dev --verbose
 
 # create tangram network
 network:
@@ -114,7 +114,6 @@ tangram-service port="18000" host="0.0.0.0":
   set -x -euo pipefail
 
   pwd
-  cd service
   watchexec -r -w . -e py -- \
     uv run uvicorn --host {{host}} --port {{port}} tangram.app:app --ws websockets --log-config logging.yml
 
@@ -198,7 +197,7 @@ rate-limiting: network
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
     --env-file .env \
     -e UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram \
-    -w /home/user/tangram/service \
+    -w /home/user/tangram/\
     tangram:0.1 uv run -- python -m tangram.plugins.rate_limiting --dest-topic=coordinate
 
 # table view of jet1090 data
@@ -208,31 +207,11 @@ table:
     -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
     --env-file .env \
     -e UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram \
-    -w /home/user/tangram/service \
+    -w /home/user/tangram/\
     tangram:0.1 uv run -- python -m tangram.plugins.table
 
 log log="tangram": network
   @podman container exec -it -e TERM=xterm-256color -w /tmp/tangram tangram tail -f {{log}}.log
-
-jet1090-basestation:
-  #!/usr/bin/env bash
-
-  mkdir -p ~/.cache/jet1090
-  if [[ ! -f ~/.cache/jet1090/basestation.zip ]]; then
-    echo "basestation.zip not found, downloading ..."
-    curl -L {{BASESTATION_ZIP_URL}} -o ~/.cache/jet1090/basestation.zip
-  fi
-
-  unzip -o ~/.cache/jet1090/basestation.zip -d ~/.cache/jet1090
-
-jet1090-vol: jet1090-basestation
-  # Commands for creating a volume for basestation.sqb
-  # It can be used as name volume when running jet1090 contaienr
-  # FIXME: it does not work with jet1090 for now, it tries to create the directory and download anyway.
-  tar czf ~/.cache/jet1090/basestation.sqb.tgz -C ~/.cache/jet1090 basestation.sqb
-  podman volume create {{JET1090_VOL}}
-  podman volume import {{JET1090_VOL}} ~/.cache/jet1090/basestation.sqb.tgz
-  podman volume inspect {{JET1090_VOL}}
 
 # pull jet1090 image from ghcr.io
 build-jet1090:
@@ -240,7 +219,7 @@ build-jet1090:
   podman pull {{JET1090_IMAGE}}
 
 # run jet1090 interactively, as a container
-jet1090: network redis jet1090-basestation _build-filter
+jet1090: network redis _build-filter
   podman run -it --rm --name jet1090 \
     --network {{NETWORK}} -p 8080:8080 \
     -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
@@ -256,7 +235,7 @@ jet1090: network redis jet1090-basestation _build-filter
           --match '("altitude"):::altitude:::1000'
 
 # run jet1090 (0.3.8) as a service
-jet1090-daemon: network redis jet1090-basestation
+jet1090-daemon: network redis
   podman run -d --rm --name jet1090 \
     --network {{NETWORK}} -p 8080:8080 \
     -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \

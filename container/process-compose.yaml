@@ -16,7 +16,7 @@ processes:
   service:
     environment:
     command: just tangram-service
-    working_dir: /home/user/tangram/service
+    working_dir: /home/user/tangram/
     availability:
       restart: "always"
 
@@ -27,7 +27,7 @@ processes:
   plugins/system:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
-    working_dir: /home/user/tangram/service
+    working_dir: /home/user/tangram/
     command: env && pwd && uv run -- python -m tangram.plugins.system
     availability:
       restart: "always"
@@ -35,23 +35,23 @@ processes:
   plugins/streaming:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
-    working_dir: /home/user/tangram/service
+    working_dir: /home/user/tangram/
     command: env && pwd && uv run -- python -m tangram.plugins.streaming
     availability:
       restart: "always"
 
-  plugins/history:
-    environment:
-      - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
-    working_dir: /home/user/tangram/service
-    command: env && pwd && uv run -- python -m tangram.plugins.history
-    availability:
-      restart: "always"
+  # plugins/history:
+  #   environment:
+  #     - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
+  #   working_dir: /home/user/tangram/service
+  #   command: env && pwd && uv run -- python -m tangram.plugins.history
+  #   availability:
+  #     restart: "always"
 
   plugins/trajectory:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
-    working_dir: /home/user/tangram/service
+    working_dir: /home/user/tangram/
     command: env && pwd && uv run -- python -m tangram.plugins.trajectory
     availability:
       restart: "always"

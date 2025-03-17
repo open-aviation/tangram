@@ -25,7 +25,7 @@ dependencies = [
   "redis>=5.2.0",
   "requests>=2.32.3",
   "uvicorn[standard]>=0.32.0",
-  "websockets>=13.1",
+  "websockets>=15.0.1",
   "msgspec>=0.19.0",
 ]
 
@@ -36,7 +36,7 @@ tangram = 'tangram.__main__:main'
 dev-dependencies = ["mypy>=1.13.0", "ruff>=0.7.2"]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch_vcs"]
 build-backend = "hatchling.build"
 
 [tool.mypy]

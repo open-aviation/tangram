@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # coding: utf8
 
-import time
-import redis
+import json
 import logging
+import time
 from typing import Any, List
+
 import httpx
+import redis
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
@@ -37,7 +39,10 @@ def main(jet1090_restful_service: str, redis_url: str, streamping_topic: str):
     while True:
         # source_data = jet1090_all(jet1090_restful_service)
         resp = restful_client.get(url)
-        redis_client.publish(streamping_topic, resp.text)
+        data = resp.json()
+        # print(data)
+        # data = [elt for elt in data if elt.get("latitude", None) is not None and elt["latitude"] < 50]
+        redis_client.publish(streamping_topic, json.dumps(data))
         log.info("publishing to %s %s (len: %s)...", redis_url, streamping_topic, len(resp.text))
         time.sleep(1)
 

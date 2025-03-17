@@ -1,7 +1,7 @@
 import pathlib
-from typing import Any, Type, Tuple
-from pydantic_settings import BaseSettings, SettingsConfigDict, PydanticBaseSettingsSource, YamlConfigSettingsSource
+from typing import Any, Tuple, Type
 
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, YamlConfigSettingsSource
 
 TANGRAM_PACKAGE_ROOT = pathlib.Path(__file__).resolve().parent
 
