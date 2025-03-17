@@ -1,13 +1,13 @@
 [project]
 name = "tangram"
-version = "0.1.0"
-description = ""
+description = "tangram backend main entry point, for real-time analysis"
 authors = [
   { name = "Xavier Olive", email = "git@xoolive.org" },
   { name = "Xiaogang Huang", email = "maple.hl@gmail.com" },
   { name = "Junzi Sun", email = "junzi.sun@gmail.com" },
   { name = "Michel Khalaf", email = "khalafmichel98@gmail.com" },
 ]
+dynamic = ["version"]
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
@@ -38,6 +38,9 @@ dev-dependencies = ["mypy>=1.13.0", "ruff>=0.7.2"]
 [build-system]
 requires = ["hatchling", "hatch_vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.mypy]
 python_version = "3.12"

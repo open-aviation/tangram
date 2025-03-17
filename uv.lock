@@ -771,7 +771,6 @@ wheels = [
 
 [[package]]
 name = "tangram"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "anyio", extra = ["trio"] },
