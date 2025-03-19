@@ -117,8 +117,12 @@ export const useMapStore = defineStore("map", {
     setVisible(v) {
       this.visible = v;
     },
-    setBounds(v) {
-      this.bounds = v;
+    setBounds(bbox) {
+      this.bounds = bbox;
+      const { _northEast: { lat: northEastLat, lng: northEastLng }, _southWest: { lat: southWestLat, lng: southWestLng } } = bbox;
+      const pushedBbox = { northEastLat, northEastLng, southWestLat, southWestLng };
+      this.pushSystemEvent("bound-box", pushedBbox);
+      console.log('bound-box pushed:', pushedBbox)
     },
     setCount(v) {
       this.count = v;

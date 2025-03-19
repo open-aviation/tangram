@@ -27,13 +27,11 @@
   </l-layer-group>
   <l-layer-group v-else> -->
   <l-layer-group>
-    <v-rotated-marker v-for="(item, index) in planeData" :key="index"
-      @click="showRoute" :icon="getIcon(item)" :autofocus="false"
-      :rotationAngle="getRotate(item)"
+    <v-rotated-marker v-for="(item, index) in planeData" :key="index" @click="showRoute" :icon="getIcon(item)"
+      :autofocus="false" :rotationAngle="getRotate(item)"
       :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'"
       :lat-lng="[item.latitude, item.longitude]">
-      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24"
-        :options="{ direction: 'top', offset: [0, -10] }">
+      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10] }">
         <AircraftTooltip :aircraft="item" />
       </l-tooltip>
       <l-popup class="popup-leaflet-hidden" :options="{ autoPan: false }">
@@ -106,7 +104,8 @@ export default {
   },
   methods: {
     newDataHandler(data) {
-      console.log(data);
+      console.log('total: ', data.length);
+
       const now = Math.floor(Date.now() / 1000);
       if (data && data.length > 0) {
         // only the aircraft has been seen in the last 10 minutes
