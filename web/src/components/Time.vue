@@ -1,8 +1,7 @@
 <template>
     <div>
         <ul class="nav nav-tabs navbar-nav">
-            <li class="nav-item clock" @mouseover="hovered = true"
-                @mouseleave="hovered = false">
+            <li class="nav-item clock" @mouseover="hovered = true" @mouseleave="hovered = false">
                 <span id="info_time" v-html="hovered ? info_local : info_utc">
                 </span>
             </li>
@@ -17,6 +16,7 @@ import { useMapStore } from "@store"; // use the alias instead of relative path
 export default {
     data() {
         return {
+            hovered: false,
             store: useMapStore(),
         };
     },

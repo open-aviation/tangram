@@ -3,7 +3,7 @@ import logging
 import time
 from datetime import UTC, datetime
 
-import pandas as pd
+# import pandas as pd
 import redis
 
 # from tangram.plugins.history import HistoryDB
@@ -31,7 +31,8 @@ def uptime_html(counter):
     el = "uptime"
     return {
         "el": el,
-        "html": f"""<span id="{el}">{pd.Timedelta(counter, unit="s")}</span>""",
+        # "html": f"""<span id="{el}">{pd.Timedelta(counter, unit="s")}</span>""",
+        "html": f"""<span id="{el}">{counter}</span>""",
     }
 
 
