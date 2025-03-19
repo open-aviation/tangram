@@ -33,19 +33,29 @@ install-dependent-binaries:
   #!/usr/bin/env bash
   set -x -euo pipefail
 
+  # nodejs with fnm
+  # install fnm binary as ~/.local/share/fnm/fnm and added snippets in .bashrc
+  curl -fsSL https://fnm.vercel.app/install | bash
+  source ~/.bashrc
+  export PATH=$HOME/.local/share/fnm:$PATH
+  eval $(fnm env --shell bash)
+  fnm install 23
+  node --version
+  npm --version
+
   DEST_DIR="$HOME/.local/bin"
 
   # watchexec
-  cleanup() {
-    rm -rf /tmp/watchexec*
-  }
-  trap cleanup EXIT
-  LATEST_TAG=$(curl -sL https://api.github.com/repos/watchexec/watchexec/releases/latest | jq -r '.tag_name')
-  DL_URL="https://github.com/watchexec/watchexec/releases/download/${LATEST_TAG}/watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl.tar.xz"
-  curl -L "$DL_URL" -o /tmp/watchexec.tar.xz
-  mkdir -p $DEST_DIR
-  tar -xvf /tmp/watchexec.tar.xz --strip-components=1 -C $DEST_DIR "watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl/watchexec"
-  echo "watchexec has been installed to $DEST_DIR/watchexec."
+  # cleanup() {
+  #   rm -rf /tmp/watchexec*
+  # }
+  # trap cleanup EXIT
+  # LATEST_TAG=$(curl -sL https://api.github.com/repos/watchexec/watchexec/releases/latest | jq -r '.tag_name')
+  # DL_URL="https://github.com/watchexec/watchexec/releases/download/${LATEST_TAG}/watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl.tar.xz"
+  # curl -L "$DL_URL" -o /tmp/watchexec.tar.xz
+  # mkdir -p $DEST_DIR
+  # tar -xvf /tmp/watchexec.tar.xz --strip-components=1 -C $DEST_DIR "watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl/watchexec"
+  # echo "watchexec has been installed to $DEST_DIR/watchexec."
 
   # uv
   curl -LsSf https://astral.sh/uv/install.sh | sh # uv
@@ -68,7 +78,7 @@ create-uv-venv wd="~/tangram/":
   set -x -euo pipefail
 
   cd {{wd}}
-  mkdir -p /home/user/.local/share/venvs
+  mkdir -p $HOME/.local/share/venvs
 
   # specify the path for virtual environment
   # by default it creates .venv in current working directory, which has issues of permission
@@ -114,8 +124,9 @@ tangram-service port="18000" host="0.0.0.0":
   set -x -euo pipefail
 
   pwd
-  watchexec -r -w . -e py -- \
-    uv run uvicorn --host {{host}} --port {{port}} tangram.app:app --ws websockets --log-config logging.yml
+  uv run uvicorn --host {{host}} --port {{port}} tangram.app:app --log-config logging.yml
+  # watchexec -r -w . -e py -- \
+  #   uv run uvicorn --host {{host}} --port {{port}} tangram.app:app --ws websockets --log-config logging.yml
 
 tangram-web host="0.0.0.0" port="2024":
   #!/usr/bin/env bash
@@ -136,9 +147,9 @@ tangram-web host="0.0.0.0" port="2024":
   # rm -f /tmp/npm-installed.txt
 
 
+  # echo "- removing node_modules ..."
+  # rm -rf node_modules
   if [ ! -f /tmp/npm-installed.txt ]; then
-    # echo "- removing node_modules ..."
-    # rm -rf node_modules
 
     echo "- npm install now ..."
     npm install
@@ -151,6 +162,7 @@ tangram-web host="0.0.0.0" port="2024":
 
 # build process-compose based tangram image
 build-tangram:
+  podman system prune --build -f
   podman image build -f container/tangram.Containerfile -t tangram:0.1 .
 
 # launch tangram container
