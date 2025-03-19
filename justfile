@@ -131,6 +131,8 @@ tangram-service port="18000" host="0.0.0.0":
 tangram-web host="0.0.0.0" port="2024":
   #!/usr/bin/env bash
 
+  eval $(/home/user/.local/share/fnm/fnm env --shell bash)
+
   echo "- checking env ..."
   env
 
@@ -202,28 +204,11 @@ channel-restart:
   just channel
 
 
-# rate-limiting plugin container
-rate-limiting: network
-  podman container run -it --rm --name rate_limiting \
-    --network {{NETWORK}} \
-    -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
-    --env-file .env \
-    -e UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram \
-    -w /home/user/tangram/\
-    tangram:0.1 uv run -- python -m tangram.plugins.rate_limiting --dest-topic=coordinate
-
-# table view of jet1090 data
-table:
-  podman container run -it --rm --name rate_limiting \
-    --network {{NETWORK}} \
-    -v .:/home/user/tangram:z --userns=keep-id --user $(id -u) \
-    --env-file .env \
-    -e UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram \
-    -w /home/user/tangram/\
-    tangram:0.1 uv run -- python -m tangram.plugins.table
-
-log log="tangram": network
+tangram-log log="tangram": network
   @podman container exec -it -e TERM=xterm-256color -w /tmp/tangram tangram tail -f {{log}}.log
+
+tangram-shell:
+  @podman container exec -it -e TERM=xterm-256color -w /home/user/tangram tangram /bin/bash
 
 # pull jet1090 image from ghcr.io
 build-jet1090:
