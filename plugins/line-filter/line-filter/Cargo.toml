@@ -18,6 +18,10 @@ path = "src/main.rs"
 name = "fast"
 path = "src/bin/fast.rs"
 
+[[bin]]
+name = "streaming"
+path = "src/bin/streaming.rs"
+
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
@@ -25,6 +29,9 @@ tokio-stream = "0.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
+
+reqwest ={ version = "0.12", features = ["json"] }
+anyhow = "1.0"
 
 futures = "0.3"
 # futures-util = { version = "0.3.30"}

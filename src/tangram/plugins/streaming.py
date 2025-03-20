@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf8
 
+import time
 import json
 import logging
 import asyncio
@@ -119,6 +120,7 @@ async def main(jet1090_restful_service: str, redis_url: str):
                 await asyncio.sleep(1)
                 continue
 
+            now = time.time()
             resp = await restful_client.get(all_aircraft_url)
             all_aircraft = resp.json()
             icao24_set = set((el["icao24"] for el in all_aircraft))

@@ -108,9 +108,8 @@ export default {
     }, 1000);
   },
   methods: {
-    newDataHandler(data) {
-      const { aircraft, count } = data;
-      // console.log('total: ', data.length);
+    newDataHandler({ aircraft, count }) {
+      // console.log('total: ', aircraft.length);
 
       const now = Math.floor(Date.now() / 1000);
       if (aircraft && aircraft.length > 0) {
