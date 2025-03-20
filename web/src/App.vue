@@ -3,12 +3,10 @@
     <TopNavBar />
     <LeftSideBar ref="leftBar" />
 
-    <l-map @click="emptySelect" @mousemove="getPosition($event)"
-      @moveend="updateCenter" class="map-container" ref="map"
+    <l-map @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map"
       v-model:zoom="zoom" :center="center" @update:bounds="updateBounds">
 
-      <l-tile-layer :url="map_url" layer-type="base"
-        name="OpenStreetMap"></l-tile-layer>
+      <l-tile-layer :url="map_url" layer-type="base" name="OpenStreetMap"></l-tile-layer>
 
 
       <PlaneData />
@@ -34,10 +32,11 @@
 </template>
 
 <script>
-import "leaflet/dist/leaflet.css";
-
+import { onBeforeUnmount } from "vue";
 import { useMapStore } from "./store";
+
 import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
+import "leaflet/dist/leaflet.css";
 
 import AirportSearch from "./components/AirportSearch.vue";
 import TopNavBar from "./components/TopNavBar.vue";
@@ -62,6 +61,21 @@ export default {
     AirportSearch,
   },
 
+  setup() {
+    console.log('app setup ...');
+    const mapStore = useMapStore();
+
+    // Initialize socket
+    mapStore.createSocket();
+
+    // Clean up when component is unmounted
+    onBeforeUnmount(() => {
+      mapStore.destroySocket();
+    });
+
+    return { mapStore };
+  },
+
   data() {
     const lat = import.meta.env.VITE_LEAFLET_CENTER_LAT || 48.3169;
     const lon = import.meta.env.VITE_LEAFLET_CENTER_LON || 6.9459;
@@ -75,20 +89,26 @@ export default {
       store: useMapStore(),
     };
   },
+
   computed: {
     show() {
       return this.store.showDrawer;
     },
   },
+
   async mounted() {
-    const socket = await this.store.createSocket();
+    console.log('app mounted');
+    // const socket = await this.store.createSocket();
+    while (!this.store.socket) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
 
     console.log("joining system channel");
     const channelName = "system";
     const callbacks = {
       "update-node": this.updateNode.bind(this),
     };
-    await this.joinChannel(socket, channelName, callbacks);
+    await this.joinChannel(this.store.socket, channelName, callbacks);
   },
 
   methods: {

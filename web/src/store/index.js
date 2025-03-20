@@ -29,7 +29,7 @@ async function newSocket() {
 
   const socket = new Socket(wsUrl, { debug: false, params: { userToken } });
   socket.connect();
-  console.log(`socket created`);
+  console.log(`socket created, connectionId: ${connectionId}`);
   return { connectionId, socket };
 }
 
@@ -64,7 +64,7 @@ function joinChannel(socket, channelName, bindings) {
 export const useMapStore = defineStore("map", {
   state: () => ({
     socket: null,
-    connectionId: null,
+    connectionId: undefined,
     systemChannel: null, // we can't leave systemChannel int the store
     selectedPlane: null, // {}
     planeData: [],
@@ -120,9 +120,9 @@ export const useMapStore = defineStore("map", {
     setBounds(bbox) {
       this.bounds = bbox;
       const { _northEast: { lat: northEastLat, lng: northEastLng }, _southWest: { lat: southWestLat, lng: southWestLng } } = bbox;
-      const pushedBbox = { northEastLat, northEastLng, southWestLat, southWestLng };
-      this.pushSystemEvent("bound-box", pushedBbox);
-      console.log('bound-box pushed:', pushedBbox)
+      const payload = { connectionId: this.connectionId, northEastLat, northEastLng, southWestLat, southWestLng };
+      this.pushSystemEvent("bound-box", payload);
+      console.log('bound-box pushed:', payload)
     },
     setCount(v) {
       this.count = v;
@@ -162,8 +162,37 @@ export const useMapStore = defineStore("map", {
       const { connectionId, socket } = await newSocket();
       this.connectionId = connectionId;
       this.socket = socket;
+
+      // Add window beforeunload event listener for cleanup
+      window.addEventListener('beforeunload', this.cleanupSocket);
+
       return this.socket;
     },
+    cleanupSocket() {
+      if (this.socket) {
+        console.log(`cleaning up socket connection: ${this.connectionId}`);
+        this.pushSystemEvent("leave-streaming", { connectionId: this.connectionId });
+        
+        // Disconnect from all channels first
+        if (this.systemChannel) {
+          this.systemChannel.leave();
+          this.systemChannel = null;
+        }
+        
+        // Disconnect the socket
+        this.socket.disconnect();
+        this.socket = null;
+        this.connectionId = undefined;
+        
+        console.log('Socket disconnected and cleaned up');
+      }
+    },
+    destroySocket() {
+      // called when app is unmounted: App.vue
+      this.cleanupSocket();
+      window.removeEventListener('beforeunload', this.cleanupSocket);
+    },
+
     async setSelected(selected) {
       // unselect => selected === null?
       console.log("in store, select plan: ", selected);

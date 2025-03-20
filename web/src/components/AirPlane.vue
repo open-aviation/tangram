@@ -82,6 +82,9 @@ export default {
     socket() {
       return this.store.socket;
     },
+    connectionId() {
+      return this.store.connectionId;
+    },
     altitude() {
       return this.store.altitude;
     },
@@ -90,13 +93,15 @@ export default {
     },
   },
   async mounted() {
-    console.log("initialize streaming channel ...");
+    console.log(`joinning streaming channel ...`);
+
+    // set a interval to check if the socket is ready
     const checkSocketInterval = setInterval(async () => {
       if (this.socket) {
-        console.log("socket is ready", self.socket);
+        console.log(`${this.connectionId} socket is ready`, this.socket);
         clearInterval(checkSocketInterval);
-
-        await this.createChannel();
+        await this.joinStreamingChannel(`streaming-${this.connectionId}`);
+        await this.store.pushSystemEvent('join-streaming', {connectionId: this.store.connectionId});        
       } else {
         console.log("wait for socket: ", this.socket);
       }
@@ -104,18 +109,15 @@ export default {
   },
   methods: {
     newDataHandler(data) {
-      console.log('total: ', data.length);
+      const { aircraft, count } = data;
+      // console.log('total: ', data.length);
 
       const now = Math.floor(Date.now() / 1000);
-      if (data && data.length > 0) {
+      if (aircraft && aircraft.length > 0) {
         // only the aircraft has been seen in the last 10 minutes
-        var recent = data.filter(item => item.lastseen >= now - 600);
+        var recent = aircraft.filter(item => item.lastseen >= now - 600);
         const arr = recent.filter(
-          (item) =>
-            item.latitude &&
-            item.longitude &&
-            item.altitude >= this.altitude[0] &&
-            item.altitude <= this.altitude[1],
+          (item) => item.latitude && item.longitude && item.altitude >= this.altitude[0] && item.altitude <= this.altitude[1],
         );
         arr.forEach((item) => {
           item.latitude = Number(item.latitude);
@@ -123,8 +125,8 @@ export default {
         });
         this.planeData = arr.concat();
         // update metrics
-        this.store.setCount(arr.length);
-        console.log(this.store.bounds);
+        this.store.setCount(count);
+        // console.log(this.store.bounds);
         const visible = arr.filter(item =>
           this.store.bounds == null ||
           this.store.bounds.contains([item.latitude, item.longitude])
@@ -140,13 +142,13 @@ export default {
     //
     //   this.store.setSelected(this.selected)
     // },
-    createChannel() {
+    joinStreamingChannel(channelName = "streaming") {
       return new Promise((resolve, reject) => {
         if (this.channel) {
           console.log("streaming channel already initiated: ", this.channel);
           return;
         }
-        const channelName = "streaming";
+        // const channelName = "streaming";
         this.channel = this.socket.channel(channelName);
 
         this.channel.on("new-data", this.newDataHandler.bind(this));
@@ -154,7 +156,7 @@ export default {
 
         this.channel
           .join()
-          .receive("ok", ({ messages }) => {
+          .receive("ok", ({ messages }) => {            
             console.log(`${channelName} / joined:`, messages);
             resolve(messages);
           })

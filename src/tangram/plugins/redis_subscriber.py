@@ -27,7 +27,7 @@ class Subscriber(abc.ABC, Generic[StateT]):
 
     async def subscribe(self):
         if self._running:
-            log.warning('%s already running', self.name)
+            log.warning("%s already running", self.name)
             return
 
         try:
@@ -42,15 +42,17 @@ class Subscriber(abc.ABC, Generic[StateT]):
             try:
                 log.info("%s listening ...", self.name)
                 async for message in self.pubsub.listen():
+                    log.info("message: %s", message)
                     if message["type"] == "pmessage":
                         await self.message_handler(
                             message["channel"].decode("utf-8"),
                             message["data"].decode("utf-8"),
-                            message["pattern"].decode('utf-8'),
+                            message["pattern"].decode("utf-8"),
                             self.state,
                         )
             except asyncio.CancelledError:
                 log.warning("%s cancelled", self.name)
+
         self._running = True
 
         self.task: asyncio.Task = asyncio.create_task(listen())
@@ -59,7 +61,7 @@ class Subscriber(abc.ABC, Generic[StateT]):
     async def cleanup(self):
         if not self._running:
             return
-        
+
         if self.task:
             log.debug("%s canceling task ...", self.name)
             self.task.cancel()
@@ -80,5 +82,5 @@ class Subscriber(abc.ABC, Generic[StateT]):
         return self._running and self.task is not None and not self.task.done()
 
     @abc.abstractmethod
-    async def message_handler(self, channel: str, data: str, pattern: str, state: StateT):
+    async def message_handler(self, event: str, payload: str, pattern: str, state: StateT):
         pass
