@@ -28,7 +28,7 @@ processes:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
-    command: env && pwd && uv run -- python -m tangram.plugins.ws_system
+    command: env && pwd && uv run -- python -m tangram.ws_system
     availability:
       restart: "always"
 
@@ -36,7 +36,7 @@ processes:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
-    command: env && pwd && uv run -- python -m tangram.plugins.ws_state_vector
+    command: env && pwd && uv run -- python -m tangram.ws_state_vector
     availability:
       restart: "always"
 
@@ -44,7 +44,7 @@ processes:
   #   environment:
   #     - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
   #   working_dir: /home/user/tangram/service
-  #   command: env && pwd && uv run -- python -m tangram.plugins.history
+  #   command: env && pwd && uv run -- python -m tangram.history
   #   availability:
   #     restart: "always"
 
@@ -52,6 +52,6 @@ processes:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
-    command: env && pwd && uv run -- python -m tangram.plugins.ws_trail
+    command: env && pwd && uv run -- python -m tangram.ws_trail
     availability:
       restart: "always"
