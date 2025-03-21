@@ -17,14 +17,14 @@ processes:
     command: /home/user/.cargo/bin/channel --port 2025 --jwt-secret secret
     working_dir: /home/user/tangram
 
-  plugins/rest:
+  core/rest:
     environment:
-    command: just tangram-service
+    command: just tangram-rest
     working_dir: /home/user/tangram/
     availability:
       restart: "always"
 
-  plugins/ws_system:
+  core/ws_system:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
@@ -32,7 +32,7 @@ processes:
     availability:
       restart: "always"
 
-  plugins/ws_state_vector:
+  core/ws_state_vector:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
@@ -40,7 +40,7 @@ processes:
     availability:
       restart: "always"
 
-  # plugins/history:
+  # core/history:
   #   environment:
   #     - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
   #   working_dir: /home/user/tangram/service
@@ -48,7 +48,7 @@ processes:
   #   availability:
   #     restart: "always"
 
-  plugins/ws_trail:
+  core/ws_trail:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
