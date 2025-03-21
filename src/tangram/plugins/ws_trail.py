@@ -8,7 +8,7 @@ from typing import Iterable, List
 
 import msgspec
 
-from tangram.plugins import redis_subscriber
+from tangram.plugins.common import redis_subscriber
 from tangram.plugins.history import HistoryDB
 from tangram.plugins.common import rs1090
 

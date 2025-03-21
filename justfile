@@ -124,9 +124,7 @@ tangram-service port="18000" host="0.0.0.0":
   set -x -euo pipefail
 
   pwd
-  uv run uvicorn --host {{host}} --port {{port}} tangram.app:app --log-config logging.yml
-  # watchexec -r -w . -e py -- \
-  #   uv run uvicorn --host {{host}} --port {{port}} tangram.app:app --ws websockets --log-config logging.yml
+  uv run uvicorn --host {{host}} --port {{port}} tangram.plugins.rest:app
 
 tangram-web host="0.0.0.0" port="2024":
   #!/usr/bin/env bash

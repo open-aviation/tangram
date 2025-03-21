@@ -13,30 +13,30 @@ processes:
     availability:
       restart: "always"
 
-  service:
+  channel:
+    command: /home/user/.cargo/bin/channel --port 2025 --jwt-secret secret
+    working_dir: /home/user/tangram
+
+  plugins/rest:
     environment:
     command: just tangram-service
     working_dir: /home/user/tangram/
     availability:
       restart: "always"
 
-  channel:
-    command: /home/user/.cargo/bin/channel --port 2025 --jwt-secret secret
-    working_dir: /home/user/tangram
-
-  plugins/system:
+  plugins/ws_system:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
-    command: env && pwd && uv run -- python -m tangram.plugins.system
+    command: env && pwd && uv run -- python -m tangram.plugins.ws_system
     availability:
       restart: "always"
 
-  plugins/streaming:
+  plugins/ws_state_vector:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
-    command: env && pwd && uv run -- python -m tangram.plugins.streaming
+    command: env && pwd && uv run -- python -m tangram.plugins.ws_state_vector
     availability:
       restart: "always"
 
@@ -48,10 +48,10 @@ processes:
   #   availability:
   #     restart: "always"
 
-  plugins/trajectory:
+  plugins/ws_trail:
     environment:
       - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
-    command: env && pwd && uv run -- python -m tangram.plugins.trajectory
+    command: env && pwd && uv run -- python -m tangram.plugins.ws_trail
     availability:
       restart: "always"

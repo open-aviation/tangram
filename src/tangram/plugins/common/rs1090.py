@@ -4,7 +4,7 @@ from typing import Any
 
 import dotenv
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 dotenv.load_dotenv()
 log = logging.getLogger(__name__)

@@ -1,15 +1,14 @@
 import abc
 import asyncio
 from typing import List, TypeVar, Generic
+import logging
 
 import redis
 from redis.asyncio import Redis
 from redis.asyncio.client import PubSub
 
-from tangram.util import logging
 
-
-log = logging.getPluginLogger(__package__, __name__, "/tmp/tangram/", log_level=logging.DEBUG)
+log = logging.getLogger(__name__)
 
 StateT = TypeVar("StateT")
 

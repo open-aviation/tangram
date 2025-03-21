@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Set
 import httpx
 import redis
 
-from tangram.plugins.redis_subscriber import Subscriber
+from tangram.plugins.common.redis_subscriber import Subscriber
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
@@ -122,7 +122,7 @@ async def main(jet1090_restful_service: str, redis_url: str):
 
             now = time.time()
             resp = await restful_client.get(all_aircraft_url)
-            all_aircraft = resp.json()
+            all_aircraft = [el for el in resp.json() if el.get("latitude", None)]
             icao24_set = set((el["icao24"] for el in all_aircraft))
 
             # Apply filters per client connection and publish
