@@ -29,7 +29,7 @@ just redis
 ### 5. build the `tangram` and `jet1090` container:
 
   ```shell
-  just build
+  just build-tangram
   just build-jet1090
   ```
 

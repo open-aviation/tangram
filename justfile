@@ -162,7 +162,7 @@ tangram-web host="0.0.0.0" port="2024":
 
 # build process-compose based tangram image
 build-tangram:
-  podman system prune --build -f
+  podman system prune -f
   podman image build -f container/tangram.Containerfile -t tangram:0.1 .
 
 # launch tangram container
@@ -214,20 +214,16 @@ build-jet1090:
   podman pull {{JET1090_IMAGE}}
 
 # run jet1090 interactively, as a container
-jet1090: network redis _build-filter
+jet1090: network redis
   podman run -it --rm --name jet1090 \
     --network {{NETWORK}} -p 8080:8080 \
     -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
     {{JET1090_IMAGE}} \
       jet1090 \
-        --verbose \
+        --interactive \
         --serve-port 8080 \
         --redis-url {{REDIS_URL}} --redis-topic jet1090-full \
-        {{JET1090_PARAMS}} | \
-        line-filter/target/release/fast \
-          --redis-url {{REDIS_URL}} \
-          --match '(AND "altitude" "longitude"):::coordinate:::1000' \
-          --match '("altitude"):::altitude:::1000'
+        {{JET1090_PARAMS}} 
 
 # run jet1090 (0.3.8) as a service
 jet1090-daemon: network redis
