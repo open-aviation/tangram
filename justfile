@@ -9,11 +9,12 @@ REDIS_URL := env_var("REDIS_URL")
 
 # TODO channel version or latest version
 # TODO env_var or latest version
-JET1090_VERSION := "v0.4.2"
+JET1090_VERSION := "0.4.8"
 JET1090_IMAGE := "ghcr.io/xoolive/jet1090:" + JET1090_VERSION
 JET1090_VOL := "jet1090-vol"
 # read from .env file, JET1090_CONFIG only
 JET1090_PARAMS := env_var_or_default("JET1090_PARAMS", "")
+JET1090_CONFIG := env_var_or_default("JET1090_CONFIG", "")
 
 # TODO clearly separate the build steps from the run steps
 
