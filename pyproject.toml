@@ -23,8 +23,6 @@ dependencies = [
   "msgspec>=0.19.0",
 ]
 
-[project.scripts]
-tangram = 'tangram.__main__:main'
 
 [tool.uv]
 dev-dependencies = ["mypy>=1.13.0", "ruff>=0.7.2"]
@@ -44,8 +42,6 @@ color_output = true
 pretty = true
 show_column_numbers = true
 strict = true
-
-# probably redundant, but useful when switching strict to false
 check_untyped_defs = true
 ignore_missing_imports = true
 warn_no_return = true
@@ -53,41 +49,17 @@ warn_redundant_casts = true
 warn_unused_configs = true
 warn_unused_ignores = true
 
+
 [tool.ruff]
-exclude = [
-  '.git',
-  '.direnv',
-  '.venv',
-  'venv',
-  '.mypy_cache',
-  '.pyenv',
-  '.pytype',
-  '.vscode',
-  '__pypackages__',
-  '.dist',
-  'result',
-  'site-packages',
-  'node_modules',
-]
-
-line-length = 160
-indent-width = 4
-
 target-version = 'py312'
 
 [tool.ruff.lint]
-# Allow unused variables when underscore-prefixed.
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
-[tool.ruff.format]
-# Like Black, use double quotes for strings.
-quote-style = "double"
-
-# Like Black, indent with spaces, rather than tabs.
-indent-style = "space"
-
-# Like Black, respect magic trailing commas.
-skip-magic-trailing-comma = false
-
-# Like Black, automatically detect the appropriate line ending.
-line-ending = "auto"
+select = [
+  "E",
+  "W",   # pycodestyle
+  "F",   # pyflakes
+  "I",   # isort
+  "NPY", # numpy
+  "DTZ", # flake8-datetimez
+  "RUF",
+]

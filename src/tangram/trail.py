@@ -12,7 +12,9 @@ from tangram.common import redis_subscriber, rs1090
 from tangram.history import HistoryDB
 
 jet1090_restful_client = rs1090.Rs1090Client()
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 log = logging.getLogger(__name__)
 
 
@@ -26,12 +28,14 @@ class Subscriber(redis_subscriber.Subscriber[State]):
     def __init__(self, name: str, redis_url: str, channels: List[str]):
         self.redis_url: str = redis_url
         self.channels: List[str] = channels
-        self.history_db = HistoryDB(use_memory=False)
+        self.history_db = HistoryDB(use_memory=True)
 
         initial_state = State()
         super().__init__(name, redis_url, channels, initial_state)
 
-    async def message_handler(self, channel: str, data: str, pattern: str, state: State):
+    async def message_handler(
+        self, channel: str, data: str, pattern: str, state: State
+    ):
         # log.info("selected: %s, got: %s %s", state.icao24, channel, data)
 
         if channel == "coordinate" and state.icao24:
@@ -39,7 +43,11 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
             timed_message = msgspec.json.decode(data)
             if timed_message["icao24"] == state.icao24:
-                icao24, latitude, longitude = timed_message["icao24"], timed_message["latitude"], timed_message["longitude"]
+                icao24, latitude, longitude = (
+                    timed_message["icao24"],
+                    timed_message["latitude"],
+                    timed_message["longitude"],
+                )
                 # await self.redis.publish("trajectory", msgspec.json.encode(timed_message))
 
                 # Two options here:
@@ -52,11 +60,24 @@ class Subscriber(redis_subscriber.Subscriber[State]):
                 #
                 # 3. fetch from jet1090 service
                 records = await jet1090_restful_client.icao24_track(icao24) or []
-                history_trajectory = [[r.latitude, r.longitude] for r in records if r.latitude is not None and r.longitude is not None]
+                history_trajectory = [
+                    [r.latitude, r.longitude]
+                    for r in records
+                    if r.latitude is not None and r.longitude is not None
+                ]
 
                 trajectory = history_trajectory  # + [[latitude, longitude]]
-                await self.redis.publish(f"to:trajectory-{state.icao24}:new-data", msgspec.json.encode(trajectory))
-                log.info("redis `trajectory`, icao24: %s - latitude: %s, longitude: %s, len: %s", state.icao24, latitude, longitude, len(trajectory))
+                await self.redis.publish(
+                    f"to:trajectory-{state.icao24}:new-data",
+                    msgspec.json.encode(trajectory),
+                )
+                log.info(
+                    "redis `trajectory`, icao24: %s - latitude: %s, longitude: %s, len: %s",
+                    state.icao24,
+                    latitude,
+                    longitude,
+                    len(trajectory),
+                )
 
         # Channels publish events. The topics are in the format of from:{channel}:{event}.
         if channel == "from:system:select":
@@ -65,7 +86,10 @@ class Subscriber(redis_subscriber.Subscriber[State]):
             payload = msgspec.json.decode(data)
             icao24 = payload["icao24"]
             state.icao24 = icao24
-            state.trajectory = [[el["latitude"], el["longitude"]] for el in self.history_db.list_tracks(icao24)]
+            state.trajectory = [
+                [el["latitude"], el["longitude"]]
+                for el in self.history_db.list_tracks(icao24)
+            ]
             log.info("select a different plane: %s", state.icao24)
 
 
@@ -96,6 +120,10 @@ if __name__ == "__main__":
     import os
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--redis-url", dest="redis_url", default=os.getenv("REDIS_URL", "redis://redis:6379"))
+    parser.add_argument(
+        "--redis-url",
+        dest="redis_url",
+        default=os.getenv("REDIS_URL", "redis://redis:6379"),
+    )
     args = parser.parse_args()
     asyncio.run(startup(args.redis_url))

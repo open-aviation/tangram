@@ -43,7 +43,6 @@ import TopNavBar from "./components/TopNavBar.vue";
 import LeftSideBar from "./components/LeftSideBar.vue";
 import PlaneData from "./components/AirPlane.vue";
 import PolyLines from "./components/PlanePolylines.vue";
-//import LatLngBar from "./components/LatLngBar.vue";
 import HoverDisplay from "./components/HoverDisplay.vue";
 //import Timeline from "./components/Timeline.vue";
 

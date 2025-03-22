@@ -1,31 +1,4 @@
 <template>
-  <!-- <l-layer-group v-if="showCluster">
-    <l-marker-cluster-group :maxClusterRadius="20"
-      :removeOutsideVisibleBounds="true">
-      <v-rotated-marker v-for="(item, index) in planeData" :key="index"
-        @click="showRoute" :icon="getIcon(item)"
-        :rotationAngle="getRotate(item)"
-        :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'"
-        :lat-lng="[item.latitude, item.longitude]">
-        <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24"
-          :options="{ direction: 'top', offset: [0, -10] }">
-          <p style="font-size: 14px">
-            icao24: <code>{{ item.icao24 }}</code><br />
-            callsign: <code>{{ item.callsign }}</code><br />
-            tail: <code>{{ item.registration }}</code><br />
-            altitude: <code>{{ item.altitude }}</code>
-          </p>
-        </l-tooltip>
-        <l-popup class="popup-leaflet-hidden" :autofocus="false"
-          :options="{ autoPan: false }">
-          <div ref="popup" :id="'popup-' + item.icao24">
-            {{ item.icao24 }}
-          </div>
-        </l-popup>
-      </v-rotated-marker>
-    </l-marker-cluster-group>
-  </l-layer-group>
-  <l-layer-group v-else> -->
   <l-layer-group>
     <v-rotated-marker v-for="(item, index) in planeData" :key="index" @click="showRoute" :icon="getIcon(item)"
       :autofocus="false" :rotationAngle="getRotate(item)"
@@ -52,7 +25,6 @@ import Raphael from "raphael";
 
 import { get_image_object } from "./PlanePath";
 import { useMapStore } from "../store";
-//import { LMarkerClusterGroup } from "vue-leaflet-markercluster";
 
 import "leaflet/dist/leaflet.css";
 import "vue-leaflet-markercluster/dist/style.css";

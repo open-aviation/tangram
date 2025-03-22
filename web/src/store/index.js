@@ -172,18 +172,18 @@ export const useMapStore = defineStore("map", {
       if (this.socket) {
         console.log(`cleaning up socket connection: ${this.connectionId}`);
         this.pushSystemEvent("leave-streaming", { connectionId: this.connectionId });
-        
+
         // Disconnect from all channels first
         if (this.systemChannel) {
           this.systemChannel.leave();
           this.systemChannel = null;
         }
-        
+
         // Disconnect the socket
         this.socket.disconnect();
         this.socket = null;
         this.connectionId = undefined;
-        
+
         console.log('Socket disconnected and cleaned up');
       }
     },

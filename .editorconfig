@@ -14,6 +14,7 @@ charset = utf-8
 
 [*.py]
 indent_size = 4
+max_line_length = 88
 
 [*.{js, html}]
 indent_size = 2

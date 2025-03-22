@@ -120,12 +120,12 @@ redis: network
 
 # watch current dir and run the service
 # presumbly, you have uv installed and the virtualenv is created
-tangram-rest port="18000" host="0.0.0.0":
+tangram-restapi port="18000" host="0.0.0.0":
   #!/usr/bin/env bash
   set -x -euo pipefail
 
   pwd
-  uv run uvicorn --host {{host}} --port {{port}} tangram.rest:app
+  uv run uvicorn --host {{host}} --port {{port}} tangram.restapi:app
 
 tangram-web host="0.0.0.0" port="2024":
   #!/usr/bin/env bash
