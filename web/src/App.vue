@@ -3,10 +3,12 @@
     <TopNavBar />
     <LeftSideBar ref="leftBar" />
 
-    <l-map @click="emptySelect" @mousemove="getPosition($event)" @moveend="updateCenter" class="map-container" ref="map"
+    <l-map @click="emptySelect" @mousemove="getPosition($event)"
+      @moveend="updateCenter" class="map-container" ref="map"
       v-model:zoom="zoom" :center="center" @update:bounds="updateBounds">
 
-      <l-tile-layer :url="map_url" layer-type="base" name="OpenStreetMap"></l-tile-layer>
+      <l-tile-layer :url="map_url" layer-type="base"
+        name="OpenStreetMap"></l-tile-layer>
 
 
       <PlaneData />
@@ -43,13 +45,13 @@ import TopNavBar from "./components/TopNavBar.vue";
 import LeftSideBar from "./components/LeftSideBar.vue";
 import PlaneData from "./components/AirPlane.vue";
 import PolyLines from "./components/PlanePolylines.vue";
-import HoverDisplay from "./components/HoverDisplay.vue";
+//import HoverDisplay from "./components/HoverDisplay.vue";
 //import Timeline from "./components/Timeline.vue";
 
 export default {
   components: {
     //Timeline,
-    HoverDisplay,
+    //HoverDisplay,
     //LatLngBar,
     PolyLines,
     LeftSideBar,
@@ -123,7 +125,7 @@ export default {
         console.log(`joining ${channelName} channel ...`);
 
         let channel = socket.channel(channelName);
-        // channel.on("update-node", this.updateNode.bind(this));
+        channel.on("update-node", this.updateNode.bind(this));
         for (let [event, handler] of Object.entries(callbacks)) {
           channel.on(event, handler);
         }

@@ -119,10 +119,13 @@ export const useMapStore = defineStore("map", {
     },
     setBounds(bbox) {
       this.bounds = bbox;
-      const { _northEast: { lat: northEastLat, lng: northEastLng }, _southWest: { lat: southWestLat, lng: southWestLng } } = bbox;
+      const {
+        _northEast: { lat: northEastLat, lng: northEastLng },
+        _southWest: { lat: southWestLat, lng: southWestLng },
+      } = bbox;
       const payload = { connectionId: this.connectionId, northEastLat, northEastLng, southWestLat, southWestLng };
       this.pushSystemEvent("bound-box", payload);
-      console.log('bound-box pushed:', payload)
+      console.log("bound-box pushed:", payload);
     },
     setCount(v) {
       this.count = v;
@@ -164,7 +167,7 @@ export const useMapStore = defineStore("map", {
       this.socket = socket;
 
       // Add window beforeunload event listener for cleanup
-      window.addEventListener('beforeunload', this.cleanupSocket);
+      window.addEventListener("beforeunload", this.cleanupSocket);
 
       return this.socket;
     },
@@ -184,13 +187,13 @@ export const useMapStore = defineStore("map", {
         this.socket = null;
         this.connectionId = undefined;
 
-        console.log('Socket disconnected and cleaned up');
+        console.log("Socket disconnected and cleaned up");
       }
     },
     destroySocket() {
       // called when app is unmounted: App.vue
       this.cleanupSocket();
-      window.removeEventListener('beforeunload', this.cleanupSocket);
+      window.removeEventListener("beforeunload", this.cleanupSocket);
     },
 
     async setSelected(selected) {

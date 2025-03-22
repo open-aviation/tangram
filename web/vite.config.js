@@ -51,6 +51,14 @@ export default defineConfig({
           });
         }, */
       },
+      "/sigmet": {
+        target: `http://${host_address}:12345/`,
+        changeOrigin: true,
+      },
+      "/network": {
+        target: `http://${host_address}:12345/`,
+        changeOrigin: true,
+      },
     },
   },
   plugins: [
