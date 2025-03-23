@@ -69,7 +69,6 @@ export default defineConfig({
     dynamicComponentsPlugin({
       envPath: "../.env",
       fallbackDir: "/src/components/",
-      availablePlugins: ["sensorsInfo", "sigmetInfo", "cityPair"],
     }),
   ],
 });

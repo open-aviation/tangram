@@ -7,17 +7,14 @@
             @moveend="updateCenter" class="map-container" ref="map"
             v-model:zoom="zoom" :center="center" @update:bounds="updateBounds">
 
-            <l-tile-layer :url="map_url" layer-type="base"
-                name="OpenStreetMap"></l-tile-layer>
-
-
-            <PlaneData />
-            <PlaneTrail />
+            <l-tile-layer :url="map_url" layer-type="base" name="OpenStreetMap"></l-tile-layer>
 
             <AirportSearch @airport-selected="centerMapTo" />
 
-            <plugin-sensorsinfo />
-            <plugin-sigmetinfo />
+            <PlaneData />
+            <PlaneTrail />
+            <SensorsInfo />
+
 
         </l-map>
 
@@ -36,14 +33,10 @@ import TopNavBar from "./components/TopNavBar.vue";
 import LeftSideBar from "./components/LeftSideBar.vue";
 import PlaneData from "./components/AirPlane.vue";
 import PlaneTrail from "./components/PlaneTrail.vue";
-//import HoverDisplay from "./components/HoverDisplay.vue";
-//import Timeline from "./components/Timeline.vue";
+import SensorsInfo from "./components/SensorsInfo.vue";
 
 export default {
     components: {
-        //Timeline,
-        //HoverDisplay,
-        //LatLngBar,
         PlaneTrail,
         LeftSideBar,
         LMap,
@@ -51,6 +44,7 @@ export default {
         TopNavBar,
         PlaneData,
         AirportSearch,
+        SensorsInfo,
     },
 
     setup() {
