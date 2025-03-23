@@ -1,10 +1,11 @@
 <template>
   <l-layer-group>
-    <v-rotated-marker v-for="(item, index) in planeData" :key="index" @click="showRoute" :icon="getIcon(item)"
-      :autofocus="false" :rotationAngle="getRotate(item)"
-      :class="selected.icao24 === item.icao24 ? 'aircraft_selected' : 'aircraft_img'"
+    <v-rotated-marker v-for="(item, index) in planeData" :key="index"
+      @click="showRoute" :icon="getIcon(item)" :autofocus="false"
+      :rotationAngle="getRotate(item)"
       :lat-lng="[item.latitude, item.longitude]">
-      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10] }">
+      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24"
+        :options="{ direction: 'top', offset: [0, -10] }">
         <AircraftTooltip :aircraft="item" />
       </l-tooltip>
       <l-popup class="popup-leaflet-hidden" :options="{ autoPan: false }">
@@ -17,17 +18,17 @@
 </template>
 <script>
 import L from "leaflet";
+
 import "leaflet/dist/leaflet.css";
+//import "vue-leaflet-markercluster/dist/style.css";
+
 import { LLayerGroup, LPopup, LTooltip } from "@vue-leaflet/vue-leaflet";
 import { LMarkerRotate } from "vue-leaflet-rotate-marker";
-
 import Raphael from "raphael";
 
 import { get_image_object } from "./PlanePath";
 import { useMapStore } from "../store";
 
-import "leaflet/dist/leaflet.css";
-import "vue-leaflet-markercluster/dist/style.css";
 
 import AircraftTooltip from "./AircraftTooltip.vue";
 
@@ -73,7 +74,7 @@ export default {
         console.log(`${this.connectionId} socket is ready`, this.socket);
         clearInterval(checkSocketInterval);
         await this.joinStreamingChannel(`streaming-${this.connectionId}`);
-        await this.store.pushSystemEvent('join-streaming', {connectionId: this.store.connectionId});        
+        await this.store.pushSystemEvent('join-streaming', { connectionId: this.store.connectionId });
       } else {
         console.log("wait for socket: ", this.socket);
       }
@@ -127,7 +128,7 @@ export default {
 
         this.channel
           .join()
-          .receive("ok", ({ messages }) => {            
+          .receive("ok", ({ messages }) => {
             console.log(`${channelName} / joined:`, messages);
             resolve(messages);
           })
@@ -209,16 +210,20 @@ export default {
 
       return L.divIcon({
         html: svgPlain,
-        className:
-          feature.icao24 === this.selected.icao24 &&
-            feature.callsign === this.selected.callsign &&
-            feature.typecode === this.selected.typecode
-            ? "aircraft_selected"
-            : "aircraft_img",
+        className: this.iconClassName(feature),
         iconSize: [33, 35], // width and height of the image in pixels
         iconAnchor: [16.5, 17.5], // point of the icon which will correspond to marker's location
         popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
       });
+    },
+
+    iconClassName(feature) {
+      if (feature.class !== undefined) {
+        return "aircraft_" + feature.class;
+      }
+      return feature.icao24 === this.selected.icao24
+        ? "aircraft_selected"
+        : "aircraft_default";
     },
 
     showRoute() {
@@ -269,5 +274,13 @@ export default {
 
 .leaflet-tooltip-custom {
   font-family: "B612", sans-serif;
+}
+
+.aircraft_default svg {
+  fill: #f9fd15;
+}
+
+.aircraft_selected svg {
+  fill: green;
 }
 </style>

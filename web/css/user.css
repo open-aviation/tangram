@@ -102,14 +102,6 @@ a.flag:hover::after {
   z-index: 1;
 }
 
-.aircraft_img {
-  fill: #f9fd15;
-}
-
-.aircraft_selected {
-  fill: green;
-}
-
 .turb_selected {
   stroke: red;
   stroke-width: 15px;
