@@ -47,14 +47,15 @@ class Subscriber(redis_subscriber.Subscriber[State]):
                     timed_message["latitude"],
                     timed_message["longitude"],
                 )
-                # await self.redis.publish("trajectory", msgspec.json.encode(timed_message))
 
                 # Two options here:
-                # 1. iddeally, we just push [lat, lng] point to UI. as long as the trajectory is properly cached
+                # 1. ideally, we just push [lat, lng] point to UI. as long as the
+                # trajectory is properly cached
                 # trajectory = [latitude, longitude]
                 #
                 # 2. full trajectory
-                # history_trajectory = [[el["latitude"], el["longitude"]] for el in self.history_db.list_tracks(icao24)]
+                # history_trajectory = [[el["latitude"], el["longitude"]] for el in
+                # self.history_db.list_tracks(icao24)]
                 # log.info("loaded history from %s", self.history_db.get_db_file())
                 #
                 # 3. fetch from jet1090 service
@@ -72,14 +73,16 @@ class Subscriber(redis_subscriber.Subscriber[State]):
                     msgspec.json.encode(trajectory),
                 )
                 log.info(
-                    "redis `trajectory`, icao24: %s - latitude: %s, longitude: %s, len: %s",
+                    "redis `trajectory`, "
+                    "icao24: %s - latitude: %s, longitude: %s, len: %s",
                     state.icao24,
                     latitude,
                     longitude,
                     len(trajectory),
                 )
 
-        # Channels publish events. The topics are in the format of from:{channel}:{event}.
+        # Channels publish events.
+        # The topics are in the format of from:{channel}:{event}.
         if channel == "from:system:select":
             log.info("system select, data: %s", data)
 

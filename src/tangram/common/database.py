@@ -2,8 +2,8 @@ import asyncio
 import logging
 import pathlib
 import sqlite3
-from datetime import datetime, timezone
-from typing import Any, List, NoReturn, Self, Sequence
+from datetime import UTC, datetime
+from typing import Any, ClassVar, List, NoReturn, Self
 
 from tangram.common import rs1090
 
@@ -18,13 +18,19 @@ DEFAULT_DB_DIRECTORY = pathlib.Path("/tmp")
 class StateVectorDB:
     """by default, this loads data from JET1090 restful api"""
 
+    _instance: ClassVar[None | Self] = None
+
     def __new__(cls, *args: Any, **kwargs: Any) -> Self:
-        if not hasattr(cls, "instance"):
+        if cls._instance is None:
             log.debug("creating history db, %s, %s", args, kwargs)
-            cls.instance = super().__new__(cls)
-            log.info("HistoryDB instance created: %s", cls.instance)
-        log.info("HistoryDB instance: %s, %s", cls.instance, cls.instance.get_db_file())
-        return cls.instance
+            cls._instance = super().__new__(cls)
+            log.info("HistoryDB instance created: %s", cls._instance)
+        log.info(
+            "HistoryDB instance: %s, %s",
+            cls._instance,
+            cls._instance.get_db_file(),
+        )
+        return cls._instance
 
     def __init__(
         self,
@@ -117,9 +123,9 @@ class StateVectorDB:
 
     def expire_records(self, expiration_seconds: int = 60 * 60 * 2) -> None:
         sql = f"""
-            DELETE FROM trajectories WHERE UNIXEPOCH(current_timestamp) - last > {expiration_seconds};
+            DELETE FROM trajectories
+              WHERE UNIXEPOCH(current_timestamp) - last > {expiration_seconds};
         """
-        # DELETE FROM altitudes WHERE UNIXEPOCH(current_timestamp) - last > {expiration_seconds};
         self.conn.executescript(sql)
         log.info("expire records older than %s seconds", expiration_seconds)
 
@@ -128,40 +134,35 @@ class StateVectorDB:
         make altitude None if it is not available in the data."""
 
         sql = """
-            INSERT INTO trajectories (icao24, timestamp, last, latitude, longitude, altitude)
+            INSERT INTO trajectories
+              (icao24, timestamp, last, latitude, longitude, altitude)
             VALUES (:icao24, :timestamp, :last, :latitude, :longitude, :altitude)
             ON CONFLICT(icao24, last) DO NOTHING
         """
-        # fmt: off
         rows = [
             {
                 "icao24": item["icao24"] if isinstance(item, dict) else item.icao24,
-                "timestamp": item["timestamp"] if isinstance(item, dict) else item.timestamp,
+                "timestamp": item["timestamp"]
+                if isinstance(item, dict)
+                else item.timestamp,
                 "last": item["last"] if isinstance(item, dict) else item.last,
-                "latitude": item["latitude"] if isinstance(item, dict) else item.latitude,
-                "longitude": item["longitude"] if isinstance(item, dict) else item.longitude,
-                "altitude": item["altitude"] if isinstance(item, dict) else item.altitude,
+                "latitude": item["latitude"]
+                if isinstance(item, dict)
+                else item.latitude,
+                "longitude": item["longitude"]
+                if isinstance(item, dict)
+                else item.longitude,
+                "altitude": item["altitude"]
+                if isinstance(item, dict)
+                else item.altitude,
             }
             for item in items
         ]
-        # fmt: on
         try:
             self.conn.executemany(sql, rows)
             self.conn.commit()
-        except:  # noqa
+        except Exception:
             log.exception("fail to write db")
-
-    # def insert_many_altitudes(self, items: List[rs1090.Jet1090Data]) -> None:
-    #     sql = """INSERT INTO altitudes (icao24, last, altitude) VALUES (:icao24, :last, :altitude) ON CONFLICT(icao24, last) DO NOTHING"""
-    #     rows = [
-    #         {"icao24": item.icao24, "last": item.last, "altitude": item.altitude}
-    #         for item in items
-    #     ]
-    #     try:
-    #         self.conn.executemany(sql, rows)
-    #         self.conn.commit()
-    #     except:  # noqa
-    #         log.exception("fail to write altitude into db")
 
     async def list_trajectory(self, icao24: str) -> List[dict[str, Any]]:
         sql = """
@@ -182,19 +183,9 @@ class StateVectorDB:
         ]
         return [dict(zip(fields, row)) for row in rows]
 
-    # def list_altitudes(self, icao24: str):
-    #     sql = """
-    #         SELECT id, icao24, last as timestamp, altitude
-    #         FROM altitudes
-    #         WHERE icao24 = :icao24
-    #         ORDER BY last ASC
-    #     """
-    #     rows = self.conn.execute(sql, dict(icao24=icao24)).fetchall()
-    #     fields = ["id", "icao24", "last", "altitude"]
-    #     return [dict(zip(fields, row)) for row in rows]
-
     def count_planes(self, last_minutes: int = 5) -> Any:
-        sql = "SELECT count(DISTINCT icao24) FROM trajectories WHERE last > current_timestamp - :last_minutes * 60"
+        sql = """SELECT count(DISTINCT icao24) FROM trajectories
+                   WHERE last > current_timestamp - :last_minutes * 60"""
         result = self.conn.execute(sql, {"last_minutes": last_minutes}).fetchone()
         return result[0]
 
@@ -208,11 +199,7 @@ class StateVectorDB:
         tracks = [item for item in tracks if item.latitude and item.longitude]
         log.debug("loaded %s tracks with latitude/longitude", len(tracks))
 
-        self.insert_tracks(tracks)
-
-        # altitudes = [item for item in tracks if item.altitude]
-        # log.debug("loaded %s altitudes", len(altitudes))
-        # self.insert_many_altitudes(altitudes)
+        self.insert_tracks(tracks)  # type: ignore
 
     async def load_all_history(self) -> None:
         icao24_list: List[str] = await self.jet1090_restful_client.list_identifiers()
@@ -235,7 +222,9 @@ class StateVectorDB:
                 if all((item.latitude, item.longitude, item.last))
             ]
 
-            latest_track_dt_str = datetime.fromtimestamp(latest_track_ts).isoformat()
+            latest_track_dt_str = datetime.fromtimestamp(
+                latest_track_ts, UTC
+            ).isoformat()
 
             log.debug(
                 "filter by latest_track_ts %s (%s)",
@@ -243,12 +232,18 @@ class StateVectorDB:
                 latest_track_ts,
             )
 
-            items = [item for item in items if item.last > latest_track_ts]
+            items = [
+                item
+                for item in items
+                if item.last is not None and item.last > latest_track_ts
+            ]
 
             if items:
-                latest_track_ts = max(item.last for item in items)
+                latest_track_ts = max(
+                    item.last for item in items if item.last is not None
+                )
 
-            self.insert_tracks(items)
+            self.insert_tracks(items)  # type: ignore
             await asyncio.sleep(seconds_interval)
 
     async def expire_records_periodically(

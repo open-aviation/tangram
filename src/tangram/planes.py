@@ -4,7 +4,6 @@
 import asyncio
 import json
 import logging
-import time
 from typing import Any, Dict, NoReturn, Optional
 
 import httpx
@@ -161,7 +160,6 @@ async def main(jet1090_restful_service: str, redis_url: str) -> NoReturn:
                 await asyncio.sleep(1)
                 continue
 
-            now = time.time()
             resp = await restful_client.get(all_aircraft_url)
             all_aircraft = [el for el in resp.json() if el.get("latitude", None)]
             icao24_set = set((el["icao24"] for el in all_aircraft))

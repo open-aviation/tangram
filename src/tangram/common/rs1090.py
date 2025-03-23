@@ -113,29 +113,18 @@ class Rs1090Client:
         }
         """
         items = await self.request_rs1090(path or "/all")
-        return [Jet1090Data(**item) for item in items] if items is not None else None
-
-    # async def receivers(self, path: str) -> Receiver | None:
-    #     """get receiver status from rs1090 `/receivers` endpoint
-    #     item example:
-    #     {
-    #     "host": "0.0.0.0",
-    #     "port": 41126,
-    #     "rtlsdr": false,
-    #     "airport": "LFMA",
-    #     "reference": {
-    #         "latitude": 43.50528,
-    #         "longitude": 5.367222
-    #     },
-    #     "count": 89,
-    #     "last": 1716820385
-    #     }
-    #     """
-    #     return await self.request_rs1090(path or "/receivers")
+        return (
+            [
+                Jet1090Data(**item)  # type: ignore
+                for item in items
+            ]
+            if items is not None
+            else None
+        )
 
     async def list_identifiers(self, path: str | None = None) -> list[str]:
         """list all icao24 identifiers, `/list`"""
-        return await self.request_rs1090(path or "/") or []
+        return await self.request_rs1090(path or "/") or []  # type: ignore
 
     async def icao24_track(
         self, identifier: str, path: str | None = "/track"
@@ -147,7 +136,7 @@ class Rs1090Client:
         if not items:
             return None
 
-        return [self.flatten(item) for item in items]
+        return [self.flatten(item) for item in items]  # type: ignore
 
     def flatten(self, item: dict[str, Any]) -> Jet1090Data:
         if bds50 := item.get("bds50", None):

@@ -140,11 +140,6 @@ async def startup(
     load_task = asyncio.create_task(sv_db.load_by_restful_client())
     log.info("tasks created, %s", load_task.get_coro())
 
-    # subscriber = Subscriber(name="history", redis_url=redis_url, channels=channels, history_db=history_db)
-    # await subscriber.subscribe()
-    # tangram_log.info("history is up and running, task: %s", subscriber.task.get_coro())
-    # return [subscriber.task, load_task, expire_task]
-
     return [None, load_task, expire_task]
 
 
@@ -176,7 +171,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--redis-url",
         dest="redis_url",
-        help="Redis url, or use REDIS_URL environment variable which take precedence, redis://host:port",
+        help="Redis url, or use REDIS_URL environment variable which take precedence,"
+        "redis://host:port",
         default=os.getenv("REDIS_URL", "redis://redis:6379"),
     )
     parser.add_argument(
