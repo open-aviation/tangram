@@ -5,7 +5,7 @@ import asyncio
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, NoReturn, Optional
 
 import httpx
 import redis
@@ -17,10 +17,10 @@ log = logging.getLogger(__name__)
 
 
 class BoundingBoxState:
-    def __init__(self):
+    def __init__(self) -> None:
         # Store bounding boxes for each connection ID
-        self.bboxes: Dict[str, Dict[str, float]] = {}
-        self.clients: Set[str] = set()
+        self.bboxes: dict[str, dict[str, float]] = {}
+        self.clients: set[str] = set()
 
     def set_bbox(
         self,
@@ -29,7 +29,7 @@ class BoundingBoxState:
         north_east_lng: float,
         south_west_lat: float,
         south_west_lng: float,
-    ):
+    ) -> None:
         """Set bounding box for a specific connection ID"""
         self.bboxes[connection_id] = {
             "north_east_lat": north_east_lat,
@@ -46,7 +46,7 @@ class BoundingBoxState:
         """Get the bounding box for a specific connection ID"""
         return self.bboxes.get(connection_id)
 
-    def remove_bbox(self, connection_id: str):
+    def remove_bbox(self, connection_id: str) -> None:
         """Remove bounding box for a connection ID"""
         if connection_id in self.bboxes:
             del self.bboxes[connection_id]
@@ -55,7 +55,7 @@ class BoundingBoxState:
 class BoundingBoxSubscriber(Subscriber[BoundingBoxState]):
     async def message_handler(
         self, event: str, payload: str, pattern: str, state: BoundingBoxState
-    ):
+    ) -> None:
         log.info("event: %s, data: %s, pattern: %s", event, payload, pattern)
 
         if event == "from:system:join-streaming":
@@ -125,7 +125,8 @@ def is_within_bbox(
     if not bbox:
         return True
 
-    lat, lng = aircraft.get("latitude"), aircraft.get("longitude")
+    lat: None | float = aircraft.get("latitude", None)
+    lng: None | float = aircraft.get("longitude", None)
     if lat is None or lng is None:
         return False
     return (
@@ -134,7 +135,7 @@ def is_within_bbox(
     )
 
 
-async def main(jet1090_restful_service: str, redis_url: str):
+async def main(jet1090_restful_service: str, redis_url: str) -> NoReturn:
     all_aircraft_url = jet1090_restful_service + "/all"
     restful_client = httpx.AsyncClient()
     redis_client = redis.Redis.from_url(redis_url)

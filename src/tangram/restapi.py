@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 from fastapi import FastAPI
 
@@ -18,5 +19,5 @@ async def data(icao24: str) -> list[rs1090.Jet1090Data]:
 
 
 @app.get("/hi")
-async def greeting():
+async def greeting() -> Literal["hello, world!"]:
     return "hello, world!"

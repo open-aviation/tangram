@@ -56,22 +56,31 @@ class Receiver(BaseModel):
 
 
 class Rs1090Client:
+    base_url: str
+
     def __init__(self, base_url: str | None = None) -> None:
-        self.base_url = base_url or os.environ.get("JET1090_URL", "http://jet1090:8080")
+        base_url = base_url or os.environ.get("JET1090_URL", "http://jet1090:8080")
+        if base_url is None:
+            raise ValueError("JET1090_URL is not set")
+        self.base_url = base_url
 
         self.aclient = httpx.AsyncClient()
 
-    async def request_rs1090(self, path, params=None):  # -> None | list[Jet1090Data]:
+    async def request_rs1090(
+        self, path: str, params: Any = None
+    ) -> None | list[str | dict[str, Any]]:
         url = self.base_url + path
         params = params or {}
         try:
             log.debug("requesting %s ...", url)
             resp = await self.aclient.get(url, params=params)
             if resp.status_code not in [200]:
-                logging.error("fail to get %s, status: %s, %s", url, resp.status_code, resp.text)
+                logging.error(
+                    "fail to get %s, status: %s, %s", url, resp.status_code, resp.text
+                )
                 return None
             log.debug("got data from jet1090 service")
-            return resp.json()
+            return resp.json()  # type: ignore
         except httpx.ConnectError:
             log.error("fail to connection jet1090 service, please check %s", url)
             return None
@@ -106,30 +115,35 @@ class Rs1090Client:
         items = await self.request_rs1090(path or "/all")
         return [Jet1090Data(**item) for item in items] if items is not None else None
 
-    async def receivers(self, path: str) -> Receiver | None:
-        """get receiver status from rs1090 `/receivers` endpoint
-        item example:
-        {
-        "host": "0.0.0.0",
-        "port": 41126,
-        "rtlsdr": false,
-        "airport": "LFMA",
-        "reference": {
-            "latitude": 43.50528,
-            "longitude": 5.367222
-        },
-        "count": 89,
-        "last": 1716820385
-        }
-        """
-        return await self.request_rs1090(path or "/receivers")
+    # async def receivers(self, path: str) -> Receiver | None:
+    #     """get receiver status from rs1090 `/receivers` endpoint
+    #     item example:
+    #     {
+    #     "host": "0.0.0.0",
+    #     "port": 41126,
+    #     "rtlsdr": false,
+    #     "airport": "LFMA",
+    #     "reference": {
+    #         "latitude": 43.50528,
+    #         "longitude": 5.367222
+    #     },
+    #     "count": 89,
+    #     "last": 1716820385
+    #     }
+    #     """
+    #     return await self.request_rs1090(path or "/receivers")
 
     async def list_identifiers(self, path: str | None = None) -> list[str]:
+        """list all icao24 identifiers, `/list`"""
         return await self.request_rs1090(path or "/") or []
 
-    async def icao24_track(self, identifier: str, path: str | None = "/track") -> list[Jet1090Data] | None:
+    async def icao24_track(
+        self, identifier: str, path: str | None = "/track"
+    ) -> list[Jet1090Data] | None:
         """ICAO24 1 minute historical positions, `/track?icao24=010117`"""
-        items = await self.request_rs1090(path or "/track", params={"icao24": identifier})
+        items = await self.request_rs1090(
+            path or "/track", params={"icao24": identifier}
+        )
         if not items:
             return None
 

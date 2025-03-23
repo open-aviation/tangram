@@ -2,14 +2,12 @@ import asyncio
 import json
 import logging
 import pathlib
-import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, List, Sequence
+from typing import Any, List
 
 from redis.commands.timeseries import TimeSeries
 
-from tangram.common import database, redis_subscriber, rs1090
+from tangram.common import database, redis_subscriber
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -38,7 +36,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
     async def message_handler(
         self, channel: str, data: str, pattern: str, state: State
-    ):
+    ) -> None:
         message = json.loads(data)
         # log.info("channel: %s, pattern: %s", channel, pattern)
 
@@ -48,7 +46,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
         if channel == "altitude":
             await self.altitude_handler(message, state)
 
-    async def coordinate_handler(self, message: dict, state: State):
+    async def coordinate_handler(self, message: dict[str, Any], state: State) -> None:
         ts: TimeSeries = self.redis.ts()
         retention_msecs = 1000 * 60
 
@@ -62,7 +60,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
             "longitude": longitude,
             "altitude": None,  # no altitude from coordinate message
         }
-        self.history_db.insert_many_tracks([record])
+        self.history_db.insert_tracks([record])
         log.debug("persiste record in db for %s", icao24)
 
         # EXPERIMENTAL: store latitude and longitude in redis timeseries
@@ -85,13 +83,13 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
         fields = ["timestamp", "icao24", "latitude", "longitude"]
         message = {k: message[k] for k in fields}
-        values: Sequence = [
+        values = [
             (latitude_key, timestamp_ms, latitude),
             (longitude_key, timestamp_ms, longitude),
         ]
-        await ts.madd(values)
+        await ts.madd(values)  # type: ignore
 
-    async def altitude_handler(self, message: dict, state: State):
+    async def altitude_handler(self, message: dict[str, Any], state: State) -> None:
         ts = self.redis.ts()
         retention_msecs = 1000 * 60
 
@@ -113,17 +111,19 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
         fields = ["timestamp", "icao24", "altitude"]
         message = {k: message[k] for k in fields}
-        values: Sequence = [(altitude_key, timestamp_ms, altitude)]
-        await ts.madd(values)
+        values = [(altitude_key, timestamp_ms, altitude)]
+        await ts.madd(values)  # type: ignore
 
 
 sv_db: database.StateVectorDB | None = None
 subscriber: Subscriber | None = None
-load_task: asyncio.Task | None = None
-expire_task: asyncio.Task | None = None
+load_task: asyncio.Task[Any] | None = None
+expire_task: asyncio.Task[Any] | None = None
 
 
-async def startup(redis_url: str, channels: List[str]) -> List[asyncio.Task | None]:
+async def startup(
+    redis_url: str, channels: List[str]
+) -> List[asyncio.Task[Any] | None]:
     global sv_db, subscriber, load_task, expire_task
     log.info("history is starting ...")
 
@@ -148,7 +148,7 @@ async def startup(redis_url: str, channels: List[str]) -> List[asyncio.Task | No
     return [None, load_task, expire_task]
 
 
-async def shutdown():
+async def shutdown() -> None:
     log.info("history is shutting down ...")
     if load_task:
         load_task.cancel()
@@ -157,14 +157,13 @@ async def shutdown():
     log.info("history exits")
 
 
-async def main(redis_url, channel_csv="coordinate,altitude*"):
+async def main(redis_url: str, channel_csv: str = "coordinate,altitude*") -> None:
     channels = channel_csv.split(",")
     try:
         tasks = await startup(redis_url, channels=channels)
-        tasks = [t for t in tasks if isinstance(t, asyncio.Task)]
         # gather or wait for tasks
-        await asyncio.gather(*tasks)
-    except Exception as exec:  # noqa
+        await asyncio.gather(*[t for t in tasks if t is not None])
+    except Exception as exec:
         log.exception(f"Error starting up history plugin: {exec}")
         await shutdown()
 

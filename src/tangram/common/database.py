@@ -3,7 +3,7 @@ import logging
 import pathlib
 import sqlite3
 from datetime import datetime, timezone
-from typing import Any, List, Sequence
+from typing import Any, List, NoReturn, Self, Sequence
 
 from tangram.common import rs1090
 
@@ -18,7 +18,7 @@ DEFAULT_DB_DIRECTORY = pathlib.Path("/tmp")
 class StateVectorDB:
     """by default, this loads data from JET1090 restful api"""
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
         if not hasattr(cls, "instance"):
             log.debug("creating history db, %s, %s", args, kwargs)
             cls.instance = super().__new__(cls)
@@ -66,13 +66,13 @@ class StateVectorDB:
         if not read_only:
             self.__create_tables(drop_table=drop_table)
 
-    def get_db_file(self):
+    def get_db_file(self) -> pathlib.Path | str | None:
         try:
             return self.db_file
         except AttributeError:
             return None
 
-    def __create_tables(self, drop_table: bool = False):
+    def __create_tables(self, drop_table: bool = False) -> None:
         if drop_table:
             self.drop_trajectory_table()
             # self.drop_altitude_table()
@@ -80,11 +80,11 @@ class StateVectorDB:
         self.create_trajectory_table()
         # self.create_altitude_table()
 
-    def drop_trajectory_table(self):
+    def drop_trajectory_table(self) -> None:
         self.conn.execute("DROP TABLE trajectories IF EXISTS;")
         log.warning("existing table trajectories removed from db")
 
-    def create_trajectory_table(self):
+    def create_trajectory_table(self) -> None:
         sql = """
           CREATE TABLE IF NOT EXISTS trajectories (
             id integer primary key autoincrement,
@@ -115,7 +115,7 @@ class StateVectorDB:
     #     """
     #     self.conn.execute(sql)
 
-    def expire_records(self, expiration_seconds: int = 60 * 60 * 2):
+    def expire_records(self, expiration_seconds: int = 60 * 60 * 2) -> None:
         sql = f"""
             DELETE FROM trajectories WHERE UNIXEPOCH(current_timestamp) - last > {expiration_seconds};
         """
@@ -193,12 +193,12 @@ class StateVectorDB:
     #     fields = ["id", "icao24", "last", "altitude"]
     #     return [dict(zip(fields, row)) for row in rows]
 
-    def count_planes(self, last_minutes: int = 5):
+    def count_planes(self, last_minutes: int = 5) -> Any:
         sql = "SELECT count(DISTINCT icao24) FROM trajectories WHERE last > current_timestamp - :last_minutes * 60"
         result = self.conn.execute(sql, {"last_minutes": last_minutes}).fetchone()
         return result[0]
 
-    async def _load_one_history(self, identifier: str):
+    async def _load_one_history(self, identifier: str) -> None:
         """load tracks from rs1090 and save them to local db"""
         tracks: List[rs1090.Jet1090Data] = (
             await self.jet1090_restful_client.icao24_track(identifier) or []
@@ -214,13 +214,13 @@ class StateVectorDB:
         # log.debug("loaded %s altitudes", len(altitudes))
         # self.insert_many_altitudes(altitudes)
 
-    async def load_all_history(self):
+    async def load_all_history(self) -> None:
         icao24_list: List[str] = await self.jet1090_restful_client.list_identifiers()
         for icao24 in icao24_list:
             await self._load_one_history(icao24)
         log.info("all history loaded from rs1090")
 
-    async def load_by_restful_client(self, seconds_interval: int = 5):
+    async def load_by_restful_client(self, seconds_interval: int = 5) -> NoReturn:
         latest_track_ts: float = 0
 
         while True:
@@ -252,8 +252,10 @@ class StateVectorDB:
             await asyncio.sleep(seconds_interval)
 
     async def expire_records_periodically(
-        self, seconds_expire: int = 60 * 60 * 2, seconds_interval: int = 3
-    ):
+        self,
+        seconds_expire: int = 60 * 60 * 2,
+        seconds_interval: int = 3,
+    ) -> NoReturn:
         while True:
             self.expire_records(seconds_expire)
             await asyncio.sleep(seconds_interval)

@@ -1,12 +1,11 @@
 import abc
 import asyncio
-from typing import List, TypeVar, Generic
 import logging
+from typing import Any, Generic, List, TypeVar
 
 import redis
 from redis.asyncio import Redis
 from redis.asyncio.client import PubSub
-
 
 log = logging.getLogger(__name__)
 
@@ -14,17 +13,20 @@ StateT = TypeVar("StateT")
 
 
 class Subscriber(abc.ABC, Generic[StateT]):
-    def __init__(self, name: str, redis_url: str, channels: List[str], initial_state: StateT):
+    redis: Redis[Any]
+    task: asyncio.Task[None]
+    pubsub: PubSub
+
+    def __init__(
+        self, name: str, redis_url: str, channels: List[str], initial_state: StateT
+    ):
         self.name = name
         self.redis_url: str = redis_url
         self.channels: List[str] = channels
         self.state: StateT = initial_state
-        self.redis: Redis | None = None
-        self.pubsub: PubSub | None = None
-        self.task: asyncio.Task | None = None
         self._running = False
 
-    async def subscribe(self):
+    async def subscribe(self) -> None:
         if self._running:
             log.warning("%s already running", self.name)
             return
@@ -37,7 +39,7 @@ class Subscriber(abc.ABC, Generic[StateT]):
             log.error("%s failed to connect to Redis: %s", self.name, e)
             raise
 
-        async def listen():
+        async def listen() -> None:
             try:
                 log.info("%s listening ...", self.name)
                 async for message in self.pubsub.listen():
@@ -54,10 +56,10 @@ class Subscriber(abc.ABC, Generic[StateT]):
 
         self._running = True
 
-        self.task: asyncio.Task = asyncio.create_task(listen())
+        self.task = asyncio.create_task(listen())
         log.info("%s task created, running ...", self.name)
 
-    async def cleanup(self):
+    async def cleanup(self) -> None:
         if not self._running:
             return
 
@@ -81,5 +83,7 @@ class Subscriber(abc.ABC, Generic[StateT]):
         return self._running and self.task is not None and not self.task.done()
 
     @abc.abstractmethod
-    async def message_handler(self, event: str, payload: str, pattern: str, state: StateT):
+    async def message_handler(
+        self, event: str, payload: str, pattern: str, state: StateT
+    ) -> None:
         pass

@@ -34,7 +34,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 
     async def message_handler(
         self, channel: str, data: str, pattern: str, state: State
-    ):
+    ) -> None:
         # log.info("selected: %s, got: %s %s", state.icao24, channel, data)
 
         if channel == "coordinate" and state.icao24:
@@ -66,6 +66,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
                 ]
 
                 trajectory = history_trajectory  # + [[latitude, longitude]]
+
                 await self.redis.publish(
                     f"to:trajectory-{state.icao24}:new-data",
                     msgspec.json.encode(trajectory),
@@ -87,7 +88,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
             state.icao24 = icao24
             state.trajectory = [
                 [el["latitude"], el["longitude"]]
-                for el in self.history_db.list_tracks(icao24)
+                for el in await self.history_db.list_trajectory(icao24)
             ]
             log.info("select a different plane: %s", state.icao24)
 
@@ -95,7 +96,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
 subscriber: Subscriber | None = None
 
 
-async def startup(redis_url: str):
+async def startup(redis_url: str) -> None:
     global subscriber
 
     log.info("trajectory is starting ...")
