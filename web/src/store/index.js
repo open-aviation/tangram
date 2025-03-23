@@ -86,27 +86,21 @@ export const useMapStore = defineStore("map", {
   getters: {
     trajectory: ({ selectedPlane, planeTrajectory }) => {
       let selectedIcao24 = selectedPlane ? selectedPlane.icao24 : null;
-      console.log(`S/TRAJ, getting trajectory of ${selectedIcao24}, length: ${planeTrajectory.length}`);
+      console.log(
+        `S/TRAJ, getting trajectory of ${selectedIcao24}, length: ${planeTrajectory.length}`,
+      );
       return selectedPlane ? planeTrajectory : [];
-    },
-    local_time: (store) => {
-      const localDt = new Date(store.now_utc); // to local time
-      return localDt.toLocaleTimeString();
     },
   },
   actions: {
-    setInfoUtc({ html, now }) {
-      this.info_utc = html;
-      this.now_utc = now;
+    setInfoUtc(v) {
+      this.info_utc = v;
     },
     setCluster(v) {
       this.showCluster = v;
     },
     setAltitude(v) {
       this.altitude = v;
-    },
-    setInfoLocal(v) {
-      this.info_local = v;
     },
     setShowDrawer(v) {
       this.showDrawer = v;
@@ -123,7 +117,13 @@ export const useMapStore = defineStore("map", {
         _northEast: { lat: northEastLat, lng: northEastLng },
         _southWest: { lat: southWestLat, lng: southWestLng },
       } = bbox;
-      const payload = { connectionId: this.connectionId, northEastLat, northEastLng, southWestLat, southWestLng };
+      const payload = {
+        connectionId: this.connectionId,
+        northEastLat,
+        northEastLng,
+        southWestLat,
+        southWestLng,
+      };
       this.pushSystemEvent("bound-box", payload);
       console.log("bound-box pushed:", payload);
     },

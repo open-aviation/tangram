@@ -14,7 +14,7 @@
       <div style="margin-left: auto;" />
 
       <AircraftCount />
-      <plugin-time />
+      <SystemInfo />
 
       <div class="navbar-collapse collapse"></div>
     </div>
@@ -23,9 +23,10 @@
 <script>
 import { useMapStore } from "../store";
 import AircraftCount from "./AircraftCount.vue";
+import SystemInfo from "./SystemInfo.vue";
 
 export default {
-  components: { AircraftCount },
+  components: { AircraftCount, SystemInfo },
   data() {
     return {
       store: useMapStore(),
