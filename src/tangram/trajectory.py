@@ -8,8 +8,7 @@ from typing import Iterable, List
 
 import msgspec
 
-from tangram.common import redis_subscriber, rs1090
-from tangram.history import HistoryDB
+from tangram.common import database, redis_subscriber, rs1090
 
 jet1090_restful_client = rs1090.Rs1090Client()
 logging.basicConfig(
@@ -28,7 +27,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
     def __init__(self, name: str, redis_url: str, channels: List[str]):
         self.redis_url: str = redis_url
         self.channels: List[str] = channels
-        self.history_db = HistoryDB(use_memory=True)
+        self.history_db = database.StateVectorDB(use_memory=True)
 
         initial_state = State()
         super().__init__(name, redis_url, channels, initial_state)
