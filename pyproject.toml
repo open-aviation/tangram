@@ -26,7 +26,11 @@ dependencies = [
 
 
 [tool.uv]
-dev-dependencies = ["mypy>=1.13.0", "ruff>=0.7.2"]
+dev-dependencies = [
+    "ipykernel>=6.29.5",
+    "mypy>=1.13.0",
+ "ruff>=0.7.2",
+]
 
 [build-system]
 requires = ["hatchling", "hatch_vcs"]
