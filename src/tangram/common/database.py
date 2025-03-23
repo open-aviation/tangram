@@ -189,7 +189,7 @@ class StateVectorDB:
         result = self.conn.execute(sql, {"last_minutes": last_minutes}).fetchone()
         return result[0]
 
-    async def _load_one_history(self, identifier: str) -> None:
+    async def load_one_history(self, identifier: str) -> None:
         """load tracks from rs1090 and save them to local db"""
         tracks: List[rs1090.Jet1090Data] = (
             await self.jet1090_restful_client.icao24_track(identifier) or []
@@ -204,7 +204,7 @@ class StateVectorDB:
     async def load_all_history(self) -> None:
         icao24_list: List[str] = await self.jet1090_restful_client.list_identifiers()
         for icao24 in icao24_list:
-            await self._load_one_history(icao24)
+            await self.load_one_history(icao24)
         log.info("all history loaded from rs1090")
 
     async def load_by_restful_client(self, seconds_interval: int = 5) -> NoReturn:
