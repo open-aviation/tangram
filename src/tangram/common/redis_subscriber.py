@@ -1,7 +1,7 @@
 import abc
 import asyncio
 import logging
-from typing import Any, Generic, List, TypeVar
+from typing import Generic, List, TypeVar
 
 import redis
 from redis.asyncio import Redis
@@ -13,7 +13,7 @@ StateT = TypeVar("StateT")
 
 
 class Subscriber(abc.ABC, Generic[StateT]):
-    redis: Redis
+    redis: Redis  # type: ignore
     task: asyncio.Task[None]
     pubsub: PubSub
 

@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 
 replace_local_proxy() {
-  # url="http://localhost:8080"
-  # new_url=$(replace_local_proxy "$url")
-  # echo "resulting updated proxy url: $new_url"
 
   local input="$1"
   local output
@@ -18,7 +15,6 @@ replace_local_proxy() {
       echo "$output"
       return 0
   else
-      # 不需要替换，直接返回原始输入
       echo "$input"
       return 0
   fi
@@ -39,8 +35,8 @@ https_proxy_value=${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-""}}
 }
 
 # if it's localhost or 127.0.0.1, replace it with host.containers.internal
-http_proxy_value=$(replace_local_proxy $http_proxy_value)
-https_proxy_value=$(replace_local_proxy $https_proxy_value)
+http_proxy_value=$(replace_local_proxy "$http_proxy_value")
+https_proxy_value=$(replace_local_proxy "$https_proxy_value")
 
 mkdir -p /etc/apt/apt.conf.d
 PROXY_CONF="/etc/apt/apt.conf.d/99-proxy.conf"

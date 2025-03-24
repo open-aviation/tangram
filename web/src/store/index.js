@@ -82,6 +82,7 @@ export const useMapStore = defineStore("map", {
     hoverItem: null,
     altitude: [0, 40000],
     showCluster: false,
+    aircraftState: {},
   }),
   getters: {
     trajectory: ({ selectedPlane, planeTrajectory }) => {
