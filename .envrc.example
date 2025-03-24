@@ -1,5 +1,0 @@
-dotenv_if_exists
-
-# enable flake if you are using nix flakes
-# use flake
-# watch flake.nix
