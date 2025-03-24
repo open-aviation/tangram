@@ -4,6 +4,7 @@
 import asyncio
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any, Dict, NoReturn, Optional
 
 import httpx
@@ -161,7 +162,14 @@ async def main(jet1090_restful_service: str, redis_url: str) -> NoReturn:
                 continue
 
             resp = await restful_client.get(all_aircraft_url)
-            all_aircraft = [el for el in resp.json() if el.get("latitude", None)]
+
+            now = datetime.now(UTC).timestamp()
+            all_aircraft = [
+                el
+                for el in resp.json()
+                if el.get("latitude", None) and el["lastseen"] > now - 600
+            ]
+            print(all_aircraft[0])
             icao24_set = set((el["icao24"] for el in all_aircraft))
 
             # Apply filters per client connection and publish
@@ -201,6 +209,12 @@ async def main(jet1090_restful_service: str, redis_url: str) -> NoReturn:
 if __name__ == "__main__":
     import argparse
     import os
+
+    file_handler = logging.FileHandler("/tmp/tangram/planes.log")
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+    log.addHandler(file_handler)
+    log.setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument(

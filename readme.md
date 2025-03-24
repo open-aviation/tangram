@@ -7,9 +7,7 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
 ## Quick start
 
 1. Install [just](https://github.com/casey/just), a command project-specific runner
-
 2. Install [podman](https://podman.io/docs/installation), a container runtime
-
 3. Create a `.env` file from the template (edit if necessary):
 
    ```shell
@@ -23,27 +21,20 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
    just redis  # runs in daemon mode
    ```
 
-5. Pull and run [`jet1090`](https://mode-s.org) for decoding Mode S messages
-
-   ```sh
-   just build-jet1090  # only once
-   ```
-
-   Set the `JET1090_PARAMS`. For example, here you can use an example web socket provided by us:
+5. Pull and run `jet1090` for decoding Mode S messages
 
    ```shell
-   JET1090_PARAMS=ws://feedme.mode-s.org:9876/40128@EHRD
    just jet1090
    ```
 
-   You should be able to see the `jet1090` console, which contains the data that is being received from the source, for example:
+   The sources are defined in `config_jet1090.toml`; the path to this file is defined in the `.env` file. You should be able to see the `jet1090` console, which contains the data that is being received from the source, for example:
 
    ![jet1090 console](./docs/screenshot/jet1090.png)
 
 6. Build and run the tangram container (in another terminal):
 
    ```shell
-   just build-tangram  # only once
+   just create-tangram  # only once
    just tangram
    ```
 

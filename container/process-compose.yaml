@@ -25,33 +25,25 @@ processes:
       restart: "always"
 
   core/system:
-    environment:
-      - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
+    # environment:
+    #   - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
-    command: env && pwd && uv run -- python -m tangram.system
+    command: env && pwd && uv run python -m tangram.system
     availability:
       restart: "always"
 
   core/planes:
-    environment:
-      - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
+    # environment:
+    #   - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
-    command: env && pwd && uv run -- python -m tangram.planes
+    command: env && pwd && uv run python -m tangram.planes
     availability:
       restart: "always"
 
   core/trajectory:
-    environment:
-      - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
+    # environment:
+    #   - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
-    command: env && pwd && uv run -- python -m tangram.trajectory
+    command: env && pwd && uv run python -m tangram.trajectory
     availability:
       restart: "always"
-
-  # core/history:
-  #   environment:
-  #     - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
-  #   working_dir: /home/user/tangram/service
-  #   command: env && pwd && uv run -- python -m tangram.history
-  #   availability:
-  #     restart: "always"

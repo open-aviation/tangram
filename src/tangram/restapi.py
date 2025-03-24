@@ -11,6 +11,12 @@ log = logging.getLogger("tangram")
 jet1090_restful_client = rs1090.Rs1090Client()
 app = FastAPI()
 
+file_handler = logging.FileHandler("/tmp/tangram/tangram.log")
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+log.addHandler(file_handler)
+log.setLevel(logging.DEBUG)
+
 
 @app.get("/data/{icao24}")
 async def data(icao24: str) -> list[rs1090.Jet1090Data]:

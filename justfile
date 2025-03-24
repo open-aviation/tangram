@@ -11,12 +11,6 @@ REDIS_URL := env_var("REDIS_URL")
 # TODO env_var or latest version
 JET1090_VERSION := "0.4.8"
 JET1090_IMAGE := "ghcr.io/xoolive/jet1090:" + JET1090_VERSION
-JET1090_VOL := "jet1090-vol"
-# read from .env file, JET1090_CONFIG only
-JET1090_PARAMS := env_var_or_default("JET1090_PARAMS", "")
-JET1090_CONFIG := env_var_or_default("JET1090_CONFIG", "")
-
-# TODO clearly separate the build steps from the run steps
 
 _default:
   @just _check-env
@@ -29,13 +23,19 @@ _check-env:
     printf ".env file does not exist, use default configurations.\n\n"
   fi
 
-# install watchexec, uv, process-compose
-install-dependent-binaries:
+# -- Install dependencies --
+
+# Install the channel executable (Redis/Websocket interface)
+install-channel:
+  #!/usr/bin/env bash
+  set -x -euo pipefail
+  curl --proto '=https' --tlsv1.2 -LsSf https://github.com/emctoo/channels/releases/download/v0.2.6/channel-installer.sh | sh
+
+# Install node and npm through fnm <https://github.com/Schniz/fnm>
+install-node:
   #!/usr/bin/env bash
   set -x -euo pipefail
 
-  # nodejs with fnm
-  # install fnm binary as ~/.local/share/fnm/fnm and added snippets in .bashrc
   curl -fsSL https://fnm.vercel.app/install | bash
   source ~/.bashrc
   export PATH=$HOME/.local/share/fnm:$PATH
@@ -44,52 +44,28 @@ install-dependent-binaries:
   node --version
   npm --version
 
-  DEST_DIR="$HOME/.local/bin"
+# Install process-compose (similar to Docker compose but in the same container)
+install-process-compose:
+  sh -c "$(curl --location https://raw.githubusercontent.com/F1bonacc1/process-compose/main/scripts/get-pc.sh)" -- -d -b $HOME/.local/bin
 
-  # watchexec
-  # cleanup() {
-  #   rm -rf /tmp/watchexec*
-  # }
-  # trap cleanup EXIT
-  # LATEST_TAG=$(curl -sL https://api.github.com/repos/watchexec/watchexec/releases/latest | jq -r '.tag_name')
-  # DL_URL="https://github.com/watchexec/watchexec/releases/download/${LATEST_TAG}/watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl.tar.xz"
-  # curl -L "$DL_URL" -o /tmp/watchexec.tar.xz
-  # mkdir -p $DEST_DIR
-  # tar -xvf /tmp/watchexec.tar.xz --strip-components=1 -C $DEST_DIR "watchexec-${LATEST_TAG#v}-x86_64-unknown-linux-musl/watchexec"
-  # echo "watchexec has been installed to $DEST_DIR/watchexec."
-
-  # uv
-  curl -LsSf https://astral.sh/uv/install.sh | sh # uv
-  echo "uv has been installed to $DEST_DIR/{uv,uvx}."
-
-  # process-compose
-  sh -c "$(curl --location https://raw.githubusercontent.com/F1bonacc1/process-compose/main/scripts/get-pc.sh)" -- -d -b $DEST_DIR
-  echo "process-compose has been installed to $DEST_DIR/process-compose."
-
-  # channel
-  # installer script installs it at ~/.cargo/bin, so we add soft link to it in $DEST_DIR
-  curl --proto '=https' --tlsv1.2 -LsSf https://github.com/emctoo/channels/releases/download/v0.2.6/channel-installer.sh | sh
-  ln -s ~/.cargo/bin/channel $DEST_DIR/channel
-
-  ls -al $DEST_DIR
-
-# create virtualenv
-create-uv-venv wd="~/tangram/":
+# Install uv executable for Python virtual environments, build a separate environment
+install-uv:
   #!/usr/bin/env bash
   set -x -euo pipefail
 
-  cd {{wd}}
-  mkdir -p $HOME/.local/share/venvs
+  if command -v uv >/dev/null 2>&1; then
+    uv self update
+  else
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  fi
+  # uv sync --dev --verbose
 
-  # specify the path for virtual environment
-  # by default it creates .venv in current working directory, which has issues of permission
-  # https://docs.astral.sh/uv/concepts/projects/#configuring-the-project-environment-path
-  export UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram
-  uv venv --verbose
-  uv sync --dev --verbose
+# Install all dependencies
+install-all: install-channel install-node install-process-compose install-uv
 
-# create tangram network
-network:
+
+# Create the tangram network
+create-network:
   #!/usr/bin/env bash
   set -x -euo pipefail
 
@@ -100,8 +76,13 @@ network:
 
   podman network create {{NETWORK}}
 
-# launch redis
-redis: network
+# Create the tangram container
+create-tangram:
+  podman system prune -f
+  podman image build -f container/tangram.Containerfile -t tangram:0.1 .
+
+# Launch redis
+redis: create-network
   #!/usr/bin/env bash
 
   if [[ "$REDIS_URL" != "redis://redis:6379" ]]; then
@@ -118,8 +99,7 @@ redis: network
   podman container run -d --rm --name redis --network {{NETWORK}} -p 6379:6379 \
     docker.io/library/redis:8.0-M02
 
-# watch current dir and run the service
-# presumbly, you have uv installed and the virtualenv is created
+# Run the tangram REST API
 tangram-restapi port="18000" host="0.0.0.0":
   #!/usr/bin/env bash
   set -x -euo pipefail
@@ -127,6 +107,7 @@ tangram-restapi port="18000" host="0.0.0.0":
   pwd
   uv run uvicorn --host {{host}} --port {{port}} tangram.restapi:app
 
+# Run the tangram website
 tangram-web host="0.0.0.0" port="2024":
   #!/usr/bin/env bash
 
@@ -161,89 +142,77 @@ tangram-web host="0.0.0.0" port="2024":
 
   npx vite --host {{host}} --port {{port}}
 
-# build process-compose based tangram image
-build-tangram:
-  podman system prune -f
-  podman image build -f container/tangram.Containerfile -t tangram:0.1 .
 
-# launch tangram container
-tangram: network
+# Launch the tangram container
+tangram: create-network uv-sync-in-container
   #!/usr/bin/env bash
 
   if [ "$(uname)" = "Linux" ]; then \
     podman container run -it --rm --name tangram \
       --network {{NETWORK}} -p 2024:2024 \
       --env-file .env \
+      --workdir /home/user/tangram \
       --userns=keep-id \
       -v .:/home/user/tangram:z \
       tangram:0.1; \
   elif [ "$(uname)" = "Darwin" ]; then \
-    # TODO: verify it's necessary to include `--userns=keep-id` here
     podman container run -it --rm --name tangram \
       --network {{NETWORK}} -p 2024:2024 \
       --env-file .env \
+      --workdir /home/user/tangram \
       --userns=keep-id --security-opt label=disable \
       -v $PWD:/home/user/tangram \
       tangram:0.1; \
   fi
 
-channel:
-  #!/usr/bin/env bash
+# Synchronize Python dependencies in the container
+uv-sync-in-container:
+  if [ "$(uname)" = "Linux" ]; then \
+    podman container run -it --rm --name tangram \
+      --env-file .env \
+      --workdir /home/user/tangram \
+      --userns=keep-id \
+      -v .:/home/user/tangram:z \
+      tangram:0.1 uv sync --dev; \
+  elif [ "$(uname)" = "Darwin" ]; then \
+    podman container run -it --rm --name tangram \
+      --env-file .env \
+      --workdir /home/user/tangram \
+      --userns=keep-id --security-opt label=disable \
+      -v $PWD:/home/user/tangram \
+      tangram:0.1 uv sync --dev; \
+  fi
 
-  podman pull ghcr.io/emctoo/channel:latest
-  podman run -d --rm --name channel --network {{NETWORK}} -p 5000:5000 \
-    --env-file .env --userns=keep-id \
-    ghcr.io/emctoo/channel:latest channel --host 0.0.0.0 --port 5000 --jwt-secret secret --redis-url {{REDIS_URL}}
-
-channel-stop:
-  podman stop channel
-
-channel-restart:
-  just channel-stop
-  just channel
-
-
-tangram-log log="tangram": network
+# Check tangram logs
+tangram-log log="tangram": create-network
   @podman container exec -it -e TERM=xterm-256color -w /tmp/tangram tangram tail -f {{log}}.log
 
+# Run a shell in the tangram container (while running)
 tangram-shell:
   @podman container exec -it -e TERM=xterm-256color -w /home/user/tangram tangram /bin/bash
 
-# pull jet1090 image from ghcr.io
-build-jet1090:
-  # podman image build -t jet1090:{{JET1090_VERSION}} --build-arg VERSION={{JET1090_VERSION}} -f container/jet1090.Dockerfile .
-  podman pull {{JET1090_IMAGE}}
-
-# run jet1090 interactively, as a container
-jet1090: network redis
-  podman run -it --rm --name jet1090 \
-    --network {{NETWORK}} -p 8080:8080 \
-    -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
-    {{JET1090_IMAGE}} \
-      jet1090 \
-        --interactive \
-        --serve-port 8080 \
-        --redis-url {{REDIS_URL}} --redis-topic jet1090-full \
-        {{JET1090_PARAMS}} 
-
-# run jet1090 (0.3.8) as a service
-jet1090-daemon: network redis
-  podman run -d --rm --name jet1090 \
-    --network {{NETWORK}} -p 8080:8080 \
-    -v ~/.cache/jet1090:/home/user/.cache/jet1090 --userns=keep-id \
-    {{JET1090_IMAGE}} \
-      jet1090 \
-        --serve-port 8080 \
-        --redis-url {{REDIS_URL}} --redis-topic jet1090-full \
-        {{JET1090_PARAMS}}
-
-# build jet1090 filter
-_build-filter:
+# Run jet1090 interactively, as a container (will pull the image automatically)
+jet1090: create-network redis
   #!/usr/bin/env bash
 
-  pushd line-filter
-    cargo build fast --release
-  popd
+  if [ "$(uname)" = "Linux" ]; then \
+    podman run -it --rm --name jet1090 \
+      --network {{NETWORK}} -p 8080:8080 \
+      --env-file .env \
+      --userns=keep-id \
+      -v .:/home/user/tangram:z \
+      --workdir /home/user/tangram \
+      {{JET1090_IMAGE}} jet1090; \
+  elif [ "$(uname)" = "Darwin" ]; then \
+    podman run -it --rm --name jet1090 \
+      --network {{NETWORK}} -p 8080:8080 \
+      --env-file .env \
+      --userns=keep-id --security-opt label=disable \
+      -v $PWD:/home/user/tangram \
+      --workdir /home/user/tangram \
+      {{JET1090_IMAGE}} jet1090; \
+  fi
 
+# Build and serve locally the tangram documentation
 docs-serve:
   uvx --with "mkdocs-material[imaging]" mkdocs serve

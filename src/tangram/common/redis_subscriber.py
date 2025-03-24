@@ -13,7 +13,7 @@ StateT = TypeVar("StateT")
 
 
 class Subscriber(abc.ABC, Generic[StateT]):
-    redis: Redis  # type: ignore
+    redis: Redis
     task: asyncio.Task[None]
     pubsub: PubSub
 

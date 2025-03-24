@@ -60,6 +60,12 @@ if __name__ == "__main__":
     import argparse
     import os
 
+    file_handler = logging.FileHandler("/tmp/tangram/system.log")
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+    log.addHandler(file_handler)
+    log.setLevel(logging.DEBUG)
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--redis-url",

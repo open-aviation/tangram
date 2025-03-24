@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import pathlib
 from dataclasses import dataclass
 from typing import Any, List
 
@@ -13,8 +12,6 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 log = logging.getLogger(__name__)
-
-DEFAULT_DB_DIRECTORY = pathlib.Path("/tmp")
 
 
 @dataclass
@@ -47,7 +44,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
             await self.altitude_handler(message, state)
 
     async def coordinate_handler(self, message: dict[str, Any], state: State) -> None:
-        ts: TimeSeries = self.redis.ts()
+        ts: TimeSeries = self.redis.ts()  # type: ignore
         retention_msecs = 1000 * 60
 
         icao24 = message["icao24"]
@@ -90,7 +87,7 @@ class Subscriber(redis_subscriber.Subscriber[State]):
         await ts.madd(values)  # type: ignore
 
     async def altitude_handler(self, message: dict[str, Any], state: State) -> None:
-        ts = self.redis.ts()
+        ts: TimeSeries = self.redis.ts()  # type: ignore
         retention_msecs = 1000 * 60
 
         icao24 = message["icao24"]
@@ -167,6 +164,12 @@ if __name__ == "__main__":
     import argparse
     import os
 
+    file_handler = logging.FileHandler("/tmp/tangram/history.log")
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+    log.addHandler(file_handler)
+    log.setLevel(logging.DEBUG)
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--redis-url",
@@ -178,7 +181,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--redis-topic",
         dest="redis_topic_csv",
-        help="Redis topics to linsten in CSV format, * allowed for patterns",
+        help="Redis topics to listen in CSV format, * allowed for patterns",
         default=os.getenv("REDIS_TOPIC", "coordinate,altitude*"),
     )
     args = parser.parse_args()
