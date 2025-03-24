@@ -43,7 +43,7 @@ class Subscriber(abc.ABC, Generic[StateT]):
             try:
                 log.info("%s listening ...", self.name)
                 async for message in self.pubsub.listen():
-                    log.info("message: %s", message)
+                    log.debug("message: %s", message)
                     if message["type"] == "pmessage":
                         await self.message_handler(
                             message["channel"].decode("utf-8"),

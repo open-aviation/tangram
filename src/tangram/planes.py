@@ -7,8 +7,9 @@ import logging
 from datetime import UTC, datetime
 from typing import Any, Dict, NoReturn, Optional
 
-import httpx
 import redis
+import rs1090
+from pydantic import BaseModel
 
 from tangram.common.redis_subscriber import Subscriber
 
@@ -113,8 +114,21 @@ class BoundingBoxSubscriber(Subscriber[BoundingBoxState]):
                 log.exception(f"Error processing bounding box update: {e}")
 
 
+class StateVector(BaseModel):
+    icao24: str
+    registration: None | str
+    typecode: None | str
+    lastseen: float
+    firstseen: float
+    callsign: str | None
+    latitude: float | None
+    longitude: float | None
+    altitude: float | None
+    track: float | None
+
+
 def is_within_bbox(
-    aircraft: Dict[str, Any], bbox_state: BoundingBoxState, connection_id: str
+    aircraft: StateVector, bbox_state: BoundingBoxState, connection_id: str
 ) -> bool:
     """Check if aircraft is within the bounding box for a specific connection ID"""
     # If no bounding box is set for this connection, include all aircraft
@@ -125,19 +139,68 @@ def is_within_bbox(
     if not bbox:
         return True
 
-    lat: None | float = aircraft.get("latitude", None)
-    lng: None | float = aircraft.get("longitude", None)
-    if lat is None or lng is None:
+    if aircraft.latitude is None or aircraft.longitude is None:
         return False
     return (
-        bbox["south_west_lat"] <= lat <= bbox["north_east_lat"]
-        and bbox["south_west_lng"] <= lng <= bbox["north_east_lng"]
+        bbox["south_west_lat"] <= aircraft.latitude <= bbox["north_east_lat"]
+        and bbox["south_west_lng"] <= aircraft.longitude <= bbox["north_east_lng"]
     )
 
 
+class AircraftStore(dict[str, StateVector]):
+    def __missing__(self, key: str) -> StateVector:
+        now = int(datetime.now(UTC).timestamp())
+        info = rs1090.aircraft_information(key)
+        registration = info.get("registration", None)
+        return StateVector(
+            icao24=key,
+            registration=registration,
+            typecode=None,
+            callsign=None,
+            lastseen=now,
+            firstseen=now,
+            latitude=None,
+            longitude=None,
+            altitude=None,
+            track=None,
+        )
+
+
+class StateVectors:
+    def __init__(self) -> None:
+        self.aircraft: dict[str, StateVector] = AircraftStore()
+
+    def add(self, msg: dict[str, Any]) -> None:
+        if msg["df"] not in ["17", "18"]:
+            return
+        if msg["bds"] not in ["05", "06", "08", "09"]:
+            return
+        sv = self.aircraft[msg["icao24"]]
+        sv.lastseen = msg["timestamp"]
+        if msg["df"] == "18":
+            sv.typecode = "GRND"
+        if callsign := msg.get("callsign", None):
+            sv.callsign = callsign
+        if altitude := msg.get("altitude", None):
+            sv.altitude = altitude
+        if latitude := msg.get("latitude", None):
+            sv.latitude = latitude
+        if longitude := msg.get("longitude", None):
+            sv.longitude = longitude
+        if track := msg.get("track", None):
+            sv.track = track
+        self.aircraft[msg["icao24"]] = sv
+
+
+class Jet1090Subscriber(Subscriber[StateVectors]):
+    async def message_handler(
+        self, event: str, payload: str, pattern: str, state: StateVectors
+    ) -> None:
+        msg = json.loads(payload)
+        state.add(msg)
+
+
 async def main(jet1090_restful_service: str, redis_url: str) -> NoReturn:
-    all_aircraft_url = jet1090_restful_service + "/all"
-    restful_client = httpx.AsyncClient()
     redis_client = redis.Redis.from_url(redis_url)
 
     # Initialize bounding box subscriber
@@ -154,6 +217,15 @@ async def main(jet1090_restful_service: str, redis_url: str) -> NoReturn:
     )
     await bbox_subscriber.subscribe()
 
+    state_vectors = StateVectors()
+    sv_subscriber = Jet1090Subscriber(
+        name="Jet1090Subscriber",
+        redis_url=redis_url,
+        channels=["jet1090"],
+        initial_state=state_vectors,
+    )
+    await sv_subscriber.subscribe()
+
     log.info("streaming jet1090 to WS clients ...")
     try:
         while True:
@@ -161,16 +233,15 @@ async def main(jet1090_restful_service: str, redis_url: str) -> NoReturn:
                 await asyncio.sleep(1)
                 continue
 
-            resp = await restful_client.get(all_aircraft_url)
+            # resp = await restful_client.get(all_aircraft_url)
 
             now = datetime.now(UTC).timestamp()
             all_aircraft = [
                 el
-                for el in resp.json()
-                if el.get("latitude", None) and el["lastseen"] > now - 600
+                for el in state_vectors.aircraft.values()
+                if el.latitude is not None and el.lastseen > now - 600
             ]
-            print(all_aircraft[0])
-            icao24_set = set((el["icao24"] for el in all_aircraft))
+            icao24_set = set((el.icao24 for el in all_aircraft))
 
             # Apply filters per client connection and publish
             for client in bbox_state.clients:
@@ -191,7 +262,12 @@ async def main(jet1090_restful_service: str, redis_url: str) -> NoReturn:
 
                 redis_client.publish(
                     f"to:streaming-{client}:new-data",
-                    json.dumps({"count": len(all_aircraft), "aircraft": client_data}),
+                    json.dumps(
+                        {
+                            "count": len(all_aircraft),
+                            "aircraft": [vars(ac) for ac in client_data],
+                        },
+                    ),
                 )
                 log.info(
                     "publishing to %s %s (len: %s)...",
@@ -201,9 +277,12 @@ async def main(jet1090_restful_service: str, redis_url: str) -> NoReturn:
                 )
 
             await asyncio.sleep(1)
+    except Exception as exc:
+        log.info(exc)
+        raise
     finally:
         await bbox_subscriber.cleanup()
-        await restful_client.aclose()
+        # await restful_client.aclose()
 
 
 if __name__ == "__main__":
