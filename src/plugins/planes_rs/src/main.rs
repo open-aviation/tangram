@@ -12,6 +12,7 @@ use std::{
 use tokio::{sync::Mutex, time};
 use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
+use rs1090;
 
 // Command-line arguments
 #[derive(Parser, Debug)]
@@ -21,9 +22,9 @@ struct Args {
     #[clap(long, env = "REDIS_URL", default_value = "redis://redis:6379")]
     redis_url: String,
 
-    /// Jet1090 REST service URL
-    #[clap(long, env = "JET1090_URL", default_value = "http://jet1090:8080")]
-    jet1090_service: String,
+    /// Redis channel for Jet1090 messages
+    #[clap(long, env = "JET1090_CHANNEL", default_value = "jet1090")]
+    jet1090_channel: String,
 }
 
 // Struct for bounding box data
@@ -50,6 +51,20 @@ struct Aircraft {
     extra: HashMap<String, serde_json::Value>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StateVector {
+    icao24: String,
+    registration: Option<String>,
+    typecode: Option<String>,
+    lastseen: f64,
+    firstseen: f64,
+    callsign: Option<String>,
+    latitude: Option<f64>,
+    longitude: Option<f64>,
+    altitude: Option<f64>,
+    track: Option<f64>,
+}
+
 // Message from Redis
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ClientMessage {
@@ -74,11 +89,112 @@ struct BoundingBoxMessage {
     south_west_lng: f64,
 }
 
-// Response data to clients
+/// Jet1090 message format
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Jet1090Message {
+    icao24: String,
+    df: String,
+    bds: Option<String>,
+    timestamp: f64,
+    callsign: Option<String>,
+    altitude: Option<f64>,
+    latitude: Option<f64>,
+    longitude: Option<f64>,
+    track: Option<f64>,
+    #[serde(flatten)]
+    extra: HashMap<String, serde_json::Value>,
+}
+
+/// Response data to clients
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ResponseData {
     count: usize,
-    aircraft: Vec<Aircraft>,
+    aircraft: Vec<StateVector>,
+}
+
+/// State vectors collection to track aircraft
+#[derive(Debug)]
+struct StateVectors {
+    aircraft: HashMap<String, StateVector>,
+    aircraft_db: HashMap<String, serde_json::Value>,
+}
+
+impl StateVectors {
+    fn new() -> Self {
+        Self {
+            aircraft: HashMap::new(),
+            aircraft_db: HashMap::new(),
+        }
+    }
+
+    fn add(&mut self, msg: &Jet1090Message) -> Result<()> {
+        // Skip messages that don't match criteria
+        if msg.df != "17" && msg.df != "18" {
+            return Ok(());
+        }
+
+        if let Some(bds) = &msg.bds {
+            if !["05", "06", "08", "09"].contains(&bds.as_str()) {
+                return Ok(());
+            }
+        } else {
+            return Ok(());
+        }
+
+        // Get or create state vector
+        let sv = self.aircraft.entry(msg.icao24.clone()).or_insert_with(|| {
+            let registration = match rs1090::data::patterns::aircraft_information(&msg.icao24, None) {
+                Ok(aircraft_info) => aircraft_info.registration.clone(),
+                Err(_) => None,
+            };
+
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs_f64();
+
+            // Try to get typecode from aircraft_db (would need to be implemented properly)
+            let typecode = self.aircraft_db.get(&msg.icao24)
+                .and_then(|data| data.get("typecode"))
+                .and_then(|v| v.as_str())
+                .map(String::from);
+
+            StateVector {
+                icao24: msg.icao24.clone(),
+                registration,
+                typecode,
+                lastseen: now,
+                firstseen: now,
+                callsign: None,
+                latitude: None,
+                longitude: None,
+                altitude: None,
+                track: None,
+            }
+        });
+
+        // Update state vector with new information
+        sv.lastseen = msg.timestamp;
+        if msg.df == "18" {
+            sv.typecode = Some("GRND".to_string());
+        }
+        if let Some(callsign) = &msg.callsign {
+            sv.callsign = Some(callsign.clone());
+        }
+        if let Some(altitude) = msg.altitude {
+            sv.altitude = Some(altitude);
+        }
+        if let Some(latitude) = msg.latitude {
+            sv.latitude = Some(latitude);
+        }
+        if let Some(longitude) = msg.longitude {
+            sv.longitude = Some(longitude);
+        }
+        if let Some(track) = msg.track {
+            sv.track = Some(track);
+        }
+        Ok(())
+    }
 }
 
 // State to track client connections and their bounding boxes
@@ -117,7 +233,7 @@ impl BoundingBoxState {
 }
 
 // Check if an aircraft is within a specific client's bounding box
-fn is_within_bbox(aircraft: &Aircraft, state: &BoundingBoxState, connection_id: &str) -> bool {
+fn is_within_bbox(aircraft: &StateVector, state: &BoundingBoxState, connection_id: &str) -> bool {
     // If no bounding box is set for this connection, include all aircraft
     if !state.has_bbox(connection_id) {
         return true;
@@ -197,22 +313,56 @@ async fn start_redis_subscriber(redis_url: String, state: Arc<Mutex<BoundingBoxS
     Ok(())
 }
 
-// Main function that fetches aircraft data and publishes filtered data to clients
-async fn stream_aircraft_data(jet1090_service: String, redis_url: String, state: Arc<Mutex<BoundingBoxState>>) -> Result<()> {
-    let http_client = reqwest::Client::new();
-    let all_aircraft_url = format!("{}/all", jet1090_service);
+// Start a Redis subscriber to listen for Jet1090 messages
+async fn start_jet1090_subscriber(redis_url: String, channel: String, state_vectors: Arc<Mutex<StateVectors>>) -> Result<()> {
+    let client = redis::Client::open(redis_url.clone()).context("Failed to create Redis client for Jet1090 subscriber")?;
+    let mut pubsub = client.get_async_pubsub().await?;
+    pubsub.subscribe(&channel).await?;
+
+    info!("Jet1090 subscriber started, listening for aircraft updates on channel '{}'...", channel);
+
+    let mut stream = pubsub.on_message();
+
+    while let Some(msg) = stream.next().await {
+        let payload: String = msg.get_payload()?;
+
+        // Skip messages that don't contain DF17 or DF18
+        if !payload.contains("\"17\"") && !payload.contains("\"18\"") {
+            continue;
+        }
+
+        // Parse and process message
+        match serde_json::from_str::<Jet1090Message>(&payload) {
+            Ok(jet1090_msg) => {
+                let mut state = state_vectors.lock().await;
+                if let Err(e) = state.add(&jet1090_msg) {
+                    error!("Failed to add aircraft data: {}", e);
+                }
+            }
+            Err(e) => {
+                error!("Failed to parse Jet1090 message: {} - Error: {}", payload, e);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn stream_aircraft_data(
+    redis_url: String,
+    bbox_state: Arc<Mutex<BoundingBoxState>>,
+    state_vectors: Arc<Mutex<StateVectors>>
+) -> Result<()> {
     let redis_client = redis::Client::open(redis_url.clone()).context("Failed to create Redis client")?;
     let mut redis_conn = redis_client
         .get_multiplexed_async_connection()
         .await
         .context("Failed to connect to Redis")?;
-
     info!("Streaming aircraft data to WebSocket clients...");
-
     loop {
         // Check if we have any clients
         let clients = {
-            let state = state.lock().await;
+            let state = bbox_state.lock().await;
             if state.clients.is_empty() {
                 time::sleep(Duration::from_secs(1)).await;
                 continue;
@@ -220,51 +370,58 @@ async fn stream_aircraft_data(jet1090_service: String, redis_url: String, state:
             state.clients.clone()
         };
 
-        // Fetch aircraft data
-        let _now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-        match http_client.get(&all_aircraft_url).send().await {
-            Ok(response) => {
-                if let Ok(all_aircraft) = response.json::<Vec<Aircraft>>().await {
-                    let icao24_set: HashSet<String> = all_aircraft.iter().map(|a| a.icao24.clone()).collect();
+        // Get current time to filter out old aircraft
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs_f64();
 
-                    for client_id in &clients {
-                        // Filter aircraft based on client's bounding box
-                        let filtered_data = {
-                            let state = state.lock().await;
-                            if state.has_bbox(client_id) {
-                                all_aircraft
-                                    .iter()
-                                    .filter(|a| is_within_bbox(a, &state, client_id))
-                                    .cloned()
-                                    .collect::<Vec<Aircraft>>()
-                            } else {
-                                all_aircraft.clone()
-                            }
-                        };
+        // Get all aircraft from state vectors
+        let all_aircraft = {
+            let state = state_vectors.lock().await;
+            state.aircraft
+                .values()
+                .filter(|sv| {
+                    sv.latitude.is_some() && sv.lastseen > now - 600.0 // Filter out aircraft older than 10 minutes (600 seconds)
+                })
+                .cloned()
+                .collect::<Vec<StateVector>>()
+        };
 
-                        info!("Client {}: filtering, {} {} => {}", client_id, all_aircraft.len(), icao24_set.len(), filtered_data.len());
+        let icao24_set: HashSet<String> = all_aircraft.iter().map(|a| a.icao24.clone()).collect();
 
-                        // Build response data
-                        let response = ResponseData {
-                            count: all_aircraft.len(),
-                            aircraft: filtered_data,
-                        };
-
-                        // Publish to client-specific channel
-                        let channel = format!("to:streaming-{}:new-data", client_id);
-                        match serde_json::to_string(&response) {
-                            Ok(json) => {
-                                let _: RedisResult<()> = redis_conn.publish(&channel, json).await;
-                                info!("Published to {} (len: {})", channel, response.aircraft.len());
-                            }
-                            Err(e) => error!("Failed to serialize response: {}", e),
-                        }
-                    }
+        for client_id in &clients {
+            // Filter aircraft based on client's bounding box
+            let filtered_data = {
+                let state = bbox_state.lock().await;
+                if state.has_bbox(client_id) {
+                    all_aircraft
+                        .iter()
+                        .filter(|a| is_within_bbox(a, &state, client_id))
+                        .cloned()
+                        .collect::<Vec<StateVector>>()
                 } else {
-                    error!("Failed to parse aircraft data response");
+                    all_aircraft.clone()
                 }
+            };
+
+            info!("Client {}: filtering, {} {} => {}", client_id, all_aircraft.len(), icao24_set.len(), filtered_data.len());
+
+            // Build response data
+            let response = ResponseData {
+                count: all_aircraft.len(),
+                aircraft: filtered_data,
+            };
+
+            // Publish to client-specific channel
+            let channel = format!("to:streaming-{}:new-data", client_id);
+            match serde_json::to_string(&response) {
+                Ok(json) => {
+                    let _: RedisResult<()> = redis_conn.publish(&channel, json).await;
+                    info!("Published to {} (len: {})", channel, response.aircraft.len());
+                }
+                Err(e) => error!("Failed to serialize response: {}", e),
             }
-            Err(e) => error!("Failed to fetch aircraft data: {}", e),
         }
 
         time::sleep(Duration::from_secs(1)).await;
@@ -283,43 +440,46 @@ async fn main() -> Result<()> {
         .with_writer(std::io::stdout)
         .init();
 
-    // For file logging (uncomment if needed)
-    // tracing_subscriber::fmt()
-    //    .with_writer(non_blocking)
-    //    .init();
-
-    info!("Logging initialized with tracing");
-
     // Parse command line arguments
     let args = Args::parse();
 
-    // Create shared state
-    let state = Arc::new(Mutex::new(BoundingBoxState::new()));
-
-    // Clone state and URLs for the subscriber task
-    let subscriber_state = Arc::clone(&state);
+    // Spawn Redis subscribers
     let redis_url_clone = args.redis_url.clone();
+    let bbox_state = Arc::new(Mutex::new(BoundingBoxState::new()));
+    let bbox_subscriber_state = Arc::clone(&bbox_state);
+    let bbox_subscriber_handle = tokio::spawn(async move {
+        match start_redis_subscriber(redis_url_clone, bbox_subscriber_state).await {
+            Ok(_) => info!("BoundingBox subscriber stopped normally"),
+            Err(e) => error!("BoundingBox subscriber error: {}", e),
+        }
+    });
 
-    // Spawn Redis subscriber task
-    let subscriber_handle = tokio::spawn(async move {
-        match start_redis_subscriber(redis_url_clone, subscriber_state).await {
-            Ok(_) => info!("Redis subscriber stopped normally"),
-            Err(e) => error!("Redis subscriber error: {}", e),
+    let redis_url_clone2 = args.redis_url.clone();
+    let jet1090_channel = args.jet1090_channel.clone();
+    let state_vectors = Arc::new(Mutex::new(StateVectors::new()));
+    let jet1090_subscriber_state = Arc::clone(&state_vectors);
+    let jet1090_subscriber_handle = tokio::spawn(async move {
+        match start_jet1090_subscriber(redis_url_clone2, jet1090_channel, jet1090_subscriber_state).await {
+            Ok(_) => info!("Jet1090 subscriber stopped normally"),
+            Err(e) => error!("Jet1090 subscriber error: {}", e),
         }
     });
 
     // Start main streaming task
     let streaming_handle = tokio::spawn(async move {
-        match stream_aircraft_data(args.jet1090_service, args.redis_url, state).await {
+        match stream_aircraft_data(args.redis_url, bbox_state, state_vectors).await {
             Ok(_) => info!("Streaming task stopped normally"),
             Err(e) => error!("Streaming task error: {}", e),
         }
     });
 
-    // Wait for both tasks
+    // Wait for tasks to complete
     tokio::select! {
-        _ = subscriber_handle => {
-            error!("Redis subscriber task exited unexpectedly");
+        _ = bbox_subscriber_handle => {
+            error!("BoundingBox subscriber task exited unexpectedly");
+        }
+        _ = jet1090_subscriber_handle => {
+            error!("Jet1090 subscriber task exited unexpectedly");
         }
         _ = streaming_handle => {
             error!("Streaming task exited unexpectedly");

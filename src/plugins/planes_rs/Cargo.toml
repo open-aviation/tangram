@@ -31,4 +31,4 @@ toml = "0.8"
 tempfile = "3.8"
 notify = "8"
 
-# rs1090 = { version = "0.4.4" }
+rs1090 = { version = "0.4.8" }
