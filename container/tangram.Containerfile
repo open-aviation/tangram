@@ -1,3 +1,29 @@
+# Stage 1: Build the Rust binary
+FROM rust:1.85-slim as builder
+
+# Install required dependencies for Rust build
+COPY ./container/add-apt-proxy.sh /usr/local/bin/add-apt-proxy.sh
+RUN chmod +x /usr/local/bin/add-apt-proxy.sh
+RUN /usr/local/bin/add-apt-proxy.sh
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git pkg-config libssl-dev \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+  # Create a new user to match the one in the final image
+RUN useradd -m -s /bin/bash user
+
+# Create directory structure
+WORKDIR /home/user/tangram/src/plugins/planes_rs
+
+# Copy only the files needed for building the Rust binary
+COPY src/plugins/planes_rs/Cargo.toml ./
+COPY src/plugins/planes_rs/src ./src/
+
+# Build the Rust binary
+RUN cargo build --release
+
+# Stage 2: The main image
 FROM python:3.12-slim
 
 # this image is debian based, configure apt proxy if available
@@ -16,6 +42,10 @@ RUN useradd -m -s /bin/bash user
 # meanwhile, it's mounted as a volume when we run the container in development
 COPY . /home/user/tangram
 RUN chown -R user:user /home/user/tangram/
+
+# Copy the compiled binary from the builder stage
+COPY --from=builder /home/user/tangram/src/plugins/planes_rs/target/release/planes /usr/bin/planes
+RUN chmod +x /usr/bin/planes
 
 USER user
 

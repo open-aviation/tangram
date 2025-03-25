@@ -1,26 +1,11 @@
 [package]
-name = "line-filter"
+name = "planes"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Jet1090 line filter"
-repository = "https://github.com/emctoo/line-filter"
-keywords = ["rs1090", "jet1090"]
-
-# https://doc.rust-lang.org/cargo/reference/cargo-targets.html#configuring-a-target
-autobins = false
-
-[[bin]]
-name = "line-filter"
-path = "src/main.rs"
-
-[[bin]]
-name = "fast"
-path = "src/fast.rs"
-
-[[bin]]
-name = "streaming"
-path = "src/streaming.rs"
+description = "Tangram plane plugin"
+repository = "https://github.com/open-aviation/tangram"
+keywords = ["rs1090", "jet1090", "trangram"]
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -39,19 +24,11 @@ futures = "0.3"
 redis = { version = "0.28", features = ["tokio-comp"] }
 clap = { version = "4.5", features = ["color", "derive", "wrap_help", "env"] }
 
-# https://github.com/ISibboI/evalexpr
-evalexpr = "12.0.2"
-
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 toml = "0.8"
-tempfile = "3.8" # 用于测试
+tempfile = "3.8"
 notify = "8"
 
-# https://github.com/jr-1991/evalexpr-jit
-# evalexpr_jit = "0.2.0"
-
-# https://github.com/Kixiron/rust-langdev
-
-rs1090 = { version = "0.4.4" }
+# rs1090 = { version = "0.4.4" }
