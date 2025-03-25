@@ -506,6 +506,7 @@ var ac_symbol_map = [
   { id: "GLF", sym: "$8" },
   { id: "GZLE", sym: "$7" },
   { id: "H12T", sym: "$7" },
+  { id: "H160", sym: "$7" },
   { id: "H2", sym: "$7" },
   { id: "H21", sym: "$7" },
   { id: "H25", sym: "$8" },
