@@ -10,6 +10,9 @@ data/
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
+config_*.toml
+!config_jet1090.toml
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -120,6 +123,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv_container
 env/
 venv/
 ENV/

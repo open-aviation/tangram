@@ -13,6 +13,8 @@ from pydantic import BaseModel
 
 from tangram.common.redis_subscriber import Subscriber
 
+from .basestation import aircraft_db
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
 
@@ -148,14 +150,24 @@ def is_within_bbox(
 
 
 class AircraftStore(dict[str, StateVector]):
+    def __init__(self) -> None:
+        self.aircraft_db = aircraft_db()
+
     def __missing__(self, key: str) -> StateVector:
         now = int(datetime.now(UTC).timestamp())
+        # This logic is already coded in jet1090
+        # Reuse from there when coding in Rust
         info = rs1090.aircraft_information(key)
+        typecode = None
         registration = info.get("registration", None)
+        if aircraft := self.aircraft_db.get(key, None):
+            typecode = aircraft["typecode"]
+            registration = aircraft["registration"]
+
         return StateVector(
             icao24=key,
             registration=registration,
-            typecode=None,
+            typecode=typecode,
             callsign=None,
             lastseen=now,
             firstseen=now,
@@ -169,6 +181,7 @@ class AircraftStore(dict[str, StateVector]):
 class StateVectors:
     def __init__(self) -> None:
         self.aircraft: dict[str, StateVector] = AircraftStore()
+        self.aircraft_db = aircraft_db()
 
     def add(self, msg: dict[str, Any]) -> None:
         if msg["df"] not in ["17", "18"]:
@@ -196,6 +209,8 @@ class Jet1090Subscriber(Subscriber[StateVectors]):
     async def message_handler(
         self, event: str, payload: str, pattern: str, state: StateVectors
     ) -> None:
+        if "17" not in payload or "18" not in payload:
+            return
         msg = json.loads(payload)
         state.add(msg)
 
@@ -239,7 +254,10 @@ async def main(jet1090_restful_service: str, redis_url: str) -> NoReturn:
             all_aircraft = [
                 el
                 for el in state_vectors.aircraft.values()
-                if el.latitude is not None and el.lastseen > now - 600
+                if el.latitude is not None
+                # IMPORTANT: should be a parameter
+                # do not send info about aircraft older than 10 minutes
+                and el.lastseen > now - 600
             ]
             icao24_set = set((el.icao24 for el in all_aircraft))
 

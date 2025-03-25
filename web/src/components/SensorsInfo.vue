@@ -22,7 +22,6 @@ export default {
         // `/sensors` is served by jet1090, we'll just let vite proxy it
         const response = await fetch("/sensors");
         const sensors = await response.json();
-        console.log(sensors);
         // Convert sensor data to GeoJSON format
         this.geoJsonData = {
             type: "FeatureCollection",
