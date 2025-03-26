@@ -3,7 +3,7 @@ interactive = true
 serve_port = 8080
 prevent_sleep = false
 update_position = false
-expire = 20
+history_expire = 20
 redis_url = "redis://redis:6379"
 
 [[sources]]
