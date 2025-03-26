@@ -32,7 +32,7 @@ struct Args {
     jet1090_channel: String,
 
     /// Expire aircraft after (in seconds)
-    #[clap(long, default_value = None)]
+    #[clap(long, env = "EXPIRE_AIRCRAFT", default_value = None)]
     expire: Option<u16>,
 }
 
