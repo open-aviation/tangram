@@ -23,7 +23,7 @@ export default {
     },
     computed: {
         utc_time() {
-            const date = new Date(this.store.info_utc);
+            const date = this.store.info_utc ? new Date(this.store.info_utc) : new Date();
             const hours = date.getUTCHours().toString().padStart(2, "0");
             const minutes = date.getUTCMinutes().toString().padStart(2, "0");
             const seconds = date.getUTCSeconds().toString().padStart(2, "0");
