@@ -1,8 +1,14 @@
+mod aircraftdb;
+
+// TODO include this part in the rs1090 crate rather than jet1090
+use crate::aircraftdb::{aircraft, Aircraft};
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures::StreamExt;
 use redis::{AsyncCommands, RedisResult};
+use rs1090::data::patterns::aircraft_information;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::iter::Iterator;
 use std::{
     collections::{HashMap, HashSet},
@@ -12,7 +18,6 @@ use std::{
 use tokio::{sync::Mutex, time};
 use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
-use rs1090;
 
 // Command-line arguments
 #[derive(Parser, Debug)]
@@ -25,6 +30,10 @@ struct Args {
     /// Redis channel for Jet1090 messages
     #[clap(long, env = "JET1090_CHANNEL", default_value = "jet1090")]
     jet1090_channel: String,
+
+    /// Expire aircraft after (in seconds)
+    #[clap(long, default_value = None)]
+    expire: Option<u16>,
 }
 
 // Struct for bounding box data
@@ -34,21 +43,6 @@ struct BoundingBox {
     north_east_lng: f64,
     south_west_lat: f64,
     south_west_lng: f64,
-}
-
-// Aircraft data structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Aircraft {
-    icao24: String,
-    callsign: Option<String>,
-    latitude: Option<f64>,
-    longitude: Option<f64>,
-    altitude: Option<f64>,
-    track: Option<f64>,
-    lastseen: Option<u64>,
-    // Add other fields as needed
-    #[serde(flatten)]
-    extra: HashMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,14 +110,16 @@ struct ResponseData {
 #[derive(Debug)]
 struct StateVectors {
     aircraft: HashMap<String, StateVector>,
-    aircraft_db: HashMap<String, serde_json::Value>,
+    aircraft_db: BTreeMap<String, Aircraft>,
+    expire: Option<u16>,
 }
 
 impl StateVectors {
-    fn new() -> Self {
+    async fn new(expire: Option<u16>) -> Self {
         Self {
             aircraft: HashMap::new(),
-            aircraft_db: HashMap::new(),
+            aircraft_db: aircraft().await,
+            expire,
         }
     }
 
@@ -143,7 +139,7 @@ impl StateVectors {
 
         // Get or create state vector
         let sv = self.aircraft.entry(msg.icao24.clone()).or_insert_with(|| {
-            let registration = match rs1090::data::patterns::aircraft_information(&msg.icao24, None) {
+            let mut registration = match aircraft_information(&msg.icao24, None) {
                 Ok(aircraft_info) => aircraft_info.registration.clone(),
                 Err(_) => None,
             };
@@ -153,11 +149,12 @@ impl StateVectors {
                 .unwrap_or_default()
                 .as_secs_f64();
 
-            // Try to get typecode from aircraft_db (would need to be implemented properly)
-            let typecode = self.aircraft_db.get(&msg.icao24)
-                .and_then(|data| data.get("typecode"))
-                .and_then(|v| v.as_str())
-                .map(String::from);
+            let mut typecode = None;
+
+            if let Some(aircraft) = self.aircraft_db.get(&msg.icao24) {
+                typecode = aircraft.typecode.clone();
+                registration = aircraft.registration.clone();
+            }
 
             StateVector {
                 icao24: msg.icao24.clone(),
@@ -215,7 +212,11 @@ impl BoundingBoxState {
         self.bboxes.insert(connection_id.to_string(), bbox.clone());
         info!(
             "Updated {} bounding box: NE({}, {}), SW({}, {})",
-            connection_id, bbox.north_east_lat, bbox.north_east_lng, bbox.south_west_lat, bbox.south_west_lng
+            connection_id,
+            bbox.north_east_lat,
+            bbox.north_east_lng,
+            bbox.south_west_lat,
+            bbox.south_west_lng
         );
     }
 
@@ -233,7 +234,9 @@ impl BoundingBoxState {
 }
 
 // Check if an aircraft is within a specific client's bounding box
-fn is_within_bbox(aircraft: &StateVector, state: &BoundingBoxState, connection_id: &str) -> bool {
+fn is_within_bbox(
+    aircraft: &StateVector, state: &BoundingBoxState, connection_id: &str,
+) -> bool {
     // If no bounding box is set for this connection, include all aircraft
     if !state.has_bbox(connection_id) {
         return true;
@@ -254,12 +257,18 @@ fn is_within_bbox(aircraft: &StateVector, state: &BoundingBoxState, connection_i
         None => return false,
     };
 
-    bbox.south_west_lat <= lat && lat <= bbox.north_east_lat && bbox.south_west_lng <= lng && lng <= bbox.north_east_lng
+    bbox.south_west_lat <= lat
+        && lat <= bbox.north_east_lat
+        && bbox.south_west_lng <= lng
+        && lng <= bbox.north_east_lng
 }
 
 // Start a Redis subscriber to listen for client events
-async fn start_redis_subscriber(redis_url: String, state: Arc<Mutex<BoundingBoxState>>) -> Result<()> {
-    let client = redis::Client::open(redis_url.clone()).context("Failed to create Redis client for subscriber")?;
+async fn start_redis_subscriber(
+    redis_url: String, state: Arc<Mutex<BoundingBoxState>>,
+) -> Result<()> {
+    let client = redis::Client::open(redis_url.clone())
+        .context("Failed to create Redis client for subscriber")?;
     let mut pubsub = client.get_async_pubsub().await?;
     pubsub.psubscribe("from:system:*").await?;
     pubsub.psubscribe("to:admin:channel.add").await?;
@@ -279,7 +288,10 @@ async fn start_redis_subscriber(redis_url: String, state: Arc<Mutex<BoundingBoxS
             if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&payload) {
                 let mut state = state.lock().await;
                 state.clients.insert(client_msg.connection_id.clone());
-                info!("+ client joins: {}, {:?}", client_msg.connection_id, state.clients);
+                info!(
+                    "+ client joins: {}, {:?}",
+                    client_msg.connection_id, state.clients
+                );
             } else {
                 error!("Failed to parse join message: {}", payload);
             }
@@ -288,7 +300,10 @@ async fn start_redis_subscriber(redis_url: String, state: Arc<Mutex<BoundingBoxS
                 let mut state = state.lock().await;
                 state.clients.remove(&client_msg.connection_id);
                 state.remove_bbox(&client_msg.connection_id);
-                info!("- client leaves: {}, {:?}", client_msg.connection_id, state.clients);
+                info!(
+                    "- client leaves: {}, {:?}",
+                    client_msg.connection_id, state.clients
+                );
             } else {
                 error!("Failed to parse leave message: {}", payload);
             }
@@ -314,12 +329,18 @@ async fn start_redis_subscriber(redis_url: String, state: Arc<Mutex<BoundingBoxS
 }
 
 // Start a Redis subscriber to listen for Jet1090 messages
-async fn start_jet1090_subscriber(redis_url: String, channel: String, state_vectors: Arc<Mutex<StateVectors>>) -> Result<()> {
-    let client = redis::Client::open(redis_url.clone()).context("Failed to create Redis client for Jet1090 subscriber")?;
+async fn start_jet1090_subscriber(
+    redis_url: String, channel: String, state_vectors: Arc<Mutex<StateVectors>>,
+) -> Result<()> {
+    let client = redis::Client::open(redis_url.clone())
+        .context("Failed to create Redis client for Jet1090 subscriber")?;
     let mut pubsub = client.get_async_pubsub().await?;
     pubsub.subscribe(&channel).await?;
 
-    info!("Jet1090 subscriber started, listening for aircraft updates on channel '{}'...", channel);
+    info!(
+        "Jet1090 subscriber started, listening for aircraft updates on channel '{}'...",
+        channel
+    );
 
     let mut stream = pubsub.on_message();
 
@@ -349,11 +370,11 @@ async fn start_jet1090_subscriber(redis_url: String, channel: String, state_vect
 }
 
 async fn stream_aircraft_data(
-    redis_url: String,
-    bbox_state: Arc<Mutex<BoundingBoxState>>,
-    state_vectors: Arc<Mutex<StateVectors>>
+    redis_url: String, bbox_state: Arc<Mutex<BoundingBoxState>>,
+    state_vectors: Arc<Mutex<StateVectors>>,
 ) -> Result<()> {
-    let redis_client = redis::Client::open(redis_url.clone()).context("Failed to create Redis client")?;
+    let redis_client = redis::Client::open(redis_url.clone())
+        .context("Failed to create Redis client")?;
     let mut redis_conn = redis_client
         .get_multiplexed_async_connection()
         .await
@@ -379,16 +400,24 @@ async fn stream_aircraft_data(
         // Get all aircraft from state vectors
         let all_aircraft = {
             let state = state_vectors.lock().await;
-            state.aircraft
+            state
+                .aircraft
                 .values()
                 .filter(|sv| {
-                    sv.latitude.is_some() && sv.lastseen > now - 600.0 // Filter out aircraft older than 10 minutes (600 seconds)
+                    match state.expire {
+                        None => sv.latitude.is_some(),
+                        // Filter out aircraft older than 10 minutes (600 seconds)
+                        Some(expire) => {
+                            sv.latitude.is_some() && sv.lastseen > now - expire as f64
+                        }
+                    }
                 })
                 .cloned()
                 .collect::<Vec<StateVector>>()
         };
 
-        let icao24_set: HashSet<String> = all_aircraft.iter().map(|a| a.icao24.clone()).collect();
+        let icao24_set: HashSet<String> =
+            all_aircraft.iter().map(|a| a.icao24.clone()).collect();
 
         for client_id in &clients {
             // Filter aircraft based on client's bounding box
@@ -405,7 +434,13 @@ async fn stream_aircraft_data(
                 }
             };
 
-            info!("Client {}: filtering, {} {} => {}", client_id, all_aircraft.len(), icao24_set.len(), filtered_data.len());
+            info!(
+                "Client {}: filtering, {} {} => {}",
+                client_id,
+                all_aircraft.len(),
+                icao24_set.len(),
+                filtered_data.len()
+            );
 
             // Build response data
             let response = ResponseData {
@@ -418,7 +453,11 @@ async fn stream_aircraft_data(
             match serde_json::to_string(&response) {
                 Ok(json) => {
                     let _: RedisResult<()> = redis_conn.publish(&channel, json).await;
-                    info!("Published to {} (len: {})", channel, response.aircraft.len());
+                    info!(
+                        "Published to {} (len: {})",
+                        channel,
+                        response.aircraft.len()
+                    );
                 }
                 Err(e) => error!("Failed to serialize response: {}", e),
             }
@@ -430,13 +469,19 @@ async fn stream_aircraft_data(
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Load environment variables from a .env file
+    dotenv::dotenv().ok();
+
     // Initialize tracing instead of env_logger
-    let file_appender = tracing_appender::rolling::daily("/tmp/tangram", "streaming.log");
+    let file_appender =
+        tracing_appender::rolling::daily("/tmp/tangram", "streaming.log");
     let (_non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     // Setup the subscriber with both console and file logging
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse().unwrap()))
+        .with_env_filter(
+            EnvFilter::from_default_env().add_directive("info".parse().unwrap()),
+        )
         .with_writer(std::io::stdout)
         .init();
 
@@ -456,10 +501,17 @@ async fn main() -> Result<()> {
 
     let redis_url_clone2 = args.redis_url.clone();
     let jet1090_channel = args.jet1090_channel.clone();
-    let state_vectors = Arc::new(Mutex::new(StateVectors::new()));
+    let expire = args.expire;
+    let state_vectors = Arc::new(Mutex::new(StateVectors::new(expire).await));
     let jet1090_subscriber_state = Arc::clone(&state_vectors);
     let jet1090_subscriber_handle = tokio::spawn(async move {
-        match start_jet1090_subscriber(redis_url_clone2, jet1090_channel, jet1090_subscriber_state).await {
+        match start_jet1090_subscriber(
+            redis_url_clone2,
+            jet1090_channel,
+            jet1090_subscriber_state,
+        )
+        .await
+        {
             Ok(_) => info!("Jet1090 subscriber stopped normally"),
             Err(e) => error!("Jet1090 subscriber error: {}", e),
         }
