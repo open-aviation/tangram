@@ -8,11 +8,23 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
 
 1. Install [just](https://github.com/casey/just), a command project-specific runner
 2. Install [podman](https://podman.io/docs/installation), a container runtime
+
+   On macOS, Podman requires a virtual machine to run containers. You need to initialize and start this machine:
+   Code
+
+   ```shell
+   podman machine init
+   podman machine start
+   ```
+
+
 3. Create a `.env` file from the template (edit if necessary):
 
    ```shell
    cp .env.example .env
    ```
+
+
 
 4. Pull and run a `Redis` container\
    This container is used for message caching between different services:
