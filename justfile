@@ -192,7 +192,7 @@ tangram-shell:
   @podman container exec -it -e TERM=xterm-256color -w /home/user/tangram tangram /bin/bash
 
 plugin-planes:
-  /usr/bin/planes --redis-url {{REDIS_URL}} --jet1090-channel jet1090
+  /usr/bin/planes --expire 600 --redis-url {{REDIS_URL}} --jet1090-channel jet1090
 
 # Run jet1090 interactively, as a container (will pull the image automatically)
 jet1090: create-network redis

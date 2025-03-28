@@ -221,6 +221,10 @@ export default {
       if (feature.class !== undefined) {
         return "aircraft_" + feature.class;
       }
+      const state = this.store.aircraftState[feature.icao24];
+      if (state !== undefined) {
+        return "aircraft_" + state;
+      }
       return feature.icao24 === this.selected.icao24
         ? "aircraft_selected"
         : "aircraft_default";
@@ -281,6 +285,6 @@ export default {
 }
 
 .aircraft_selected svg {
-  fill: green;
+  fill: #ff6464;
 }
 </style>
