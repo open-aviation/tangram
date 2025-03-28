@@ -44,6 +44,9 @@ RUN useradd -m -s /bin/bash user
 COPY . /home/user/tangram
 RUN chown -R user:user /home/user/tangram/
 
+# Copy the compiled binary from the builder stage
+COPY --from=builder /home/user/tangram/src/plugins/planes_rs/target/release/planes /usr/bin/planes
+RUN chmod +x /usr/bin/planes
 
 USER user
 
@@ -52,10 +55,6 @@ ENV PATH=/home/user/.local/bin:$PATH
 ENV PATH=/home/user/.cargo/bin:$PATH
 
 RUN mkdir -p /home/user/.local/bin
-
-# Copy the compiled binary from the builder stage
-COPY --from=builder /home/user/tangram/src/plugins/planes_rs/target/release/planes /usr/bin/planes
-RUN chmod +x /home/user/.local/bin/planes
 
 WORKDIR /home/user/tangram
 

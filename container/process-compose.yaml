@@ -36,8 +36,8 @@ processes:
     # environment:
     #   - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
-    command: env && pwd && uv run python -m tangram.planes
-    # command: just plugin-planes
+    # command: env && pwd && uv run python -m tangram.planes
+    command: just plugin-planes
     availability:
       restart: "always"
 
