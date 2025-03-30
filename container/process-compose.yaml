@@ -25,16 +25,12 @@ processes:
       restart: "always"
 
   core/system:
-    # environment:
-    #   - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
     command: env && pwd && uv run python -m tangram.system
     availability:
       restart: "always"
 
   core/planes:
-    # environment:
-    #   - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
     # command: env && pwd && uv run python -m tangram.planes
     command: just plugin-planes
@@ -42,8 +38,6 @@ processes:
       restart: "always"
 
   core/trajectory:
-    # environment:
-    #   - "UV_PROJECT_ENVIRONMENT=/home/user/.local/share/venvs/tangram"
     working_dir: /home/user/tangram/
     command: env && pwd && uv run python -m tangram.trajectory
     availability:
