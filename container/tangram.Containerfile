@@ -1,6 +1,5 @@
 # Stage 1: Build the Rust binary
-#FROM docker.io/library/rust:1.85-slim as builder
-FROM rust:1.85-slim as builder
+FROM docker.io/library/rust:1.85-slim as builder
 
 # Install required dependencies for Rust build
 COPY ./container/add-apt-proxy.sh /usr/local/bin/add-apt-proxy.sh
