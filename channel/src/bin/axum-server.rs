@@ -55,7 +55,8 @@ async fn generate_token(AxumState(state): AxumState<Arc<State>>, Json(req): Json
         .id
         .filter(|id| !id.trim().is_empty())
         .unwrap_or_else(|| nanoid::nanoid!(8).to_string());
-    match generate_jwt(id.clone(), req.channel.clone(), state.jwt_secret.clone()).await {
+
+    match generate_jwt(id.clone(), req.channel.clone(), state.jwt_secret.clone(), state.jwt_expiration_secs).await {
         Ok(token) => Ok(Json(serde_json::json!({
             "id": id.clone(),
             "channel": req.channel.clone(),
@@ -96,6 +97,9 @@ struct Options {
 
     #[arg(long, env, default_value = None)]
     jwt_secret: Option<String>,
+
+    #[arg(long, env, default_value = "259200")]
+    jwt_expiration_secs: i64,
 
     #[arg(long, env, default_value = "assets")]
     static_path: Option<String>,
@@ -161,10 +165,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         random_secret
     });
 
+    info!("JWT default expiration: {} seconds / {} day(s)", options.jwt_expiration_secs, options.jwt_expiration_secs / 86400);
+
     let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
         redis_client,
         jwt_secret, // 从命令行、环境变量中获取，或者生成一个随机的
+        jwt_expiration_secs: options.jwt_expiration_secs, // default: 3 days
     });
 
     tokio::spawn(keepalive(state.clone()));

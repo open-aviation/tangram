@@ -14,9 +14,9 @@ pub struct Claims {
     pub exp: usize,
 }
 
-pub async fn generate_jwt(id: String, channel: String, jwt_secret: String) -> jsonwebtoken::errors::Result<String> {
+pub async fn generate_jwt(id: String, channel: String, jwt_secret: String, expiration_secs: i64) -> jsonwebtoken::errors::Result<String> {
     let expiration = chrono::Utc::now()
-        .checked_add_signed(chrono::Duration::hours(24))
+        .checked_add_signed(chrono::Duration::seconds(expiration_secs))
         .expect("valid timestamp")
         .timestamp() as usize;
 
