@@ -12,8 +12,8 @@ import dynamicComponentsPlugin from "./dynamic-components";
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
 
-let tangram_service = process.env.TANGRAM_SERVICE || "127.0.0.1:18000";
-let channel_service = process.env.CHANNEL_SERVICE || "127.0.0.1:2025";
+let tangram_service = process.env.TANGRAM_SERVICE || "127.0.0.1:2346";
+let channel_service = process.env.CHANNEL_SERVICE || "127.0.0.1:2347";
 let jet1090_service = process.env.JET1090_URL || "127.0.0.1:8080";
 
 // Get the address of the host of the container (this usually works)

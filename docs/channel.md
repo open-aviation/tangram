@@ -39,6 +39,7 @@ The WebSocket protocol follows the Phoenix Channels message format, which uses J
 ```
 
 Where:
+
 - `join_ref`: Reference to the channel join request (null for system messages)
 - `ref`: Message reference for tracking responses
 - `topic`: Channel name
@@ -70,18 +71,19 @@ Clients connect to the WebSocket endpoint and can join multiple channels:
 ```javascript
 // Connect to the WebSocket
 const socket = new Phoenix.Socket("/websocket", {
-  params: { userToken: token }
+  params: { userToken: token },
 });
 socket.connect();
 
 // Join a channel
 const channel = socket.channel("system", { token: systemToken });
-channel.join()
-  .receive("ok", response => console.log("Joined successfully", response))
-  .receive("error", response => console.log("Join failed", response));
+channel
+  .join()
+  .receive("ok", (response) => console.log("Joined successfully", response))
+  .receive("error", (response) => console.log("Join failed", response));
 
 // Listen for events
-channel.on("datetime", payload => {
+channel.on("datetime", (payload) => {
   console.log("Current time:", payload.response.datetime);
 });
 

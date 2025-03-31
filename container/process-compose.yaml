@@ -14,7 +14,7 @@ processes:
       restart: "always"
 
   channel:
-    command: /home/user/.cargo/bin/channel --port 2025 --jwt-secret secret
+    command: /home/user/.cargo/bin/channel --port 2347 --jwt-secret secret
     working_dir: /home/user/tangram
 
   core/restapi:
@@ -33,7 +33,7 @@ processes:
   core/planes:
     working_dir: /home/user/tangram/
     # command: env && pwd && uv run python -m tangram.planes
-    command: just plugin-planes
+    command: env && /usr/bin/planes --expire 600 --jet1090-channel jet1090
     availability:
       restart: "always"
 

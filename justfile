@@ -100,7 +100,7 @@ redis: create-network
     docker.io/library/redis:8.0-M02
 
 # Run the tangram REST API
-tangram-restapi port="18000" host="0.0.0.0":
+tangram-restapi port="2346" host="0.0.0.0":
   #!/usr/bin/env bash
   set -x -euo pipefail
 
@@ -108,7 +108,7 @@ tangram-restapi port="18000" host="0.0.0.0":
   uv run uvicorn --host {{host}} --port {{port}} tangram.restapi:app
 
 # Run the tangram website
-tangram-web host="0.0.0.0" port="2024":
+tangram-web host="0.0.0.0" port="2345":
   #!/usr/bin/env bash
 
   eval $(/home/user/.local/share/fnm/fnm env --shell bash)
@@ -149,7 +149,7 @@ tangram: create-network uv-sync-in-container
 
   if [ "$(uname)" = "Linux" ]; then \
     podman container run -it --rm --name tangram \
-      --network {{NETWORK}} -p 2024:2024 \
+      --network {{NETWORK}} -p 2345:2345 \
       --env-file .env \
       --workdir /home/user/tangram \
       --userns=keep-id \
@@ -157,7 +157,7 @@ tangram: create-network uv-sync-in-container
       tangram:0.1; \
   elif [ "$(uname)" = "Darwin" ]; then \
     podman container run -it --rm --name tangram \
-      --network {{NETWORK}} -p 2024:2024 \
+      --network {{NETWORK}} -p 2345:2345 \
       --env-file .env \
       --workdir /home/user/tangram \
       --userns=keep-id --security-opt label=disable \
@@ -190,9 +190,6 @@ tangram-log log="tangram": create-network
 # Run a shell in the tangram container (while running)
 tangram-shell:
   @podman container exec -it -e TERM=xterm-256color -w /home/user/tangram tangram /bin/bash
-
-plugin-planes:
-  /usr/bin/planes --expire 600 --redis-url {{REDIS_URL}} --jet1090-channel jet1090
 
 # Run jet1090 interactively, as a container (will pull the image automatically)
 jet1090: create-network redis
