@@ -118,6 +118,7 @@ pub struct State {
     pub ctl: Mutex<ChannelControl>,
     pub redis_client: redis::Client,
     pub jwt_secret: String,
+    pub jwt_expiration_secs: i64,
 }
 
 impl State {}
