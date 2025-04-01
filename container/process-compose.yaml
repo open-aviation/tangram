@@ -14,7 +14,7 @@ processes:
       restart: "always"
 
   channel:
-    command: /home/user/.cargo/bin/channel --port 2347 --jwt-secret secret
+    command: /home/user/.cargo/bin/channel --port 2347 --jwt-secret secret --jwt-expiration-secs 315360000 # 10 years
     working_dir: /home/user/tangram
 
   core/restapi:

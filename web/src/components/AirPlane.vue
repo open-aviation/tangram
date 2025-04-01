@@ -1,11 +1,8 @@
 <template>
   <l-layer-group>
-    <v-rotated-marker v-for="(item, index) in planeData" :key="index"
-      @click="showRoute" :icon="getIcon(item)" :autofocus="false"
-      :rotationAngle="getRotate(item)"
-      :lat-lng="[item.latitude, item.longitude]">
-      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24"
-        :options="{ direction: 'top', offset: [0, -10] }">
+    <v-rotated-marker v-for="(item, index) in planeData" :key="index" @click="showRoute"
+    :autofocus="false" :icon="getIcon(item)" :rotationAngle="getRotate(item)" :lat-lng="[item.latitude, item.longitude]">
+      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10] }">
         <AircraftTooltip :aircraft="item" />
       </l-tooltip>
       <l-popup class="popup-leaflet-hidden" :options="{ autoPan: false }">
@@ -39,7 +36,7 @@ export default {
     LPopup,
     AircraftTooltip,
     "v-rotated-marker": LMarkerRotate,
-    //LMarkerClusterGroup,
+    // LMarkerClusterGroup,
   },
   data() {
     return {
@@ -106,14 +103,7 @@ export default {
         this.store.setVisible(visible.length);
       }
     },
-    // newSelectedHandler(data) {
-    //   console.info('server event, new selected aircraft: ', data.icao24);
-    //   console.info(this.planeData);
-    //   this.selected = this.planeData.find(e => e.icao24 === data.icao24);
-    //   console.log('new selected aircraft: ', this.selected);
-    //
-    //   this.store.setSelected(this.selected)
-    // },
+
     joinStreamingChannel(channelName = "streaming") {
       return new Promise((resolve, reject) => {
         if (this.channel) {
@@ -142,123 +132,129 @@ export default {
           });
       });
     },
-    // get token for channel
-    // params: channel string
-    async getChannelToken(channel) {
-      try {
-        return await fetch("/channel-token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ channel: channel }), // optinally give an id
-        }).json();
-      } catch (e) {
-        console.error("error getting channel token", e);
-      }
-    },
+
     getRotate(feature) {
-      // get rotation of marker
       let iconProps = get_image_object(feature.typecode, feature.callsign);
       return (feature.track + iconProps.rotcorr) % 360;
     },
-    getIcon(feature) {
-      // console.log('getIcon', feature);
+    /**
+     * Get the icon for the aircraft marker
+     * @param {Object} feature - The aircraft feature object
+     * @returns {L.divIcon} The Leaflet divIcon for the aircraft
+     */
+    getIcon(feature = {typecode, callsign, icao24}) {
+      // console.dir(feature);
+      const lastseen = feature.lastseen;
 
-      // set marker style
-      let iconProps = get_image_object(feature.typecode, feature.callsign);
-      let bbox = Raphael.pathBBox(iconProps.path);
-      let x = Math.floor(bbox.x + bbox.width / 2.0);
-      let y = Math.floor(bbox.y + bbox.height / 2.0);
-      let center = { x, y };
-      let offs_x = 0;
-      if (iconProps.ofX) {
-        offs_x = iconProps.ofX;
-      }
-      let offs_y = 0;
-      if (iconProps.ofY) {
-        offs_y = iconProps.ofY;
-      }
-
-      var transform =
-        "T" +
-        (-1 * center.x + offs_x) +
-        "," +
-        (-1 * center.y + offs_y) +
-        "S" +
-        iconProps.scale * 0.7;
-      var newPath = Raphael.mapPath(
-        iconProps.path,
-        Raphael.toMatrix(iconProps.path, transform),
-      );
-      let viewBox = 'viewBox="' + [-16, -16, 32, 32].join(" ") + '"';
-      let svgDynProps = { stroke: "#0014aa", strokeWdt: 0.65 };
-      let pathPlain =
-        "<path stroke=" +
-        svgDynProps.stroke +
-        " stroke-width=" +
-        svgDynProps.strokeWdt +
-        " d=" +
-        newPath +
-        "/>";
-      let svgPlain =
-        '<svg id="' +
-        feature.icao24 +
-        '"version="1.1" shape-rendering="geometricPrecision" width="32px" height="32px" ' +
-        viewBox +
-        ' xmlns="http://www.w3.org/2000/svg">' +
-        pathPlain +
-        "</svg>";
-
+      // Get aircraft icon properties based on type and callsign
+      const iconProps = get_image_object(feature.typecode, feature.callsign);
+      const iconHtml = this.createAircraftSvg(feature.icao24, iconProps);
       return L.divIcon({
-        html: svgPlain,
+        html: iconHtml,
         className: this.iconClassName(feature),
-        iconSize: [33, 35], // width and height of the image in pixels
-        iconAnchor: [16.5, 17.5], // point of the icon which will correspond to marker's location
-        popupAnchor: [0, 0], // point from which the popup should open relative to the iconAnchor
+        iconSize: [33, 35],
+        iconAnchor: [16.5, 17.5],
+        popupAnchor: [0, 0],
       });
     },
 
-    iconClassName(feature) {
-      if (feature.class !== undefined) {
-        return "aircraft_" + feature.class;
-      }
-      const state = this.store.aircraftState[feature.icao24];
-      if (state !== undefined) {
-        return "aircraft_" + state;
-      }
-      return feature.icao24 === this.selected.icao24
-        ? "aircraft_selected"
-        : "aircraft_default";
+    createAircraftSvg(icao24, iconProps) {
+      console.dir(iconProps);
+
+      // Calculate bounding box of the path
+      const bbox = Raphael.pathBBox(iconProps.path);
+
+      // Calculate center point of the SVG path
+      const centerX = Math.floor(bbox.x + bbox.width / 2.0);
+      const centerY = Math.floor(bbox.y + bbox.height / 2.0);
+
+      // Apply offset values if they exist
+      const offsetX = iconProps.ofX || 0;
+      const offsetY = iconProps.ofY || 0;
+
+      // create transform string to position and scale the icon, then apply it to the path
+      const transform = `T${-1 * centerX + offsetX},${-1 * centerY + offsetY}S${iconProps.scale * 0.7}`;
+      const transformedPath = Raphael.mapPath(iconProps.path, Raphael.toMatrix(iconProps.path, transform));
+
+      return `
+        <svg id="${icao24}" version="1.1" shape-rendering="geometricPrecision" width="32px" height="32px"
+             viewBox="-16 -16 32 32" xmlns="http://www.w3.org/2000/svg">
+          <path stroke="#0014aa" stroke-width="0.65" d="${transformedPath}"/>
+        </svg>
+      `.trim();
     },
 
+    iconClassName(feature) {
+      if (feature.class !== undefined) return "aircraft_" + feature.class;
+
+      const state = this.store.aircraftState[feature.icao24];
+      if (state !== undefined) return "aircraft_" + state;
+
+      return feature.icao24 === this.selected.icao24 ? "aircraft_selected" : "aircraft_default";
+    },
+
+    /**
+     * Handle aircraft selection when a marker is clicked
+     *
+     * This is a workaround for a Vue-Leaflet limitation where click events on markers
+     * don't provide reliable information about which marker was clicked.
+     *
+     * How it works:
+     * 1. Each aircraft marker has an invisible popup (<l-popup>) attached to it
+     * 2. When a marker is clicked, Leaflet automatically shows its popup
+     * 3. We wait for the DOM to update (via setTimeout)
+     * 4. Then we detect which popup is currently active by examining DOM properties
+     * 5. From the popup's ID, we extract the aircraft's ICAO24 code
+     * 6. Finally, we find the matching aircraft and set it as selected
+     */
     showRoute() {
-      /* HACK:
-       * marker component from leaflet can not bind the click event, it will get wrong click item,
-       * so we are using a internal component from leaflet, l-popup. It shows a popup modal when user clicking the marker,
-       * this internal component can get the correct info, and we set this popup modal `visibility=hidden`, so it will display a modal in html element but hidden for the user.
-       * `setTimeout` here waits for the popup modal being updated, so we can know which popup modal is displaying, and then we
-       * can find the popup modal's id attribute which is icao24, then we can find the correct plane info in planeData
-       */
+      // Wait for DOM updates after click before attempting to find the active popup
       setTimeout(() => {
+        // Early return if popup references aren't available
         if (!this.$refs.popup) return;
 
-        const obj = this.$refs.popup.find((e) => {
-          return (
-            e?.parentElement?.parentElement?.style?.display !== "none" &&
-            e?.parentElement?.parentElement?.parentElement?.parentElement?.style
-              ?.opacity === "1"
-          );
-        });
+        // Find the active popup by examining CSS display/opacity states
+        const activePopup = this.findActivePopup();
+        if (!activePopup) return;
 
-        if (!obj || !obj.id) return;
-
-        const selectedPlane = this.planeData.find(
-          (e) => obj.id.indexOf(e.icao24) === 6,
-        );
-        if (selectedPlane) {
-          this.selected = selectedPlane;
-          this.store.setSelected(this.selected);
+        // Get the selected aircraft based on the popup ID
+        const selectedAircraft = this.getAircraftFromPopup(activePopup);
+        if (selectedAircraft) {
+          this.selected = selectedAircraft;
+          this.store.setSelected(selectedAircraft);
         }
       }, 100);
+    },
+
+    /**
+     * Find the currently active popup in the DOM
+     * @returns {HTMLElement|null} The active popup element or null if none found
+     */
+    findActivePopup() {
+      return this.$refs.popup.find((element) => {
+        // A popup is "active" when its container elements have specific CSS properties
+        const parentElement = element?.parentElement?.parentElement;
+        const grandParentElement = parentElement?.parentElement?.parentElement;
+
+        return parentElement?.style?.display !== "none" && grandParentElement?.style?.opacity === "1";
+      });
+    },
+
+    /**
+     * Extract aircraft data from a popup element
+     * @param {HTMLElement} popupElement - The active popup DOM element
+     * @returns {Object|null} The matching aircraft data or null if not found
+     */
+    getAircraftFromPopup(popupElement) {
+      // Check if the popup has a valid ID
+      if (!popupElement || !popupElement.id) return null;
+
+      // The popup ID format is "popup-{icao24}", so we extract the icao24 code
+      // We can find the starting position of icao24 code by looking for the first
+      // occurrence of each aircraft's icao24 in the popup ID string
+      return this.planeData.find(
+        (aircraft) => popupElement.id.indexOf(aircraft.icao24) === 6
+      );
     },
   },
 };

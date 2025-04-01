@@ -7,7 +7,7 @@ set export
 NETWORK := "tangram"
 REDIS_URL := env_var("REDIS_URL")
 
-# TODO channel version or latest version
+CHANNEL_VERSION := "v0.2.7"
 # TODO env_var or latest version
 JET1090_VERSION := "0.4.8"
 JET1090_IMAGE := "ghcr.io/xoolive/jet1090:" + JET1090_VERSION
@@ -29,7 +29,7 @@ _check-env:
 install-channel:
   #!/usr/bin/env bash
   set -x -euo pipefail
-  curl --proto '=https' --tlsv1.2 -LsSf https://github.com/emctoo/channels/releases/download/v0.2.6/channel-installer.sh | sh
+  curl --proto '=https' --tlsv1.2 -LsSf https://github.com/emctoo/channels/releases/download/{{CHANNEL_VERSION}}/channel-installer.sh | sh
 
 # Install node and npm through fnm <https://github.com/Schniz/fnm>
 install-node:
