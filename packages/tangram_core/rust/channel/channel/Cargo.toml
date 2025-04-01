@@ -33,8 +33,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 futures = "0.3"
 # futures-util = { version = "0.3.30"}
 
-axum = { version = "0.7.5", features = ["default", "ws"] }
-axum-extra = { version = "0.9.3" }
+axum = { version = "0.8", features = ["default", "ws"] }
+axum-extra = { version = "0.10" }
 
 warp = { version = "0.3", features = ["default"] }
 
@@ -48,10 +48,10 @@ nanoid = { version = "0.4" }
 chrono = "*"
 
 # hex = "0.4.3"
-redis = { version = "0.27", features = ["tokio-comp"] }
+redis = { version = "0.29", features = ["tokio-comp"] }
 
 clap = { version = "4.5", features = ["color", "derive", "wrap_help", "env"] }
 dotenv = { version = "0.15" }
 jsonwebtoken = { version = "9.3" }
-rand = { version = "0.8" }
+rand = { version = "0.9" }
 itertools = "0.14"

@@ -1,10 +1,10 @@
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::distr::Alphanumeric;
+use rand::{Rng, rng};
 use serde::{Deserialize, Serialize};
 
 pub fn random_string(length: usize) -> String {
-    thread_rng().sample_iter(&Alphanumeric).take(length).map(char::from).collect()
+    rng().sample_iter(&Alphanumeric).take(length).map(char::from).collect()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
