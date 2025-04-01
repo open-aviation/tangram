@@ -51,10 +51,11 @@ async fn generate_token(AxumState(state): AxumState<Arc<State>>, Json(req): Json
     //     error!("channel {} not found", req.channel);
     //     return Err(TokenError::ChannelNotFound);
     // }
+    let id_length = state.id_length as usize;
     let id = req
         .id
         .filter(|id| !id.trim().is_empty())
-        .unwrap_or_else(|| nanoid::nanoid!(8).to_string());
+        .unwrap_or_else(|| nanoid::nanoid!(id_length).to_string());
 
     match generate_jwt(id.clone(), req.channel.clone(), state.jwt_secret.clone(), state.jwt_expiration_secs).await {
         Ok(token) => Ok(Json(serde_json::json!({
@@ -94,6 +95,9 @@ struct Options {
 
     #[arg(long, env, default_value = None)]
     redis_url: Option<String>,
+
+    #[arg(long, env,default_value = "8")]
+    id_length: u8,
 
     #[arg(long, env, default_value = None)]
     jwt_secret: Option<String>,
@@ -170,6 +174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
         redis_client,
+        id_length: options.id_length,
         jwt_secret, // 从命令行、环境变量中获取，或者生成一个随机的
         jwt_expiration_secs: options.jwt_expiration_secs, // default: 3 days
     });
