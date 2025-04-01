@@ -14,11 +14,11 @@ RUN apt-get update \
 RUN useradd -m -s /bin/bash user
 
 # Create directory structure
-WORKDIR /home/user/tangram/src/plugins/planes_rs
+WORKDIR /home/user/tangram/src/tangram/planes_rs
 
 # Copy only the files needed for building the Rust binary
-COPY src/plugins/planes_rs/Cargo.toml ./
-COPY src/plugins/planes_rs/src ./src/
+COPY src/tangram/planes_rs/Cargo.toml ./
+COPY src/tangram/planes_rs/src ./src/
 
 # Build the Rust binary
 RUN cargo build --release
@@ -44,7 +44,7 @@ COPY . /home/user/tangram
 RUN chown -R user:user /home/user/tangram/
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /home/user/tangram/src/plugins/planes_rs/target/release/planes /usr/bin/planes
+COPY --from=builder /home/user/tangram/src/tangram/planes_rs/target/release/planes /usr/bin/planes
 RUN chmod +x /usr/bin/planes
 
 USER user
