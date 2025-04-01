@@ -87,9 +87,7 @@ export const useMapStore = defineStore("map", {
   getters: {
     trajectory: ({ selectedPlane, planeTrajectory }) => {
       let selectedIcao24 = selectedPlane ? selectedPlane.icao24 : null;
-      console.log(
-        `S/TRAJ, getting trajectory of ${selectedIcao24}, length: ${planeTrajectory.length}`,
-      );
+      console.log(`getting trajectory of ${selectedIcao24}, length: ${planeTrajectory.length}`);
       return selectedPlane ? planeTrajectory : [];
     },
   },
@@ -139,13 +137,13 @@ export const useMapStore = defineStore("map", {
     setSystemChannel(ch) {
       this.systemChannel = ch;
     },
-    async joinChannel(channelName, callbacks) {
-      if (this.socket === null) {
-        console.log("socket is not ready yet");
-        return;
-      }
-      return joinChannel(this.socket, channelName, callbacks); // return Promise
-    },
+    // async joinChannel(channelName, callbacks) {
+    //   if (this.socket === null) {
+    //     console.log("socket is not ready yet");
+    //     return;
+    //   }
+    //   return joinChannel(this.socket, channelName, callbacks); // return Promise
+    // },
     pushSystemEvent(event, payload) {
       if (this.systemChannel === null) {
         console.log("systemChannel is not ready yet");
@@ -166,6 +164,7 @@ export const useMapStore = defineStore("map", {
       const { connectionId, socket } = await newSocket();
       this.connectionId = connectionId;
       this.socket = socket;
+      console.log('socket created');
 
       // Add window beforeunload event listener for cleanup
       window.addEventListener("beforeunload", this.cleanupSocket);

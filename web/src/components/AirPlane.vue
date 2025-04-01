@@ -63,6 +63,7 @@ export default {
     },
   },
   async mounted() {
+    console.log(`AirPlane mounted ...`);
     console.log(`joinning streaming channel ...`);
 
     // set a interval to check if the socket is ready
@@ -159,7 +160,7 @@ export default {
     },
 
     createAircraftSvg(icao24, iconProps) {
-      console.dir(iconProps);
+      // console.dir(iconProps);
 
       // Calculate bounding box of the path
       const bbox = Raphael.pathBBox(iconProps.path);

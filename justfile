@@ -7,7 +7,7 @@ set export
 NETWORK := "tangram"
 REDIS_URL := env_var("REDIS_URL")
 
-CHANNEL_VERSION := "v0.2.7"
+CHANNEL_VERSION := "v0.2.8"
 # TODO env_var or latest version
 JET1090_VERSION := "0.4.8"
 JET1090_IMAGE := "ghcr.io/xoolive/jet1090:" + JET1090_VERSION

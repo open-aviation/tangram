@@ -83,7 +83,7 @@ export default {
   },
 
   async mounted() {
-    console.log('app mounted');
+    console.log('App mounted');
     // const socket = await this.store.createSocket();
     while (!this.store.socket) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
