@@ -150,7 +150,7 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
                         break;
                     }
                     let text = text_result.unwrap();
-                    let sending_result = ws_tx.send(axum::extract::ws::Message::Text(text)).await;
+                    let sending_result = ws_tx.send(axum::extract::ws::Message::Text(text.into())).await;
                     if sending_result.is_err() {
                         error!("AXUM / WS_TX / websocket tx sending failed: {}", sending_result.err().unwrap());
                         break; // what happend? exit if the connection is lost

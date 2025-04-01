@@ -200,7 +200,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/websocket", get(websocket_handler))
         .route("/token", post(generate_token))
-        .nest_service("/", ServeDir::new(options.static_path.unwrap())) // 需要把 html 直接包含到 binary 中，方便发布
+        .fallback_service(ServeDir::new(options.static_path.unwrap())) // Use fallback_service instead of nest_service for root path
         .with_state(state.clone());
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await.unwrap();
 
