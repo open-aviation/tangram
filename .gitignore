@@ -1,5 +1,4 @@
-.plugins/
-
+plugins/
 
 ### Archive ###
 archive/
@@ -21,6 +20,8 @@ config_*.toml
 __pycache__/
 *.py[cod]
 *$py.class
+
+.DS_Store
 
 # C extensions
 *.so
