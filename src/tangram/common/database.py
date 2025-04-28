@@ -7,9 +7,9 @@ from typing import Any, ClassVar, List, NoReturn, Self
 
 from tangram.common import rs1090
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+# logging.basicConfig(
+#     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+# )
 log = logging.getLogger(__name__)
 
 DEFAULT_DB_DIRECTORY = pathlib.Path("/tmp")
@@ -26,9 +26,7 @@ class StateVectorDB:
             cls._instance = super().__new__(cls)
             log.info("HistoryDB instance created: %s", cls._instance)
         log.info(
-            "HistoryDB instance: %s, %s",
-            cls._instance,
-            cls._instance.get_db_file(),
+            "HistoryDB instance: %s, %s", cls._instance, cls._instance.get_db_file()
         )
         return cls._instance
 

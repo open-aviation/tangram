@@ -42,3 +42,9 @@ processes:
     command: env && pwd && uv run python -m tangram.trajectory
     availability:
       restart: "always"
+
+  core/history_redis:
+    working_dir: /home/user/tangram/
+    command: env && pwd && uv run python -m tangram.history_redis
+    availability:
+      restart: "always"

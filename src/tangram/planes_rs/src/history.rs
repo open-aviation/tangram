@@ -1,3 +1,5 @@
+mod aircraftdb;
+
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures::StreamExt;

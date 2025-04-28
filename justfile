@@ -191,6 +191,10 @@ tangram-log log="tangram": create-network
 tangram-shell:
   @podman container exec -it -e TERM=xterm-256color -w /home/user/tangram tangram /bin/bash
 
+# Run a Python REPL in the tangram container (while it's running)
+tangram-python-repl:
+  @podman container exec -it -e TERM=xterm-256color -w /home/user/tangram tangram uv run ipython
+
 # Run jet1090 interactively, as a container (will pull the image automatically)
 jet1090: create-network redis
   #!/usr/bin/env bash
