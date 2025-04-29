@@ -1,6 +1,6 @@
 [project]
 name = "tangram"
-description = "tangram backend main entry point, for real-time analysis"
+description = "A framework for real-time analysis of ADS-B and Mode S surveillance data"
 authors = [
   { name = "Xavier Olive", email = "git@xoolive.org" },
   { name = "Junzi Sun", email = "git@junzis.com" },
