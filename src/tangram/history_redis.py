@@ -1,3 +1,113 @@
+#!/usr/bin/env python
+# coding: utf8
+
+"""
+Redis-based Aircraft History Tracking System
+===========================================
+
+This module implements an aircraft tracking system that uses Redis for state management
+and historical data storage. It subscribes to aircraft messages, processes them, and
+maintains both current state and historical positions of aircraft.
+
+
+Redis Key Structure:
+-------------------
+The system uses the following Redis key patterns:
+
+1. Current Aircraft State:
+   - Key: `aircraft:current:{icao24}`
+   - Value: JSON encoded StateVector object
+   - TTL: 10 minutes (to clean up stale aircraft)
+   - Purpose: Stores the last known state of each aircraft
+
+2. Last Write Tracking:
+   - Key: `aircraft:lastwrite:{icao24}`
+   - Value: Timestamp (float)
+   - TTL: 10 minutes
+   - Purpose: Tracks when we last wrote history for this aircraft to implement the
+     aggregation interval
+
+3. Historical Position Data:
+   - Key: `aircraft:history:{icao24}:{timestamp}`
+   - Value: JSON encoded position history entry
+   - TTL: Configurable (default 10 minutes)
+   - Purpose: Stores individual position reports for historical tracks
+
+4. Timeline Index:
+   - Key: `aircraft:timeline:{icao24}`
+   - Value: Sorted set mapping timestamps to scores
+   - TTL: Configurable (default 10 minutes)
+   - Purpose: Provides efficient time-based queries for aircraft tracks
+
+Usage:
+-----
+The module can be used as a standalone service or its components can be imported and
+used in other applications.
+
+By default it's managed by process-compose and is run in tangram container.
+
+- Run it as an independent container:
+$ just tangram-plugin history_redis
+
+You get a container named history_redis, then you can exec a ipython REPL:
+$ podman container exec -it -e TERM=xterm-256color history_redis uv run ipython
+
+You will want to apply `%autoawait` first to enable async support in ipython.
+
+- From within the tangram container:
+
+$ LOG_LEVEL=DEBUG uv run python -m tangram.history_redis
+
+- From Python REPL:
+
+Use one of the following methods to start a REPL:
+
+- python -m asyncio
+- ipython with %autoawait
+- uv run ipython
+
+from tangram import history_redis
+
+# Create a client to interact with the aircraft data
+# if you REDIS_URL is set in environmental variable, you are good to go
+client = history_redis.StateClient()
+
+# Get current aircraft
+count = await client.get_aircraft_count()
+aircraft = await client.get_aircraft_table()
+
+# Get track for a specific aircraft
+track = await client.get_aircraft_track("a0b1c2")
+
+# Get summary of active aircraft
+positions = await client.get_current_positions()
+
+Useful Redis Commands:
+---------------------
+Use redis-cli or iredis
+
+Basic Operations:
+- Get all keys for a pattern: `KEYS aircraft:*`
+- Get a specific aircraft state: `GET aircraft:current:{icao24}`
+- Check TTL for a key: `TTL aircraft:current:{icao24}`
+- Delete a key: `DEL aircraft:current:{icao24}`
+
+Sorted Set Operations (Timeline):
+- Get all timestamps for an aircraft: `ZRANGE aircraft:timeline:{icao24} 0 -1 WITHSCORES`
+- Get timestamps in a time range: `ZRANGEBYSCORE aircraft:timeline:{icao24} {min_time} {max_time}`
+- Count entries in timeline: `ZCARD aircraft:timeline:{icao24}`
+- Remove entries by timestamp: `ZREMRANGEBYSCORE aircraft:timeline:{icao24} {min_time} {max_time}`
+
+Batch Operations:
+- Get multiple aircraft states: `MGET aircraft:current:{icao1} aircraft:current:{icao2}`
+- Scan for keys with cursor: `SCAN 0 MATCH aircraft:current:* COUNT 100`
+
+Monitoring:
+- Monitor all operations: `MONITOR`
+- Get Redis stats: `INFO`
+- Get memory usage: `MEMORY USAGE aircraft:current:{icao24}`
+"""
+
 import asyncio
 import logging
 import os
@@ -15,12 +125,8 @@ from tangram.common import redis_subscriber
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
 
-StateVector = ForwardRef("StateVector")
 
-
-def create_redis_client(
-    redis_client: Optional[Redis] = None, redis_url: Optional[str] = None
-) -> Redis:
+def create_redis_client(redis_client: Optional[Redis] = None, redis_url: Optional[str] = None) -> Redis:
     if redis_client:
         return redis_client
     if redis_url:
@@ -32,113 +138,7 @@ async def ensure_redis_client(redis_client: Redis):
     assert redis_client, "Redis client is not initialized"
     if not await redis_client.ping():
         log.error("fail to ping redis")
-
-
-@dataclass
-class State:
-    """
-    Represents the current state of the subscriber
-    Stores aircraft data in Redis for persistence and sharing
-    """
-
-    def __init__(self, redis_client=None, redis_url: Optional[str] = None):
-        """Initialize with a Redis client (for backward compatibility)"""
-        self.redis_client = create_redis_client(redis_client, redis_url)
-
-    async def ensure_redis_client(self):
-        await ensure_redis_client(self.redis_client)
-
-    async def get_aircraft(self, icao24: str) -> Optional[StateVector]:
-        """Returns a specific aircraft by its ICAO24 address from Redis"""
-        if not self.redis_client:
-            log.error("Redis client not initialized")
-            return None
-
-        try:
-            key = f"aircraft:current:{icao24}"
-            data = await self.redis_client.get(key)
-            if data:
-                return self._decode_state_vector(data)
-            return None
-        except Exception as e:
-            log.error(f"Error retrieving aircraft {icao24}: {e}")
-            return None
-
-    async def save_aircraft(self, sv: StateVector) -> None:
-        """Save aircraft data to Redis"""
-        await self.ensure_redis_client()
-
-        try:
-            # Convert StateVector to JSON
-            data = {
-                "icao24": sv.icao24,
-                "registration": sv.registration,
-                "typecode": sv.typecode,
-                "callsign": sv.callsign,
-                "lastseen": sv.lastseen,
-                "firstseen": sv.firstseen,
-                "latitude": sv.latitude,
-                "longitude": sv.longitude,
-                "altitude": sv.altitude,
-                "track": sv.track,
-            }
-
-            # Store in Redis
-            key = f"aircraft:current:{sv.icao24}"
-            await self.redis_client.set(key, msgspec.json.encode(data))
-
-            # Optional: Set a reasonable expiry to auto-cleanup stale data
-            await self.redis_client.expire(key, 3600)  # 1 hour
-        except Exception as e:
-            log.error(f"Error saving aircraft {sv.icao24}: {e}")
-
-    async def get_last_write_time(self, icao24: str) -> float:
-        """Get the last write time for an aircraft"""
-        await self.ensure_redis_client()
-
-        try:
-            key = f"aircraft:lastwrite:{icao24}"
-            data = await self.redis_client.get(key)
-            if data:
-                return float(data.decode("utf-8"))
-            return 0
-        except Exception as e:
-            log.error(f"Error retrieving last write time for {icao24}: {e}")
-            return 0
-
-    async def set_last_write_time(self, icao24: str, timestamp: float) -> None:
-        """Set the last write time for an aircraft"""
-        if not self.redis_client:
-            log.error("Redis client not initialized")
-            return
-
-        try:
-            key = f"aircraft:lastwrite:{icao24}"
-            await self.redis_client.set(key, str(timestamp))
-            # Set expiry to match aircraft data
-            await self.redis_client.expire(key, 3600)  # 1 hour
-        except Exception as e:
-            log.error(f"Error setting last write time for {icao24}: {e}")
-
-    def _decode_state_vector(self, data: bytes) -> Optional[StateVector]:
-        """Decode a state vector from Redis data"""
-        try:
-            sv_data = msgspec.json.decode(data)
-            return StateVector(
-                icao24=sv_data["icao24"],
-                registration=sv_data.get("registration"),
-                typecode=sv_data.get("typecode"),
-                callsign=sv_data.get("callsign"),
-                lastseen=sv_data.get("lastseen", 0),
-                firstseen=sv_data.get("firstseen", 0),
-                latitude=sv_data.get("latitude"),
-                longitude=sv_data.get("longitude"),
-                altitude=sv_data.get("altitude"),
-                track=sv_data.get("track"),
-            )
-        except Exception as e:
-            log.error(f"Error decoding state vector: {e}")
-            return None
+        raise Exception('Redis instance is not available')
 
 
 @dataclass
@@ -159,9 +159,189 @@ class StateVector:
 
     track: Optional[float] = None
 
+    def to_json_dict(self) -> Dict[str, Any]:
+        """Convert StateVector to a JSON-serializable dictionary"""
+        return {
+            "icao24": self.icao24,
+            "registration": self.registration,
+            "typecode": self.typecode,
+            "callsign": self.callsign,
+            "lastseen": self.lastseen,
+            "firstseen": self.firstseen,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "altitude": self.altitude,
+            "track": self.track,
+        }
+
+    def to_json_bytes(self) -> bytes:
+        """Convert StateVector to JSON bytes"""
+        return msgspec.json.encode(self.to_json_dict())
+
+    @classmethod
+    def from_json_dict(cls, data: Dict[str, Any]) -> "StateVector":
+        """Create a StateVector from a dictionary"""
+        return cls(
+            icao24=data["icao24"],
+            registration=data.get("registration"),
+            typecode=data.get("typecode"),
+            callsign=data.get("callsign"),
+            lastseen=data.get("lastseen", 0),
+            firstseen=data.get("firstseen", 0),
+            latitude=data.get("latitude"),
+            longitude=data.get("longitude"),
+            altitude=data.get("altitude"),
+            track=data.get("track"),
+        )
+
+    @classmethod
+    def from_json_bytes(cls, data: bytes) -> Optional["StateVector"]:
+        """Create a StateVector from JSON bytes"""
+        try:
+            return cls.from_json_dict(msgspec.json.decode(data))
+        except Exception as e:
+            log.error(f"Error decoding state vector from bytes: {e}")
+            return None
+
+
+# StateVector = ForwardRef("StateVector")
+
+@dataclass
+class State:
+    """
+    Represents the current state of the subscriber
+    Stores aircraft data in Redis for persistence and sharing
+    """
+
+    def __init__(self, redis_client=None, redis_url: Optional[str] = None):
+        """Initialize with a Redis client (for backward compatibility)"""
+        self.redis_client = create_redis_client(redis_client, redis_url)
+
+    async def ensure_redis_client(self):
+        await ensure_redis_client(self.redis_client)
+
+    async def get_current(self, icao24: str) -> Optional[StateVector]:
+        """Returns a specific aircraft by its ICAO24 address from Redis"""
+        if not self.redis_client:
+            log.error("Redis client not initialized")
+            return None
+
+        try:
+            key = f"aircraft:current:{icao24}"
+            data = await self.redis_client.get(key)
+            if data:
+                return self._decode_state_vector(data)
+            return None
+        except Exception as e:
+            log.error(f"Error retrieving aircraft {icao24}: {e}")
+            return None
+
+    async def save_current(self, sv: StateVector, expiry_seconds: float=600) -> None:
+        """Save aircraft data to Redis"""
+        await self.ensure_redis_client()
+
+        try:
+            # Use the new to_json_bytes method
+            key = f"aircraft:current:{sv.icao24}"
+            value = sv.to_json_bytes()
+            await self.redis_client.set(key, value, ex=expiry_seconds)
+        except Exception as e:
+            log.error(f"Error saving aircraft {sv.icao24}: {e}")
+
+    async def get_last_write_time(self, icao24: str) -> float:
+        """Get the last write time for an aircraft"""
+        await self.ensure_redis_client()
+
+        try:
+            key = f"aircraft:lastwrite:{icao24}"
+            data = await self.redis_client.get(key)
+            if data:
+                return float(data.decode("utf-8"))
+            return 0
+        except Exception as e:
+            log.error(f"Error retrieving last write time for {icao24}: {e}")
+            return 0
+
+    def _decode_state_vector(self, data: bytes) -> Optional[StateVector]:
+        """Decode a state vector from Redis data"""
+        return StateVector.from_json_bytes(data)
+
+    async def store_in_redis(self, sv: StateVector, history_expiry: int, lastwrite_expiry:int = 600) -> None:
+        """Write the state vector to Redis"""
+        await self.ensure_redis_client()
+
+        try:
+            # Create a history entry dict from StateVector
+            history_dict = sv.to_json_dict()
+            # Add timestamp if not already present
+            history_dict["timestamp"] = sv.lastseen
+
+            entry_json = msgspec.json.encode(history_dict)
+
+            # Create a Redis key for this entry using timestamp for ordering
+            history_key = f"aircraft:history:{sv.icao24}:{sv.lastseen}"
+            await self.redis_client.set(history_key, entry_json, ex=history_expiry)
+
+            # Add to a sorted set for efficient time-based querying
+            timeline_key = f"aircraft:timeline:{sv.icao24}"
+            await self.redis_client.zadd(timeline_key, {str(sv.lastseen): sv.lastseen})
+            await self.redis_client.expire(timeline_key, history_expiry)
+
+            lastwrite_key = f"aircraft:lastwrite:{sv.icao24}"
+            await self.redis_client.set(lastwrite_key, str(sv.lastseen), ex=lastwrite_expiry)
+
+            log.debug(f"Stored history for {sv.icao24} at {sv.lastseen}")
+        except Exception as e:
+            log.error(f"Failed to store aircraft data in Redis: {e}")
+
 
 # StateVector.__forward_arg__ = "StateVector"
 # StateVector.__forward_evaluated__ = True
+
+async def _get_state_vector(state: State, msg) -> Optional[StateVector]:
+    """try to find the StateVector from state, or create a new one"""
+    if msg["df"] not in ["17", "18"]:
+        return
+
+    if msg.get("bds") not in ["05", "06", "08", "09"]:
+        return
+
+    icao24 = msg["icao24"]
+
+    # Get or create state vector
+    sv = await state.get_current(icao24)
+    if not sv:
+        now = datetime.now(timezone.utc).timestamp()
+
+        # Look up aircraft information
+        info = rs1090.aircraft_information(icao24)
+        registration = info.get("registration", None)
+        typecode = None
+
+        # Create new state vector
+        sv = StateVector(icao24=icao24, registration=registration, typecode=typecode, lastseen=now, firstseen=now)
+
+    # Update state vector with new information
+    sv.lastseen = msg["timestamp"]
+
+    if msg["df"] == "18":
+        sv.typecode = "GRND"
+
+    if "callsign" in msg:
+        sv.callsign = msg["callsign"]
+
+    if "altitude" in msg:
+        sv.altitude = msg["altitude"]
+
+    if "latitude" in msg:
+        sv.latitude = msg["latitude"]
+
+    if "longitude" in msg:
+        sv.longitude = msg["longitude"]
+
+    if "track" in msg:
+        sv.track = msg["track"]
+    return sv
 
 
 class HistorySubscriber(redis_subscriber.Subscriber[State]):
@@ -186,119 +366,26 @@ class HistorySubscriber(redis_subscriber.Subscriber[State]):
         """Override to initialize Redis connection for state"""
         await super().subscribe()
 
-    async def message_handler(
-        self, event: str, payload: str, pattern: str, state: State
-    ) -> None:
+    async def message_handler(self, event: str, payload: str, pattern: str, state: State) -> None:
         # Skip messages that don't contain DF17 or DF18
         if '"17"' not in payload and '"18"' not in payload:
             return
 
         try:
-            msg = msgspec.json.decode(payload)  # Parse the message
-            await self.add_aircraft(msg)  # Process the aircraft data
+            msg = msgspec.json.decode(payload)
+            sv = await _get_state_vector(self.state, msg)
+            if sv is None:
+                return
+
+            await self.state.save_current(sv)
+
+            last_write_time = await self.state.get_last_write_time(sv.icao24)
+            if sv.latitude is not None and sv.longitude is not None:
+                if sv.lastseen - last_write_time >= self.aggregation_interval:
+                    await self.state.store_in_redis(sv, self.history_expiry)
+
         except Exception as e:
             log.error(f"Failed to process message: {e}")
-
-    async def add_aircraft(self, msg: Dict[str, Any]) -> None:
-        """Add or update aircraft data from a message"""
-        # Skip messages that don't match criteria
-        if msg["df"] not in ["17", "18"]:
-            return
-
-        if msg.get("bds") not in ["05", "06", "08", "09"]:
-            return
-
-        icao24 = msg["icao24"]
-
-        # Get or create state vector
-        sv = await self.state.get_aircraft(icao24)
-        if not sv:
-            now = datetime.now(timezone.utc).timestamp()
-
-            # Look up aircraft information
-            info = rs1090.aircraft_information(icao24)
-            registration = info.get("registration", None)
-            typecode = None
-
-            # Create new state vector
-            sv = StateVector(
-                icao24=icao24,
-                registration=registration,
-                typecode=typecode,
-                lastseen=now,
-                firstseen=now,
-            )
-
-        # Update state vector with new information
-        sv.lastseen = msg["timestamp"]
-
-        if msg["df"] == "18":
-            sv.typecode = "GRND"
-
-        if "callsign" in msg:
-            sv.callsign = msg["callsign"]
-
-        if "altitude" in msg:
-            sv.altitude = msg["altitude"]
-
-        if "latitude" in msg:
-            sv.latitude = msg["latitude"]
-
-        if "longitude" in msg:
-            sv.longitude = msg["longitude"]
-
-        if "track" in msg:
-            sv.track = msg["track"]
-
-        # Save updated state vector to Redis
-        await self.state.save_aircraft(sv)
-
-        # Store to Redis if enough time has passed since last write
-        await self.maybe_write_to_redis(icao24, sv)
-
-    async def maybe_write_to_redis(self, icao24: str, sv: StateVector) -> None:
-        """Write aircraft data to Redis if aggregation interval has passed"""
-        last_write_time = await self.state.get_last_write_time(icao24)
-
-        # Only write to Redis if aircraft has position and enough time has passed
-        if sv.latitude is not None and sv.longitude is not None:
-            if sv.lastseen - last_write_time >= self.aggregation_interval:
-                await self.store_in_redis(sv)
-                await self.state.set_last_write_time(icao24, sv.lastseen)
-
-    async def store_in_redis(self, sv: StateVector) -> None:
-        """Write the state vector to Redis"""
-        try:
-            # Create a history entry as JSON
-            history_entry = {
-                "icao24": sv.icao24,
-                "registration": sv.registration,
-                "typecode": sv.typecode,
-                "callsign": sv.callsign,
-                "latitude": sv.latitude,
-                "longitude": sv.longitude,
-                "altitude": sv.altitude,
-                "track": sv.track,
-                "timestamp": sv.lastseen,
-            }
-
-            # Convert to JSON string
-            entry_json = msgspec.json.encode(history_entry)
-
-            # Create a Redis key for this entry using timestamp for ordering
-            # Format: aircraft:history:{sv.icao24}:{sv.lastseen}, Stored with expiry
-            history_key = f"aircraft:history:{sv.icao24}:{sv.lastseen}"
-            await self.redis.set(history_key, entry_json, ex=self.history_expiry)
-
-            # Add to a sorted set for efficient time-based querying
-            timeline_key = f"aircraft:timeline:{sv.icao24}"
-            await self.redis.zadd(timeline_key, {str(sv.lastseen): sv.lastseen})
-            await self.redis.expire(timeline_key, self.history_expiry)
-
-            log.debug(f"Stored history for {sv.icao24} at {sv.lastseen}")
-
-        except Exception as e:
-            log.error(f"Failed to store aircraft data in Redis: {e}")
 
 
 class StateClient:
@@ -403,31 +490,6 @@ class StateClient:
         keys = await self.redis_client.keys("aircraft:current:*")
         return len(keys)
 
-
-"""
-Use one of the following methods to start a REPL:
-
-- python -m asyncio
-- ipython with %autoawait
-- uv run ipython
-
-from tangram import history_redis
-
-# Create a client to interact with the aircraft data
-# if you REDIS_URL is set in environmental variable, you are good to go
-client = history_redis.StateClient()
-
-# Get current aircraft
-count = await client.get_aircraft_count()
-aircraft = await client.get_aircraft_table()
-
-# Get track for a specific aircraft
-track = await client.get_aircraft_track("a0b1c2")
-
-# Get summary of active aircraft
-positions = await client.get_current_positions()
-"""
-
 state = State()
 state_client = StateClient()
 subscriber: Optional[HistorySubscriber] = None
@@ -437,12 +499,8 @@ async def startup(redis_url: str, channel: str, interval: int, expiry: int) -> N
     """Start the subscriber"""
     global subscriber, state
 
-    subscriber = HistorySubscriber(
-        name="AircraftHistoryRecorder",
-        redis_url=redis_url,
-        channels=[channel],
-        aggregation_interval=interval,
-        history_expiry=expiry,
+    subscriber = HistorySubscriber(name="AircraftHistoryRecorder", redis_url=redis_url,
+        channels=[channel], aggregation_interval=interval, history_expiry=expiry,
         state=state,
     )
     await subscriber.subscribe()
@@ -489,14 +547,14 @@ if __name__ == "__main__":
         dest="interval",
         type=int,
         default=60,
-        help="Aggregation interval in seconds",
+        help="Aggregation interval in seconds (default: 60 seconds)",
     )
     parser.add_argument(
         "--expiry",
         dest="expiry",
         type=int,
-        default=86400,
-        help="History data expiry time in seconds (default: 24 hours)",
+        default=600,
+        help="History data expiry time in seconds (default: 10 minutes)",
     )
 
     args = parser.parse_args()
@@ -507,4 +565,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         log.info("Service stopped by user")
 
-    # LOG_LEVEL=DEBUG uv run python -m tangram.history_redis
