@@ -216,22 +216,21 @@ class State:
     def __init__(self, redis_client=None, redis_url: Optional[str] = None):
         """Initialize with a Redis client (for backward compatibility)"""
         self.redis_client = create_redis_client(redis_client, redis_url)
+        self.lastwrite_expiry: float = 600
+        self.history_expiry: int = 600
+        self.write_interval: float = 60
 
     async def ensure_redis_client(self):
         await ensure_redis_client(self.redis_client)
 
     async def get_current(self, icao24: str) -> Optional[StateVector]:
         """Returns a specific aircraft by its ICAO24 address from Redis"""
-        if not self.redis_client:
-            log.error("Redis client not initialized")
-            return None
+        await self.ensure_redis_client()
 
         try:
             key = f"aircraft:current:{icao24}"
             data = await self.redis_client.get(key)
-            if data:
-                return self._decode_state_vector(data)
-            return None
+            return StateVector.from_json_bytes(data) if data else None
         except Exception as e:
             log.error(f"Error retrieving aircraft {icao24}: {e}")
             return None
@@ -241,54 +240,49 @@ class State:
         await self.ensure_redis_client()
 
         try:
-            # Use the new to_json_bytes method
             key = f"aircraft:current:{sv.icao24}"
             value = sv.to_json_bytes()
             await self.redis_client.set(key, value, ex=expiry_seconds)
         except Exception as e:
             log.error(f"Error saving aircraft {sv.icao24}: {e}")
 
-    async def get_last_write_time(self, icao24: str) -> float:
+    async def get_last_write_timestamp(self, icao24: str) -> float:
         """Get the last write time for an aircraft"""
         await self.ensure_redis_client()
 
         try:
             key = f"aircraft:lastwrite:{icao24}"
             data = await self.redis_client.get(key)
-            if data:
-                return float(data.decode("utf-8"))
-            return 0
+            return float(data.decode("utf-8")) if data else 0
         except Exception as e:
             log.error(f"Error retrieving last write time for {icao24}: {e}")
             return 0
 
-    def _decode_state_vector(self, data: bytes) -> Optional[StateVector]:
-        """Decode a state vector from Redis data"""
-        return StateVector.from_json_bytes(data)
-
-    async def store_in_redis(self, sv: StateVector, history_expiry: int, lastwrite_expiry:int = 600) -> None:
+    async def save_history(self, sv: StateVector) -> None:
         """Write the state vector to Redis"""
         await self.ensure_redis_client()
 
+        last_write_time = await self.get_last_write_timestamp(sv.icao24)
+        if sv.lastseen - last_write_time < self.write_interval:
+            return
+
         try:
-            # Create a history entry dict from StateVector
             history_dict = sv.to_json_dict()
-            # Add timestamp if not already present
             history_dict["timestamp"] = sv.lastseen
 
             entry_json = msgspec.json.encode(history_dict)
 
             # Create a Redis key for this entry using timestamp for ordering
             history_key = f"aircraft:history:{sv.icao24}:{sv.lastseen}"
-            await self.redis_client.set(history_key, entry_json, ex=history_expiry)
+            await self.redis_client.set(history_key, entry_json, ex=self.history_expiry)
 
             # Add to a sorted set for efficient time-based querying
             timeline_key = f"aircraft:timeline:{sv.icao24}"
             await self.redis_client.zadd(timeline_key, {str(sv.lastseen): sv.lastseen})
-            await self.redis_client.expire(timeline_key, history_expiry)
+            await self.redis_client.expire(timeline_key, self.history_expiry)
 
             lastwrite_key = f"aircraft:lastwrite:{sv.icao24}"
-            await self.redis_client.set(lastwrite_key, str(sv.lastseen), ex=lastwrite_expiry)
+            await self.redis_client.set(lastwrite_key, str(sv.lastseen), ex=self.lastwrite_expiry)
 
             log.debug(f"Stored history for {sv.icao24} at {sv.lastseen}")
         except Exception as e:
@@ -376,14 +370,10 @@ class HistorySubscriber(redis_subscriber.Subscriber[State]):
             sv = await _get_state_vector(self.state, msg)
             if sv is None:
                 return
-
             await self.state.save_current(sv)
-
-            last_write_time = await self.state.get_last_write_time(sv.icao24)
-            if sv.latitude is not None and sv.longitude is not None:
-                if sv.lastseen - last_write_time >= self.aggregation_interval:
-                    await self.state.store_in_redis(sv, self.history_expiry)
-
+            if sv.latitude is None and sv.longitude is None:
+                return
+            await self.state.save_history(sv)
         except Exception as e:
             log.error(f"Failed to process message: {e}")
 
