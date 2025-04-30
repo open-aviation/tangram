@@ -97,7 +97,7 @@ redis: create-network
 
   echo "launch a new Redis container .."
   podman container run -d --rm --name redis --network {{NETWORK}} -p 6379:6379 \
-    docker.io/library/redis:8.0-M02
+    docker.io/library/redis:8.0-rc1
 
 # Run the tangram REST API
 tangram-restapi port="2346" host="0.0.0.0":

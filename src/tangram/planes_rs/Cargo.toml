@@ -9,6 +9,7 @@ keywords = ["rs1090", "jet1090", "trangram"]
 
 [dependencies]
 anyhow = "1.0"
+chrono = "0.4"
 clap = { version = "4.5", features = ["color", "derive", "wrap_help", "env"] }
 dirs = "6.0.0"
 dotenv = "0.15.0"
@@ -28,6 +29,8 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zip = "2.5.0"
+ratatui = { version = "0.24.0" }
+crossterm = "0.27.0"
 
 [[bin]]
 name = "history"
@@ -36,3 +39,7 @@ path = "src/history.rs"
 [[bin]]
 name = "history_redis"
 path = "src/history_redis.rs"
+
+[[bin]]
+name = "history_redis_ts"
+path = "src/history_redis_ts.rs"
