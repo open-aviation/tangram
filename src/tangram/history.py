@@ -121,7 +121,7 @@ expire_task: asyncio.Task[Any] | None = None
 async def startup(
     redis_url: str, channels: List[str]
 ) -> List[asyncio.Task[Any] | None]:
-    global sv_db, subscriber, load_task, expire_task
+    global sv_db, load_task, expire_task
     log.info("history is starting ...")
 
     sv_db = database.StateVectorDB(use_memory=True)
@@ -164,7 +164,7 @@ if __name__ == "__main__":
     import argparse
     import os
 
-    file_handler = logging.FileHandler("/tmp/tangram/history.log")
+    file_handler = logging.FileHandler("/tmp/tangram-history.log")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
     log.addHandler(file_handler)
@@ -174,8 +174,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--redis-url",
         dest="redis_url",
-        help="Redis url, or use REDIS_URL environment variable which take precedence,"
-        "redis://host:port",
+        help="Redis url, format: redis://host:port, fallback to REDIS_URL environment",
         default=os.getenv("REDIS_URL", "redis://redis:6379"),
     )
     parser.add_argument(
