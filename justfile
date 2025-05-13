@@ -97,7 +97,7 @@ redis: create-network
 
   echo "launch a new Redis container .."
   podman container run -d --rm --name redis --network {{NETWORK}} -p 6379:6379 \
-    docker.io/library/redis:8.0-M02
+    docker.io/library/redis:8.0-rc1
 
 # Run the tangram REST API
 tangram-restapi port="2346" host="0.0.0.0":
@@ -190,6 +190,14 @@ tangram-log log="tangram": create-network
 # Run a shell in the tangram container (while running)
 tangram-shell:
   @podman container exec -it -e TERM=xterm-256color -w /home/user/tangram tangram /bin/bash
+
+# Run a Python REPL in the tangram container (while it's running)
+tangram-python-repl:
+  @podman container exec -it -e TERM=xterm-256color -w /home/user/tangram tangram uv run ipython
+
+tangram-plugin target:
+  # Linux
+  podman container run -it --rm --name {{target}} --env-file .env --workdir /home/user/tangram --userns=keep-id -v .:/home/user/tangram:z tangram:0.1 uv run python -m tangram.{{target}}
 
 # Run jet1090 interactively, as a container (will pull the image automatically)
 jet1090: create-network redis
