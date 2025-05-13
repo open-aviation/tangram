@@ -17,6 +17,7 @@
 
       <plugin-sensorsinfo />
 
+      <plugin-windfield />
 
     </l-map>
 
@@ -85,9 +86,16 @@ export default {
   async mounted() {
     console.log('App mounted');
     // const socket = await this.store.createSocket();
+
+    // Wait for socket connection first
     while (!this.store.socket) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
+
+    // Access map after it's fully initialized
+    this.$nextTick(() => {
+      this.store.map = this.$refs.map;
+    });
 
     console.log("joining system channel");
     const channelName = "system";

@@ -29,7 +29,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/data": `http://${tangram_service}`,
+      //"/data": `http://${tangram_service}`,
+      "/data": `http://${host_address}:2346`,
+      "/wind": `http://${host_address}:2346`,
       "^/flight/.*": {
         target: `https://${tangram_service}/flight/.*`,
         changeOrigin: true,
@@ -71,7 +73,7 @@ export default defineConfig({
     dynamicComponentsPlugin({
       envPath: "../.env",
       fallbackDir: "/src/components/",
-      availablePlugins: ["sensorsInfo", "cityPair"],
+      availablePlugins: ["sensorsInfo", "cityPair", "windField"],
     }),
   ],
 });
