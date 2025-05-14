@@ -1,8 +1,11 @@
 <template>
   <l-layer-group>
-    <v-rotated-marker v-for="(item, index) in planeData" :key="index" @click="showRoute"
-    :autofocus="false" :icon="getIcon(item)" :rotationAngle="getRotate(item)" :lat-lng="[item.latitude, item.longitude]">
-      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24" :options="{ direction: 'top', offset: [0, -10] }">
+    <v-rotated-marker v-for="(item, index) in planeData" :key="index"
+      @click="showRoute" :autofocus="false" :icon="getIcon(item)"
+      :rotationAngle="getRotate(item)"
+      :lat-lng="[item.latitude, item.longitude]">
+      <l-tooltip class="leaflet-tooltip-custom" :id="item.icao24"
+        :options="{ direction: 'top', offset: [0, -10] }">
         <AircraftTooltip :aircraft="item" />
       </l-tooltip>
       <l-popup class="popup-leaflet-hidden" :options="{ autoPan: false }">
@@ -143,10 +146,7 @@ export default {
      * @param {Object} feature - The aircraft feature object
      * @returns {L.divIcon} The Leaflet divIcon for the aircraft
      */
-    getIcon(feature = {typecode, callsign, icao24}) {
-      // console.dir(feature);
-      const lastseen = feature.lastseen;
-
+    getIcon(feature) {
       // Get aircraft icon properties based on type and callsign
       const iconProps = get_image_object(feature.typecode, feature.callsign);
       const iconHtml = this.createAircraftSvg(feature.icao24, iconProps);

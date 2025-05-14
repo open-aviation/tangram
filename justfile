@@ -63,6 +63,9 @@ install-uv:
 # Install all dependencies
 install-all: install-channel install-node install-process-compose install-uv
 
+# Prune the podman system containers and images
+clean-podman:
+  podman system prune -f
 
 # Create the tangram network
 create-network:
@@ -78,14 +81,16 @@ create-network:
 
 # Create the tangram container
 create-tangram:
-  podman system prune -f
   podman image build -f container/tangram.Containerfile -t tangram:0.1 .
 
 # Launch redis
 redis: create-network
   #!/usr/bin/env bash
 
-  if [[ "$REDIS_URL" != "redis://redis:6379" ]]; then
+  # Since we redirect the 6379 port when creating the container, it is possible
+  # to use the name `redis` or `host.containers.internal` to access the
+  # service.
+  if [[ "$REDIS_URL" != "redis://redis:6379" && "$REDIS_URL" != "redis://host.containers.internal:6379" ]]; then
     echo "use external ${REDIS_URL}, skip creation"
     exit 0
   fi
