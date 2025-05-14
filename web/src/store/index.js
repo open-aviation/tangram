@@ -34,6 +34,7 @@ async function newSocket() {
 }
 
 // bindings: { "update-node": this.updateNode.bind(this) }
+// eslint-disable-next-line no-unused-vars
 function joinChannel(socket, channelName, bindings) {
   return new Promise((resolve, reject) => {
     console.log(`joining ${channelName} channel ...`);
@@ -63,6 +64,7 @@ function joinChannel(socket, channelName, bindings) {
 
 export const useMapStore = defineStore("map", {
   state: () => ({
+    map: null,
     socket: null,
     connectionId: undefined,
     systemChannel: null, // we can't leave systemChannel int the store
@@ -87,7 +89,9 @@ export const useMapStore = defineStore("map", {
   getters: {
     trajectory: ({ selectedPlane, planeTrajectory }) => {
       let selectedIcao24 = selectedPlane ? selectedPlane.icao24 : null;
-      console.log(`getting trajectory of ${selectedIcao24}, length: ${planeTrajectory.length}`);
+      console.log(
+        `getting trajectory of ${selectedIcao24}, length: ${planeTrajectory.length}`,
+      );
       return selectedPlane ? planeTrajectory : [];
     },
   },
@@ -164,7 +168,7 @@ export const useMapStore = defineStore("map", {
       const { connectionId, socket } = await newSocket();
       this.connectionId = connectionId;
       this.socket = socket;
-      console.log('socket created');
+      console.log("socket created");
 
       // Add window beforeunload event listener for cleanup
       window.addEventListener("beforeunload", this.cleanupSocket);
