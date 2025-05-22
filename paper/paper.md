@@ -40,11 +40,11 @@ The whole framework is designed to be extensible, allowing researchers to develo
 
 # Statement of need
 
-The world of aviation involves many stakeholders producing a vast amount of data, but most of it is not publicly available for confidentiality and security reasons. Research in aviation is also often limited by the availability of data, but this has evolved in the past decade thanks to the introduction of open data initiatives. ADS-B and Mode S are technologies that allow aircraft to broadcast their position and other flight parameters, making it possible to collect real-time data on air traffic. Such data has been widely used for various research purposes, such as studying flight patterns, estimating aircraft emissions or monitoring air traffic performance.
+The world of aviation involves many stakeholders producing a vast amount of data, but most of it is not publicly available for confidentiality and security reasons. Research in aviation is also often limited by the availability of data, but this has evolved in the past decade thanks to the introduction of open data initiatives [@eurocontrol_rd] [@nilsson_swedish_2023]. ADS-B and Mode S are technologies that allow aircraft to broadcast their position and other flight parameters, making it possible to collect real-time data on air traffic. Such data has been widely used for various research purposes, such as studying flight patterns [@olive_training_2025], estimating aircraft emissions [@seymour_fuel_2020] or monitoring air traffic performance [@schultz_predictive_2021].
 
-ADS-B is not encrypted, and it is very easy to build a decoder to receive and decode the data with software-defined radio solutions. This has favoured the emergence of various open-source projects and tools for working with ADS-B data, such as dump1090, and platforms like The OpenSky Network, a non-profit initiative that provides open access to real-time and historical air traffic data, which grants free access to researchers to study various aspects of aviation.
+ADS-B is not encrypted, and it is very easy to build a decoder to receive and decode the data with software-defined radio solutions. This has favoured the emergence of various open-source projects and tools for working with ADS-B data, such as dump1090, and platforms like The OpenSky Network [@opensky2014], a non-profit initiative that provides open access to real-time and historical air traffic data, which grants free access to researchers to study various aspects of aviation.
 
-Most research initiatives and proofs of concept based on ADS-B data are limited to the use of historical data. However, the potential impact of such research depends on the possibility to adapt the algorithms to real-time data. The tangram framework aims to bridge this gap by providing a platform for real-time data collection and analysis, enabling researchers to conduct experiments and develop new algorithms in a more efficient manner.
+Most research initiatives and proofs of concept based on ADS-B data are limited to the use of historical data [@olive_traffic_2019]. However, the potential impact of such research depends on the possibility to adapt the algorithms to real-time data. The tangram framework aims to bridge this gap by providing a platform for real-time data collection and analysis, enabling researchers to conduct experiments and develop new algorithms in a more efficient manner.
 
 # Core structure of the framework
 
@@ -74,7 +74,7 @@ The most important components of the backend are listed in \autoref{components} 
 
 ![The table view of `jet1090` in the terminal](../docs/screenshot/jet1090.png){#jet1090}
 
-`jet1090` is comparable to the historical `dump1090` decoder (<https://github.com/antirez/dump1090>), but it is designed to include additional features such as the ability to decode Mode S messages, the support for multiple input sources, and for more output formats. The decoding logic is based on the Python decoder `pyModeS` but adapted to Rust for performance reasons.
+`jet1090` is comparable to the historical `dump1090` decoder (<https://github.com/antirez/dump1090>), but it is designed to include additional features such as the ability to decode Mode S messages, the support for multiple input sources, and for more output formats. The decoding logic is based on the Python decoder `pyModeS` [@sun_pymodes_2020] but adapted to Rust for performance reasons.
 
 ## planes
 
@@ -118,9 +118,11 @@ A frontend plugin will usually be a Vue component which will potentially:
 
 Example plugins are provided in the `tangram` repository, including a plugin for visualizing the location of Mode S receivers, including route information to an aircraft, or for visualizing wind fields at a given altitude.
 
-# Potential other applications
+# Potential applications
 
-The tangram framework has been thought to display ADS-B data on a map, in a similar fashion to the OpenSky Network or FlightRadar24, and to enrich it to include extra visualisation features based on algorithms published by the authors in the literature: turbulence detection, GNSS jamming detection, anomaly detection, airspace occupancy metrics and so on. However, the modularity of the framework allows for a wide range of other applications: the architecture and the frontend could serve as a basis for visualising the output of real-time simulation tools which are commonly advertised in the literature.
+The tangram framework has been thought to display ADS-B data on a map, in a similar fashion to the OpenSky Network or FlightRadar24, and to enrich it to include extra visualisation features based on algorithms published by the authors in the literature: turbulence detection [@olive_turbulence_2020], GNSS jamming detection [@felux_impacts_2024], anomaly detection [@zhao_incremental_2021], airspace occupancy metrics or aircraft trajectory prediction [@vos_transformer_2024].
+
+The modularity of the framework allows for a wide range of other applications: the architecture and the frontend could be for instance extended to displaying ships broadcasting data on a similar protocol named AIS, or serve as a basis for visualising the output of real-time simulation tools which are commonly advertised in the literature.
 
 # Acknowledgement
 
