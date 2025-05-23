@@ -18,6 +18,8 @@ All these components (except the data source) run within a single container orch
 
 ## Component Details
 
+[components.md](components.md) provides detailed information about each component, including their roles and interactions.
+
 ### Frontend
 
 The frontend is built with Vue.js and provides a dynamic, real-time visualization interface for aviation data. Key features include:
@@ -32,6 +34,7 @@ The frontend is built with Vue.js and provides a dynamic, real-time visualizatio
 Developers can create custom visualization plugins that integrate seamlessly with the main application.
 
 Each plugin follows a standard interface that allows it to:
+
 - Register with the main application
 - Subscribe to relevant data streams
 - Render visualization components
@@ -69,6 +72,7 @@ Backend functionality is extended through a plugin system, where each plugin is 
 - **Analyzer Plugins**: Perform computations on the data
 
 Examples of backend plugins include:
+
 - History plugin for storing and retrieving historical data
 - Rate limiting plugin for controlling data flow
 - Filtering plugin for focusing on specific data points
@@ -79,6 +83,7 @@ Each plugin follows a standard interface but operates as an independent process,
 ### Process Management
 
 All components (except the data source) run within a single container managed by `process-compose`, which:
+
 - Handles process startup and shutdown
 - Manages dependencies between processes
 - Provides process monitoring and logging
@@ -89,6 +94,7 @@ This architecture is defined in `container/process-compose.yaml` and can be exte
 ### Data Source (jet1090)
 
 The aviation data comes from `jet1090`, which runs in a separate container:
+
 - Receives ADS-B and Mode S data from various sources
 - Decodes and normalizes the data
 - Publishes data to Redis topics
@@ -137,3 +143,9 @@ Tangram is designed to be extended in several ways:
 4. **Analysis Algorithms**: Implement custom algorithms for data analysis
 
 These extension points allow Tangram to be adapted to a wide range of aviation data visualization and analysis needs.
+
+[channel.md](channel.md) provides more information on the Channel component, including its architecture and usage.
+
+- Channel: "channel.md"
+- Data flow: "data-flow.md"
+- Data source: "data-source.md"
