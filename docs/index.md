@@ -1,35 +1,31 @@
-# Tangram: Progressive Aviation Data Visualization
+# tangram: an open platform for modular, real-time air traffic management research
 
-Tangram is an open framework that aggregates and processes ADS-B and Mode S surveillance data for real-time analysis. The system provides a flexible plugin architecture where users can easily implement custom analyzers for their specific needs.
+**tangram** is an open research framework for ADS-B and Mode S flight surveillance data designed for various **real-time aviation research topics** such as GNSS jamming detection, aviation weather monitoring, emission analysis, and airport performance monitoring.
 
-## Overview
+<img src="./screenshot/tangram_screenshot_fr.png" alt="web interface" onmouseover="this.src='./screenshot/tangram_screenshot_nl.png'" onmouseout="this.src='./screenshot/tangram_screenshot_fr.png'" />
 
-Tangram's architecture consists of a Vue based frontend, a service backend and a streaming service backend. The backend efficiently aggregates data from multiple receiver streams and exposes a WebSocket interface, enabling real-time data visualization and analysis in the browser-based frontend.
+## Introduction
 
-## Progressive Development Approach
+The system consists of a **JavaScript**-based **web application** and a **backend based on Python** or Rust when performance is crucial. The web application is designed to be modular, allowing users to **implement their own plugins** for data processing and analysis. The backend is responsible for data collection, storage, and processing, while the frontend provides a user-friendly interface for visualizing and interacting with the data.
 
-One of Tangram's key strengths is its progressive approach to aviation data visualization. This means you can start with familiar API-based methods and gradually evolve your implementation into a real-time visualization system:
+The whole framework is designed to be extensible, allowing researchers to develop and integrate their own plugins for specific research needs. This modularity enables the community to contribute to the platform, encouraging collaboration and knowledge sharing.
 
-### Traditional API Integration
+## Contents
 
-Begin with standard REST API calls to fetch historical or static aviation data. This familiar approach allows you to build basic visualizations with data refreshed at set intervals.
+- [Quickstart](quickstart.md): A step-by-step guide to get started with tangram
+- [Configuration](configuration.md): Information on how to configure the system for your needs
+- [Architecture](architecture.md): An overview of the system architecture and components
+- [Plugins](plugins/index.md): Extend the system with custom functionalities
+- [Contribute to tangram](contributing.md): Guidelines for contributing to the project
 
-### Enhanced Data Processing
+## Funding
 
-Implement custom analyzers and visualization using Tangram's plugin architecture. This stage enables more sophisticated data processing while still using conventional data flow patterns.
+This project is currently funded by the Dutch Research Council (NWO)'s Open Science Fund, **OSF23.1.051**: <https://www.nwo.nl/en/projects/osf231051>.
 
-### Stage 3: Real-time Streaming
+## History
 
-Transition to WebSocket connections for true real-time data visualization. This advanced stage leverages Tangram's full capabilities for live surveillance data monitoring and analysis.
+In 2020, [@junzis](https://github.com/junzis) and [@xoolive](https://github.com/xoolive) published a paper [Detecting and Measuring Turbulence from Mode S Surveillance Downlink Data](https://research.tudelft.nl/en/publications/detecting-and-measuring-turbulence-from-mode-s-surveillance-downl-2) on how real-time Mode S data can be used to detect turbulence.
 
-This progressive approach allows developers to:
-- Start with familiar concepts and gradually adopt more advanced techniques
-- Build and test incrementally
-- Adopt real-time capabilities at their own pace
-- Maintain backward compatibility with existing systems
+Based on this method, [@MichelKhalaf](https://github.com/MichelKhalaf) started developing this tool as part of his training with [@xoolive](https://github.com/xoolive) in 2021, which was completed in Summer 2022. After that, the project was then lightly maintained by [@xoolive](https://github.com/xoolive) and [@junzis](https://github.com/junzis), while we have been applying for funding to continue this tool.
 
-## Getting Started
-
-To start working with Tangram, please refer to our [Quick Start Guide](quickstart.md) for detailed installation and setup instructions.
-
-Once set up, you can access the visualization interface at http://localhost:2024 to see real-time aviation data visualization in action.
+And in 2023, we received funding from NWO to continue the development of this tool. With this funding, [@emctoo](https://github.com/emctoo) from [Shinetech](https://www.shinetechsoftware.com) was hired to work alongside us on this open-source project.

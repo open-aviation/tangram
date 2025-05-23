@@ -1,5 +1,5 @@
 site_name: tangram
-site_description: tangram
+site_description: an open platform form modular, real-time air traffic management research
 repo_name: open-aviation/tangram
 repo_url: https://github.com/open-aviation/tangram
 site_url: https://mode-s.org/tangram/
@@ -7,17 +7,14 @@ nav:
   - Home: "index.md"
   - Quickstart: "quickstart.md"
   - Configuration: "configuration.md"
-  - Architecture: "architecture.md"
-  - Channel: "channel.md"
-  - Data flow: "data-flow.md"
-  - Data source: "data-source.md"
-  - Service plugin: "service-plugin.md"
-  - Web plugin: "web-plugin.md"
+  - Architecture: "architecture/index.md"
+  - Plugins: "plugins/index.md"
+  - Contribute: "contribute.md"
 
 theme:
   name: material
-  # logo: images/jet1090-logo.png
-  # favicon: images/favicon.png
+  logo: icons/favicon.png
+  favicon: icons/favicon.ico
   features:
     - content.code.annotate
     - content.code.copy
