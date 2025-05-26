@@ -50,6 +50,9 @@ theme:
   icon:
     repo: fontawesome/brands/github
 
+extra_css:
+  - css/extra.css
+
 plugins:
   - search
   - social

@@ -1,4 +1,4 @@
-# tangram: an open platform for modular, real-time air traffic management research
+# An open platform for modular, real-time air traffic management research
 
 **tangram** is an open research framework for ADS-B and Mode S flight surveillance data designed for various **real-time aviation research topics** such as GNSS jamming detection, aviation weather monitoring, emission analysis, and airport performance monitoring.
 
@@ -16,7 +16,7 @@ The whole framework is designed to be extensible, allowing researchers to develo
 - [Configuration](configuration.md): Information on how to configure the system for your needs
 - [Architecture](architecture.md): An overview of the system architecture and components
 - [Plugins](plugins/index.md): Extend the system with custom functionalities
-- [Contribute to tangram](contributing.md): Guidelines for contributing to the project
+- [Contribute to tangram](contribute.md): Guidelines for contributing to the project
 
 ## Funding
 
