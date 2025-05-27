@@ -10,6 +10,7 @@ nav:
       - tangram configuration: "configuration.md"
       - jet1090: https://mode-s.org/jet1090/config
   - Architecture:
+      - jet1090: https://mode-s.org/jet1090/
       - "architecture/index.md"
       - "architecture/planes.md"
       - "architecture/trajectory.md"
