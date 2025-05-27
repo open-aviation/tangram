@@ -14,7 +14,7 @@ The whole framework is designed to be extensible, allowing researchers to develo
 
 - [Quickstart](quickstart.md): A step-by-step guide to get started with tangram
 - [Configuration](configuration.md): Information on how to configure the system for your needs
-- [Architecture](architecture.md): An overview of the system architecture and components
+- [Architecture](architecture/index.md): An overview of the system architecture and components
 - [Plugins](plugins/index.md): Extend the system with custom functionalities
 - [Contribute to tangram](contribute.md): Guidelines for contributing to the project
 

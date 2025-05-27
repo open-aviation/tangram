@@ -4,9 +4,9 @@
 
 !!! warning
 
-    The framework has **only been tested on Linux and macOS**. It may not work on Windows without additional configuration.
+    The framework has **only been tested on Linux and macOS**.
 
-    Contributions to improve Windows compatibility are welcome!
+    It may not work on Windows without additional configuration, but contributions to improve Windows compatibility are welcome!
 
 ## Prerequisites
 
