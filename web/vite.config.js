@@ -30,6 +30,8 @@ export default defineConfig({
   server: {
     proxy: {
       "/data": `http://${tangram_service}`,
+      "/docs": `http://${tangram_service}`,
+      "/openapi.json": `http://${tangram_service}`,
       "^/flight/.*": {
         target: `https://${tangram_service}/flight/.*`,
         changeOrigin: true,
