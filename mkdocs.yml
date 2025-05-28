@@ -8,22 +8,22 @@ nav:
   - Quickstart: "quickstart.md"
   - Configuration:
       - tangram configuration: "configuration.md"
-      - jet1090: https://mode-s.org/jet1090/config
+      - jet1090 configuration: https://mode-s.org/jet1090/config
   - Architecture:
-      - jet1090: https://mode-s.org/jet1090/
       - "architecture/index.md"
+      - jet1090: https://mode-s.org/jet1090/
       - "architecture/planes.md"
       - "architecture/trajectory.md"
       - channel: "architecture/channel.md"
   - Plugins:
       - "plugins/index.md"
-      - "plugins/backend.md"
       - "plugins/frontend.md"
+      - "plugins/backend.md"
       - Examples:
           - "plugins/examples/sensors.md"
           - "plugins/examples/citypair.md"
           - "plugins/examples/windfield.md"
-          - "plugins/examples/contrail.md"
+          - "plugins/examples/contrails.md"
   - Contribute: "contribute.md"
 
 theme:
