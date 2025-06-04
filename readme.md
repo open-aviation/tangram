@@ -8,12 +8,16 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
 
 ## Documentation
 
+[![docs](https://github.com/open-aviation/tangram/actions/workflows/docs.yml/badge.svg)](https://github.com/open-aviation/tangram/actions/workflows/docs.yml)
+
 Documentation is available at <https://mode-s.org/tangram/>
 
 ## Tests
 
 Unit tests are limited to what invidual components can provide, including [jet1090](https://github.com/xoolive/rs1090/actions).\
 The system is designed to be modular, so each component can be tested independently.
+
+[![build](https://github.com/open-aviation/tangram/actions/workflows/podman.yml/badge.svg)](https://github.com/open-aviation/tangram/actions/workflows/podman.yml)
 
 Integration tests is currently limited to the construction of the container image, with the `just create-tangram` command.
 

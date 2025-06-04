@@ -1,4 +1,4 @@
-name: Tangram Image Build Check
+name: build
 
 on:
   push:
