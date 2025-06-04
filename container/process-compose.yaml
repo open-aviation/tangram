@@ -24,13 +24,6 @@ processes:
     availability:
       restart: "always"
 
-  # TODO run it as a plugin
-  core/system:
-    working_dir: /home/user/tangram/
-    command: env && pwd && uv run python -m tangram.system
-    availability:
-      restart: "always"
-
   core/planes:
     working_dir: /home/user/tangram/
     # command: env && pwd && uv run python -m tangram.planes

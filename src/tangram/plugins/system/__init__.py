@@ -1,13 +1,16 @@
 import json
 import logging
+import os
+import threading
 import time
 from datetime import UTC, datetime, timedelta
 from typing import NoReturn
 
 import psutil
 import redis
+from fastapi import FastAPI
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+# logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
 
 
@@ -56,21 +59,12 @@ def server_events(redis_url: str) -> NoReturn:
         time.sleep(1)
 
 
-if __name__ == "__main__":
-    import argparse
-    import os
-
-    file_handler = logging.FileHandler("/tmp/tangram/system.log")
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
-    log.addHandler(file_handler)
-    log.setLevel(logging.DEBUG)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--redis-url",
-        dest="redis_url",
-        default=os.getenv("REDIS_URL", "redis://redis:6379"),
-    )
-    args = parser.parse_args()
-    server_events(args.redis_url)
+# This function will be called by the main FastAPI application
+# Place it in __init__.py to register the plugin
+def register_plugin(app: FastAPI) -> None:
+    """Register this plugin with the main FastAPI application."""
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
+    log.info("System events service started in background thread")
+    # Start server_events in a separate thread to prevent blocking
+    thread = threading.Thread(target=server_events, args=(redis_url,), daemon=True)
+    thread.start()
