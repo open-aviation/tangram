@@ -43,6 +43,10 @@ app = FastAPI(lifespan=lifespan)
 def load_plugins(app: FastAPI) -> None:
     """Discover and load all plugins from the plugin directory."""
 
+    # Store background tasks in the app state
+    # This is to prevent garbage collection of background tasks
+    app.state.background_tasks = set()
+
     plugins = list((Path(__file__).parent / "plugins").glob("*"))
     if plugin_dir := os.environ.get("TANGRAM_PLUGIN_DIR"):
         # TODO not functional yet, the import command needs to be adjusted
