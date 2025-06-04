@@ -40,6 +40,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-podman-
 
+      - name: Create a .env file
+        run: |
+          cp .env.example .env
+
       - name: Check tangram image creation
         run: |
           echo "Running create-tangram command to verify image build..."
