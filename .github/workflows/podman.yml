@@ -1,0 +1,56 @@
+name: Tangram Image Build Check
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "container/**"
+      - "justfile"
+      - ".github/workflows/podman.yml"
+  pull_request:
+    paths:
+      - "container/**"
+      - "justfile"
+      - ".github/workflows/podman.yml"
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  check-podman-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install just command runner
+        uses: extractions/setup-just@v1
+        with:
+          just-version: '1.14'  # Specify the version you need
+
+      - name: Set up Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+          podman --version
+
+      - name: Cache Podman layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.podman-cache
+          key: ${{ runner.os }}-podman-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-podman-
+
+      - name: Check tangram image creation
+        run: |
+          echo "Running create-tangram command to verify image build..."
+          just create-tangram
+
+      - name: Verify tangram image exists
+        run: |
+          if podman image exists tangram:0.1; then
+            echo "✅ Tangram image tangram:0.1 successfully created"
+            podman image ls | grep tangram
+          else
+            echo "❌ Error: Tangram image tangram:0.1 not found"
+            exit 1
+          fi
