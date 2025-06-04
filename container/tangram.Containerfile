@@ -18,6 +18,7 @@ WORKDIR /home/user/tangram/crates/planes
 
 # Copy only the files needed for building the Rust binary
 COPY crates/planes/Cargo.toml ./
+COPY crates/planes/Cargo.lock ./
 COPY crates/planes/src ./src/
 
 # Build the Rust binary

@@ -2,16 +2,9 @@ name: Tangram Image Build Check
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - "container/**"
-      - "justfile"
-      - ".github/workflows/podman.yml"
+    branches:
+      - main
   pull_request:
-    paths:
-      - "container/**"
-      - "justfile"
-      - ".github/workflows/podman.yml"
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
