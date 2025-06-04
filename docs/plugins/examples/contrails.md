@@ -1,0 +1,3 @@
+# Real-time contrails
+
+(hatching)

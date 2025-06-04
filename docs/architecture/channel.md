@@ -190,3 +190,14 @@ The Channel component enables the progressive development approach in Tangram:
 3. **Real-time Streaming**: Fully leverage the WebSocket infrastructure for comprehensive real-time visualization
 
 By separating the communication layer from both the frontend and backend, Channel allows teams to adopt real-time capabilities at their own pace while maintaining backward compatibility with existing systems.
+
+### Channel (Streaming Service)
+
+The Channel component is a high-performance Rust implementation that handles real-time data streaming:
+
+- WebSocket server for frontend connections
+- Integration with Redis for pub/sub messaging
+- Efficient data serialization and transmission
+- Connection management and error handling
+
+This component enables the real-time nature of Tangram, allowing for immediate visualization of incoming aviation data.

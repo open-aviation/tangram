@@ -1,13 +1,15 @@
+import asyncio
 import json
 import logging
-import time
+import os
 from datetime import UTC, datetime, timedelta
 from typing import NoReturn
 
 import psutil
-import redis
+import redis.asyncio as redis
+from fastapi import FastAPI
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+# logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
 
 
@@ -40,37 +42,29 @@ def ram_usage() -> dict[str, str]:
         return {"el": "ram_usage", "value": "Unavailable"}
 
 
-def server_events(redis_url: str) -> NoReturn:
+async def server_events(redis_url: str) -> NoReturn:
     counter = 0
     redis_client = redis.Redis.from_url(redis_url)
 
     log.info("serving system events...")
 
     while True:
-        redis_client.publish("to:system:update-node", json.dumps(uptime(counter)))
-        redis_client.publish("to:system:update-node", json.dumps(info_utc()))
-        redis_client.publish("to:system:update-node", json.dumps(cpu_load()))
-        redis_client.publish("to:system:update-node", json.dumps(ram_usage()))
+        await redis_client.publish("to:system:update-node", json.dumps(uptime(counter)))
+        await redis_client.publish("to:system:update-node", json.dumps(info_utc()))
+        await redis_client.publish("to:system:update-node", json.dumps(cpu_load()))
+        await redis_client.publish("to:system:update-node", json.dumps(ram_usage()))
         counter += 1
 
-        time.sleep(1)
+        await asyncio.sleep(1)
 
 
-if __name__ == "__main__":
-    import argparse
-    import os
+# This function will be called by the main FastAPI application
+# Place it in __init__.py to register the plugin
+def register_plugin(app: FastAPI) -> None:
+    """Register this plugin with the main FastAPI application."""
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
+    log.info("System events service started in background task")
 
-    file_handler = logging.FileHandler("/tmp/tangram/system.log")
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
-    log.addHandler(file_handler)
-    log.setLevel(logging.DEBUG)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--redis-url",
-        dest="redis_url",
-        default=os.getenv("REDIS_URL", "redis://redis:6379"),
-    )
-    args = parser.parse_args()
-    server_events(args.redis_url)
+    task = asyncio.create_task(server_events(redis_url))
+    app.state.background_tasks.add(task)
+    task.add_done_callback(app.state.background_tasks.discard)

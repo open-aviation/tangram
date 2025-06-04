@@ -13,19 +13,20 @@ export default {
         LGeoJson,
     },
     data() {
+        // initialize the geoJSON data
         return {
             geoJsonData: null,
         };
     },
-    computed: {},
     async mounted() {
-        // `/sensors` is served by jet1090, we'll just let vite proxy it
+        // `/sensors` is served by jet1090, the proxy is coded in vite.config.js
         const response = await fetch("/sensors");
         const sensors = await response.json();
         // Convert sensor data to GeoJSON format
         this.geoJsonData = {
             type: "FeatureCollection",
             features: Object.values(sensors)
+                // only display sensors seeing at least one aircraft
                 .filter(sensor => sensor.aircraft_count > 0)
                 .map((sensor) => ({
                     type: "Feature",

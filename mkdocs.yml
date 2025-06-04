@@ -1,23 +1,35 @@
 site_name: tangram
-site_description: tangram
+site_description: an open platform form modular, real-time air traffic management research
 repo_name: open-aviation/tangram
 repo_url: https://github.com/open-aviation/tangram
 site_url: https://mode-s.org/tangram/
 nav:
   - Home: "index.md"
   - Quickstart: "quickstart.md"
-  - Configuration: "configuration.md"
-  - Architecture: "architecture.md"
-  - Channel: "channel.md"
-  - Data flow: "data-flow.md"
-  - Data source: "data-source.md"
-  - Service plugin: "service-plugin.md"
-  - Web plugin: "web-plugin.md"
+  - Configuration:
+      - tangram configuration: "configuration.md"
+      - jet1090 configuration: https://mode-s.org/jet1090/config
+  - Architecture:
+      - "architecture/index.md"
+      - jet1090: https://mode-s.org/jet1090/
+      - "architecture/planes.md"
+      - "architecture/trajectory.md"
+      - channel: "architecture/channel.md"
+  - Plugins:
+      - "plugins/index.md"
+      - "plugins/frontend.md"
+      - "plugins/backend.md"
+      - Examples:
+          - "plugins/examples/sensors.md"
+          - "plugins/examples/citypair.md"
+          - "plugins/examples/windfield.md"
+          - "plugins/examples/contrails.md"
+  - Contribute: "contribute.md"
 
 theme:
   name: material
-  # logo: images/jet1090-logo.png
-  # favicon: images/favicon.png
+  logo: icons/favicon.png
+  favicon: icons/favicon.ico
   features:
     - content.code.annotate
     - content.code.copy
@@ -53,6 +65,9 @@ theme:
   icon:
     repo: fontawesome/brands/github
 
+extra_css:
+  - css/extra.css
+
 plugins:
   - search
   - social
@@ -60,6 +75,7 @@ plugins:
 markdown_extensions:
   - admonition
   - attr_list
+  - footnotes
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg

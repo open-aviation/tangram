@@ -113,20 +113,21 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, List, TYPE_CHECKING, ForwardRef
+from typing import TYPE_CHECKING, Any, Dict, ForwardRef, List, Optional
 
-from redis.asyncio import Redis
 import msgspec
 import rs1090
+from redis.asyncio import Redis
 
-from tangram.common import redis_subscriber
-
+from tangram.common import redis
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
 
 
-def create_redis_client(redis_client: Optional[Redis] = None, redis_url: Optional[str] = None) -> Redis:
+def create_redis_client(
+    redis_client: Optional[Redis] = None, redis_url: Optional[str] = None
+) -> Redis:
     if redis_client:
         return redis_client
     if redis_url:
@@ -138,7 +139,7 @@ async def ensure_redis_client(redis_client: Redis):
     assert redis_client, "Redis client is not initialized"
     if not await redis_client.ping():
         log.error("fail to ping redis")
-        raise Exception('Redis instance is not available')
+        raise Exception("Redis instance is not available")
 
 
 @dataclass
@@ -206,6 +207,7 @@ class StateVector:
 
 # StateVector = ForwardRef("StateVector")
 
+
 @dataclass
 class State:
     """
@@ -235,7 +237,7 @@ class State:
             log.error(f"Error retrieving aircraft {icao24}: {e}")
             return None
 
-    async def save_current(self, sv: StateVector, expiry_seconds: float=600) -> None:
+    async def save_current(self, sv: StateVector, expiry_seconds: float = 600) -> None:
         """Save aircraft data to Redis"""
         await self.ensure_redis_client()
 
@@ -282,7 +284,9 @@ class State:
             await self.redis_client.expire(timeline_key, self.history_expiry)
 
             lastwrite_key = f"aircraft:lastwrite:{sv.icao24}"
-            await self.redis_client.set(lastwrite_key, str(sv.lastseen), ex=self.lastwrite_expiry)
+            await self.redis_client.set(
+                lastwrite_key, str(sv.lastseen), ex=self.lastwrite_expiry
+            )
 
             log.debug(f"Stored history for {sv.icao24} at {sv.lastseen}")
         except Exception as e:
@@ -291,6 +295,7 @@ class State:
 
 # StateVector.__forward_arg__ = "StateVector"
 # StateVector.__forward_evaluated__ = True
+
 
 async def _get_state_vector(state: State, msg) -> Optional[StateVector]:
     """try to find the StateVector from state, or create a new one"""
@@ -313,7 +318,13 @@ async def _get_state_vector(state: State, msg) -> Optional[StateVector]:
         typecode = None
 
         # Create new state vector
-        sv = StateVector(icao24=icao24, registration=registration, typecode=typecode, lastseen=now, firstseen=now)
+        sv = StateVector(
+            icao24=icao24,
+            registration=registration,
+            typecode=typecode,
+            lastseen=now,
+            firstseen=now,
+        )
 
     # Update state vector with new information
     sv.lastseen = msg["timestamp"]
@@ -338,7 +349,7 @@ async def _get_state_vector(state: State, msg) -> Optional[StateVector]:
     return sv
 
 
-class HistorySubscriber(redis_subscriber.Subscriber[State]):
+class HistorySubscriber(redis.Subscriber[State]):
     """Subscriber for aircraft history recording using Redis"""
 
     def __init__(
@@ -360,7 +371,9 @@ class HistorySubscriber(redis_subscriber.Subscriber[State]):
         """Override to initialize Redis connection for state"""
         await super().subscribe()
 
-    async def message_handler(self, event: str, payload: str, pattern: str, state: State) -> None:
+    async def message_handler(
+        self, event: str, payload: str, pattern: str, state: State
+    ) -> None:
         # Skip messages that don't contain DF17 or DF18
         if '"17"' not in payload and '"18"' not in payload:
             return
@@ -480,6 +493,7 @@ class StateClient:
         keys = await self.redis_client.keys("aircraft:current:*")
         return len(keys)
 
+
 state = State()
 state_client = StateClient()
 subscriber: Optional[HistorySubscriber] = None
@@ -489,8 +503,12 @@ async def startup(redis_url: str, channel: str, interval: int, expiry: int) -> N
     """Start the subscriber"""
     global subscriber, state
 
-    subscriber = HistorySubscriber(name="AircraftHistoryRecorder", redis_url=redis_url,
-        channels=[channel], aggregation_interval=interval, history_expiry=expiry,
+    subscriber = HistorySubscriber(
+        name="AircraftHistoryRecorder",
+        redis_url=redis_url,
+        channels=[channel],
+        aggregation_interval=interval,
+        history_expiry=expiry,
         state=state,
     )
     await subscriber.subscribe()
@@ -554,4 +572,3 @@ if __name__ == "__main__":
         asyncio.run(startup(args.redis_url, args.channel, args.interval, args.expiry))
     except KeyboardInterrupt:
         log.info("Service stopped by user")
-
