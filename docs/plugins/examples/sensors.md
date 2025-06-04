@@ -6,7 +6,7 @@ Mode S data is provided by the `jet1090` process, which decodes the data from ag
 
 It is useful to visualize the position of the receivers on the map, so that the user can see where the data is coming from. The position of the receivers is provided by the `jet1090` process, which can be configured to provide the position of the receivers in the `config_jet1090.toml` file.
 
-See [Configuring jet1090](../configuration/jet1090.md) for more details.
+See [Configuring jet1090](https://mode-s.org/jet1090/config/) for more details.
 
 ## Implementation
 
