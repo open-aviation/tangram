@@ -8,7 +8,7 @@ from typing import Iterable, List
 
 import msgspec
 
-from tangram.common import database, redis_subscriber, rs1090
+from tangram.common import database, redis, rs1090
 
 jet1090_restful_client = rs1090.Rs1090Client()
 logging.basicConfig(
@@ -23,7 +23,7 @@ class State:
     trajectory: List[Iterable[float]] = field(default_factory=list)  #  lat, longi
 
 
-class Subscriber(redis_subscriber.Subscriber[State]):
+class Subscriber(redis.Subscriber[State]):
     def __init__(self, name: str, redis_url: str, channels: List[str]):
         self.redis_url: str = redis_url
         self.channels: List[str] = channels

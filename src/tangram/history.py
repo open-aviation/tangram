@@ -6,7 +6,7 @@ from typing import Any, List
 
 from redis.commands.timeseries import TimeSeries
 
-from tangram.common import database, redis_subscriber
+from tangram.common import database, redis
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -19,7 +19,7 @@ class State:
     icao24: str | None = None
 
 
-class Subscriber(redis_subscriber.Subscriber[State]):
+class Subscriber(redis.Subscriber[State]):
     def __init__(
         self,
         name: str,

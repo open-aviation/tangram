@@ -11,9 +11,8 @@ import redis
 import rs1090
 from pydantic import BaseModel
 
-from tangram.common.redis_subscriber import Subscriber
-
-from .basestation import aircraft_db
+from .common.basestation import aircraft_db
+from .common.redis import Subscriber as SubscriberBase
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
@@ -55,7 +54,7 @@ class BoundingBoxState:
             del self.bboxes[connection_id]
 
 
-class BoundingBoxSubscriber(Subscriber[BoundingBoxState]):
+class BoundingBoxSubscriber(SubscriberBase[BoundingBoxState]):
     async def message_handler(
         self, event: str, payload: str, pattern: str, state: BoundingBoxState
     ) -> None:
@@ -205,7 +204,7 @@ class StateVectors:
         self.aircraft[msg["icao24"]] = sv
 
 
-class Jet1090Subscriber(Subscriber[StateVectors]):
+class Jet1090Subscriber(SubscriberBase[StateVectors]):
     async def message_handler(
         self, event: str, payload: str, pattern: str, state: StateVectors
     ) -> None:

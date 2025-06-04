@@ -24,6 +24,7 @@ processes:
     availability:
       restart: "always"
 
+  # TODO run it as a plugin
   core/system:
     working_dir: /home/user/tangram/
     command: env && pwd && uv run python -m tangram.system
@@ -37,6 +38,7 @@ processes:
     availability:
       restart: "always"
 
+  # TODO merge trajectory and history_redis into one process
   core/trajectory:
     working_dir: /home/user/tangram/
     command: env && pwd && uv run python -m tangram.trajectory

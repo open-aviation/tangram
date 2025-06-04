@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-import itertools
 import logging
 import os
 from contextlib import asynccontextmanager

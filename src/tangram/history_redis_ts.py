@@ -124,30 +124,31 @@ import asyncio
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import msgspec
 import rs1090
 from redis.asyncio import Redis
+from redis.commands.timeseries import TimeSeries
 
-from tangram.common import redis_subscriber
+from tangram.common import redis
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
 
 
 def create_redis_client(
-    redis_client: Optional[Redis] = None, redis_url: Optional[str] = None
+    redis_client: Optional[Redis] = None,
+    redis_url: Optional[str] = None,
 ) -> Redis:
     if redis_client:
         return redis_client
-    if redis_url:
-        return Redis.from_url(redis_url)
-    return Redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379"))
+    redis_url = redis_url if redis_url else os.getenv("REDIS_URL", "redis://redis:6379")
+    return Redis.from_url(redis_url)  # type: ignore
 
 
-async def ensure_redis_client(redis_client: Redis):
+async def ensure_redis_client(redis_client: Redis) -> None:
     assert redis_client, "Redis client is not initialized"
     if not await redis_client.ping():
         log.error("fail to ping redis")
@@ -228,15 +229,19 @@ class State:
     Uses Redis Time Series for efficient time series data storage
     """
 
-    def __init__(self, redis_client=None, redis_url: Optional[str] = None):
+    def __init__(
+        self,
+        redis_client: Optional[Redis],
+        redis_url: Optional[str] = None,
+    ) -> None:
         """Initialize with a Redis client"""
         self.redis_client = create_redis_client(redis_client, redis_url)
-        self.lastwrite_expiry: float = 600
+        self.lastwrite_expiry: int | timedelta | None = 600
         self.history_expiry: int = 600
         self.write_interval: float = 60
         self.retention_msecs: int = self.history_expiry * 1000
 
-    async def ensure_redis_client(self):
+    async def ensure_redis_client(self) -> None:
         await ensure_redis_client(self.redis_client)
 
     async def get_current(self, icao24: str) -> Optional[StateVector]:
@@ -251,7 +256,11 @@ class State:
             log.error(f"Error retrieving aircraft {icao24}: {e}")
             return None
 
-    async def save_current(self, sv: StateVector, expiry_seconds: float = 600) -> None:
+    async def save_current(
+        self,
+        sv: StateVector,
+        expiry_seconds: int | timedelta | None = 600,
+    ) -> None:
         """Save aircraft data to Redis"""
         await self.ensure_redis_client()
 
@@ -280,8 +289,8 @@ class State:
 
         try:
             # Check if the time series exists
-            ts_client = self.redis_client.ts()
-            info = await ts_client.info(key)
+            ts_client: TimeSeries = self.redis_client.ts()  # type: ignore
+            _info = await ts_client.info(key)
             return True
         except Exception:
             # Create the time series
@@ -318,7 +327,7 @@ class State:
 
         try:
             timestamp_ms = int(sv.lastseen * 1000)  # Convert to milliseconds
-            ts_client = self.redis_client.ts()
+            ts_client: TimeSeries = self.redis_client.ts()  # type: ignore
 
             # Common labels for all time series for this aircraft
             # Prepare labels with non-empty values and convert all to strings
@@ -378,13 +387,14 @@ class State:
 # StateVector.__forward_evaluated__ = True
 
 
-async def _get_state_vector(state: State, msg) -> Optional[StateVector]:
+# TODO define type for msg
+async def _get_state_vector(state: State, msg: Any) -> Optional[StateVector]:
     """try to find the StateVector from state, or create a new one"""
     if msg["df"] not in ["17", "18"]:
-        return
+        return None
 
     if msg.get("bds") not in ["05", "06", "08", "09"]:
-        return
+        return None
 
     icao24 = msg["icao24"]
 
@@ -430,7 +440,7 @@ async def _get_state_vector(state: State, msg) -> Optional[StateVector]:
     return sv
 
 
-class HistorySubscriber(redis_subscriber.Subscriber[State]):
+class HistorySubscriber(redis.Subscriber[State]):
     """Subscriber for aircraft history recording using Redis"""
 
     def __init__(
@@ -445,7 +455,7 @@ class HistorySubscriber(redis_subscriber.Subscriber[State]):
         self.aggregation_interval = aggregation_interval
         self.history_expiry = history_expiry
 
-        initial_state = state or State(redis_url=redis_url)
+        initial_state = state or State(redis_client=None, redis_url=redis_url)
         super().__init__(name, redis_url, channels, initial_state)
 
     async def subscribe(self) -> None:
@@ -478,10 +488,14 @@ class StateClient:
     Designed for use in REPL sessions or external applications
     """
 
-    def __init__(self, redis_client=None, redis_url=None):
+    def __init__(
+        self,
+        redis_client: None | Redis = None,
+        redis_url: None | str = None,
+    ) -> None:
         self.redis_client = create_redis_client(redis_client, redis_url)
 
-    async def ensure_redis_client(self):
+    async def ensure_redis_client(self) -> None:
         await ensure_redis_client(self.redis_client)
 
     async def get_aircraft_table(self) -> Dict[str, Any]:
@@ -520,7 +534,7 @@ class StateClient:
         Retrieve the track (position history) of a specific aircraft using Time Series
         """
         await self.ensure_redis_client()
-        ts_client = self.redis_client.ts()
+        ts_client: TimeSeries = self.redis_client.ts()  # type: ignore
 
         # Default to getting the most recent points if no time range specified
         from_time = "-" if start_ts is None else int(start_ts * 1000)
@@ -618,7 +632,7 @@ class StateClient:
     async def get_timeseries_info(self, icao24: str) -> Dict[str, Any]:
         """Get information about time series for an aircraft"""
         await self.ensure_redis_client()
-        ts_client = self.redis_client.ts()
+        ts_client: TimeSeries = self.redis_client.ts()  # type: ignore
 
         result = {}
         try:
@@ -644,7 +658,7 @@ class StateClient:
     async def get_timeseries_labels(self, icao24: str) -> Dict[str, Dict[str, str]]:
         """Get labels for time series for an aircraft"""
         await self.ensure_redis_client()
-        ts_client = self.redis_client.ts()
+        ts_client: TimeSeries = self.redis_client.ts()  # type: ignore
 
         result = {}
         try:
@@ -669,7 +683,7 @@ class StateClient:
         return result
 
 
-state = State()
+state = State(redis_client=None)
 state_client = StateClient()
 subscriber: Optional[HistorySubscriber] = None
 
