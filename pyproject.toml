@@ -10,7 +10,7 @@ authors = [
 # dynamic = ["version"]
 version = "0.1.0"
 license = "MIT"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
   "appdirs>=1.4.4",
   "fastapi>=0.115.4",
@@ -23,6 +23,10 @@ dependencies = [
   "msgspec>=0.19.0",
   "psutil>=7.0.0",
   "rs1090>=0.4.8",
+  "xarray>=2025.6.1",
+  "cfgrib>=0.9.15.0",
+  "tqdm>=4.67.1",
+  "orjson>=3.10.18",
 ]
 
 
