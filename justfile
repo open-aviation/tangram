@@ -83,6 +83,10 @@ create-network:
 create-tangram:
   podman image build -f container/tangram.Containerfile -t tangram:0.1 .
 
+# Create the tangram container for aarch64 architecture (until eccodes is fixed)
+create-tangram-aarch64:
+  podman image build -f container/tangram_aarch64.Containerfile -t tangram:0.1 .
+
 # Launch redis
 redis: create-network
   #!/usr/bin/env bash

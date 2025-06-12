@@ -6,16 +6,16 @@ from .arpege import latest_data as latest_arpege_data
 
 # Create a router for your plugin
 router = APIRouter(
-    prefix="/fastmeteo",  # All routes will be prefixed with /fastmeteo
-    tags=["fastmeteo"],  # For API documentation organization
+    prefix="/weather",  # All routes will be prefixed with /weather
+    tags=["weather"],  # For API documentation organization
     responses={404: {"description": "Not found"}},
 )
 
 
 @router.get("/")
-async def get_fastmeteo() -> dict[str, str]:
+async def get_weather() -> dict[str, str]:
     """An example endpoint that returns some data."""
-    return {"message": "This is the FastMeteo plugin response"}
+    return {"message": "This is the weather plugin response"}
 
 
 @router.get("/wind")

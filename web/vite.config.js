@@ -30,8 +30,11 @@ export default defineConfig({
   server: {
     proxy: {
       "/data": `http://${tangram_service}`,
+      // end points for the documentation
       "/docs": `http://${tangram_service}`,
       "/openapi.json": `http://${tangram_service}`,
+      // end point for the weather plugin
+      "/weather": `http://${tangram_service}`,
       "^/flight/.*": {
         target: `https://${tangram_service}/flight/.*`,
         changeOrigin: true,
@@ -72,8 +75,15 @@ export default defineConfig({
     AutoImport({ imports: ["vue", "vue-router"] }), // vue、vue-router imported automatically
     dynamicComponentsPlugin({
       envPath: "../.env",
-      fallbackDir: "/src/components/",
-      availablePlugins: ["sensorsInfo", "cityPair"],
+      fallbackDir: "/src/plugins/",
+      availablePlugins: [
+        "airportSearch",
+        "systemInfo",
+        "sensorsInfo",
+        "cityPair",
+        //"windField",
+        //"sigmetInfo",
+      ],
     }),
   ],
 });

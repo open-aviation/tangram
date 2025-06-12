@@ -35,7 +35,7 @@ export default function dynamicComponentsPlugin(options = {}) {
   const virtualModuleId = "virtual:plugin-components";
   const resolvedVirtualModuleId = "\0" + virtualModuleId;
   const customEnvPath = options.envPath ? path.resolve(options.envPath) : null;
-  const fallbackDir = options.fallbackDir ?? "/src/components/";
+  const fallbackDir = options.fallbackDir ?? "/src/plugins/";
   const availablePlugins = (options.availablePlugins ?? []).map((el) => `${el}_plugin`);
 
   console.log("Available plugins:", availablePlugins);
@@ -73,14 +73,18 @@ export default function dynamicComponentsPlugin(options = {}) {
             // Try to use the environment variable path
             const absPath = path.resolve(envPath);
             if (fs.existsSync(absPath)) {
-              imports.push(`import ${componentVarName} from '${normalizePath(absPath)}'`);
+              imports.push(
+                `import ${componentVarName} from '${normalizePath(absPath)}'`,
+              );
               console.log(`Using env path for ${pluginName}: ${absPath}`);
             } else {
               // Fallback if env path doesn't exist
               const fileName = path.basename(envPath);
               const fallbackPath = `${fallbackDir}${fileName}`;
               imports.push(`import ${componentVarName} from '${fallbackPath}'`);
-              console.warn(`Env path ${absPath} not found for ${pluginName}, falling back to ${fallbackPath}`);
+              console.warn(
+                `Env path ${absPath} not found for ${pluginName}, falling back to ${fallbackPath}`,
+              );
             }
           } else {
             // No env var, use default fallback path, convert time_plugin to Time
@@ -92,7 +96,9 @@ export default function dynamicComponentsPlugin(options = {}) {
                 .join("") + ".vue";
             const fallbackPath = `${fallbackDir}${fileName}`;
             imports.push(`import ${componentVarName} from '${fallbackPath}'`);
-            console.log(`No env path for ${pluginName}, using fallback: ${fallbackPath}`);
+            console.log(
+              `No env path for ${pluginName}, using fallback: ${fallbackPath}`,
+            );
           }
 
           registrations.push(`app.component('${componentName}', ${componentVarName})`);

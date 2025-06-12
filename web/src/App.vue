@@ -16,6 +16,11 @@
       <PlaneTrail />
 
       <plugin-sensorsinfo />
+      <plugin-airportsearch />
+      <plugin-windfield />
+
+      <!--<plugin-sigmetinfo />
+      <plugin-foursensors /> -->
 
 
     </l-map>
@@ -30,7 +35,6 @@ import { useMapStore } from "./store";
 import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
 import "leaflet/dist/leaflet.css";
 
-import AirportSearch from "./components/AirportSearch.vue";
 import TopNavBar from "./components/TopNavBar.vue";
 import LeftSideBar from "./components/LeftSideBar.vue";
 import PlaneData from "./components/AirPlane.vue";
@@ -44,7 +48,6 @@ export default {
     LTileLayer,
     TopNavBar,
     PlaneData,
-    AirportSearch,
   },
 
   setup() {
@@ -84,10 +87,16 @@ export default {
 
   async mounted() {
     console.log('App mounted');
-    // const socket = await this.store.createSocket();
+
+    // Wait for socket connection first
     while (!this.store.socket) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
+
+    // Access map after it's fully initialized
+    this.$nextTick(() => {
+      this.store.map = this.$refs.map;
+    });
 
     console.log("joining system channel");
     const channelName = "system";
