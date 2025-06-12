@@ -1253,8 +1253,15 @@
 <span class="w">  </span><span class="c1">// ..., other settings</span>
 <span class="w">  </span><span class="nx">dynamicComponentsPlugin</span><span class="p">({</span>
 <span class="w">    </span><span class="nx">envPath</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;../.env&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">fallbackDir</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;./src/components/&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">availablePlugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;myPlugin&quot;</span><span class="p">],</span><span class="w"> </span><span class="c1">// list all your plugins here</span>
+<span class="w">    </span><span class="nx">fallbackDir</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;./src/plugins/&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">availablePlugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">      </span><span class="s2">&quot;airportSearch&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="s2">&quot;systemInfo&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="s2">&quot;sensorsInfo&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="s2">&quot;cityPair&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="c1">// list all your plugins here</span>
+<span class="w">      </span><span class="s2">&quot;myPlugin&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// This is your custom plugin</span>
+<span class="w">    </span><span class="p">],</span>
 <span class="w">  </span><span class="p">}),</span>
 <span class="p">];</span>
 </code></pre></div>
@@ -1277,7 +1284,7 @@
 <tbody>
 <tr>
 <td>undefined</td>
-<td><code>src/components/MyPlugin.vue</code></td>
+<td><code>src/plugins/MyPlugin.vue</code></td>
 </tr>
 <tr>
 <td><code>/path/to/plugins/MyPlugin1.vue</code></td>
