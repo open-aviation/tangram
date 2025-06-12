@@ -25,8 +25,15 @@ plugins: [
   // ..., other settings
   dynamicComponentsPlugin({
     envPath: "../.env",
-    fallbackDir: "./src/components/",
-    availablePlugins: ["myPlugin"], // list all your plugins here
+    fallbackDir: "./src/plugins/",
+    availablePlugins: [
+      "airportSearch",
+      "systemInfo",
+      "sensorsInfo",
+      "cityPair",
+      // list all your plugins here
+      "myPlugin", // This is your custom plugin
+    ],
   }),
 ];
 ```
@@ -47,7 +54,7 @@ Then you will be able to include the node in the template part of another compon
 
     | `TANGRAM_WEB_MYPLUGIN_PLUGIN`    | Resulting component path         |
     | -------------------------------- | -------------------------------- |
-    | undefined                        | `src/components/MyPlugin.vue`    |
+    | undefined                        | `src/plugins/MyPlugin.vue`       |
     | `/path/to/plugins/MyPlugin1.vue` | `/path/to/plugins/MyPlugin1.vue` |
     | `/path/to/plugins/MyPlugin2.vue` | `/path/to/plugins/MyPlugin2.vue` |
 
