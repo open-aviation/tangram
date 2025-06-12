@@ -9,7 +9,6 @@ import psutil
 import redis.asyncio as redis
 from fastapi import FastAPI
 
-# logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
 
 
