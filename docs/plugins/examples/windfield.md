@@ -6,11 +6,11 @@ Meteorological data is essential for understanding the impact of weather on avia
 
 A [web API](https://portail-api.meteofrance.fr/web/en/api/ARPEGE) is available after registration, but we will prefer here the GRIB files that can also be downloaded directly from the [data.gouv.fr](https://www.data.gouv.fr/fr/datasets/donnees-pnt-retention-14-jours/) initiative, also provided by Meteo France under an Open License.
 
-New predictions are published every 6 hours, and the data is available for 3 days in advance. The data is provided in GRIB format, which is a standard format for meteorological data. In each file, each grid point represents spatio -temporal coordinates, and the data is provided for each hour of the day. The data is available at a resolution of 0.1 degrees, which is approximately 11 km at the equator. Altitude is provided in isobars, which is a standard unit for atmospheric pressure.
+New predictions are published every 6 hours, and the data is available for 3 days in advance. The data is provided in GRIB format, which is a standard format for meteorological data. In each file, each grid point represents spatio-temporal coordinates, and the data is provided for each hour of the day. The data is available at a resolution of 0.1 degrees, which is approximately 11 km at the equator. Altitude is provided in isobars, which is a standard unit for atmospheric pressure.
 
 ## Implementation
 
-The objective of this plugin is to display a wind field on the map, at an isobar specified by the user in a slider. We need to work on the following steps:
+The objective of this plugin is to display a wind field on the map, at an isobar specified by the user. We need to work on the following steps:
 
 1. on the backend side, download the GRIB files from the data.gouv.fr initiative, and provide an API endpoint to fetch the wind field data for a specific isobar
 2. on the frontend side, create a Vue component that will display a slider to select an isobar, and display the corresponding wind field on the map.
@@ -177,7 +177,6 @@ The main Leaflet map object is available from the `store` (the structure used to
                 (newVal) => {
                     if (newVal) {
                         unwatch();
-                        // Add listener for map movement to update wind field
                         this.fetchAndDisplay();
                     }
                 },
@@ -205,11 +204,7 @@ Then, the `fetchAndDisplay` method will be called to fetch the wind field data f
 
         // Create a velocity layer with the fetched data
         const velocityLayer = L.velocityLayer({
-            displayValues: true,
-            displayOptions: {
-                // to be filled
-            },
-            data: // to be formatted with data received from the backend
+           ... // to be filled
         });
 
         // Add the velocity layer to the map

@@ -34,7 +34,6 @@ export default {
                 (newVal) => {
                     if (newVal) {
                         unwatch();
-                        // Add listener for map movement to update wind field
                         this.fetchAndDisplay();
                     }
                 },
