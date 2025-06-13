@@ -1049,12 +1049,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/citypair/" class="md-nav__link">
+      <a href="../examples/windfield/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Origin and destination city pair
+    Add a wind field layer
     
   </span>
   
@@ -1072,12 +1072,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/windfield/" class="md-nav__link">
+      <a href="../examples/citypair/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Wind field with fastmeteo
+    Origin and destination city pair
     
   </span>
   
@@ -1338,6 +1338,11 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Register this plugin with the main FastAPI application.&quot;&quot;&quot;</span>
     <span class="n">app</span><span class="o">.</span><span class="n">include_router</span><span class="p">(</span><span class="n">router</span><span class="p">)</span>
 </code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Note that there is no activate/deactivate mechanism for backend plugins. If they are found in the <code>src/tangram/plugins/</code> directory, they will be automatically registered when the main FastAPI application starts.</p>
+<p>This is insignificant for most plugins creating new endpoints as they are usually stateless. However, if your plugin has a state (e.g. it subscribes to Redis channels, consume heavy resources at load time, etc.), then you may want to deactivate it. In that case, we recommend that you read an environment variable and conditionally execute commands in the <code>register_plugin</code> function. This way, you can control whether the plugin is active or not based on the environment variable.</p>
+</div>
 <h2 id="communicate-with-redis">Communicate with Redis<a class="headerlink" href="#communicate-with-redis" title="Permanent link">&para;</a></h2>
 <p>Receiving and sending data from Redis is a common task for backend plugins. The process is based on a pub/sub system, where the plugin subscribes to specific channels to receive messages and can publish messages to other channels.</p>
 <h3 id="send-messages-to-redis">Send messages to Redis<a class="headerlink" href="#send-messages-to-redis" title="Permanent link">&para;</a></h3>

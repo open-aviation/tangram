@@ -13,10 +13,10 @@
         <link rel="canonical" href="https://mode-s.org/tangram/plugins/examples/windfield/">
       
       
-        <link rel="prev" href="../citypair/">
+        <link rel="prev" href="../sensors/">
       
       
-        <link rel="next" href="../contrails/">
+        <link rel="next" href="../citypair/">
       
       
       <link rel="icon" href="../../../icons/favicon.ico">
@@ -24,7 +24,7 @@
     
     
       
-        <title>Wind field with fastmeteo - tangram</title>
+        <title>Add a wind field layer - tangram</title>
       
     
     
@@ -61,7 +61,7 @@
       
         <meta  property="og:type"  content="website" >
       
-        <meta  property="og:title"  content="Wind field with fastmeteo - tangram" >
+        <meta  property="og:title"  content="Add a wind field layer - tangram" >
       
         <meta  property="og:description"  content="an open platform form modular, real-time air traffic management research" >
       
@@ -77,7 +77,7 @@
       
         <meta  name="twitter:card"  content="summary_large_image" >
       
-        <meta  name="twitter:title"  content="Wind field with fastmeteo - tangram" >
+        <meta  name="twitter:title"  content="Add a wind field layer - tangram" >
       
         <meta  name="twitter:description"  content="an open platform form modular, real-time air traffic management research" >
       
@@ -104,7 +104,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#wind-field-with-fastmeteo" class="md-skip">
+        <a href="#add-a-wind-field-layer" class="md-skip">
           Skip to content
         </a>
       
@@ -139,7 +139,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Wind field with fastmeteo
+              Add a wind field layer
             
           </span>
         </div>
@@ -929,6 +929,149 @@
                 
   
   
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Add a wind field layer
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Add a wind field layer
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#statement-of-need" class="md-nav__link">
+    <span class="md-ellipsis">
+      Statement of need
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-implement-a-backend-plugin-for-wind-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Implement a backend plugin for wind information
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-declare-the-plugin-in-the-viteconfigjs-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Declare the plugin in the vite.config.js file
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-implement-the-vue-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Implement the Vue component
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-implement-the-velocity-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Implement the velocity field
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-refer-to-the-components-in-the-main-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Refer to the components in the main application
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-reload-the-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Reload the application
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
   
   
     <li class="md-nav__item">
@@ -943,39 +1086,6 @@
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    Wind field with fastmeteo
-    
-  </span>
-  
-
-      </a>
-      
     </li>
   
 
@@ -1061,6 +1171,92 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#statement-of-need" class="md-nav__link">
+    <span class="md-ellipsis">
+      Statement of need
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-implement-a-backend-plugin-for-wind-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Implement a backend plugin for wind information
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-declare-the-plugin-in-the-viteconfigjs-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Declare the plugin in the vite.config.js file
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-implement-the-vue-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Implement the Vue component
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-implement-the-velocity-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Implement the velocity field
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-refer-to-the-components-in-the-main-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Refer to the components in the main application
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-reload-the-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Reload the application
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1078,7 +1274,197 @@
   
 
 
-<h1 id="wind-field-with-fastmeteo">Wind field with fastmeteo<a class="headerlink" href="#wind-field-with-fastmeteo" title="Permanent link">&para;</a></h1>
+<h1 id="add-a-wind-field-layer">Add a wind field layer<a class="headerlink" href="#add-a-wind-field-layer" title="Permanent link">&para;</a></h1>
+<h2 id="statement-of-need">Statement of need<a class="headerlink" href="#statement-of-need" title="Permanent link">&para;</a></h2>
+<p>Meteorological data is essential for understanding the impact of weather on aviation operations. Meteo France provides weather prediction data from their <a href="https://meteofrance.com/actualites-et-dossiers/modeles-prevision-meteo">ARPEGE model</a>. The most basic features include zonal and meridional wind components, but also temperature, pressure, and humidity. More advanced features are also available but we will not cover them here.</p>
+<p>A <a href="https://portail-api.meteofrance.fr/web/en/api/ARPEGE">web API</a> is available after registration, but we will prefer here the GRIB files that can also be downloaded directly from the <a href="https://www.data.gouv.fr/fr/datasets/donnees-pnt-retention-14-jours/">data.gouv.fr</a> initiative, also provided by Meteo France under an Open License.</p>
+<p>New predictions are published every 6 hours, and the data is available for 3 days in advance. The data is provided in GRIB format, which is a standard format for meteorological data. In each file, each grid point represents spatio -temporal coordinates, and the data is provided for each hour of the day. The data is available at a resolution of 0.1 degrees, which is approximately 11 km at the equator. Altitude is provided in isobars, which is a standard unit for atmospheric pressure.</p>
+<h2 id="implementation">Implementation<a class="headerlink" href="#implementation" title="Permanent link">&para;</a></h2>
+<p>The objective of this plugin is to display a wind field on the map, at an isobar specified by the user in a slider. We need to work on the following steps:</p>
+<ol>
+<li>on the backend side, download the GRIB files from the data.gouv.fr initiative, and provide an API endpoint to fetch the wind field data for a specific isobar</li>
+<li>on the frontend side, create a Vue component that will display a slider to select an isobar, and display the corresponding wind field on the map.</li>
+</ol>
+<h3 id="1-implement-a-backend-plugin-for-wind-information">1. Implement a backend plugin for wind information<a class="headerlink" href="#1-implement-a-backend-plugin-for-wind-information" title="Permanent link">&para;</a></h3>
+<p>Create a <code>weather</code> folder in the <code>src/tangram/plugins/</code> directory, and register the plugin in the <code>__init__.py</code> file. The plugin, associated with the <code>/weather</code> router will provide an API endpoint to fetch the wind field data for a specific isobar.</p>
+<p>The logic for downloading the data is implemented in the <code>arpege.py</code> file.</p>
+<p>The code is self-explanatory, but the following points are worth noting:</p>
+<ul>
+<li>in <code>__init__.py</code>, the <code>wind(isobaric: int)</code> function returns a <code>ORJSONResponse</code> (from <code>fastapi.responses</code>) rather than a <code>JSONResponse</code>. This is because the data is large and we want to avoid the overhead of converting it to JSON. The <code>ORJSONResponse</code> is a faster alternative, based on <a href="https://github.com/ijl/orjson"><strong><code>orjson</code></strong></a> that can handle large data efficiently. It also automatically deals with datetime objects, which are used in the GRIB data.</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Extra Python libraries can be included with the <code>uv add</code> command.</p>
+<p>The command edits both the <code>pyproject.toml</code> and the <code>uv.lock</code> files:</p>
+<div class="language-shell highlight"><pre><span></span><code>uv<span class="w"> </span>add<span class="w"> </span>xarray<span class="w"> </span>cfgrib<span class="w"> </span>orjson
+</code></pre></div>
+</div>
+<ul>
+<li>
+<p>in <code>arpege.py</code>, the download of the GRIB file is wrapped in a try/except block. If the file is not found (or Internet is momentarily unavailable), the function will try to get the previous file (6 hours before) and return it. It can be useful to fallback to older files when the newer versions are not yet available.</p>
+</li>
+<li>
+<p>the <code>xarray</code> library offers a <code>load_dataset</code> and an <code>open_dataset</code> function to read GRIB files. The <code>open_dataset</code> function is used here, as it allows to read the file without loading it entirely into memory, which is useful for large files.</p>
+</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>There is an issue with the packaging of the <code>ecCodes</code> library that is used by <code>xarray</code> to read GRIB files. The specific version of the <code>ecCodes</code> library for Linux/arm64 is not yet available at the time of writing this documentation.</p>
+<p><strong>You are most likely to be impacted by this issue if you run this plugin on Apple Silicon Mac computers.</strong>
+In that case, you may want to run <code>just create-tangram-aarch64</code> to create a new Docker image with the latest version of the <code>ecCodes</code> library. The <code>just tangram</code> command will then use this image to run the application.</p>
+</div>
+<h3 id="2-declare-the-plugin-in-the-viteconfigjs-file">2. Declare the plugin in the vite.config.js file<a class="headerlink" href="#2-declare-the-plugin-in-the-viteconfigjs-file" title="Permanent link">&para;</a></h3>
+<p>The backend part of the plugin does not require any specific declaration or configuration. The frontend part will be implemented as a Vue component, which will be dynamically loaded after being declared in the <code>vite.config.js</code> file.</p>
+<div class="language-javascript highlight"><pre><span></span><code><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="c1">// ..., other settings</span>
+<span class="w">  </span><span class="nx">dynamicComponentsPlugin</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">envPath</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;../.env&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">fallbackDir</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;./src/components/&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">availablePlugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">&quot;airportSearch&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;systemInfo&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;sensorsInfo&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;windfield&quot;</span><span class="p">,</span><span class="w">  </span><span class="c1">// &lt;-- new line</span>
+<span class="w">    </span><span class="p">],</span>
+<span class="w">  </span><span class="p">}),</span>
+<span class="p">],</span>
+</code></pre></div>
+<h3 id="3-implement-the-vue-component">3. Implement the Vue component<a class="headerlink" href="#3-implement-the-vue-component" title="Permanent link">&para;</a></h3>
+<p>The Vue component will be implemented in the <code>src/components/WindField.vue</code> file. The component will include a slider to select the isobaric level, and build the JavaScript structure required to create the wind field.</p>
+<p>The template part of the component will include the slider, which is bound to a <code>v-model</code> variable called <code>isobaric</code>. The slider allows the user to select an isobaric level between 100 and 1000 hPa, with a step of 50 hPa.</p>
+<div class="language-vue highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">template</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;wind-altitude-control&quot;</span> <span class="err">@</span><span class="na">mousedown</span><span class="err">.</span><span class="na">stop</span> <span class="err">@</span><span class="na">touchstart</span><span class="err">.</span><span class="na">stop</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">label</span> <span class="na">for</span><span class="o">=</span><span class="s">&quot;hpa-slider&quot;</span><span class="p">&gt;</span><span class="cp">{{</span><span class="w"> </span><span class="nx">isobaric</span><span class="w"> </span><span class="cp">}}</span>hPa | FL<span class="cp">{{</span><span class="w"> </span><span class="nx">FL</span><span class="w"> </span><span class="cp">}}</span><span class="p">&lt;/</span><span class="nt">label</span><span class="p">&gt;</span>
+    <span class="cm">&lt;!-- @input is for the slider is moved, @change when the mouse is released --&gt;</span>
+    <span class="p">&lt;</span><span class="nt">input</span>
+      <span class="na">id</span><span class="o">=</span><span class="s">&quot;hpa-slider&quot;</span>
+      <span class="na">type</span><span class="o">=</span><span class="s">&quot;range&quot;</span>
+      <span class="na">min</span><span class="o">=</span><span class="s">&quot;100&quot;</span>
+      <span class="na">max</span><span class="o">=</span><span class="s">&quot;1000&quot;</span>
+      <span class="p">@</span><span class="na">input</span><span class="o">=</span><span class="s">&quot;</span><span class="nx">updateLabel</span><span class="s">&quot;</span>
+      <span class="p">@</span><span class="na">change</span><span class="o">=</span><span class="s">&quot;</span><span class="nx">updateValue</span><span class="s">&quot;</span>
+      <span class="na">step</span><span class="o">=</span><span class="s">&quot;50&quot;</span>
+      <span class="na">v-model</span><span class="o">=</span><span class="s">&quot;</span><span class="nx">isobaric</span><span class="s">&quot;</span>
+    <span class="p">/&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">template</span><span class="p">&gt;</span>
+</code></pre></div>
+<p>The <code>&lt;input&gt;</code> element is mapped to two events: <code>@input</code> and <code>@change</code>. The <code>@input</code> event is triggered when the user moves the slider, and it updates the <code>isobaric</code> variable, together with a conversion in altitude (in flight levels, i.e. hundreds of feet. FL100 corresponds to 10,000 ft).</p>
+<div class="language-javascript highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useMapStore</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;../store&quot;</span><span class="p">;</span><span class="w"> </span><span class="c1">// Import the map store</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;WindField&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">data</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">velocityLayer</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="c1">// This will hold the Leaflet Velocity layer</span>
+<span class="w">      </span><span class="nx">store</span><span class="o">:</span><span class="w"> </span><span class="nx">useMapStore</span><span class="p">(),</span>
+<span class="w">      </span><span class="nx">isobaric</span><span class="o">:</span><span class="w"> </span><span class="mf">300</span><span class="p">,</span><span class="w"> </span><span class="c1">// Default value in hPa (FL300)</span>
+<span class="w">      </span><span class="nx">FL</span><span class="o">:</span><span class="w"> </span><span class="mf">300</span><span class="p">,</span><span class="w"> </span><span class="c1">// Default value in flight level</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nx">methods</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">updateLabel</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="c1">// this method is available in the WindField.vue component</span>
+<span class="w">      </span><span class="k">this</span><span class="p">.</span><span class="nx">FL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">convertHpaToFlightLevel</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">isobaric</span><span class="p">);</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="k">async</span><span class="w"> </span><span class="nx">updateValue</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">&quot;Altitude changed to:&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">isobaric</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;hPa&quot;</span><span class="p">);</span>
+<span class="w">      </span><span class="c1">// Fetch the wind field data for the selected isobaric level</span>
+<span class="w">      </span><span class="k">this</span><span class="p">.</span><span class="nx">fetchAndDisplay</span><span class="p">();</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">};</span>
+</code></pre></div>
+<p>The <code>@change</code> event is triggered when the user releases the slider, and it calls the <code>updateValue</code> method to fetch the wind field data for the selected isobaric level. The default value of the slides is set to 300hPa (FL300), which is a common altitude for commercial flights.</p>
+<p>The style section of the component is at the end of the file, with a <code>scoped</code> attribute to limit the styles to this component only.</p>
+<div class="language-vue highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">style</span> <span class="na">scoped</span><span class="p">&gt;</span>
+<span class="p">.</span><span class="nc">wind-altitude-control</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c">/* this specifies the positioning of the slider on the map */</span>
+<span class="w">  </span><span class="k">position</span><span class="p">:</span><span class="w"> </span><span class="kc">absolute</span><span class="p">;</span>
+<span class="w">  </span><span class="k">top</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">left</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">z-index</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
+<span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="kt">px</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="c">/* more items */</span>
+<span class="p">&lt;/</span><span class="nt">style</span><span class="p">&gt;</span>
+</code></pre></div>
+<h3 id="4-implement-the-velocity-field">4. Implement the velocity field<a class="headerlink" href="#4-implement-the-velocity-field" title="Permanent link">&para;</a></h3>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The Leaflet Velocity plugin is not available as a vue component, only as a regular JavaScript library. Therefore, a little more work is required to integrate it into the Vue component.</p>
+</div>
+<p>Installing a new JavaScript library in a Vue component is done by importing the library in the script section of the component.</p>
+<ul>
+<li>First, it needs to be installed in the project with npm:</li>
+</ul>
+<div class="language-shell highlight"><pre><span></span><code>npm<span class="w"> </span>install<span class="w"> </span>leaflet-velocity<span class="w">  </span><span class="c1"># from the web folder</span>
+</code></pre></div>
+<ul>
+<li>Then it needs to be imported in the <code>WindField.vue</code> component:</li>
+</ul>
+<div class="language-javascript highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="nx">L</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;leaflet&quot;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="s2">&quot;leaflet-velocity&quot;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="s2">&quot;leaflet-velocity/dist/leaflet-velocity.min.css&quot;</span><span class="p">;</span>
+</code></pre></div>
+<p>Then the difficulty will be due to the fact that the Leaflet Velocity plugin is not a Vue component, but a regular JavaScript library. Therefore, we need to create a method that will be called when the component is mounted, and which will create the velocity field on the map.</p>
+<p>It can only be attached to the map after the map is created, so we will use the <code>mounted</code> lifecycle hook of the Vue component, and set up a watch to initialize the wind field only after the map becomes available.</p>
+<p>The main Leaflet map object is available from the <code>store</code> (the structure used to share information between components) as <code>this.store.map.leafletObject</code>.</p>
+<div class="language-javascript highlight"><pre><span></span><code><span class="w">    </span><span class="nx">mounted</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Wait for the map to be initialized</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">store</span><span class="p">.</span><span class="nx">map</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">store</span><span class="p">.</span><span class="nx">map</span><span class="p">.</span><span class="nx">leafletObject</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// Set up a watcher to initialize when map becomes available</span>
+<span class="w">            </span><span class="kd">const</span><span class="w"> </span><span class="nx">unwatch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">$watch</span><span class="p">(</span>
+<span class="w">                </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">store</span><span class="p">.</span><span class="nx">map</span><span class="o">?</span><span class="p">.</span><span class="nx">leafletObject</span><span class="p">,</span>
+<span class="w">                </span><span class="p">(</span><span class="nx">newVal</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">newVal</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="nx">unwatch</span><span class="p">();</span>
+<span class="w">                        </span><span class="c1">// Add listener for map movement to update wind field</span>
+<span class="w">                        </span><span class="k">this</span><span class="p">.</span><span class="nx">fetchAndDisplay</span><span class="p">();</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                </span><span class="p">},</span>
+<span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="nx">immediate</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
+<span class="w">            </span><span class="p">);</span>
+<span class="w">            </span><span class="k">return</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// If map is already available, just load the data</span>
+<span class="w">        </span><span class="k">this</span><span class="p">.</span><span class="nx">fetchAndDisplay</span><span class="p">();</span>
+
+<span class="w">    </span><span class="p">},</span>
+</code></pre></div>
+<p>Then, the <code>fetchAndDisplay</code> method will be called to fetch the wind field data from the backend and display it on the map.</p>
+<div class="language-javascript highlight"><pre><span></span><code><span class="w">    </span><span class="k">async</span><span class="w"> </span><span class="nx">fetchAndDisplay</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="sb">`/weather/wind?isobaric=</span><span class="si">${</span><span class="k">this</span><span class="p">.</span><span class="nx">isobaric</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">response</span><span class="p">.</span><span class="nx">ok</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s2">&quot;Failed to fetch wind field data:&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">statusText</span><span class="p">);</span>
+<span class="w">            </span><span class="k">return</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// Create a velocity layer with the fetched data</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">velocityLayer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">L</span><span class="p">.</span><span class="nx">velocityLayer</span><span class="p">({</span>
+<span class="w">            </span><span class="nx">displayValues</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">displayOptions</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// to be filled</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="nx">data</span><span class="o">:</span><span class="w"> </span><span class="c1">// to be formatted with data received from the backend</span>
+<span class="w">        </span><span class="p">});</span>
+
+<span class="w">        </span><span class="c1">// Add the velocity layer to the map</span>
+<span class="w">        </span><span class="k">this</span><span class="p">.</span><span class="nx">store</span><span class="p">.</span><span class="nx">map</span><span class="p">.</span><span class="nx">leafletObject</span><span class="p">.</span><span class="nx">addLayer</span><span class="p">(</span><span class="nx">velocityLayer</span><span class="p">);</span>
+<span class="w">    </span><span class="p">},</span>
+</code></pre></div>
+<h3 id="5-refer-to-the-components-in-the-main-application">5. Refer to the components in the main application<a class="headerlink" href="#5-refer-to-the-components-in-the-main-application" title="Permanent link">&para;</a></h3>
+<p>In the <code>App.vue</code> file, use the <code>&lt;plugin-windfield /&gt;</code> component to include the plugin in the main application. This will render the component and display the slider to select the isobaric level, and also render the wind field on the map after receiving the appropriate data from the backend.</p>
+<h3 id="6-reload-the-application">6. Reload the application<a class="headerlink" href="#6-reload-the-application" title="Permanent link">&para;</a></h3>
+<p>Confirm the windfield is displayed on the map. It may take a few minutes to first download the GRIB file, so be patient. Once it is downloaded in the /tmp directory, it will be reused for subsequent requests. When the container is switched off, the GRIB file will be deleted, so it will need to be downloaded again on the next run.</p>
+<p><img alt="Example of a wind field added on the map" src="../../../screenshot/windfield.png" /></p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Note that the wind field that is displayed for <code>TRA6424</code> is consistent with the groundspeed and true airspeed measured by the aircraft: 30 m/s (displayed on the lower right corner of the map) roughly corresponds to 60 kts, which is compatible with the delta in the speed values in the plot. Also a higher ground speed value is observed when the aircraft is flying with a strong tail wind.</p>
+</div>
 
 
 
@@ -1111,7 +1497,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../citypair/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Origin and destination city pair">
+          <a href="../sensors/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Map data receivers">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1121,20 +1507,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Origin and destination city pair
+                Map data receivers
               </div>
             </div>
           </a>
         
         
           
-          <a href="../contrails/" class="md-footer__link md-footer__link--next" aria-label="Next: Real-time contrails">
+          <a href="../citypair/" class="md-footer__link md-footer__link--next" aria-label="Next: Origin and destination city pair">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Real-time contrails
+                Origin and destination city pair
               </div>
             </div>
             <div class="md-footer__button md-icon">

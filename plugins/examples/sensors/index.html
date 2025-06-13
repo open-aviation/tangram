@@ -16,7 +16,7 @@
         <link rel="prev" href="../../backend/">
       
       
-        <link rel="next" href="../citypair/">
+        <link rel="next" href="../windfield/">
       
       
       <link rel="icon" href="../../../icons/favicon.ico">
@@ -1043,12 +1043,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../citypair/" class="md-nav__link">
+      <a href="../windfield/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Origin and destination city pair
+    Add a wind field layer
     
   </span>
   
@@ -1066,12 +1066,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../windfield/" class="md-nav__link">
+      <a href="../citypair/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Wind field with fastmeteo
+    Origin and destination city pair
     
   </span>
   
@@ -1276,7 +1276,11 @@
 <span class="w">  </span><span class="nx">dynamicComponentsPlugin</span><span class="p">({</span>
 <span class="w">    </span><span class="nx">envPath</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;../.env&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">fallbackDir</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;./src/components/&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">availablePlugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;sensorsInfo&quot;</span><span class="p">],</span><span class="w"> </span><span class="c1">// list all your plugins here</span>
+<span class="w">    </span><span class="nx">availablePlugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">&quot;airportSearch&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;systemInfo&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;sensorsInfo&quot;</span><span class="p">,</span><span class="w">  </span><span class="c1">// &lt;-- new line</span>
+<span class="w">    </span><span class="p">],</span>
 <span class="w">  </span><span class="p">}),</span>
 <span class="p">],</span>
 </code></pre></div>
@@ -1403,13 +1407,13 @@ The reloading of the page should be dynamic, triggered everytime you save one of
         
         
           
-          <a href="../citypair/" class="md-footer__link md-footer__link--next" aria-label="Next: Origin and destination city pair">
+          <a href="../windfield/" class="md-footer__link md-footer__link--next" aria-label="Next: Add a wind field layer">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Origin and destination city pair
+                Add a wind field layer
               </div>
             </div>
             <div class="md-footer__button md-icon">
