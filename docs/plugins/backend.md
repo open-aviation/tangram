@@ -9,7 +9,7 @@ Implementing a backend plugin for tangram involves creating a standalone applica
 
 Queries to the tangram endpoint is a very easy task. Any HTTP client can do the job, e.g. `httpx` in Python or `reqwest` in Rust. The REST API is provided by the tangram service, which is a FastAPI application.
 
-The API documentation is available at <http://localhost:2345/docs> when the service is running.
+The API documentation is available at <http://localhost:2345/tangram/docs> when the service is running.
 
 Implementing a new endpoint requires a bit more work. Here, you have two possibilities:
 

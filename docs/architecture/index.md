@@ -57,7 +57,7 @@ A state vector table is a data structure that contains the latest information ab
 
 ### tangram REST API
 
-**Documentation**: available when you run the service at <http://localhost:2345/docs>
+**Documentation**: available when you run the service at <http://localhost:2345/tangram/docs>
 
 The `tangram` component is a Python-based REST API that provides data retrieval and management capabilities. It is responsible for handling requests from the frontend and providing the necessary data for visualization and analysis. The API is designed to be modular and extensible, allowing researchers to add their own endpoints and functionality as needed.
 

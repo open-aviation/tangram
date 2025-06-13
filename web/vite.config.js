@@ -29,15 +29,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/data": `http://${tangram_service}`,
-      // end points for the documentation
-      "/docs": `http://${tangram_service}`,
-      "/openapi.json": `http://${tangram_service}`,
-      // end point for the weather plugin
-      "/weather": `http://${tangram_service}`,
-      "^/flight/.*": {
-        target: `https://${tangram_service}/flight/.*`,
+      "/tangram": {
+        target: `http://${tangram_service}`,
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/tangram/, ""),
       },
       // for channel service
       "/token": `http://${channel_service}`,

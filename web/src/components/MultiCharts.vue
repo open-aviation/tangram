@@ -538,7 +538,7 @@ export default {
     fetchChartData(item) {
       const { icao24 } = item;
       console.log(`fetching ${icao24} data ...`);
-      fetch('/data/' + icao24)
+      fetch('/tangram/data/' + icao24)
         .then(async (data) => {
           const resp = await data.json();
           console.log(`fetched ${icao24} data ${resp.length} items`);

@@ -103,7 +103,7 @@ export default {
             }
 
             // Fetch wind data from API
-            const response = await fetch(`/weather/wind?isobaric=${this.isobaric}`);
+            const response = await fetch(`/tangram/weather/wind?isobaric=${this.isobaric}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
