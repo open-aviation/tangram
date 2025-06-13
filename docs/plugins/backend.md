@@ -82,6 +82,12 @@ def register_plugin(app: FastAPI) -> None:
 
 ```
 
+!!! warning
+
+    Note that there is no activate/deactivate mechanism for backend plugins. If they are found in the `src/tangram/plugins/` directory, they will be automatically registered when the main FastAPI application starts.
+
+    This is insignificant for most plugins creating new endpoints as they are usually stateless. However, if your plugin has a state (e.g. it subscribes to Redis channels, consume heavy resources at load time, etc.), then you may want to deactivate it. In that case, we recommend that you read an environment variable and conditionally execute commands in the `register_plugin` function. This way, you can control whether the plugin is active or not based on the environment variable.
+
 ## Communicate with Redis
 
 Receiving and sending data from Redis is a common task for backend plugins. The process is based on a pub/sub system, where the plugin subscribes to specific channels to receive messages and can publish messages to other channels.

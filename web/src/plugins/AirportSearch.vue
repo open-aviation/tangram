@@ -13,6 +13,7 @@
 
 <script>
 import { airport_information } from 'rs1090-wasm';
+import { useMapStore } from '../store';
 
 export default {
     name: 'AirportSearch',
@@ -20,6 +21,7 @@ export default {
         return {
             query: "",
             results: [],
+            store: useMapStore(),
             timeoutId: null
         }
     },
@@ -42,7 +44,11 @@ export default {
         selectAirport(airport) {
             // Emit an event with the selected airport details.
             // Parent component should listen to 'airport-selected' to center the map.
-            this.$emit('airport-selected', airport);
+            //this.$emit('airport-selected', airport);
+            this.store.map.leafletObject.setView(
+                [airport.lat, airport.lon],
+                13 // Adjust zoom level as needed
+            );
             // Optionally update the query and clear results.
             this.query = ""; //airport.name;
             this.results = [];

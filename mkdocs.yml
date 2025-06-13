@@ -21,8 +21,8 @@ nav:
       - "plugins/backend.md"
       - Examples:
           - "plugins/examples/sensors.md"
-          - "plugins/examples/citypair.md"
           - "plugins/examples/windfield.md"
+          - "plugins/examples/citypair.md"
           - "plugins/examples/contrails.md"
   - Contribute: "contribute.md"
 

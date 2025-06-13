@@ -1,12 +1,10 @@
 <template>
-    <div>
-        <!-- This component doesn't have a visual template as it adds layers to parent map -->
-        <div class="wind-altitude-control" @mousedown.stop @touchstart.stop>
-            <label for="altitude-slider">{{ hPa }}hPa | FL{{ FL }}</label>
-
-            <input id="altitude-slider" type="range" min="100" max="1000"
-                @change="altitudeChanged" step="50" v-model="hPa">
-        </div>
+    <div class="wind-altitude-control" @mousedown.stop @touchstart.stop>
+        <label for="hpa-slider">{{ isobaric }}hPa | FL{{ FL }}</label>
+        <!-- @input is for the slider is moved, @change when the mouse is released -->
+        <input id="hpa-slider" type="range" min="100" max="1000"
+            @input="updateLabel" @change="updateValue" step="50"
+            v-model="isobaric">
     </div>
 </template>
 
@@ -21,34 +19,55 @@ export default {
     name: 'WindField',
     data() {
         return {
-            windLayer: null,
+            velocityLayer: null,
             store: useMapStore(),
-            hPa: 300, // Default altitude in hPa
+            isobaric: 300, // Default altitude in hPa
             FL: 300, // Default flight level
         };
     },
     mounted() {
-        this.initWindLayer();
+        // Wait for the map to be initialized
+        if (!this.store.map || !this.store.map.leafletObject) {
+            // Set up a watcher to initialize when map becomes available
+            const unwatch = this.$watch(
+                () => this.store.map?.leafletObject,
+                (newVal) => {
+                    if (newVal) {
+                        unwatch();
+                        // Add listener for map movement to update wind field
+                        this.fetchAndDisplay();
+                    }
+                },
+                { immediate: true }
+            );
+            return;
+        }
+
+        // If map is already available, just load the data
+        this.fetchAndDisplay();
+
     },
     beforeUnmount() {
         // Clean up when component is destroyed
         if (this.store.map && this.store.map.leafletObject) {
             // Remove the wind layer if it exists
-            if (this.windLayer) {
-                this.store.map.leafletObject.removeLayer(this.windLayer);
+            if (this.velocityLayer) {
+                this.store.map.leafletObject.removeLayer(this.velocityLayer);
             }
         }
     },
     methods: {
-        altitudeChanged() {
-            // Handle altitude change
-            console.log("Altitude changed to:", this.hPa);
-            this.FL = this.hPaToFlightLevel(this.hPa);
-            // Re-fetch wind data with new altitude
-            this.fetchAndDisplayWindData();
+        updateLabel() {
+            this.FL = this.convertHpaToFlightLevel(this.isobaric);
         },
-        hPaToFlightLevel(hPa) {
-            // Constants for the ISA model
+        updateValue() {
+            // Handle altitude change
+            console.log("Altitude changed to:", this.isobaric, "hPa");
+            // Re-fetch wind data with new altitude
+            this.fetchAndDisplay();
+        },
+        convertHpaToFlightLevel(isobaric) {
+            // Convert the pressure to an altitude in hundreds of feet (FL)
             const P0 = 1013.25; // Standard sea level pressure in hPa
             const T0 = 288.15;  // Standard sea level temperature in K
             const L = 0.0065;   // Temperature lapse rate in K/m
@@ -57,45 +76,27 @@ export default {
             const H_TROP = 11000; // Height of tropopause in m
 
             let altitude;
-            if (hPa > 226.32) { // Pressure at tropopause
+            if (isobaric > 226.32) { // Pressure at tropopause
                 // Below tropopause - using barometric formula with temperature gradient
-                altitude = T0 / L * (1 - Math.pow(hPa / P0, (L * R) / g));
+                altitude = T0 / L * (1 - Math.pow(isobaric / P0, (L * R) / g));
             } else {
                 // Above tropopause - isothermal layer
                 const T_TROP = T0 - L * H_TROP; // Temperature at tropopause
                 const P_TROP = P0 * Math.pow(T_TROP / T0, g / (L * R)); // Pressure at tropopause
-                altitude = H_TROP + (T_TROP * R / g) * Math.log(P_TROP / hPa);
+                altitude = H_TROP + (T_TROP * R / g) * Math.log(P_TROP / isobaric);
             }
 
             // Convert to flight level (hundreds of feet)
             return Math.round(altitude * 3.28084 / 1000) * 10;
         },
-        async initWindLayer() {
-            // Wait for the map to be initialized
-            if (!this.store.map || !this.store.map.leafletObject) {
-                // Set up a watcher to initialize when map becomes available
-                const unwatch = this.$watch(
-                    () => this.store.map?.leafletObject,
-                    (newVal) => {
-                        if (newVal) {
-                            unwatch();
 
-                            // Add listener for map movement to update wind field
-                            this.fetchAndDisplayWindData();
-                        }
-                    },
-                    { immediate: true }
-                );
-                return;
-            }
+        /** Fetch wind data from the API and display it on the map.
+         *
+         * This method is called when the component is mounted and whenever the
+         * altitude changes.
+         */
 
-            // If map is already available, set up the listener
-            // Usually, this will not be the case, but it happens
-            await this.fetchAndDisplayWindData();
-        },
-
-
-        async fetchAndDisplayWindData() {
+        async fetchAndDisplay() {
             // Check if map is available
             if (!this.store.map || !this.store.map.leafletObject) {
                 console.error("Map not available");
@@ -103,7 +104,7 @@ export default {
             }
 
             // Fetch wind data from API
-            const response = await fetch(`/weather/wind?isobaric=${this.hPa}`);
+            const response = await fetch(`/weather/wind?isobaric=${this.isobaric}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -112,15 +113,15 @@ export default {
             const data = await response.json();
 
             // Format data for leaflet-velocity
-            const velocityData = this.formatDataForVelocity(data);
+            const velocityData = this.formatData(data);
 
-            if (this.windLayer !== null) {
-                this.windLayer.setData(velocityData);
+            if (this.velocityLayer !== null) {
+                this.velocityLayer.setData(velocityData);
                 return;
             }
 
             // Create and add new wind layer
-            const windLayer = L.velocityLayer({
+            const velocityLayer = L.velocityLayer({
                 displayValues: true,
                 displayOptions: {
                     velocityType: 'Wind',
@@ -146,11 +147,11 @@ export default {
                     '#d53e4f'      // Dark red for extremely strong winds
                 ],
             });
-            windLayer.addTo(this.store.map.leafletObject);
-            this.windLayer = windLayer;
+            velocityLayer.addTo(this.store.map.leafletObject);
+            this.velocityLayer = velocityLayer;
         },
 
-        formatDataForVelocity(rawData) {
+        formatData(data) {
             // Format the API response into the structure required by leaflet-velocity
             // The exact structure depends on your API, but typical format is:
             const formattedData = [
@@ -158,33 +159,33 @@ export default {
                     header: {
                         parameterCategory: 2,
                         parameterNumber: 2,
-                        dx: rawData.data_vars.u.attrs.GRIB_iDirectionIncrementInDegrees,
-                        dy: rawData.data_vars.u.attrs.GRIB_jDirectionIncrementInDegrees,
-                        la1: rawData.data_vars.u.attrs.GRIB_latitudeOfFirstGridPointInDegrees,
-                        lo1: rawData.data_vars.u.attrs.GRIB_longitudeOfFirstGridPointInDegrees,
-                        la2: rawData.data_vars.u.attrs.GRIB_latitudeOfLastGridPointInDegrees,
-                        lo2: rawData.data_vars.u.attrs.GRIB_longitudeOfLastGridPointInDegrees,
-                        nx: rawData.data_vars.u.attrs.GRIB_Nx,
-                        ny: rawData.data_vars.u.attrs.GRIB_Ny,
+                        dx: data.data_vars.u.attrs.GRIB_iDirectionIncrementInDegrees,
+                        dy: data.data_vars.u.attrs.GRIB_jDirectionIncrementInDegrees,
+                        la1: data.data_vars.u.attrs.GRIB_latitudeOfFirstGridPointInDegrees,
+                        lo1: data.data_vars.u.attrs.GRIB_longitudeOfFirstGridPointInDegrees,
+                        la2: data.data_vars.u.attrs.GRIB_latitudeOfLastGridPointInDegrees,
+                        lo2: data.data_vars.u.attrs.GRIB_longitudeOfLastGridPointInDegrees,
+                        nx: data.data_vars.u.attrs.GRIB_Nx,
+                        ny: data.data_vars.u.attrs.GRIB_Ny,
                         refTime: new Date().toISOString()
                     },
-                    data: rawData.data_vars.u.data.flat(),
+                    data: data.data_vars.u.data.flat(),
                 },
                 {
                     header: {
                         parameterCategory: 2,
                         parameterNumber: 3,
-                        dx: rawData.data_vars.v.attrs.GRIB_iDirectionIncrementInDegrees,
-                        dy: rawData.data_vars.v.attrs.GRIB_jDirectionIncrementInDegrees,
-                        la1: rawData.data_vars.v.attrs.GRIB_latitudeOfFirstGridPointInDegrees,
-                        lo1: rawData.data_vars.v.attrs.GRIB_longitudeOfFirstGridPointInDegrees,
-                        la2: rawData.data_vars.v.attrs.GRIB_latitudeOfLastGridPointInDegrees,
-                        lo2: rawData.data_vars.v.attrs.GRIB_longitudeOfLastGridPointInDegrees,
-                        nx: rawData.data_vars.v.attrs.GRIB_Nx,
-                        ny: rawData.data_vars.v.attrs.GRIB_Ny,
+                        dx: data.data_vars.v.attrs.GRIB_iDirectionIncrementInDegrees,
+                        dy: data.data_vars.v.attrs.GRIB_jDirectionIncrementInDegrees,
+                        la1: data.data_vars.v.attrs.GRIB_latitudeOfFirstGridPointInDegrees,
+                        lo1: data.data_vars.v.attrs.GRIB_longitudeOfFirstGridPointInDegrees,
+                        la2: data.data_vars.v.attrs.GRIB_latitudeOfLastGridPointInDegrees,
+                        lo2: data.data_vars.v.attrs.GRIB_longitudeOfLastGridPointInDegrees,
+                        nx: data.data_vars.v.attrs.GRIB_Nx,
+                        ny: data.data_vars.v.attrs.GRIB_Ny,
                         refTime: new Date().toISOString()
                     },
-                    data: rawData.data_vars.v.data.flat()
+                    data: data.data_vars.v.data.flat()
                 }
             ];
             return formattedData;

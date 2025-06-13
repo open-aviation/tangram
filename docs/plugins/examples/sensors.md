@@ -30,7 +30,11 @@ plugins: [
   dynamicComponentsPlugin({
     envPath: "../.env",
     fallbackDir: "./src/components/",
-    availablePlugins: ["sensorsInfo"], // list all your plugins here
+    availablePlugins: [
+        "airportSearch",
+        "systemInfo",
+        "sensorsInfo",  // <-- new line
+    ],
   }),
 ],
 ```

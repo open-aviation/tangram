@@ -10,13 +10,11 @@
       <l-tile-layer :url="map_url" layer-type="base"
         name="OpenStreetMap"></l-tile-layer>
 
-      <AirportSearch @airport-selected="centerMapTo" />
-
       <PlaneData />
       <PlaneTrail />
 
-      <plugin-sensorsinfo />
       <plugin-airportsearch />
+      <plugin-sensorsinfo />
       <plugin-windfield />
 
       <!--<plugin-sigmetinfo />
@@ -107,13 +105,6 @@ export default {
   },
 
   methods: {
-    centerMapTo(airport) {
-      const map = this.$refs.map.leafletObject;
-      console.log(airport.icao + "selected", map);
-      if (map && airport.lat && airport.lon) {
-        map.setView([airport.lat, airport.lon], 13);
-      }
-    },
     joinChannel(socket, channelName, callbacks) {
       return new Promise((resolve, reject) => {
         console.log(`joining ${channelName} channel ...`);
