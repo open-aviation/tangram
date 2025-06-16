@@ -11,6 +11,7 @@ import dynamicComponentsPlugin from "./dynamic-components";
 // Useful for loading WASM libraries
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
+import { HttpsProxyAgent } from "https-proxy-agent";
 
 let tangram_service = process.env.TANGRAM_SERVICE || "127.0.0.1:2346";
 let channel_service = process.env.CHANNEL_SERVICE || "127.0.0.1:2347";
@@ -18,6 +19,10 @@ let jet1090_service = process.env.JET1090_URL || "127.0.0.1:8080";
 
 // Get the address of the host of the container (this usually works)
 let host_address = process.env.HOST_URL || "host.containers.internal";
+
+let proxy_agent = process.env.http_proxy
+  ? new HttpsProxyAgent(process.env.http_proxy)
+  : undefined;
 
 export default defineConfig({
   envDir: "..",
@@ -40,6 +45,13 @@ export default defineConfig({
         target: `ws://${channel_service}`,
         ws: true,
         rewriteWsOrigin: true,
+      },
+      "/route": {
+        target: "https://flightroutes.opensky-network.org",
+        agent: proxy_agent,
+        changeOrigin: true,
+        secure: true,
+        rewrite: () => "/api/routeset",
       },
       "/sensors": {
         target: `${jet1090_service}/sensors`,
@@ -75,9 +87,8 @@ export default defineConfig({
         "airportSearch",
         "systemInfo",
         "sensorsInfo",
+        // "windField",
         "cityPair",
-        //"windField",
-        //"sigmetInfo",
       ],
     }),
   ],

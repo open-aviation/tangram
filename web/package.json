@@ -30,6 +30,7 @@
     "axios": "^1.7.7",
     "chart.js": "^4.4.3",
     "dayjs": "^1.11.12",
+    "https-proxy-agent": "^7.0.6",
     "leaflet": "^1.9.4",
     "leaflet-velocity": "^2.1.4",
     "phoenix": "^1.7.11",
