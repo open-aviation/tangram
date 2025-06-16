@@ -964,6 +964,19 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Origin and destination city pair
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -975,6 +988,94 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#statement-of-need" class="md-nav__link">
+    <span class="md-ellipsis">
+      Statement of need
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-declare-the-plugin-in-the-viteconfigjs-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Declare the plugin in the vite.config.js file
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-configure-proxy-for-the-route-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Configure proxy for the route API
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-implement-the-vue-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Implement the Vue component
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-refer-to-the-component-in-the-main-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Refer to the component in the main application
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-reload-your-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Reload your application
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1061,6 +1162,83 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#statement-of-need" class="md-nav__link">
+    <span class="md-ellipsis">
+      Statement of need
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-declare-the-plugin-in-the-viteconfigjs-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Declare the plugin in the vite.config.js file
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-configure-proxy-for-the-route-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Configure proxy for the route API
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-implement-the-vue-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Implement the Vue component
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-refer-to-the-component-in-the-main-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Refer to the component in the main application
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-reload-your-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Reload your application
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1079,7 +1257,139 @@
 
 
 <h1 id="origin-and-destination-city-pair">Origin and destination city pair<a class="headerlink" href="#origin-and-destination-city-pair" title="Permanent link">&para;</a></h1>
-<p>(hatching)</p>
+<h2 id="statement-of-need">Statement of need<a class="headerlink" href="#statement-of-need" title="Permanent link">&para;</a></h2>
+<p>The city pair plugin displays the origin and destination information for the selected aircraft, showing both the airport codes (ICAO) and the city names. This makes it easy to quickly understand the flight route without leaving the main map interface.</p>
+<h2 id="implementation">Implementation<a class="headerlink" href="#implementation" title="Permanent link">&para;</a></h2>
+<p>The implementation of the city pair plugin is a Vue.js component that displays the origin and destination of a flight when an aircraft is selected on the map. The implementation is located in the <code>src/plugins/CityPair.vue</code> file.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>When a Vue component is a plugin, its implementation can be overridden by a custom implementation located in a different directory. This is useful if you want to have several possible implementations for a functionality, or if you want to use a different implementation for a specific use case.
+This is particularly useful if you have a custom implementation of the city pair plugin using different sources of data (specific airport or airline development API, EUROCONTROL B2B, etc.) that are not necessarily publicly available, or not without a private token.</p>
+<p>If the environment variable <code>TANGRAM_WEB_CITYPAIR_PLUGIN</code> is defined, the plugin will be loaded from the specified path. Otherwise, it will be loaded from the default fallback location. You can specify the path to your custom implementation in the <code>.env</code> file.</p>
+</div>
+<p>In this example, the flight route information is obtained from the OpenSky Network's route service, which provides origin-destination pairs based on the flight's callsign.
+The city names are retrieved using the <code>airport_information</code> function from the <a href="https://www.npmjs.com/package/rs1090-wasm"><code>rs1090-wasm</code> library</a>.</p>
+<h3 id="1-declare-the-plugin-in-the-viteconfigjs-file">1. Declare the plugin in the <code>vite.config.js</code> file<a class="headerlink" href="#1-declare-the-plugin-in-the-viteconfigjs-file" title="Permanent link">&para;</a></h3>
+<p>In order to use the <code>CityPair</code> component as a plugin, you need to declare it in the <code>vite.config.js</code> file:</p>
+<div class="language-javascript highlight"><pre><span></span><code><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="c1">// ..., other settings</span>
+<span class="w">  </span><span class="nx">dynamicComponentsPlugin</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">envPath</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;../.env&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">fallbackDir</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;/src/plugins/&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">availablePlugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">      </span><span class="s2">&quot;airportSearch&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="s2">&quot;systemInfo&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="s2">&quot;sensorsInfo&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="c1">// &quot;windField&quot;,</span>
+<span class="w">      </span><span class="s2">&quot;cityPair&quot;</span><span class="p">,</span><span class="w">  </span><span class="c1">// &lt;-- new line</span>
+<span class="w">    </span><span class="p">],</span>
+<span class="w">  </span><span class="p">}),</span>
+<span class="p">],</span>
+</code></pre></div>
+<h3 id="2-configure-proxy-for-the-route-api">2. Configure proxy for the route API<a class="headerlink" href="#2-configure-proxy-for-the-route-api" title="Permanent link">&para;</a></h3>
+<p>The city pair plugin needs to fetch route information from an external API.</p>
+<p>When we fetch data from an external API, we often encounter CORS (Cross-Origin Resource Sharing) issues, which is a security feature implemented by web browsers to prevent malicious websites from making requests to other domains. This can block our requests to the OpenSky Network's route service.
+To avoid these issues, we can set up a proxy in the <code>vite.config.js</code> file to redirect requests to the external API: we create the <code>/route</code> endpoint in the proxy configuration, which will redirect requests to the OpenSky Network's route service.</p>
+<div class="language-javascript highlight"><pre><span></span><code><span class="nx">server</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">proxy</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ..., other settings</span>
+<span class="w">    </span><span class="s2">&quot;/route&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">target</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;https://flightroutes.opensky-network.org&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">agent</span><span class="o">:</span><span class="w"> </span><span class="nx">proxy_agent</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">changeOrigin</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">secure</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">rewrite</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="s2">&quot;/api/routeset&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">},</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>If you have proxy settings configured in your environment, the <code>proxy_agent</code> will automatically use them. This allows you to work with the OpenSky Network's route service without needing to modify the code.</p>
+</div>
+<h3 id="3-implement-the-vue-component">3. Implement the Vue component<a class="headerlink" href="#3-implement-the-vue-component" title="Permanent link">&para;</a></h3>
+<p>The <code>CityPair.vue</code> component has three main sections: template, script and style.</p>
+<p>The template section displays the origin and destination airports with their respective city names. The template section controls the structure of the DOM elements and how they are displayed in the browser. We use here Vue's conditional rendering to display the city pair information only when both origin and destination are available. We also display loading and error messages based on the component's state.</p>
+<div class="language-vue highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">template</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;city_pair&quot;</span> <span class="na">v-if</span><span class="o">=</span><span class="s">&quot;</span><span class="nx">origin</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">destination</span><span class="s">&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;airport&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;icao&quot;</span><span class="p">&gt;</span><span class="cp">{{</span><span class="w"> </span><span class="nx">origin</span><span class="w"> </span><span class="cp">}}</span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;city&quot;</span><span class="p">&gt;</span><span class="cp">{{</span><span class="w"> </span><span class="nx">originName</span><span class="w"> </span><span class="cp">}}</span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;airport&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;icao&quot;</span><span class="p">&gt;</span><span class="cp">{{</span><span class="w"> </span><span class="nx">destination</span><span class="w"> </span><span class="cp">}}</span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;city&quot;</span><span class="p">&gt;</span><span class="cp">{{</span><span class="w"> </span><span class="nx">destinationName</span><span class="w"> </span><span class="cp">}}</span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">v-else-if</span><span class="o">=</span><span class="s">&quot;</span><span class="nx">loading</span><span class="s">&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;loading&quot;</span><span class="p">&gt;</span>Loading route information...<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">v-else-if</span><span class="o">=</span><span class="s">&quot;</span><span class="nx">error</span><span class="s">&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;error&quot;</span><span class="p">&gt;</span>
+    <span class="cp">{{</span><span class="w"> </span><span class="nx">error</span><span class="w"> </span><span class="cp">}}</span>
+  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">template</span><span class="p">&gt;</span>
+</code></pre></div>
+<p>In the script section, the model needs to store the origin and destination airport codes, their city names, and the loading/error states. It uses the <code>useMapStore</code> to access the selected aircraft from the global state.</p>
+<p>We need to:</p>
+<ul>
+<li>watch for changes in the selected aircraft</li>
+<li>fetch route data when an aircraft is selected</li>
+<li>reset data when the selected aircraft changes</li>
+</ul>
+<div class="language-vue highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useMapStore</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@store&quot;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">airport_information</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;rs1090-wasm&quot;</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">data</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">store</span><span class="o">:</span><span class="w"> </span><span class="nx">useMapStore</span><span class="p">(),</span>
+<span class="w">      </span><span class="nx">loading</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">error</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">origin</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">destination</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">originName</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">destinationName</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nx">computed</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">selected</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="nx">store</span><span class="p">.</span><span class="nx">selectedPlane</span><span class="p">;</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nx">watch</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">selected</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="c1">// Watch for changes in selected aircraft</span>
+<span class="w">      </span><span class="nx">handler</span><span class="p">(</span><span class="nx">newValue</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">this</span><span class="p">.</span><span class="nx">resetData</span><span class="p">();</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">newValue</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">newValue</span><span class="p">.</span><span class="nx">callsign</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="k">this</span><span class="p">.</span><span class="nx">fetchRouteData</span><span class="p">(</span><span class="nx">newValue</span><span class="p">.</span><span class="nx">callsign</span><span class="p">.</span><span class="nx">trim</span><span class="p">());</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="nx">deep</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">immediate</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nx">methods</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Fetch route data from API</span>
+<span class="w">    </span><span class="nx">fetchRouteData</span><span class="p">(</span><span class="nx">callsign</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="c1">// Make API request to get route data</span>
+<span class="w">      </span><span class="c1">// Process response and set city names</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">};</span>
+<span class="p">&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</code></pre></div>
+<h3 id="4-refer-to-the-component-in-the-main-application">4. Refer to the component in the main application<a class="headerlink" href="#4-refer-to-the-component-in-the-main-application" title="Permanent link">&para;</a></h3>
+<p>Once declared as a plugin, you can use the component in any Vue file by adding:</p>
+<div class="language-vue highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">plugin-citypair</span> <span class="p">/&gt;</span>
+</code></pre></div>
+<p>This will render the city pair information when an aircraft is selected on the map.</p>
+<h3 id="5-reload-your-application">5. Reload your application<a class="headerlink" href="#5-reload-your-application" title="Permanent link">&para;</a></h3>
+<p>After implementing the plugin and configuring the proxy, reload your application to see the city pair information when selecting aircraft on the map. You should see both the ICAO codes and city names for the origin and destination airports.</p>
+<p><img alt="City Pair Plugin Example" src="../../../screenshot/citypair.png" /></p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The OpenSky Network's route service is not guaranteed to be available at all times and for all aircraft, so the plugin may not always display data. If the service is down or the request fails, the plugin will show an error message instead of the city pair information.</p>
+</div>
 
 
 
