@@ -1288,14 +1288,9 @@
 </code></pre></div>
 <p>The file contains default configurations for a basic demo setup. You can modify it later to suit your needs.</p>
 <h2 id="2-build-containers">2. Build Containers<a class="headerlink" href="#2-build-containers" title="Permanent link">&para;</a></h2>
-<p>Build the <code>tangram</code> and <code>jet1090</code> containers:</p>
-<div class="language-shell highlight"><pre><span></span><code>just<span class="w"> </span>build-tangram
-just<span class="w"> </span>build-jet1090
+<p>Build the <code>tangram</code> container:</p>
+<div class="language-shell highlight"><pre><span></span><code>just<span class="w"> </span>create-tangram
 </code></pre></div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The <code>jet1090</code> executable can also be easily installed directly on your system if you prefer not to use a container. Check the <a href="https://mode-s.org/jet1090/">jet1090 documentation</a> for installation instructions. However, the default configuration works with a containerized version for simplicity.</p>
-</div>
 <h2 id="3-launch-redis">3. Launch Redis<a class="headerlink" href="#3-launch-redis" title="Permanent link">&para;</a></h2>
 <p>Start a Redis container for message passing and caching between different services:</p>
 <div class="language-shell highlight"><pre><span></span><code>just<span class="w"> </span>redis
@@ -1317,6 +1312,16 @@ just<span class="w"> </span>build-jet1090
 </code></pre></div>
 <p>You should now see the <code>jet1090</code> console displaying data received from the source:</p>
 <p><img alt="jet1090 console" src="../screenshot/jet1090.png" /></p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The <code>jet1090</code> executable can also be easily installed directly on your system if you prefer not to use a container. Check the <a href="https://mode-s.org/jet1090/">jet1090 documentation</a> for installation instructions. However, the default configuration works with a containerized version for simplicity.</p>
+<p>Note that it is mandatory to run <code>jet1090</code> locally if you want to feed data from a RTL-SDR device, as the containerized version may not have access to your local hardware: it can be parameterized for Linux (a bit complicated), but it is not possible for Apple computers due to limitations in the kernel implementation.</p>
+<p>In that case, you need to edit some parameters in the <code>.env</code> file:</p>
+<ul>
+<li><code>REDIS_URL</code> becomes <code>http://host.containers.internal:6379</code> (which will work thanks to port redirection explicited in the <code>justfile</code>)</li>
+<li><code>JET1090_URL</code> becomes <code>http://host.containers.internal:8080</code>.</li>
+</ul>
+</div>
 <h2 id="5-launch-tangram">5. Launch tangram<a class="headerlink" href="#5-launch-tangram" title="Permanent link">&para;</a></h2>
 <p>In a new terminal, run the tangram container:</p>
 <div class="language-shell highlight"><pre><span></span><code>just<span class="w"> </span>tangram
@@ -1351,6 +1356,10 @@ just<span class="w"> </span>build-jet1090
 <tr>
 <td>Verify Redis connection</td>
 <td><code>podman container exec -it redis redis-cli ping</code></td>
+</tr>
+<tr>
+<td>Kill a container if needed</td>
+<td><code>podman kill &lt;container_name&gt;</code> (e.g. <code>jet1090</code> or <code>tangram</code>)</td>
 </tr>
 </tbody>
 </table>
