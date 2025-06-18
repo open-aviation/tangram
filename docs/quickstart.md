@@ -34,16 +34,11 @@ The file contains default configurations for a basic demo setup. You can modify 
 
 ## 2. Build Containers
 
-Build the `tangram` and `jet1090` containers:
+Build the `tangram` container:
 
 ```shell
-just build-tangram
-just build-jet1090
+just create-tangram
 ```
-
-!!! note
-
-    The `jet1090` executable can also be easily installed directly on your system if you prefer not to use a container. Check the [jet1090 documentation](https://mode-s.org/jet1090/) for installation instructions. However, the default configuration works with a containerized version for simplicity.
 
 ## 3. Launch Redis
 
@@ -83,6 +78,17 @@ You should now see the `jet1090` console displaying data received from the sourc
 
 ![jet1090 console](./screenshot/jet1090.png)
 
+!!! note
+
+    The `jet1090` executable can also be easily installed directly on your system if you prefer not to use a container. Check the [jet1090 documentation](https://mode-s.org/jet1090/) for installation instructions. However, the default configuration works with a containerized version for simplicity.
+
+    Note that it is mandatory to run `jet1090` locally if you want to feed data from a RTL-SDR device, as the containerized version may not have access to your local hardware: it can be parameterized for Linux (a bit complicated), but it is not possible for Apple computers due to limitations in the kernel implementation.
+
+    In that case, you need to edit some parameters in the `.env` file:
+
+    - `REDIS_URL` becomes `http://host.containers.internal:6379` (which will work thanks to port redirection explicited in the `justfile`)
+    - `JET1090_URL` becomes `http://host.containers.internal:8080`.
+
 ## 5. Launch tangram
 
 In a new terminal, run the tangram container:
@@ -105,9 +111,10 @@ Open your browser and navigate to <http://localhost:2345> to access the tangram 
 
 ## Troubleshooting
 
-| Issue                                 | Command                                          |
-| ------------------------------------- | ------------------------------------------------ |
-| Check the logs for errors             | `just tangram-log`                               |
-| Open a shell in the tangram container | `just tangram-shell`                             |
-| Ensure all containers are running     | `podman container ls`                            |
-| Verify Redis connection               | `podman container exec -it redis redis-cli ping` |
+| Issue                                 | Command                                                      |
+| ------------------------------------- | ------------------------------------------------------------ |
+| Check the logs for errors             | `just tangram-log`                                           |
+| Open a shell in the tangram container | `just tangram-shell`                                         |
+| Ensure all containers are running     | `podman container ls`                                        |
+| Verify Redis connection               | `podman container exec -it redis redis-cli ping`             |
+| Kill a container if needed            | `podman kill <container_name>` (e.g. `jet1090` or `tangram`) |
