@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install just command runner
-        uses: extractions/setup-just@v1
+        uses: extractions/setup-just@v3
         with:
           just-version: '1.14'  # Specify the version you need
 
