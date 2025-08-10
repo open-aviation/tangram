@@ -1,4 +1,68 @@
-# Implement a backend plugin
+Backend plugins are the standard way to add new server-side capabilities to `tangram`. They are self-contained Python packages that `tangram` discovers and loads at runtime, allowing for clean separation from the core framework.
+
+This design, inspired by the plugin systems of tools like `mkdocstrings` and `pytest`, means you can develop and distribute your `tangram` extensions on PyPI.
+
+# 1. Project Structure
+
+A backend plugin is a standard Python package.
+
+```text
+my-tangram-plugin/
+├── pyproject.toml
+└── src/
+    └── my_plugin/
+        └── __init__.py
+```
+
+# 2. The `pyproject.toml`
+
+It tells the Python ecosystem that your package is a `tangram` plugin by defining an **entry point**.
+
+```toml title="pyproject.toml"
+[project]
+name = "my-tangram-plugin"
+version = "0.1.0"
+dependencies = [
+    "tangram>=0.2.0"
+]
+
+# this section makes your plugin discoverable by tangram.
+[project.entry-points."tangram.plugins"]
+my_plugin = "my_plugin:register_plugin"
+```
+
+The `[project.entry-points."tangram.plugins"]` table declares that a plugin named `my_plugin` exists, and its registration function is `register_plugin` inside the `my_plugin` module.
+
+# 3. The Plugin Code
+
+The `register_plugin` function is the hook that `tangram` calls to integrate your plugin. It receives the main `FastAPI` application instance, allowing you to attach your own routers, background tasks, or middleware.
+
+```python title="src/my_plugin/__init__.py"
+from fastapi import APIRouter, FastAPI
+
+router = APIRouter(prefix="/my-plugin")
+
+@router.get("/")
+async def my_endpoint():
+    return {"message": "Hello from my custom plugin!"}
+
+def register_plugin(app: FastAPI):
+    """This function is discovered and called by tangram."""
+    app.include_router(router)
+```
+
+# 4. Using Your Plugin
+
+Once your package is installed (e.g., via `uv pip install .`), enable it in your [`tangram.toml`](../configuration.md):
+
+```toml
+[core]
+plugins = ["my_plugin"]
+```
+
+When you run `tangram serve`, the core application will automatically find and load your plugin, and the `/my-plugin` endpoint will become available.
+
+<!-- # Implement a backend plugin
 
 Implementing a backend plugin for tangram involves creating a standalone application (in Python or any other language) than can communicate with other components of the tangram system. This process should be able to:
 
@@ -172,4 +236,4 @@ The convention on the Redis channels is to use the `to:system:` prefix for messa
 
 For instance, every time the map is moved or zoomed, the frontend sends a WebSocket message on the `bound-box` channel, which is then forwarded by `channel` on the Redis using the `from:system:bound-box` label. Conversely, state vector updates from the backend components are sent on the `to:streaming-(*):new-data` channel, which is then forwarded to the frontend clients labelled as `new-data`.[^1]
 
-[^1]: The `(*)` placeholder is to be replaced by a unique identifier assigned to a session (When many browsers are connected to the same tangram service, they may be focused on different areas of the map, and thus receive different data).
+[^1]: The `(*)` placeholder is to be replaced by a unique identifier assigned to a session (When many browsers are connected to the same tangram service, they may be focused on different areas of the map, and thus receive different data). -->

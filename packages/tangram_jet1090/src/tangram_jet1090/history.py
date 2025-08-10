@@ -6,7 +6,8 @@ from typing import Any, List
 
 from redis.commands.timeseries import TimeSeries
 
-from tangram.common import database, redis
+from tangram import redis
+from tangram.common import database
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"

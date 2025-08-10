@@ -11,8 +11,9 @@ import redis
 import rs1090
 from pydantic import BaseModel
 
+from tangram.redis import Subscriber as SubscriberBase
+
 from .common.basestation import aircraft_db
-from .common.redis import Subscriber as SubscriberBase
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tangram_system"
+version = "0.2.0"
+readme = "readme.md"
+dependencies = [
+    "tangram>=0.2.0",
+    "psutil",
+]
+
+[project.entry-points."tangram.plugins"]
+system = "tangram_system:register_plugin"
+
+[tool.uv.sources]
+tangram = { workspace = true }
+
+[tool.hatch.build.targets.sdist]
+ignore-vcs = true
+include = ["dist-frontend/*", "src/*"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"dist-frontend" = "tangram_system/dist-frontend"

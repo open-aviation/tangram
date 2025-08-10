@@ -1,0 +1,7 @@
+[core]
+plugins = [
+    "tangram_example",
+    "tangram_jet1090",
+    "tangram_system",
+    "tangram_weather"
+]

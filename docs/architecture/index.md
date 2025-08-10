@@ -10,7 +10,12 @@ A **Redis :simple-redis: pub/sub system** is used for efficient data distributio
 
 ## Overview of the technologies used
 
-It is **not necessary to know all the technologies** used in the tangram framework to use it effectively, and to implement your own plugins. However, it is useful to understand the architecture and how the components interact with each other.
+`tangram` adopts a plugin-first architecture. The core `tangram` package provides the essential scaffolding: a web server, a plugin loader, and a frontend API. All domain-specific functionality, including data decoding and processing, is implemented in separate, `pip`-installable plugins.
+
+This design allows you to:
+
+- install only the functionality you need.
+- develop, version, and distribute your own extensions (`my-simulation-plugin`) without modifying the core `tangram` codebase.
 
 | Component          | Technology                                                              |
 | ------------------ | ----------------------------------------------------------------------- |
@@ -25,15 +30,18 @@ Processes on the backend side communicate with each other using a **pub/sub mech
 
 ![tangram architecture](../screenshot/tangram_diagram.png)
 
-| **Backend component** | **Description**                              |
-| --------------------- | -------------------------------------------- |
-| `jet1090`             | decode Mode S and ADS-B messages             |
-| `planes`              | maintain a state vector table of aircraft    |
-| `trajectory`          | get the history of data for a given aircraft |
-| `tangram`             | REST API for data retrieval and management   |
-| `channel`             | WebSocket connection for real-time updates   |
+| **Component**         | **Provided By**          | **Description**                                            |
+| --------------------- | ------------------------ | ---------------------------------------------------------- |
+| `tangram` (Core)      | `tangram` package        | REST API server, CLI, and frontend shell.                  |
+| `channel`             | (Bundled with `tangram`) | WebSocket bridge between the frontend and Redis pub/sub.   |
+| `jet1090` integration | `tangram_jet1090` plugin | Decodes Mode S/ADS-B messages and provides data streams.   |
+| State Vectors         | `tangram_jet1090` plugin | Maintains a real-time state table of aircraft.             |
+| Trajectory History    | `tangram_jet1090` plugin | Stores and retrieves historical aircraft data.             |
+| System Info           | `tangram_system` plugin  | Provides backend server metrics like CPU and memory usage. |
 
 ## Backend components
+
+The backend discovers plugins using Python's standard **entry point** mechanism. When you install a package like `tangram_jet1090`, it registers itself under the `tangram.plugins` group. The core `tangram` application queries this group at startup to find and load all available plugins.
 
 ### jet1090
 
@@ -73,7 +81,9 @@ For instance, state vectors updates from the `planes` component are sent on the 
 
 ## Frontend architecture
 
-The frontend is based on Vue.js and provides a dynamic, real-time visualization interface for aviation data. It is designed to be modular, allowing users to implement their own plugins for data visualization and analysis.
+The frontend loads plugins dynamically. The backend serves a `manifest.json` file listing all enabled frontend plugins. The core `tangram` web application fetches this manifest and dynamically imports the JavaScript entry point for each plugin, which in turn registers its components with the main application.
+
+<!-- The frontend is based on Vue.js and provides a dynamic, real-time visualization interface for aviation data. It is designed to be modular, allowing users to implement their own plugins for data visualization and analysis.
 
 The entry point is the `App.vue` file, which initializes the application and sets up the main component. At this point, the webpage is divided into:
 
@@ -83,9 +93,9 @@ The entry point is the `App.vue` file, which initializes the application and set
 
 Most other components (located in the `components/` directory) are referred to from the main `App.vue` file or from other components.
 
-Extensions of the web application are described in the [Plugins](../plugins/index.md) section.
+Extensions of the web application are described in the [Plugins](../plugins/index.md) section. -->
 
-## Containers and process management
+<!-- ## Containers and process management
 
 By default, most components run within a single container managed by [`process-compose`](https://github.com/F1bonacc1/process-compose). The tool handles process startup and shutdown; manages dependencies between processes; provides process monitoring and logging.
 This architecture is defined in `container/process-compose.yaml` and can be extended to include additional services.
@@ -99,4 +109,4 @@ The two components which are not running in the `tangram` container are the serv
 
 !!! tip
 
-    If you want to use `jet1090` with a RTL-SDR dongle, it could be easier to configure it outside of the container as it requires access to the USB device.
+    If you want to use `jet1090` with a RTL-SDR dongle, it could be easier to configure it outside of the container as it requires access to the USB device. -->

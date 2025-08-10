@@ -3,9 +3,9 @@ import asyncio
 import logging
 from typing import Generic, List, TypeVar
 
-import redis
 from redis.asyncio import Redis
 from redis.asyncio.client import PubSub
+from redis.exceptions import RedisError
 
 log = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class Subscriber(abc.ABC, Generic[StateT]):
             self.redis = await Redis.from_url(self.redis_url)
             self.pubsub = self.redis.pubsub()
             await self.pubsub.psubscribe(*self.channels)
-        except redis.exceptions.RedisError as e:
+        except RedisError as e:
             log.error("%s failed to connect to Redis: %s", self.name, e)
             raise
 

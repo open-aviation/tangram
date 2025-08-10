@@ -1,6 +1,48 @@
 # Configuration
 
-Most of the configuration for the tangram platform will be done through **environment variables** and **configuration files**.
+!!! warning
+    The new configuration and plugin system is under active development. APIs and configuration schemas may change.
+
+`tangram` is configured through a single `tangram.toml` file. This provides a centralized and clear way to manage the entire platform, from core services to plugins. By default, the `tangram` CLI looks for this file at `~/.config/tangram/tangram.toml`, but you can specify a path with the `--config` option.
+
+**Core Configuration**
+
+The `[core]` section defines global settings for the `tangram` instance.
+
+```toml title="tangram.toml"
+[core]
+# URL for the Redis instance used for pub/sub messaging.
+redis_url = "redis://localhost:6379"
+```
+
+**Plugin Management**
+
+Plugins are the primary way to extend `tangram`.
+
+```toml title="tangram.toml"
+[core]
+plugins = [
+    "tangram_system",       # official system monitoring plugin
+    "tangram_jet1090",      # official ADS-B data plugin
+    "my_awesome_package"    # your custom, out-of-tree plugin
+]
+```
+
+**Plugin-Specific Configuration**
+
+To configure a plugin, add a new table with a name matching the plugin's package name.
+
+```toml title="tangram.toml"
+[plugins.tangram_jet1090]
+# this section provides configuration for the jet1090 data source.
+# it replaces the need for a separate config_jet1090.toml file.
+[[plugins.tangram_jet1090.sources]]
+name = "TU Delft"
+airport = "EHRD"
+websocket = "ws://feedme.mode-s.org:9876/40128"
+```
+
+<!-- Most of the configuration for the tangram platform will be done through **environment variables** and **configuration files**.
 
 These include:
 
@@ -77,4 +119,4 @@ proxy: {
     rewrite: (path) => path.replace(/^\/new-service/, ''),
   },
 },
-```
+``` -->

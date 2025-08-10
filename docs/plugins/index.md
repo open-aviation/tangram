@@ -1,10 +1,12 @@
 # Plugins
 
-The tangram platform can be extended with plugins to enhance its functionality. Plugins can be developed for both the frontend and the backend.
+`tangram` is designed to be extended with plugins. This modular approach allows you to tailor the system to your specific needs, whether you are working with real-world ADS-B data, simulation outputs, or other data sources.
 
-- [Frontend plugins](frontend.md) are Vue.js components that can be dynamically loaded into the web application
+Plugins are developed as standalone packages, enabling them to be versioned, tested, and distributed independently.
 
-- [Backend plugins](backend.md) are processes (e.g. in Python) that extend the backend functionality, and include data processing, analysis, and API endpoints
+-   [Backend Plugins](backend.md) are installable Python packages that extend the server's functionality, typically by adding new API endpoints or data processing workers.
+
+-   [Frontend Plugins](frontend.md) are installable NPM packages that add new Vue.js components and widgets to the web interface.
 
 Examples of plugins:
 

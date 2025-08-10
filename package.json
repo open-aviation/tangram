@@ -1,0 +1,12 @@
+{
+  "name": "tangram-monorepo",
+  "private": true,
+  "scripts": {
+    "build": "pnpm --filter \"./packages/**\" build",
+    "fmt": "prettier --write --cache \"**/*.[tj]s?(x)\""
+  },
+  "packageManager": "pnpm@10.14.0",
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}

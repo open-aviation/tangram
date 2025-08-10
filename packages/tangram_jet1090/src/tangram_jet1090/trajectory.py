@@ -8,7 +8,8 @@ from typing import Iterable, List
 
 import msgspec
 
-from tangram.common import database, redis, rs1090
+from tangram import redis
+from tangram.common import database, rs1090
 
 jet1090_restful_client = rs1090.Rs1090Client()
 logging.basicConfig(
