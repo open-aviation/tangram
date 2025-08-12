@@ -1,6 +1,7 @@
+import asyncio
 import importlib.resources
 import logging
-import sys
+from importlib.abc import Traversable
 from pathlib import Path
 from typing import Annotated
 
@@ -10,35 +11,35 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .backend import create_app
-
-if sys.version_info < (3, 11):
-    import tomli as tomllib
-else:
-    import tomllib
-
+from .config import TangramConfig, parse_config
 
 app = typer.Typer()
 logger = logging.getLogger(__name__)
 
 
-@app.command()
-def serve(
-    config: Annotated[Path, typer.Option(help="Path to the tangram.toml config file.")],
-    host: str = "127.0.0.1",
-    port: int = 8000,
+async def run_channel_service(config: TangramConfig):
+    from ._channel import ChannelConfig, init_logging, run
+
+    init_logging("debug")
+
+    rust_config = ChannelConfig(
+        host=config.channel.host,
+        port=config.channel.port,
+        redis_url=config.core.redis_url,
+        jwt_secret=config.channel.jwt_secret,
+        jwt_expiration_secs=config.channel.jwt_expiration_secs,
+    )
+    await run(rust_config)
+
+
+async def run_server(
+    config: TangramConfig, host: str, port: int, static_dir: Traversable
 ):
-    """Serves the core tangram frontend with dynamically loaded plugins."""
-    if not config.is_file():
-        raise typer.Exit(f"Config file not found: {config}")
-
-    with open(config, "rb") as f:
-        cfg = tomllib.load(f)
-
     app_instance = create_app()
+    app_instance.state.config = config
 
-    plugins = cfg.get("core", {}).get("plugins", [])
     frontend_plugins = []
-    for plugin_name in plugins:
+    for plugin_name in config.core.plugins:
         try:
             plugin_dist = importlib.resources.files(plugin_name) / "dist-frontend"
         except ModuleNotFoundError:
@@ -52,23 +53,47 @@ def serve(
             )
             frontend_plugins.append(plugin_name)
 
-    manifest = {"plugins": frontend_plugins}
-
     @app_instance.get("/manifest.json")
     async def get_manifest():
-        return JSONResponse(content=manifest)
+        return JSONResponse(content={"plugins": frontend_plugins})
 
-    core_dist = importlib.resources.files("tangram") / "dist-frontend"
     app_instance.mount(
-        "/", StaticFiles(directory=str(core_dist), html=True), name="core"
+        "/", StaticFiles(directory=str(static_dir), html=True), name="core"
     )
 
-    uvicorn.run(app_instance, host=host, port=port)
+    server_config = uvicorn.Config(app_instance, host=host, port=port, log_level="info")
+    server = uvicorn.Server(server_config)
+    await server.serve()
+
+
+async def start_services(config: TangramConfig):
+    core_dist = importlib.resources.files("tangram") / "dist-frontend"
+
+    api_server_task = asyncio.create_task(
+        run_server(config, config.server.host, config.server.port, core_dist)
+    )
+    channel_service_task = asyncio.create_task(run_channel_service(config))
+
+    await asyncio.gather(api_server_task, channel_service_task)
 
 
 @app.command()
-def build():
-    raise NotImplementedError
+def serve(
+    config: Annotated[Path, typer.Option(help="Path to the tangram.toml config file.")],
+):
+    """Serves the core tangram frontend and backend services."""
+    if not config.is_file():
+        raise typer.Exit(f"config file not found: {config}")
+
+    try:
+        asyncio.run(start_services(parse_config(config)))
+    except KeyboardInterrupt:
+        logger.info("shutting down services.")
+
+
+@app.command()
+def develop():
+    raise SystemExit
 
 
 if __name__ == "__main__":

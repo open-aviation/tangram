@@ -1,13 +1,13 @@
 import asyncio
 import json
 import logging
-import os
 from datetime import UTC, datetime, timedelta
 from typing import NoReturn
 
 import psutil
 import redis.asyncio as redis
 from fastapi import FastAPI
+from tangram.config import TangramConfig
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +61,8 @@ async def server_events(redis_url: str) -> NoReturn:
 # Place it in __init__.py to register the plugin
 def register_plugin(app: FastAPI) -> None:
     """Register this plugin with the main FastAPI application."""
-    redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
+    config: TangramConfig = app.state.config
+    redis_url = config.core.redis_url
     log.info("System events service started in background task")
 
     task = asyncio.create_task(server_events(redis_url))

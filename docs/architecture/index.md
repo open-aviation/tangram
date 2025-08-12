@@ -1,21 +1,19 @@
 # Architecture of the tangram framework
 
-The tangram framework consists of a suite of independent components that can be combined to create a powerful and flexible aviation data processing and visualization system.
+The `tangram` framework consists of a lightweight core and a suite of independent, installable plugins that can be combined to create a powerful and flexible aviation data processing and visualization system.
 
-The system consists of a web-based frontend (in Javascript :simple-javascript: based on [**Vite**](https://vite.dev/)), a backend service (in Python :simple-python:, and Rust :simple-rust: when performance is key).
+The system consists of a web-based frontend (in Javascript :simple-javascript: based on [Vite](https://vite.dev/)), a backend service (in Python :simple-python:), and performance-critical components in Rust :simple-rust:.
 
-Communication between the frontend and backend is done through a **REST API**, while real-time data streaming is handled via **WebSockets**. The backend service aggregates data from multiple sources, processes it, and exposes it for visualization in the frontend.
+Communication between the frontend and backend is done through a **REST API**, while real-time data streaming is handled via **WebSockets**. A **Redis :simple-redis: pub/sub system** is used for efficient data distribution between backend components.
 
-A **Redis :simple-redis: pub/sub system** is used for efficient data distribution between backend components.
+## A Plugin-First Architecture
 
-## Overview of the technologies used
-
-`tangram` adopts a plugin-first architecture. The core `tangram` package provides the essential scaffolding: a web server, a plugin loader, and a frontend API. All domain-specific functionality, including data decoding and processing, is implemented in separate, `pip`-installable plugins.
+The core `tangram` package provides the essential scaffolding: a web server, a plugin loader, and a frontend API. All domain-specific functionality, including data decoding and processing, is implemented in separate, `pip`-installable plugins.
 
 This design allows you to:
 
 - install only the functionality you need.
-- develop, version, and distribute your own extensions (`my-simulation-plugin`) without modifying the core `tangram` codebase.
+- develop, version, and distribute your own extensions (e.g., `my-simulation-plugin`) without modifying the core `tangram` codebase.
 
 | Component          | Technology                                                              |
 | ------------------ | ----------------------------------------------------------------------- |
@@ -26,7 +24,7 @@ This design allows you to:
 
 Processes on the backend side communicate with each other using a **pub/sub mechanism** provided by Redis. The frontend communicates with the backend service through a **REST API** for simple requests and a **WebSocket connection** for real-time data streaming.
 
-## System overview
+## System Overview
 
 ![tangram architecture](../screenshot/tangram_diagram.png)
 
@@ -39,11 +37,12 @@ Processes on the backend side communicate with each other using a **pub/sub mech
 | Trajectory History    | `tangram_jet1090` plugin | Stores and retrieves historical aircraft data.             |
 | System Info           | `tangram_system` plugin  | Provides backend server metrics like CPU and memory usage. |
 
-## Backend components
+## Backend Plugin System
 
-The backend discovers plugins using Python's standard **entry point** mechanism. When you install a package like `tangram_jet1090`, it registers itself under the `tangram.plugins` group. The core `tangram` application queries this group at startup to find and load all available plugins.
+The backend discovers plugins using Python's standard **entry point** mechanism. When you `pip install tangram-jet1090`, it registers itself under the `tangram.plugins` group in its `pyproject.toml`. The core `tangram` application queries this group at startup to find and load all available plugins, allowing them to add their own API routes and background tasks.
 
-### jet1090
+
+<!-- ### jet1090
 
 **Documentation**: <https://mode-s.org/jet1090>
 
@@ -77,11 +76,12 @@ Basic endpoints provided by the API include the data from `trajectory` and `plan
 
 The `channel` (<https://github.com/emctoo/channel>) component is a Rust-based WebSocket connection that makes the bridge between the frontend and the Redis pub/sub system. It is responsible for providing real-time updates from and to the frontend.
 
-For instance, state vectors updates from the `planes` component are sent on the Redis pub/sub and the `channel` tool listens to the channel before sending the data to the frontend through a WebSocket. Conversely, the bounding box of the map is sent from the frontend to the `channel` component, which then sends it on the Redis pub/sub system. For example, the `planes` component listens to this channel and updates the state vector table accordingly.
+For instance, state vectors updates from the `planes` component are sent on the Redis pub/sub and the `channel` tool listens to the channel before sending the data to the frontend through a WebSocket. Conversely, the bounding box of the map is sent from the frontend to the `channel` component, which then sends it on the Redis pub/sub system. For example, the `planes` component listens to this channel and updates the state vector table accordingly. -->
 
-## Frontend architecture
+## Frontend Plugin System
 
-The frontend loads plugins dynamically. The backend serves a `manifest.json` file listing all enabled frontend plugins. The core `tangram` web application fetches this manifest and dynamically imports the JavaScript entry point for each plugin, which in turn registers its components with the main application.
+The frontend loads plugins dynamically. The backend serves a `/manifest.json` file listing all enabled frontend plugins. The core `tangram` web application fetches this manifest and dynamically imports the JavaScript entry point for each plugin. The plugin's entry point then calls the `tangramApi.registerWidget()` function to add its Vue components to the main application.
+
 
 <!-- The frontend is based on Vue.js and provides a dynamic, real-time visualization interface for aviation data. It is designed to be modular, allowing users to implement their own plugins for data visualization and analysis.
 

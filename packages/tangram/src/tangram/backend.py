@@ -42,6 +42,3 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
             name="static",
         )
     return app
-
-
-app = create_app()  # TODO: get rid of this

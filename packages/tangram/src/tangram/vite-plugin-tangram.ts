@@ -32,7 +32,7 @@ export function tangramPlugin(): Plugin[] {
             external: ["vue"]
           },
           outDir: "dist-frontend",
-          minify: false
+          minify: true
         }
       };
       return tangramBuildConfig;

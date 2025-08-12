@@ -1,0 +1,6 @@
+[workspace]
+resolver = "3"
+members = ["packages/tangram/rust"]
+
+[profile.release]
+lto = true

@@ -1,0 +1,35 @@
+[package]
+name = "channel_python"
+version = "0.2.8"
+edition = "2021"
+
+[lib]
+name = "_channel"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+channel = { git = "https://github.com/emctoo/channel.git", tag = "v0.2.8" }
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["fs", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+redis = { version = "0.29", features = ["tokio-comp"] }
+serde = "1.0"
+thiserror = "2.0"
+
+pyo3 = { version = "0.25", features = ["extension-module"], optional = true }
+pyo3-async-runtimes = { version = "0.25", features = [
+    "attributes",
+    "tokio-runtime",
+], optional = true }
+pyo3-stub-gen = { version = "0.12.2", optional = true }
+
+
+
+[[bin]]
+name = "stub_gen"
+path = "src/bin/stub_gen.rs"
+
+[features]
+python = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:pyo3-stub-gen"]

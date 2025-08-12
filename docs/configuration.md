@@ -3,39 +3,33 @@
 !!! warning
     The new configuration and plugin system is under active development. APIs and configuration schemas may change.
 
-`tangram` is configured through a single `tangram.toml` file. This provides a centralized and clear way to manage the entire platform, from core services to plugins. By default, the `tangram` CLI looks for this file at `~/.config/tangram/tangram.toml`, but you can specify a path with the `--config` option.
+`tangram` is configured through a single `tangram.toml` file. This provides a centralized and clear way to manage the entire platform, from core services to plugins. By default, the `tangram` CLI looks for this file in the current directory, but you can specify a path with the `--config` option.
 
-**Core Configuration**
+### Example `tangram.toml`
 
-The `[core]` section defines global settings for the `tangram` instance.
-
-```toml title="tangram.toml"
+```toml
 [core]
-# URL for the Redis instance used for pub/sub messaging.
+# url for the Redis instance used for pub/sub messaging.
 redis_url = "redis://localhost:6379"
-```
-
-**Plugin Management**
-
-Plugins are the primary way to extend `tangram`.
-
-```toml title="tangram.toml"
-[core]
 plugins = [
     "tangram_system",       # official system monitoring plugin
     "tangram_jet1090",      # official ADS-B data plugin
     "my_awesome_package"    # your custom, out-of-tree plugin
 ]
-```
 
-**Plugin-Specific Configuration**
+[server]
+# main FastAPI web server.
+host = "127.0.0.1"
+port = 8000
 
-To configure a plugin, add a new table with a name matching the plugin's package name.
+[channel]
+# real-time WebSocket service.
+host = "127.0.0.1"
+port = 2347
+jwt_secret = "a-better-secret-than-this"
 
-```toml title="tangram.toml"
 [plugins.tangram_jet1090]
-# this section provides configuration for the jet1090 data source.
-# it replaces the need for a separate config_jet1090.toml file.
+# plugin-specific configuration is defined in its own table.
 [[plugins.tangram_jet1090.sources]]
 name = "TU Delft"
 airport = "EHRD"
