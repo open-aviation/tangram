@@ -22,6 +22,15 @@ Before you begin, ensure you have the following tools installed:
 
     It will also be possible to run some of the components outside of containers, but for the quickstart, we use containers to simplify the setup.
 
+## 0. Clone the Repository
+
+First clone the tangram repository to your local machine:
+
+```shell
+git clone https://github.com/open-aviation/tangram
+cd tangram
+```
+
 ## 1. Environment Configuration
 
 Create an environment file from the template:
@@ -118,3 +127,5 @@ Open your browser and navigate to <http://localhost:2345> to access the tangram 
 | Ensure all containers are running     | `podman container ls`                                        |
 | Verify Redis connection               | `podman container exec -it redis redis-cli ping`             |
 | Kill a container if needed            | `podman kill <container_name>` (e.g. `jet1090` or `tangram`) |
+| Delete containers if needed           | `podman rm <container_name>` (e.g. `jet1090` or `tangram`)   |
+| Delete images if needed               | `podman rmi <image_name>` (e.g. `tangram:latest`)            |
