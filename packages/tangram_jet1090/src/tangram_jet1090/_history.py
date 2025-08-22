@@ -1,3 +1,7 @@
+"""
+!!! warning
+    deprecated, use `tangram_history` instead.
+"""
 import asyncio
 import json
 import logging
@@ -5,7 +9,6 @@ from dataclasses import dataclass
 from typing import Any, List
 
 from redis.commands.timeseries import TimeSeries
-
 from tangram import redis
 from tangram.common import database
 

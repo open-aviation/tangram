@@ -29,8 +29,6 @@ async def wind(isobaric: int = 300) -> ORJSONResponse:
     return ORJSONResponse(content=res.to_dict())
 
 
-# This function will be called by the main FastAPI application
-# Place it in __init__.py to register the plugin
 def register_plugin(app: FastAPI) -> None:
     """Register this plugin with the main FastAPI application."""
     app.include_router(router)

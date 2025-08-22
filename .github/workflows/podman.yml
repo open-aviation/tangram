@@ -1,11 +1,12 @@
 name: build
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-  workflow_dispatch:  # Allow manual trigger
+  # push:
+  #   branches:
+  #     - main
+  # pull_request:
+  # we're not concerned with building containers at this stage. we will bring it back later
+  workflow_dispatch:
 
 jobs:
   check-podman-build:
@@ -17,7 +18,7 @@ jobs:
       - name: Install just command runner
         uses: extractions/setup-just@v3
         with:
-          just-version: '1.14'  # Specify the version you need
+          just-version: '1.14'
 
       - name: Set up Podman
         run: |

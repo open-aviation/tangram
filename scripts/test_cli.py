@@ -51,7 +51,5 @@ def test_main():
     os.system(command)
 
 
-# podman run -d --name redis -p 127.0.0.1:6379:6379 redis:latest
-
 if __name__ == "__main__":
     test_main()

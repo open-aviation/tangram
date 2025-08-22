@@ -2,13 +2,16 @@
 # coding: utf8
 
 """
-Redis-based Aircraft History Tracking System with Time Series
-============================================================
+!!! warning
+    deprecated, use `tangram_history` instead.
 
-This module implements an aircraft tracking system that uses Redis Time Series for state
-management and historical data storage. It subscribes to aircraft messages, processes
-them, and maintains both current state and historical positions of aircraft using
-Redis's native time series capabilities.
+Redis-based Aircraft History Tracking System
+===========================================
+
+This module implements an aircraft tracking system that uses Redis for state management
+and historical data storage. It subscribes to aircraft messages, processes them, and
+maintains both current state and historical positions of aircraft.
+
 
 Redis Key Structure:
 -------------------
@@ -27,24 +30,17 @@ The system uses the following Redis key patterns:
    - Purpose: Tracks when we last wrote history for this aircraft to implement the
      aggregation interval
 
-3. Time Series Data:
-   - Key patterns:
-     - `aircraft:ts:latitude:{icao24}`
-     - `aircraft:ts:longitude:{icao24}`
-     - `aircraft:ts:altitude:{icao24}`
-     - `aircraft:ts:track:{icao24}`
-   - Value: Time series of measurements
-   - Labels: Aircraft metadata (icao24, registration, typecode, callsign, type)
-   - Retention: Configurable (default 10 minutes)
-   - Purpose: Efficient storage and querying of time-based aircraft data
+3. Historical Position Data:
+   - Key: `aircraft:history:{icao24}:{timestamp}`
+   - Value: JSON encoded position history entry
+   - TTL: Configurable (default 10 minutes)
+   - Purpose: Stores individual position reports for historical tracks
 
-Benefits of Redis Time Series:
-----------------------------
-1. Memory Efficiency: Optimized storage for time series data
-2. Built-in Aggregation: Supports downsampling and aggregation functions
-3. Automatic Retention: Configurable data expiration
-4. Range Queries: Efficient retrieval of data by time range
-5. Labeled Data: Each time series can be tagged with metadata for easy filtering
+4. Timeline Index:
+   - Key: `aircraft:timeline:{icao24}`
+   - Value: Sorted set mapping timestamps to scores
+   - TTL: Configurable (default 10 minutes)
+   - Purpose: Provides efficient time-based queries for aircraft tracks
 
 Usage:
 -----
@@ -63,7 +59,7 @@ You will want to apply `%autoawait` first to enable async support in ipython.
 
 - From within the tangram container:
 
-$ LOG_LEVEL=DEBUG uv run python -m tangram.history_redis2
+$ LOG_LEVEL=DEBUG uv run python -m tangram.history_redis
 
 - From Python REPL:
 
@@ -73,11 +69,11 @@ Use one of the following methods to start a REPL:
 - ipython with %autoawait
 - uv run ipython
 
-from tangram import history_redis2
+from tangram import history_redis
 
 # Create a client to interact with the aircraft data
 # if you REDIS_URL is set in environmental variable, you are good to go
-client = history_redis2.StateClient()
+client = history_redis.StateClient()
 
 # Get current aircraft
 count = await client.get_aircraft_count()
@@ -89,10 +85,6 @@ track = await client.get_aircraft_track("a0b1c2")
 # Get summary of active aircraft
 positions = await client.get_current_positions()
 
-# Get time series info and labels
-ts_info = await client.get_timeseries_info("a0b1c2")
-ts_labels = await client.get_timeseries_labels("a0b1c2")
-
 Useful Redis Commands:
 ---------------------
 Use redis-cli or iredis
@@ -103,12 +95,11 @@ Basic Operations:
 - Check TTL for a key: `TTL aircraft:current:{icao24}`
 - Delete a key: `DEL aircraft:current:{icao24}`
 
-Time Series Operations:
-- Get time series info: `TS.INFO aircraft:ts:latitude:{icao24}`
-- Get time series range: `TS.RANGE aircraft:ts:latitude:{icao24} {start} {end}`
-- Get time series with labels: `TS.MRANGE {start} {end} FILTER icao24={icao24}`
-- Count time series points:
-  `TS.INFO aircraft:ts:latitude:{icao24} | grep "total_samples"`
+Sorted Set Operations (Timeline):
+- Get all timestamps for an aircraft: `ZRANGE aircraft:timeline:{icao24} 0 -1 WITHSCORES`
+- Get timestamps in a time range: `ZRANGEBYSCORE aircraft:timeline:{icao24} {min_time} {max_time}`
+- Count entries in timeline: `ZCARD aircraft:timeline:{icao24}`
+- Remove entries by timestamp: `ZREMRANGEBYSCORE aircraft:timeline:{icao24} {min_time} {max_time}`
 
 Batch Operations:
 - Get multiple aircraft states: `MGET aircraft:current:{icao1} aircraft:current:{icao2}`
@@ -123,15 +114,13 @@ Monitoring:
 import asyncio
 import logging
 import os
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, Dict, ForwardRef, List, Optional
 
 import msgspec
 import rs1090
 from redis.asyncio import Redis
-from redis.commands.timeseries import TimeSeries
-
 from tangram import redis
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
@@ -139,16 +128,16 @@ log = logging.getLogger(__name__)
 
 
 def create_redis_client(
-    redis_client: Optional[Redis] = None,
-    redis_url: Optional[str] = None,
+    redis_client: Optional[Redis] = None, redis_url: Optional[str] = None
 ) -> Redis:
     if redis_client:
         return redis_client
-    redis_url = redis_url if redis_url else os.getenv("REDIS_URL", "redis://redis:6379")
-    return Redis.from_url(redis_url)  # type: ignore
+    if redis_url:
+        return Redis.from_url(redis_url)
+    return Redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379"))
 
 
-async def ensure_redis_client(redis_client: Redis) -> None:
+async def ensure_redis_client(redis_client: Redis):
     assert redis_client, "Redis client is not initialized"
     if not await redis_client.ping():
         log.error("fail to ping redis")
@@ -226,22 +215,16 @@ class State:
     """
     Represents the current state of the subscriber
     Stores aircraft data in Redis for persistence and sharing
-    Uses Redis Time Series for efficient time series data storage
     """
 
-    def __init__(
-        self,
-        redis_client: Optional[Redis],
-        redis_url: Optional[str] = None,
-    ) -> None:
-        """Initialize with a Redis client"""
+    def __init__(self, redis_client=None, redis_url: Optional[str] = None):
+        """Initialize with a Redis client (for backward compatibility)"""
         self.redis_client = create_redis_client(redis_client, redis_url)
-        self.lastwrite_expiry: int | timedelta | None = 600
+        self.lastwrite_expiry: float = 600
         self.history_expiry: int = 600
         self.write_interval: float = 60
-        self.retention_msecs: int = self.history_expiry * 1000
 
-    async def ensure_redis_client(self) -> None:
+    async def ensure_redis_client(self):
         await ensure_redis_client(self.redis_client)
 
     async def get_current(self, icao24: str) -> Optional[StateVector]:
@@ -256,11 +239,7 @@ class State:
             log.error(f"Error retrieving aircraft {icao24}: {e}")
             return None
 
-    async def save_current(
-        self,
-        sv: StateVector,
-        expiry_seconds: int | timedelta | None = 600,
-    ) -> None:
+    async def save_current(self, sv: StateVector, expiry_seconds: float = 600) -> None:
         """Save aircraft data to Redis"""
         await self.ensure_redis_client()
 
@@ -283,118 +262,50 @@ class State:
             log.error(f"Error retrieving last write time for {icao24}: {e}")
             return 0
 
-    async def ensure_timeseries_exists(self, key: str, labels: Dict[str, str]) -> bool:
-        """Ensure that a time series exists, create it if it doesn't"""
-        await self.ensure_redis_client()
-
-        try:
-            # Check if the time series exists
-            ts_client: TimeSeries = self.redis_client.ts()  # type: ignore
-            _info = await ts_client.info(key)
-            return True
-        except Exception:
-            # Create the time series
-            try:
-                # Filter out empty or None values from labels
-                cleaned_labels = {k: v for k, v in labels.items() if v and v.strip()}
-
-                # Ensure all label values are strings
-                for k, v in cleaned_labels.items():
-                    if not isinstance(v, str):
-                        cleaned_labels[k] = str(v)
-
-                await ts_client.create(
-                    key, retention_msecs=self.retention_msecs, labels=cleaned_labels
-                )
-                log.debug(f"Created time series {key}")
-                return True
-            except Exception as e:
-                log.error(f"Failed to create time series {key}: {e}")
-                return False
-
     async def save_history(self, sv: StateVector) -> None:
-        """Write the state vector to Redis Time Series"""
+        """Write the state vector to Redis"""
         await self.ensure_redis_client()
 
-        # Check if we should record history based on write interval
         last_write_time = await self.get_last_write_timestamp(sv.icao24)
         if sv.lastseen - last_write_time < self.write_interval:
             return
 
-        # Skip if no position data
-        if sv.latitude is None or sv.longitude is None:
-            return
-
         try:
-            timestamp_ms = int(sv.lastseen * 1000)  # Convert to milliseconds
-            ts_client: TimeSeries = self.redis_client.ts()  # type: ignore
+            history_dict = sv.to_json_dict()
+            history_dict["timestamp"] = sv.lastseen
 
-            # Common labels for all time series for this aircraft
-            # Prepare labels with non-empty values and convert all to strings
-            common_labels = {}
-            if sv.icao24:
-                common_labels["icao24"] = sv.icao24
-            if sv.registration and sv.registration.strip():
-                common_labels["registration"] = sv.registration
-            if sv.typecode and sv.typecode.strip():
-                common_labels["typecode"] = sv.typecode
-            if sv.callsign and sv.callsign.strip():
-                common_labels["callsign"] = sv.callsign
+            entry_json = msgspec.json.encode(history_dict)
 
-            # Add position data to time series
-            if sv.latitude is not None:
-                lat_key = f"aircraft:ts:latitude:{sv.icao24}"
-                await self.ensure_timeseries_exists(
-                    lat_key, {**common_labels, "type": "latitude"}
-                )
-                await ts_client.add(lat_key, timestamp_ms, sv.latitude)
+            # Create a Redis key for this entry using timestamp for ordering
+            history_key = f"aircraft:history:{sv.icao24}:{sv.lastseen}"
+            await self.redis_client.set(history_key, entry_json, ex=self.history_expiry)
 
-            if sv.longitude is not None:
-                lon_key = f"aircraft:ts:longitude:{sv.icao24}"
-                await self.ensure_timeseries_exists(
-                    lon_key, {**common_labels, "type": "longitude"}
-                )
-                await ts_client.add(lon_key, timestamp_ms, sv.longitude)
+            # Add to a sorted set for efficient time-based querying
+            timeline_key = f"aircraft:timeline:{sv.icao24}"
+            await self.redis_client.zadd(timeline_key, {str(sv.lastseen): sv.lastseen})
+            await self.redis_client.expire(timeline_key, self.history_expiry)
 
-            if sv.altitude is not None:
-                alt_key = f"aircraft:ts:altitude:{sv.icao24}"
-                await self.ensure_timeseries_exists(
-                    alt_key, {**common_labels, "type": "altitude"}
-                )
-                await ts_client.add(alt_key, timestamp_ms, sv.altitude)
-
-            if sv.track is not None:
-                track_key = f"aircraft:ts:track:{sv.icao24}"
-                await self.ensure_timeseries_exists(
-                    track_key, {**common_labels, "type": "track"}
-                )
-                await ts_client.add(track_key, timestamp_ms, sv.track)
-
-            # Update last write timestamp
             lastwrite_key = f"aircraft:lastwrite:{sv.icao24}"
             await self.redis_client.set(
                 lastwrite_key, str(sv.lastseen), ex=self.lastwrite_expiry
             )
 
-            log.debug(
-                f"Stored history for {sv.icao24} at {sv.lastseen} using Time Series"
-            )
+            log.debug(f"Stored history for {sv.icao24} at {sv.lastseen}")
         except Exception as e:
-            log.error(f"Failed to store aircraft data in Redis Time Series: {e}")
+            log.error(f"Failed to store aircraft data in Redis: {e}")
 
 
 # StateVector.__forward_arg__ = "StateVector"
 # StateVector.__forward_evaluated__ = True
 
 
-# TODO define type for msg
-async def _get_state_vector(state: State, msg: Any) -> Optional[StateVector]:
+async def _get_state_vector(state: State, msg) -> Optional[StateVector]:
     """try to find the StateVector from state, or create a new one"""
     if msg["df"] not in ["17", "18"]:
-        return None
+        return
 
     if msg.get("bds") not in ["05", "06", "08", "09"]:
-        return None
+        return
 
     icao24 = msg["icao24"]
 
@@ -455,7 +366,7 @@ class HistorySubscriber(redis.Subscriber[State]):
         self.aggregation_interval = aggregation_interval
         self.history_expiry = history_expiry
 
-        initial_state = state or State(redis_client=None, redis_url=redis_url)
+        initial_state = state or State(redis_url=redis_url)
         super().__init__(name, redis_url, channels, initial_state)
 
     async def subscribe(self) -> None:
@@ -488,14 +399,10 @@ class StateClient:
     Designed for use in REPL sessions or external applications
     """
 
-    def __init__(
-        self,
-        redis_client: None | Redis = None,
-        redis_url: None | str = None,
-    ) -> None:
+    def __init__(self, redis_client=None, redis_url=None):
         self.redis_client = create_redis_client(redis_client, redis_url)
 
-    async def ensure_redis_client(self) -> None:
+    async def ensure_redis_client(self):
         await ensure_redis_client(self.redis_client)
 
     async def get_aircraft_table(self) -> Dict[str, Any]:
@@ -531,86 +438,44 @@ class StateClient:
         limit: int = 100,
     ) -> List[Dict[str, Any]]:
         """
-        Retrieve the track (position history) of a specific aircraft using Time Series
+        Retrieve the track (position history) of a specific aircraft
         """
         await self.ensure_redis_client()
-        ts_client: TimeSeries = self.redis_client.ts()  # type: ignore
+
+        timeline_key = f"aircraft:timeline:{icao24}"
+        if not await self.redis_client.exists(timeline_key):
+            return []
 
         # Default to getting the most recent points if no time range specified
-        from_time = "-" if start_ts is None else int(start_ts * 1000)
-        to_time = "+" if end_ts is None else int(end_ts * 1000)
+        end_ts = float("inf") if end_ts is None else end_ts
+        start_ts = float("-inf") if start_ts is None else start_ts
 
-        # Get latitude, longitude, altitude, and track data
-        results = {}
+        # Get timestamps sorted by time (ascending)
+        timestamps = await self.redis_client.zrangebyscore(
+            timeline_key,
+            min=start_ts,
+            max=end_ts,
+            start=0,
+            num=limit,
+            withscores=True,
+            score_cast_func=float,
+        )
+
+        if not timestamps:
+            return []
+
+        # For each timestamp, get the corresponding history entry
         track = []
+        for _, ts in timestamps:
+            history_key = f"aircraft:history:{icao24}:{ts}"
+            entry_data = await self.redis_client.get(history_key)
 
-        try:
-            # Check if the time series exists for latitude (as a proxy for all data)
-            lat_key = f"aircraft:ts:latitude:{icao24}"
-            lon_key = f"aircraft:ts:longitude:{icao24}"
-            alt_key = f"aircraft:ts:altitude:{icao24}"
-            track_key = f"aircraft:ts:track:{icao24}"
-
-            # Get data from all time series in parallel
-            lat_data = await ts_client.range(lat_key, from_time, to_time, count=limit)
-            lon_data = await ts_client.range(lon_key, from_time, to_time, count=limit)
-
-            # Altitude and track may not exist for all points
-            try:
-                alt_data = await ts_client.range(
-                    alt_key, from_time, to_time, count=limit
-                )
-            except:  # NOQA
-                alt_data = []
-
-            try:
-                track_data = await ts_client.range(
-                    track_key, from_time, to_time, count=limit
-                )
-            except:  # NOQA
-                track_data = []
-
-            # Organize data by timestamp
-            for timestamp, value in lat_data:
-                # Convert timestamp from milliseconds to seconds
-                ts_sec = timestamp / 1000
-                if ts_sec not in results:
-                    results[ts_sec] = {"timestamp": ts_sec, "icao24": icao24}
-                results[ts_sec]["latitude"] = value
-
-            for timestamp, value in lon_data:
-                ts_sec = timestamp / 1000
-                if ts_sec not in results:
-                    results[ts_sec] = {"timestamp": ts_sec, "icao24": icao24}
-                results[ts_sec]["longitude"] = value
-
-            for timestamp, value in alt_data:
-                ts_sec = timestamp / 1000
-                if ts_sec not in results:
-                    results[ts_sec] = {"timestamp": ts_sec, "icao24": icao24}
-                results[ts_sec]["altitude"] = value
-
-            for timestamp, value in track_data:
-                ts_sec = timestamp / 1000
-                if ts_sec not in results:
-                    results[ts_sec] = {"timestamp": ts_sec, "icao24": icao24}
-                results[ts_sec]["track"] = value
-
-            # Get aircraft metadata
-            aircraft_data = await self.get_aircraft(icao24)
-            if aircraft_data:
-                for point in results.values():
-                    point["registration"] = aircraft_data.get("registration")
-                    point["typecode"] = aircraft_data.get("typecode")
-                    point["callsign"] = aircraft_data.get("callsign")
-
-            # Convert to list and sort by timestamp
-            track = list(results.values())
-            track.sort(key=lambda x: x["timestamp"])
-
-        except Exception as e:
-            log.error(f"Failed to get aircraft track from Time Series: {e}")
-
+            if entry_data:
+                try:
+                    entry = msgspec.json.decode(entry_data)
+                    track.append(entry)
+                except Exception as e:
+                    log.error(f"Failed to decode history entry: {e}")
         return track
 
     async def get_current_positions(self) -> List[Dict[str, Any]]:
@@ -621,6 +486,7 @@ class StateClient:
             for aircraft_data in aircraft_table.values()
             if aircraft_data.get("latitude") is not None
             and aircraft_data.get("longitude") is not None
+            # and last seen with in 60 seconds?
         ]
 
     async def get_aircraft_count(self) -> int:
@@ -629,61 +495,8 @@ class StateClient:
         keys = await self.redis_client.keys("aircraft:current:*")
         return len(keys)
 
-    async def get_timeseries_info(self, icao24: str) -> Dict[str, Any]:
-        """Get information about time series for an aircraft"""
-        await self.ensure_redis_client()
-        ts_client: TimeSeries = self.redis_client.ts()  # type: ignore
 
-        result = {}
-        try:
-            keys = [
-                f"aircraft:ts:latitude:{icao24}",
-                f"aircraft:ts:longitude:{icao24}",
-                f"aircraft:ts:altitude:{icao24}",
-                f"aircraft:ts:track:{icao24}",
-            ]
-
-            for key in keys:
-                try:
-                    info = await ts_client.info(key)
-                    result[key] = info
-                except Exception:
-                    pass
-
-        except Exception as e:
-            log.error(f"Failed to get time series info: {e}")
-
-        return result
-
-    async def get_timeseries_labels(self, icao24: str) -> Dict[str, Dict[str, str]]:
-        """Get labels for time series for an aircraft"""
-        await self.ensure_redis_client()
-        ts_client: TimeSeries = self.redis_client.ts()  # type: ignore
-
-        result = {}
-        try:
-            keys = [
-                f"aircraft:ts:latitude:{icao24}",
-                f"aircraft:ts:longitude:{icao24}",
-                f"aircraft:ts:altitude:{icao24}",
-                f"aircraft:ts:track:{icao24}",
-            ]
-
-            for key in keys:
-                try:
-                    info = await ts_client.info(key)
-                    if "labels" in info:
-                        result[key] = info["labels"]
-                except Exception:
-                    pass
-
-        except Exception as e:
-            log.error(f"Failed to get time series labels: {e}")
-
-        return result
-
-
-state = State(redis_client=None)
+state = State()
 state_client = StateClient()
 subscriber: Optional[HistorySubscriber] = None
 

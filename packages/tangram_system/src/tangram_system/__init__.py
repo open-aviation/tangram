@@ -57,8 +57,6 @@ async def server_events(redis_url: str) -> NoReturn:
         await asyncio.sleep(1)
 
 
-# This function will be called by the main FastAPI application
-# Place it in __init__.py to register the plugin
 def register_plugin(app: FastAPI) -> None:
     """Register this plugin with the main FastAPI application."""
     config: TangramConfig = app.state.config
