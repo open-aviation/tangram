@@ -70,7 +70,9 @@ impl BoundingBoxState {
 
 // Check if an aircraft is within a specific client's bounding box
 pub fn is_within_bbox(
-    aircraft: &StateVector, state: &BoundingBoxState, connection_id: &str,
+    aircraft: &StateVector,
+    state: &BoundingBoxState,
+    connection_id: &str,
 ) -> bool {
     // If no bounding box is set for this connection, include all aircraft
     if !state.has_bbox(connection_id) {

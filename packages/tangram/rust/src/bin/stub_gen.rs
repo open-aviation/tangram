@@ -1,4 +1,3 @@
-// `cargo run --bin stub_gen --features python`
 use _channel::stub_info;
 use pyo3_stub_gen::Result;
 

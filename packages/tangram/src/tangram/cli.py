@@ -1,4 +1,5 @@
 import asyncio
+import importlib.metadata
 import importlib.resources
 import logging
 from importlib.abc import Traversable
@@ -30,6 +31,18 @@ async def run_channel_service(config: TangramConfig):
         jwt_expiration_secs=config.channel.jwt_expiration_secs,
     )
     await run(rust_config)
+
+
+async def run_services(config: TangramConfig):
+    tasks = [asyncio.create_task(run_channel_service(config))]
+    for entry_point in importlib.metadata.entry_points(group="tangram.services"):
+        try:
+            service_run_func = entry_point.load()
+            tasks.append(asyncio.create_task(service_run_func(config)))
+            logger.info(f"started service: {entry_point.name}")
+        except Exception as e:
+            logger.error(f"failed to load service {entry_point.name}: {e}")
+    return tasks
 
 
 async def run_server(
@@ -72,9 +85,9 @@ async def start_services(config: TangramConfig):
     api_server_task = asyncio.create_task(
         run_server(config, config.server.host, config.server.port, core_dist)
     )
-    channel_service_task = asyncio.create_task(run_channel_service(config))
+    service_tasks = await run_services(config)
 
-    await asyncio.gather(api_server_task, channel_service_task)
+    await asyncio.gather(api_server_task, *service_tasks)
 
 
 @app.command()

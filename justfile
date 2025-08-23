@@ -30,3 +30,9 @@ jet1090:
 
 docs-serve:
   uvx --with "mkdocs-material[imaging]" mkdocs serve
+
+
+stubgen:
+  cargo run --bin stub_gen_channel --features python
+  cargo run --bin stub_gen_planes --features python
+  
