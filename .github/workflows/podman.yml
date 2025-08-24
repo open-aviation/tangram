@@ -1,11 +1,10 @@
 name: build
 
 on:
-  # push:
-  #   branches:
-  #     - main
-  # pull_request:
-  # we're not concerned with building containers at this stage. we will bring it back later
+  push:
+    branches:
+      - main
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -34,21 +33,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-podman-
 
-      - name: Create a .env file
-        run: |
-          cp .env.example .env
-
       - name: Check tangram image creation
-        run: |
-          echo "Running create-tangram command to verify image build..."
-          just create-tangram
+        run: just create-tangram
 
       - name: Verify tangram image exists
         run: |
-          if podman image exists tangram:0.1; then
-            echo "✅ Tangram image tangram:0.1 successfully created"
+          if podman image exists tangram:latest; then
             podman image ls | grep tangram
           else
-            echo "❌ Error: Tangram image tangram:0.1 not found"
             exit 1
           fi

@@ -1,0 +1,23 @@
+[core]
+redis_url = "redis://redis:6379"
+plugins = [
+    "tangram_example",
+    "tangram_jet1090",
+    "tangram_history",
+    "tangram_system",
+    "tangram_weather"
+]
+
+[server]
+host = "0.0.0.0"
+port = 8000
+
+[channel]
+host = "0.0.0.0"
+port = 2347
+jwt_secret = "a-very-insecure-secret-key-pls-change"
+jwt_expiration_secs = 315360000
+
+[plugins.tangram_jet1090]
+jet1090_channel = "jet1090"
+history_expire = 20

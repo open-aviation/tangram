@@ -1,38 +1,136 @@
-name: Build and Test
+name: build packages
 
 on:
-  workflow_dispatch:
-  pull_request_target:
   push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    if: (github.event_name != 'pull_request' && !github.event.pull_request.head.repo.fork)
-    runs-on: ${{ matrix.platform }}
+  build-frontend:
+    name: build frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: install node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: install deps
+        run: pnpm 
+
+      - name: build
+        run: pnpm build
+
+      - name: upload repo with built frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-with-frontend
+          path: |
+            .
+            !node_modules
+          retention-days: 1
+
+  # TODO: what about sdist?
+
+  build-hatch-wheels:
+    name: build wheels (hatchling)
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: download repo with built frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-with-frontend
+          path: .
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
+
+      # hardcoding for now
+      - name: build wheels
+        run: |
+          mkdir -p wheels
+          uv build --package tangram_jet1090
+          uv build --package tangram_system
+          uv build --package tangram_weather
+
+      - name: upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels
+          path: wheels/*.whl
+          retention-days: 7
+
+  # adapted from: `maturin generate-ci github --platform all`
+  build-maturin-wheels:
+    name: build wheels (maturin, ${{ matrix.package }}, ${{ matrix.platform.runner }}, ${{ matrix.platform.target }})
+    needs: build-frontend
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
-        python-version:
-          - "3.10"
-          - "3.13"
+        package: [tangram, tangram_jet1090]
+        platform:
+          - runner: ubuntu-22.04
+            target: x86_64
+          - runner: ubuntu-22.04
+            target: x86
+          - runner: macos-13
+            target: x86_64
+          - runner: macos-15
+            target: aarch64
+          - runner: windows-latest
+            target: x64
+          - runner: windows-latest
+            target: x86
+        # excluding: ubuntu x86, armv7, s390x, ppc64le, musllinux_1_2, windows-11-arm,
+        # wasm32-unknown-emscripten for simplicity
+        exclude:
+          - runner: windows-latest
+            target: aarch64
+          - runner: macos-13
+            target: aarch64
+          - runner: macos-15
+            target: x86-64
 
+    runs-on: ${{ matrix.platform.runner }}
     steps:
-      - uses: actions/checkout@v5
+      - name: download repo with built frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: repo-with-frontend
+          path: .
 
-      - name: Install uv
+      - name: install uv
         uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
 
-      - uses: actions/setup-python@v5
+      - name: build wheels
+        uses: PyO3/maturin-action@v1
         with:
-          python-version: ${{ matrix.python-version }}
-    
-      # TODO:
-      # - setup rust, npm, build wheels
-      # - install them, check that uv serve works and kill after 10 s. 
+          target: ${{ matrix.platform.target }}
+          working-directory: packages/${{ matrix.package }}
+          args: --release --out ../../dist --find-interpreter
+          sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          manylinux: auto
+
+      - name: upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels
+          path: dist/*.whl
+          retention-days: 7
