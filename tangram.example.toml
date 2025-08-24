@@ -1,5 +1,5 @@
 [core]
-redis_url = "redis://redis:6379"
+redis_url = "redis://localhost:6379"
 plugins = [
     "tangram_example",
     "tangram_jet1090",

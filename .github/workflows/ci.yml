@@ -1,4 +1,4 @@
-name: build packages
+name: build and test packages
 
 on:
   push:
@@ -15,36 +15,51 @@ concurrency:
 
 jobs:
   build-frontend:
-    name: build frontend
+    uses: ./.github/workflows/frontend-build.yml
+
+  test:
+    name: test
+    needs: build-frontend
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
-      - name: checkout repo
-        uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: install node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - name: install deps
-        run: pnpm 
-
-      - name: build
-        run: pnpm build
-
-      - name: upload repo with built frontend
-        uses: actions/upload-artifact@v4
+      - name: download repo with built frontend
+        uses: actions/download-artifact@v4
         with:
           name: repo-with-frontend
-          path: |
-            .
-            !node_modules
-          retention-days: 1
+          path: .
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      
+      - name: install tangram (no plugins)
+        run:
+          uv sync --all-groups --all-packages
+      
+      # TODO: migrate away from tmux once we properly capture rust tracing along with python logs into a file
+      - name: start tangram service (no plugins)
+        run: 
+          tmux new-session -d -s tangram 'uv run tangram serve --config tangram.example.toml'
+          sleep 5
+      
+      - name: run tests
+        env:
+          TANGRAM_CONFIG_PATH: tangram.example.toml
+        run: uv run pytest packages/tangram/tests/
+
+      - name: print server logs
+        if: always()
+        run: tmux capture-pane -p -t tangram
+      # TODO: run unit tests for each plugin
 
   # TODO: what about sdist?
 
@@ -85,6 +100,8 @@ jobs:
       fail-fast: false
       matrix:
         package: [tangram, tangram_jet1090]
+        # excluding: ubuntu x86, armv7, s390x, ppc64le, musllinux_1_2, windows-11-arm,
+        # wasm32-unknown-emscripten for simplicity
         platform:
           - runner: ubuntu-22.04
             target: x86_64
@@ -98,15 +115,6 @@ jobs:
             target: x64
           - runner: windows-latest
             target: x86
-        # excluding: ubuntu x86, armv7, s390x, ppc64le, musllinux_1_2, windows-11-arm,
-        # wasm32-unknown-emscripten for simplicity
-        exclude:
-          - runner: windows-latest
-            target: aarch64
-          - runner: macos-13
-            target: aarch64
-          - runner: macos-15
-            target: x86-64
 
     runs-on: ${{ matrix.platform.runner }}
     steps:

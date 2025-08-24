@@ -2,29 +2,41 @@
 name = "tangram_workspace"
 version = "0.2.0"
 requires-python = ">=3.10"
-dependencies = []
+# dependencies specified here are for ci / local development only
+dependencies = ["tangram"]
+classifiers = [
+    "Private :: Do Not Upload"
+]
+
+[project.optional-dependencies]
+example = ["tangram-example"]
+history = ["tangram-history"]
+jet1090 = ["tangram-jet1090"]
+system = ["tangram-system"]
+weather = ["tangram-weather"]
 
 [dependency-groups]
 dev = [
     "ipykernel>=6.29.5",
     "maturin>=1.9.3",
+    { include-group = "test" },
     { include-group = "typing" },
     { include-group = "lint" },
 ]
-lint = [
-    "ruff>=0.12.7",
-]
-test = [
-    "pytest>=8.4.1",
-]
-typing = [
-    "mypy>=1.17.1",
-]
+test = ["pytest>=8.4.1", "anyio>=4.8.0"]
+lint = ["ruff>=0.12.7"]
+typing = ["mypy>=1.17.1"]
 
 [tool.uv.workspace]
-members = [
-    "packages/*",
-]
+members = ["packages/*"]
+
+[tool.uv.sources]
+tangram = { workspace = true }
+tangram-example = { workspace = true }
+tangram-history = { workspace = true }
+tangram-jet1090 = { workspace = true }
+tangram-system = { workspace = true }
+tangram-weather = { workspace = true }
 
 [tool.mypy]
 python_version = "3.10"
@@ -42,15 +54,16 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 [tool.ruff]
+line-length = 88
 target-version = "py310"
 
 [tool.ruff.lint]
 select = [
-  "E",
-  "W",   # pycodestyle
-  "F",   # pyflakes
-  "I",   # isort
-  "NPY", # numpy
-  "DTZ", # flake8-datetimez
-  "RUF",
+    "E",
+    "W",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "NPY", # numpy
+    "DTZ", # flake8-datetimez
+    "RUF",
 ]

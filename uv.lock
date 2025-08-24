@@ -1635,18 +1635,41 @@ requires-dist = [
 name = "tangram-workspace"
 version = "0.2.0"
 source = { virtual = "." }
+dependencies = [
+    { name = "tangram" },
+]
+
+[package.optional-dependencies]
+example = [
+    { name = "tangram-example" },
+]
+history = [
+    { name = "tangram-history" },
+]
+jet1090 = [
+    { name = "tangram-jet1090" },
+]
+system = [
+    { name = "tangram-system" },
+]
+weather = [
+    { name = "tangram-weather" },
+]
 
 [package.dev-dependencies]
 dev = [
+    { name = "anyio" },
     { name = "ipykernel" },
     { name = "maturin" },
     { name = "mypy" },
+    { name = "pytest" },
     { name = "ruff" },
 ]
 lint = [
     { name = "ruff" },
 ]
 test = [
+    { name = "anyio" },
     { name = "pytest" },
 ]
 typing = [
@@ -1654,16 +1677,30 @@ typing = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "tangram", editable = "packages/tangram" },
+    { name = "tangram-example", marker = "extra == 'example'", editable = "packages/tangram_example" },
+    { name = "tangram-history", marker = "extra == 'history'", editable = "packages/tangram_history" },
+    { name = "tangram-jet1090", marker = "extra == 'jet1090'", editable = "packages/tangram_jet1090" },
+    { name = "tangram-system", marker = "extra == 'system'", editable = "packages/tangram_system" },
+    { name = "tangram-weather", marker = "extra == 'weather'", editable = "packages/tangram_weather" },
+]
+provides-extras = ["example", "history", "jet1090", "system", "weather"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "anyio", specifier = ">=4.8.0" },
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "maturin", specifier = ">=1.9.3" },
     { name = "mypy", specifier = ">=1.17.1" },
+    { name = "pytest", specifier = ">=8.4.1" },
     { name = "ruff", specifier = ">=0.12.7" },
 ]
 lint = [{ name = "ruff", specifier = ">=0.12.7" }]
-test = [{ name = "pytest", specifier = ">=8.4.1" }]
+test = [
+    { name = "anyio", specifier = ">=4.8.0" },
+    { name = "pytest", specifier = ">=8.4.1" },
+]
 typing = [{ name = "mypy", specifier = ">=1.17.1" }]
 
 [[package]]

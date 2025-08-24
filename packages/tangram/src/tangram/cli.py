@@ -4,7 +4,7 @@ import importlib.resources
 import logging
 from importlib.abc import Traversable
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, AsyncGenerator
 
 import typer
 import uvicorn
@@ -12,13 +12,13 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .backend import create_app
-from .config import TangramConfig, parse_config
+from .config import TangramConfig
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
 logger = logging.getLogger(__name__)
 
 
-async def run_channel_service(config: TangramConfig):
+async def run_channel_service(config: TangramConfig) -> None:
     from ._channel import ChannelConfig, init_logging, run
 
     init_logging("debug")
@@ -33,21 +33,22 @@ async def run_channel_service(config: TangramConfig):
     await run(rust_config)
 
 
-async def run_services(config: TangramConfig):
-    tasks = [asyncio.create_task(run_channel_service(config))]
+async def run_services(
+    config: TangramConfig,
+) -> AsyncGenerator[asyncio.Task[None], None]:
+    yield asyncio.create_task(run_channel_service(config))
     for entry_point in importlib.metadata.entry_points(group="tangram.services"):
         try:
             service_run_func = entry_point.load()
-            tasks.append(asyncio.create_task(service_run_func(config)))
+            yield asyncio.create_task(service_run_func(config))
             logger.info(f"started service: {entry_point.name}")
         except Exception as e:
             logger.error(f"failed to load service {entry_point.name}: {e}")
-    return tasks
 
 
 async def run_server(
     config: TangramConfig, host: str, port: int, static_dir: Traversable
-):
+) -> None:
     app_instance = create_app()
     app_instance.state.config = config
 
@@ -56,7 +57,9 @@ async def run_server(
         try:
             plugin_dist = importlib.resources.files(plugin_name) / "dist-frontend"
         except ModuleNotFoundError:
-            logger.warning(f"module not found for `{plugin_name}`.")
+            logger.warning(
+                f"expected `{plugin_name}` to be installed, but it was not; skipping."
+            )
             continue
         if plugin_dist.is_dir():
             app_instance.mount(
@@ -67,7 +70,7 @@ async def run_server(
             frontend_plugins.append(plugin_name)
 
     @app_instance.get("/manifest.json")
-    async def get_manifest():
+    async def get_manifest() -> JSONResponse:
         return JSONResponse(content={"plugins": frontend_plugins})
 
     app_instance.mount(
@@ -79,13 +82,13 @@ async def run_server(
     await server.serve()
 
 
-async def start_services(config: TangramConfig):
+async def start_services(config: TangramConfig) -> None:
     core_dist = importlib.resources.files("tangram") / "dist-frontend"
 
     api_server_task = asyncio.create_task(
         run_server(config, config.server.host, config.server.port, core_dist)
     )
-    service_tasks = await run_services(config)
+    service_tasks = tuple([s async for s in run_services(config)])
 
     await asyncio.gather(api_server_task, *service_tasks)
 
@@ -93,19 +96,20 @@ async def start_services(config: TangramConfig):
 @app.command()
 def serve(
     config: Annotated[Path, typer.Option(help="Path to the tangram.toml config file.")],
-):
+) -> None:
     """Serves the core tangram frontend and backend services."""
     if not config.is_file():
-        raise typer.Exit(f"config file not found: {config}")
+        logger.error(f"config file not found: {config}")
+        raise typer.Exit()
 
     try:
-        asyncio.run(start_services(parse_config(config)))
+        asyncio.run(start_services(TangramConfig.from_file(config)))
     except KeyboardInterrupt:
         logger.info("shutting down services.")
 
 
 @app.command()
-def develop():
+def develop() -> None:
     raise SystemExit
 
 

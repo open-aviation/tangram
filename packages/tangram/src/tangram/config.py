@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -29,17 +31,17 @@ class TangramConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     channel: ChannelConfig = field(default_factory=ChannelConfig)
 
+    @classmethod
+    def from_file(cls, config_path: Path) -> TangramConfig:
+        if sys.version_info < (3, 11):
+            import tomli as tomllib
+        else:
+            import tomllib
+        from pydantic import TypeAdapter
 
-def parse_config(config_path: Path):
-    if sys.version_info < (3, 11):
-        import tomli as tomllib
-    else:
-        import tomllib
-    from pydantic import TypeAdapter
+        with open(config_path, "rb") as f:
+            cfg_data = tomllib.load(f)
 
-    with open(config_path, "rb") as f:
-        cfg_data = tomllib.load(f)
-
-    config_adapter = TypeAdapter(TangramConfig)
-    config = config_adapter.validate_python(cfg_data)
-    return config
+        config_adapter = TypeAdapter(cls)
+        config = config_adapter.validate_python(cfg_data)
+        return config
