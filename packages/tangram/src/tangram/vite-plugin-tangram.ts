@@ -22,6 +22,9 @@ export function tangramPlugin(): Plugin[] {
       entryFileName = path.parse(pkg.main).name;
 
       const tangramBuildConfig: UserConfig = {
+        resolve: {
+          conditions: ["source"]
+        },
         build: {
           lib: {
             entry: pkg.main,

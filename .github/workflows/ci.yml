@@ -43,7 +43,7 @@ jobs:
       
       - name: install tangram (no plugins)
         run:
-          uv sync --all-groups --all-packages
+          uv sync --all-groups --package tangram
       
       # TODO: migrate away from tmux once we properly capture rust tracing along with python logs into a file
       - name: start tangram service (no plugins)

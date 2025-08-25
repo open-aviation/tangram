@@ -2,9 +2,6 @@ services:
   tangram:
     build:
       context: .
-      volumes:
-        - ~/.local/share/pnpm/store:/pnpm-store
-        - ./node_modules:/app/node_modules
     command: tangram serve --config /etc/tangram/config.toml
     volumes:
       - ${PATH_TANGRAM_TOML:-./tangram.example.toml}:/etc/tangram/config.toml:ro
@@ -24,3 +21,5 @@ services:
   redis:
     image: docker.io/library/redis:8-alpine
     restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"

@@ -7,11 +7,7 @@
   "scripts": {
     "build": "vite build"
   },
-  "devDependencies": {
-    "@open-aviation/tangram": "workspace:*",
-    "@vitejs/plugin-vue": "^6.0.1",
-    "typescript": "^5.9.2",
-    "vite": "^7.1.1",
-    "vue": "^3.5.18"
+  "dependencies": {
+    "@open-aviation/tangram": "workspace:*"
   }
 }

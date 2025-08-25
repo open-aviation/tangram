@@ -3,16 +3,19 @@
     "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "ESNext",
+    "lib": ["ESNext", "DOM"],
     "moduleResolution": "bundler",
     "strict": true,
-    "jsx": "preserve",
     "sourceMap": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "lib": ["ESNext", "DOM"],
+    "noEmit": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "customConditions": ["source"]
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "src/tangram/types.d.ts", "src/tangram/vite-plugin-tangram.ts"]
+  "include": ["packages/**/*.ts", "packages/**/*.d.ts", "packages/**/*.vue"]
 }

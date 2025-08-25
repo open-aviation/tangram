@@ -1,7 +1,7 @@
 # we no longer use process-compose. previous processes are now located under:
 # - packages/tangram: `web`, `core/webapi`, `channel`
 # - packages/tangram-jet1090: `planes`
-# TODO: trajectory, history_redis
+# TODO: trajectory
 
 tangram-web host="0.0.0.0" port="2345":
   #!/usr/bin/env bash
@@ -9,18 +9,17 @@ tangram-web host="0.0.0.0" port="2345":
   cd web
   npx vite --host {{host}} --port {{port}}
 
-# uv tool install "maturin[patchelf]"
-install-dev:
+# TODO: check difference against
+# uvx maturin develop -m packages/{}/rust/Cargo.toml --uv --release
+# uv pip install -e packages/{}
+# e.g. does it do patchelf? what about debug symbols?
+# TODO: git cleaning and running `setup-dev` fails (uv cache doesn't understand cdylib is gone)
+
+setup-dev:
   pnpm i
   pnpm build
   uv venv
-  uvx maturin develop -m packages/tangram/rust/Cargo.toml --uv --release
-  uvx maturin develop -m packages/tangram_jet1090/rust/Cargo.toml --uv --release
-  uv pip install -e \
-    packages/tangram_example \
-    packages/tangram_history \
-    packages/tangram_system \
-    packages/tangram_weather
+  uv sync --all-groups --all-packages
 
 # TODO(abr): hot reload js frontend
 
@@ -37,3 +36,10 @@ stubgen:
 fmt:
   uv run ruff check packages --fix
   uv run ruff format packages
+  pnpm fmt
+
+# nukes everything, be careful!!
+_clean:
+  git clean -Xdf
+  podman system prune --all --force
+  podman rmi --all --force

@@ -9,21 +9,26 @@ on:
 
 jobs:
   check-podman-build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install just command runner
-        uses: extractions/setup-just@v3
-        with:
-          just-version: '1.14'
 
       - name: Set up Podman
         run: |
           sudo apt-get update
           sudo apt-get install -y podman
           podman --version
+          buildah --version
 
       - name: Cache Podman layers
         uses: actions/cache@v4
@@ -33,8 +38,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-podman-
 
-      - name: Check tangram image creation
-        run: just create-tangram
+      - name: Build Tangram image
+        run: |
+          podman build . \
+            --tag tangram:${{ matrix.arch }}
 
       - name: Verify tangram image exists
         run: |

@@ -58,16 +58,30 @@ async def run_server(
             plugin_dist = importlib.resources.files(plugin_name) / "dist-frontend"
         except ModuleNotFoundError:
             logger.warning(
-                f"expected `{plugin_name}` to be installed, but it was not; skipping."
+                f"expected plugin `{plugin_name}` to be installed, but it was not; "
+                "skipping."
             )
             continue
-        if plugin_dist.is_dir():
-            app_instance.mount(
-                f"/plugins/{plugin_name}",
-                StaticFiles(directory=str(plugin_dist)),
-                name=plugin_name,
+        if not plugin_dist.is_dir():
+            # FIXME(abr): this currently happens on `uv sync --all-packages`, which
+            # installs the project as *editable*, but:
+            # 1. vite is configured to write to packages/{plugin}/dist-frontend
+            # 2. hatchling and maturin, on wheel building, properly adds it to the wheel
+            # 3. `importlib.resources` return the path to the root of the bdist wheel,
+            #    which works for `pip`-installed packages,
+            #    but for editable, `importlib` returns packages/{plugin}/src/{plugin}/
+            #    whose dist-frontend is missing.
+            logger.warning(
+                f"expected plugin `{plugin_name}` to have a frontend at {plugin_dist}, "
+                "but it was not found; skipping."
             )
-            frontend_plugins.append(plugin_name)
+            continue
+        app_instance.mount(
+            f"/plugins/{plugin_name}",
+            StaticFiles(directory=str(plugin_dist)),
+            name=plugin_name,
+        )
+        frontend_plugins.append(plugin_name)
 
     @app_instance.get("/manifest.json")
     async def get_manifest() -> JSONResponse:
