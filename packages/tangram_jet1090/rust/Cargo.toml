@@ -16,6 +16,9 @@ dirs = "6.0.0"
 futures = "0.3"
 redis = { version = "0.28", features = ["tokio-comp"] }
 reqwest = { version = "0.12", features = ["json"] }
+openssl = { version = "0.10", features = ["vendored"], optional = true }
+openssl-probe = { version = "0.1", optional = true }
+
 rs1090 = "0.4.8"
 rusqlite = { version = "0.34.0", features = ["bundled"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -40,3 +43,4 @@ path = "src/bin/stub_gen.rs"
 
 [features]
 python = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:pyo3-stub-gen"]
+openssl-vendored = ["dep:openssl", "dep:openssl-probe"]

@@ -8,7 +8,7 @@
   },
   "types": "./src/tangram/types.d.ts",
   "exports": {
-    "./vite-plugin": "./src/tangram/vite-plugin-tangram.ts",
+    "./vite-plugin": "./src/tangram/vite-plugin-tangram.mjs",
     "./types": "./src/tangram/types.d.ts"
   },
   "dependencies": {

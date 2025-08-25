@@ -16,9 +16,9 @@ jobs:
         runner: [ubuntu-latest, ubuntu-24.04-arm]
         include:
           - runner: ubuntu-latest
-            arch: amd64
+            eccodes_strategy: prebuilt
           - runner: ubuntu-24.04-arm
-            arch: arm64
+            eccodes_strategy: fromsource
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,8 +40,7 @@ jobs:
 
       - name: Build Tangram image
         run: |
-          podman build . \
-            --tag tangram:${{ matrix.arch }}
+          podman build . --tag tangram:latest --build-arg ECCODES_STRATEGY=${{ matrix.eccodes_strategy }}
 
       - name: Verify tangram image exists
         run: |

@@ -69,7 +69,7 @@ impl ChannelConfig {
 #[cfg(feature = "python")]
 #[gen_stub_pyfunction]
 #[pyfunction]
-fn run(py: Python, config: ChannelConfig) -> PyResult<Bound<'_, PyAny>> {
+fn run(py: Python<'_>, config: ChannelConfig) -> PyResult<Bound<'_, PyAny>> {
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
         run_server(config).await.map_err(|e| e.into())
     })

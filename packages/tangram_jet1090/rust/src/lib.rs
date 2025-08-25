@@ -108,10 +108,24 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
     Ok(())
 }
 
+// needed for aircraft db on aarch64
+// see: https://github.com/PyO3/maturin-action/discussions/162#discussioncomment-7978369
+#[cfg(feature = "openssl-vendored")]
+use openssl_probe;
+
+#[cfg(feature = "openssl-vendored")]
+pub fn probe_ssl_certs() {
+    openssl_probe::init_ssl_cert_env_vars();
+}
+
+#[cfg(not(feature = "openssl-vendored"))]
+pub fn probe_ssl_certs() {}
+
 #[cfg(feature = "python")]
 #[gen_stub_pyfunction]
 #[pyfunction]
-fn run_planes(py: Python, config: PlanesConfig) -> PyResult<Bound<'_, PyAny>> {
+fn run_planes(py: Python<'_>, config: PlanesConfig) -> PyResult<Bound<'_, PyAny>> {
+    probe_ssl_certs();
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
         _run_service(config)
             .await

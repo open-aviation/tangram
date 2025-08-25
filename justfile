@@ -23,8 +23,11 @@ setup-dev:
 
 # TODO(abr): hot reload js frontend
 
-create-tangram:
-  podman build . --tag tangram:latest
+# A modern docker build, with eccodes using `prebuilt` wheels or `fromsource`.
+create-tangram build_eccodes='prebuilt':
+  podman build . \
+    --build-arg BUILD_ECCODES={{build_eccodes}} \
+    --tag tangram:latest
 
 docs-serve:
   uvx --with "mkdocs-material[imaging]" mkdocs serve
