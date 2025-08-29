@@ -1,131 +1,78 @@
-# Quickstart Guide for tangram
+Get tangram running in under five minutes.
 
-<p class="subtitle">How to quickly set up and run tangram with basic visualizations of aviation data</p>
+## 1. Install the `tangram` core
 
-!!! warning
+=== "uv"
 
-    The framework has **only been tested on Linux and macOS**.
-
-    It may not work on Windows without additional configuration, but contributions to improve Windows compatibility are welcome!
-
-## Prerequisites
-
-Before you begin, ensure you have the following tools installed:
-
-1. [just](https://github.com/casey/just) is a **command runner**, similar to `make`, that simplifies running commands in your project.
-
-2. [podman](https://podman.io/) is a **container engine** for developing, managing, and running containers, similar to Docker.
-
-!!! tip
-
-    You can have a running tangram instance in less than 5 minutes with these tools.
-
-    It will also be possible to run some of the components outside of containers, but for the quickstart, we use containers to simplify the setup.
-
-## 0. Clone the Repository
-
-First clone the tangram repository to your local machine:
-
-```shell
-git clone https://github.com/open-aviation/tangram
-cd tangram
-```
-
-## 1. Environment Configuration
-
-Create an environment file from the template:
-
-```shell
-cp .env.example .env
-```
-
-The file contains default configurations for a basic demo setup. You can modify it later to suit your needs.
-
-## 2. Build Containers
-
-Build the `tangram` container:
-
-```shell
-just create-tangram
-```
-
-## 3. Launch Redis
-
-Start a Redis container for message passing and caching between different services:
-
-```shell
-just redis
-```
-
-This command will pull the Redis image if not already available and start the container.
-
-!!! note
-
-    The redis container will keep running in the background, allowing other services to connect to it.
-
-    You can check if Redis is running with:
-
-    ```shell
-    podman container ls
+    ```sh
+    uv tool install tangram-py
     ```
 
-    You can stop the container with:
+=== "pip"
 
-    ```shell
-    podman container stop redis
+    ```sh
+    python3 -m virtualenv .venv
+    . .venv/bin/activate
+    pip install tangram-py
     ```
 
-## 4. Run the data receiver
+## 2. Configuration
 
-Set up the data source parameters and run the `jet1090` container:
+Create a `tangram.toml` file to control the application. This is where you define which plugins are active.
 
-```shell
-just jet1090
+```toml
+[core]
+redis_url = "redis://127.0.0.1:6379"
+plugins = []
+
+[server]
+host = "127.0.0.1"
+port = 8000
+
+[channel]
+host = "127.0.0.1"
+port = 2347
+jwt_secret = "a-very-insecure-secret-key-pls-change"
+jwt_expiration_secs = 315360000
 ```
 
-You should now see the `jet1090` console displaying data received from the source:
+## 3. Running `tangram`
 
-![jet1090 console](./screenshot/jet1090.png)
-
-!!! note
-
-    The `jet1090` executable can also be easily installed directly on your system if you prefer not to use a container. Check the [jet1090 documentation](https://mode-s.org/jet1090/) for installation instructions. However, the default configuration works with a containerized version for simplicity.
-
-    Note that it is mandatory to run `jet1090` locally if you want to feed data from a RTL-SDR device, as the containerized version may not have access to your local hardware: it can be parameterized for Linux (a bit complicated), but it is not possible for Apple computers due to limitations in the kernel implementation.
-
-    In that case, you need to edit some parameters in the `.env` file:
-
-    - `REDIS_URL` becomes `http://host.containers.internal:6379` (which will work thanks to port redirection explicited in the `justfile`)
-    - `JET1090_URL` becomes `http://host.containers.internal:8080`.
-
-## 5. Launch tangram
-
-In a new terminal, run the tangram container:
+`tangram` uses Redis for messaging. If you do not have it, install [podman](https://podman.io/docs/installation) or [Docker](https://docs.docker.com/engine/install/) and run:
 
 ```shell
-just tangram
+podman run -d --rm -p 6379:6379 --name redis redis:latest
+# to verify connection:
+podman container exec -it redis redis-cli ping
+# PONG
 ```
 
-The container is orchestrated using [`process_compose`](https://github.com/F1bonacc1/process-compose), which manages the various background processes required for tangram to function.
+To start tangram, run:
 
-![process composer](./screenshot/process.png)
+```shell
+tangram serve --config /path/to/your/tangram.toml
+```
 
-You may click on each process to see its logs in real-time. The `web` process is the web server that serves the tangram interface.
-
-## 6. Access the web interface
-
-Open your browser and navigate to <http://localhost:2345> to access the tangram web interface.
+Open your browser and navigate to <http://localhost:8000> to access the web interface.
 
 ![web interface](./screenshot/tangram_screenshot_nl.png)
+<!-- todo: update -->
 
-## Troubleshooting
+## 4. (Optional) Installing plugins
 
-| Issue                                 | Command                                                      |
-| ------------------------------------- | ------------------------------------------------------------ |
-| Check the logs for errors             | `just tangram-log`                                           |
-| Open a shell in the tangram container | `just tangram-shell`                                         |
-| Ensure all containers are running     | `podman container ls`                                        |
-| Verify Redis connection               | `podman container exec -it redis redis-cli ping`             |
-| Kill a container if needed            | `podman kill <container_name>` (e.g. `jet1090` or `tangram`) |
-| Delete containers if needed           | `podman rm <container_name>` (e.g. `jet1090` or `tangram`)   |
-| Delete images if needed               | `podman rmi <image_name>` (e.g. `tangram:latest`)            |
+Plugins are standalone Python packages that extend the core.
+
+For example, to install the `tangram_system` plugin:
+
+=== "uv"
+
+    ```sh
+    uv tool install --with tangram_system tangram
+    ```
+
+=== "pip"
+
+    ```sh
+    # assuming tangram is already installed
+    pip install tangram_system
+    ```
