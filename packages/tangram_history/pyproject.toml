@@ -5,10 +5,8 @@ build-backend = "hatchling.build"
 [project]
 name = "tangram_history"
 version = "0.2.0"
-dependencies = [
-    "pandas>=2",
-    "tangram>=0.2.0",
-]
+dependencies = ["pandas>=2", "tangram>=0.2.0"]
+authors = [{ name = "Xavier Olive", email = "git@xoolive.org" }]
 
 [project.entry-points."tangram.plugins"]
 history = "tangram_history:register_plugin"

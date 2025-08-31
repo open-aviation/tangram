@@ -3,37 +3,43 @@
 !!! warning
     The new configuration and plugin system is under active development. APIs and configuration schemas may change.
 
-`tangram` is configured through a single `tangram.toml` file. This provides a centralized and clear way to manage the entire platform, from core services to plugins. By default, the `tangram` CLI looks for this file in the current directory, but you can specify a path with the `--config` option.
+`tangram` is configured through a single `tangram.toml` file. This provides a centralized and clear way to manage the entire platform, from core services to plugins.
 
 ### Example `tangram.toml`
 
 ```toml
 [core]
-# url for the Redis instance used for pub/sub messaging.
+# URL for the Redis instance used for pub/sub messaging.
 redis_url = "redis://localhost:6379"
+
+# a list of installed plugin packages to activate.
+# tangram will look for entry points provided by these packages.
 plugins = [
-    "tangram_system",       # official system monitoring plugin
-    "tangram_jet1090",      # official ADS-B data plugin
-    "my_awesome_package"    # your custom, out-of-tree plugin
+    "tangram_system",
+    "tangram_jet1090",
+    "my_awesome_package"
 ]
 
 [server]
-# main FastAPI web server.
+# main FastAPI web server, which serves the
+# frontend application and plugin API routes.
 host = "127.0.0.1"
 port = 8000
 
 [channel]
-# real-time WebSocket service.
+# integrated real-time WebSocket service.
 host = "127.0.0.1"
 port = 2347
+# a secret key used to sign JSON Web Tokens (JWTs) for authenticating
+# WebSocket connections. Change this to a strong, unique secret.
 jwt_secret = "a-better-secret-than-this"
 
 [plugins.tangram_jet1090]
-# plugin-specific configuration is defined in its own table.
-[[plugins.tangram_jet1090.sources]]
-name = "TU Delft"
-airport = "EHRD"
-websocket = "ws://feedme.mode-s.org:9876/40128"
+# plugin-specific configuration is defined in its own table,
+# following the pattern `[plugins.<plugin_package_name>]`.
+# The structure of this table is defined by the plugin itself.
+jet1090_channel = "jet1090"
+history_expire = 20
 ```
 
 <!-- Most of the configuration for the tangram platform will be done through **environment variables** and **configuration files**.
@@ -41,7 +47,7 @@ websocket = "ws://feedme.mode-s.org:9876/40128"
 These include:
 
 - the `.env` file for environment variables;
-- the `web/vite.config.js` file for the web application build configuration;
+- the `web_legacy/vite.config.js` file for the web application build configuration;
 - the `config_jet1090.toml` file for the [**`jet1090` configuration**](https://mode-s.org/jet1090/config/) relative to data sources.
 
 ## Environment variables
@@ -84,7 +90,7 @@ They **must be prefixed with `VITE_`** to be accessible in the web application c
 
 The paths for Vue files corresponding to plugins are also set in the `.env` file: they must follow the pattern `TANGRAM_WEB_<component>_PATH`, e.g. `TANGRAM_WEB_AWESOMEPLUGIN_PATH`. These paths can be customized as needed and edited in real time without rebuilding the web application. The web application will automatically pick up changes to these paths.
 
-The plugin components are expected to be in the `web/src/components/` directory (defined as `fallbackDir`), but you can override this path to point to any other directory containing Vue components.
+The plugin components are expected to be in the `web_legacy/src/components/` directory (defined as `fallbackDir`), but you can override this path to point to any other directory containing Vue components.
 
 The plugins must be declared in the `vite.config.js` file, which is used to build the web application. You must also list `availablePlugins` that will be used to build the web application. The plugin component names must be the same as the names of the Vue files, without the `.vue` extension. Capitalization should be consistent with the file name.
 

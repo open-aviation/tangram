@@ -1,8 +1,8 @@
 Backend plugins are the standard way to add new server-side capabilities to `tangram`. They are self-contained Python packages that `tangram` discovers and loads at runtime, allowing for clean separation from the core framework.
 
-This design, inspired by the plugin systems of tools like `mkdocstrings` and `pytest`, means you can develop and distribute your `tangram` extensions on PyPI.
+This guide walks you through creating a backend plugin.
 
-# 1. Project Structure
+## 1. Project Structure
 
 A backend plugin is a standard Python package.
 
@@ -14,9 +14,12 @@ my-tangram-plugin/
         └── __init__.py
 ```
 
-# 2. The `pyproject.toml`
+## 2. The `pyproject.toml` and Entry Points
 
-It tells the Python ecosystem that your package is a `tangram` plugin by defining an **entry point**.
+Your `pyproject.toml` tells the Python ecosystem that your package is a `tangram` plugin by defining **entry points**. `tangram` uses two types of entry points:
+
+- `tangram.plugins`: For adding REST API endpoints to the main FastAPI application.
+- `tangram.services`: For running long-running background tasks (e.g., data processors, subscribers).
 
 ```toml title="pyproject.toml"
 [project]
@@ -26,19 +29,24 @@ dependencies = [
     "tangram>=0.2.0"
 ]
 
-# this section makes your plugin discoverable by tangram.
+# this section makes your plugin's API routes discoverable.
 [project.entry-points."tangram.plugins"]
 my_plugin = "my_plugin:register_plugin"
+
+# this section makes your plugin's background service discoverable.
+[project.entry-points."tangram.services"]
+my_plugin_service = "my_plugin:run_service"
 ```
 
-The `[project.entry-points."tangram.plugins"]` table declares that a plugin named `my_plugin` exists, and its registration function is `register_plugin` inside the `my_plugin` module.
+## 3. The Plugin Code
 
-# 3. The Plugin Code
+### Adding API Routes
 
-The `register_plugin` function is the hook that `tangram` calls to integrate your plugin. It receives the main `FastAPI` application instance, allowing you to attach your own routers, background tasks, or middleware.
+The function registered under `tangram.plugins` receives the main `FastAPI` application instance, allowing you to attach your own routers.
 
 ```python title="src/my_plugin/__init__.py"
 from fastapi import APIRouter, FastAPI
+from tangram.config import TangramConfig
 
 router = APIRouter(prefix="/my-plugin")
 
@@ -47,20 +55,39 @@ async def my_endpoint():
     return {"message": "Hello from my custom plugin!"}
 
 def register_plugin(app: FastAPI):
-    """This function is discovered and called by tangram."""
+    """This function is called by tangram to add API routes."""
     app.include_router(router)
+
+# ... service code below
 ```
 
-# 4. Using Your Plugin
+### Adding a Background Service
 
-Once your package is installed (e.g., via `uv pip install .`), enable it in your [`tangram.toml`](../configuration.md):
+The function registered under `tangram.services` is an `async` function that receives the global `TangramConfig` object. `tangram` will start this function in the background when the server starts.
+
+```python title="src/my_plugin/__init__.py"
+# ... api code above
+import asyncio
+
+async def run_service(config: TangramConfig):
+    """This function is run as a background service on a separate thread."""
+    redis_url = config.core.redis_url
+    print(f"my service is running with Redis URL: {redis_url}")
+    while True:
+        # do some work...
+        await asyncio.sleep(10)
+```
+
+## 4. Using Your Plugin
+
+Once your package is installed (e.g., via `uv pip install .` or `uv sync` in the monorepo), enable it in your `tangram.toml`:
 
 ```toml
 [core]
-plugins = ["my_plugin"]
+plugins = ["my_tangram_plugin"]
 ```
 
-When you run `tangram serve`, the core application will automatically find and load your plugin, and the `/my-plugin` endpoint will become available.
+When you run `tangram serve`, the core application will automatically find and load your plugin's entry points, making the `/my-plugin` endpoint available and starting your background service.
 
 <!-- # Implement a backend plugin
 

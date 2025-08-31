@@ -9,6 +9,9 @@ readme = "readme.md"
 dependencies = [
     "tangram>=0.2.0",
 ]
+classifiers = [
+    "Private :: Do Not Upload"
+]
 
 [project.entry-points."tangram.plugins"]
 tangram_example = "tangram_example:register_plugin"

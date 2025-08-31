@@ -6,24 +6,19 @@ site_url: https://mode-s.org/tangram/
 nav:
   - Home: "index.md"
   - Quickstart: "quickstart.md"
-  - Configuration:
-      - tangram configuration: "configuration.md"
-      - jet1090 configuration: https://mode-s.org/jet1090/config
   - Architecture:
-      - "architecture/index.md"
-      - jet1090: https://mode-s.org/jet1090/
-      - "architecture/planes.md"
-      - "architecture/trajectory.md"
-      - channel: "architecture/channel.md"
+    - "architecture/index.md"
+    - channel: "architecture/channel.md"
+  - Configuration: "configuration.md"
   - Plugins:
-      - "plugins/index.md"
-      - "plugins/frontend.md"
-      - "plugins/backend.md"
-      - Examples:
-          - "plugins/examples/sensors.md"
-          - "plugins/examples/windfield.md"
-          - "plugins/examples/citypair.md"
-          - "plugins/examples/contrails.md"
+    - "plugins/index.md"
+    - "plugins/backend.md"
+    - "plugins/frontend.md"
+    - Built-in:
+      - "plugins/system.md"
+      - "plugins/jet1090.md"
+      - "plugins/history.md"  # maybe not?
+      - "plugins/weather.md"
   - Contribute: "contribute.md"
 
 theme:

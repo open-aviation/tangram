@@ -22,8 +22,6 @@ This design allows you to:
 |                    | :simple-rust: Rust for performance critical components                  |
 | Data communication | :simple-redis: Redis (pub/sub messaging system)                         |
 
-Processes on the backend side communicate with each other using a **pub/sub mechanism** provided by Redis. The frontend communicates with the backend service through a **REST API** for simple requests and a **WebSocket connection** for real-time data streaming.
-
 ## System Overview
 
 ![tangram architecture](../screenshot/tangram_diagram.png)
@@ -34,12 +32,15 @@ Processes on the backend side communicate with each other using a **pub/sub mech
 | `channel`             | (Bundled with `tangram`) | WebSocket bridge between the frontend and Redis pub/sub.   |
 | `jet1090` integration | `tangram_jet1090` plugin | Decodes Mode S/ADS-B messages and provides data streams.   |
 | State Vectors         | `tangram_jet1090` plugin | Maintains a real-time state table of aircraft.             |
-| Trajectory History    | `tangram_jet1090` plugin | Stores and retrieves historical aircraft data.             |
+| Trajectory History    | `tangram_history` plugin | Stores and retrieves historical aircraft data.             |
 | System Info           | `tangram_system` plugin  | Provides backend server metrics like CPU and memory usage. |
+| Weather Layers        | `tangram_weather` plugin |                                                            |
 
 ## Backend Plugin System
 
-The backend discovers plugins using Python's standard **entry point** mechanism. When you `pip install tangram-jet1090`, it registers itself under the `tangram.plugins` group in its `pyproject.toml`. The core `tangram` application queries this group at startup to find and load all available plugins, allowing them to add their own API routes and background tasks.
+The backend discovers plugins using Python's standard **entry point** mechanism. When you `pip install tangram_jet1090`, it registers itself under the `tangram.plugins` and `tangram.services` groups in its `pyproject.toml`. The core `tangram` application queries these groups at startup to find and load all available plugins, allowing them to add their own API routes and background tasks.
+
+For a detailed guide on creating your own backend extensions, see the [Backend Plugin Guide](../plugins/backend.md).
 
 
 <!-- ### jet1090
@@ -81,6 +82,8 @@ For instance, state vectors updates from the `planes` component are sent on the 
 ## Frontend Plugin System
 
 The frontend loads plugins dynamically. The backend serves a `/manifest.json` file listing all enabled frontend plugins. The core `tangram` web application fetches this manifest and dynamically imports the JavaScript entry point for each plugin. The plugin's entry point then calls the `tangramApi.registerWidget()` function to add its Vue components to the main application.
+
+For more details, see the [Frontend Plugin Guide](../plugins/frontend.md).
 
 
 <!-- The frontend is based on Vue.js and provides a dynamic, real-time visualization interface for aviation data. It is designed to be modular, allowing users to implement their own plugins for data visualization and analysis.
