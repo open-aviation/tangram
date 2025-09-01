@@ -1,13 +1,13 @@
 import pandas as pd
-from fastapi import APIRouter, FastAPI
+import tangram
+from fastapi import APIRouter
 from fastapi.responses import ORJSONResponse
 
 from .arpege import latest_data as latest_arpege_data
 
-# Create a router for your plugin
 router = APIRouter(
-    prefix="/weather",  # All routes will be prefixed with /weather
-    tags=["weather"],  # For API documentation organization
+    prefix="/weather",
+    tags=["weather"],
     responses={404: {"description": "Not found"}},
 )
 
@@ -29,6 +29,4 @@ async def wind(isobaric: int = 300) -> ORJSONResponse:
     return ORJSONResponse(content=res.to_dict())
 
 
-def register_plugin(app: FastAPI) -> None:
-    """Register this plugin with the main FastAPI application."""
-    app.include_router(router)
+plugin = tangram.Plugin(frontend_path="dist-frontend", routers=[router])

@@ -1,108 +1,39 @@
 import asyncio
-import importlib.metadata
-import importlib.resources
 import logging
 from importlib.abc import Traversable
 from pathlib import Path
-from typing import Annotated, AsyncGenerator
+from typing import Annotated
 
 import typer
 import uvicorn
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+from rich.console import Console
+from rich.table import Table
 
-from .backend import create_app
-from .config import TangramConfig
+from .backend import create_app, load_enabled_plugins, resolve_frontend, run_services
+from .config import Config
+from .plugin import DistName, Plugin, load_plugin, scan_plugins
 
 app = typer.Typer(no_args_is_help=True)
 logger = logging.getLogger(__name__)
-
-
-async def run_channel_service(config: TangramConfig) -> None:
-    from ._channel import ChannelConfig, init_logging, run
-
-    init_logging("debug")
-
-    rust_config = ChannelConfig(
-        host=config.channel.host,
-        port=config.channel.port,
-        redis_url=config.core.redis_url,
-        jwt_secret=config.channel.jwt_secret,
-        jwt_expiration_secs=config.channel.jwt_expiration_secs,
-    )
-    await run(rust_config)
-
-
-async def run_services(
-    config: TangramConfig,
-) -> AsyncGenerator[asyncio.Task[None], None]:
-    yield asyncio.create_task(run_channel_service(config))
-    for entry_point in importlib.metadata.entry_points(group="tangram.services"):
-        try:
-            service_run_func = entry_point.load()
-            yield asyncio.create_task(service_run_func(config))
-            logger.info(f"started service: {entry_point.name}")
-        except Exception as e:
-            logger.error(f"failed to load service {entry_point.name}: {e}")
+stderr = Console(stderr=True)
 
 
 async def run_server(
-    config: TangramConfig, host: str, port: int, static_dir: Traversable
+    config: Config, loaded_plugins: list[tuple[DistName, Plugin]]
 ) -> None:
-    app_instance = create_app()
-    app_instance.state.config = config
-
-    frontend_plugins = []
-    for plugin_name in config.core.plugins:
-        try:
-            plugin_dist = importlib.resources.files(plugin_name) / "dist-frontend"
-        except ModuleNotFoundError:
-            logger.warning(
-                f"expected plugin `{plugin_name}` to be installed, but it was not; "
-                "skipping."
-            )
-            continue
-        if not plugin_dist.is_dir():
-            # FIXME(abr): this currently happens on `uv sync --all-packages`, which
-            # installs the project as *editable*, but:
-            # 1. vite is configured to write to packages/{plugin}/dist-frontend
-            # 2. hatchling and maturin, on wheel building, properly adds it to the wheel
-            # 3. `importlib.resources` return the path to the root of the bdist wheel,
-            #    which works for `pip`-installed packages,
-            #    but for editable, `importlib` returns packages/{plugin}/src/{plugin}/
-            #    whose dist-frontend is missing.
-            logger.warning(
-                f"expected plugin `{plugin_name}` to have a frontend at {plugin_dist}, "
-                "but it was not found; skipping."
-            )
-            continue
-        app_instance.mount(
-            f"/plugins/{plugin_name}",
-            StaticFiles(directory=str(plugin_dist)),
-            name=plugin_name,
-        )
-        frontend_plugins.append(plugin_name)
-
-    @app_instance.get("/manifest.json")
-    async def get_manifest() -> JSONResponse:
-        return JSONResponse(content={"plugins": frontend_plugins})
-
-    app_instance.mount(
-        "/", StaticFiles(directory=str(static_dir), html=True), name="core"
+    app_instance = create_app(config, loaded_plugins)
+    server_config = uvicorn.Config(
+        app_instance, host=config.server.host, port=config.server.port, log_level="info"
     )
-
-    server_config = uvicorn.Config(app_instance, host=host, port=port, log_level="info")
     server = uvicorn.Server(server_config)
     await server.serve()
 
 
-async def start_services(config: TangramConfig) -> None:
-    core_dist = importlib.resources.files("tangram") / "dist-frontend"
+async def start_tasks(config: Config) -> None:
+    loaded_plugins = load_enabled_plugins(config)
 
-    api_server_task = asyncio.create_task(
-        run_server(config, config.server.host, config.server.port, core_dist)
-    )
-    service_tasks = tuple([s async for s in run_services(config)])
+    api_server_task = asyncio.create_task(run_server(config, loaded_plugins))
+    service_tasks = [s async for s in run_services(config, loaded_plugins)]
 
     await asyncio.gather(api_server_task, *service_tasks)
 
@@ -117,10 +48,86 @@ def serve(
         raise typer.Exit()
 
     try:
-        asyncio.run(start_services(TangramConfig.from_file(config)))
+        asyncio.run(start_tasks(Config.from_file(config)))
     except KeyboardInterrupt:
         logger.info("shutting down services.")
 
+
+@app.command(name="list-plugins")
+def list_plugins(
+    config_path: Annotated[
+        Path | None,
+        typer.Option("--config", help="Path to the tangram.toml config file."),
+    ] = None,
+    all_plugins: Annotated[
+        bool, typer.Option("--all", help="Load all discovered plugins.")
+    ] = False,
+) -> None:
+    """Lists discovered plugins and their components."""
+    table = Table()
+    table.add_column("plugin")
+    table.add_column("status")
+    table.add_column("frontend")
+    table.add_column("routers")
+    table.add_column("services")
+
+    enabled_plugins: list[str] | None = None
+    if config_path and config_path.is_file():
+        config = Config.from_file(config_path)
+        enabled_plugins = config.core.plugins
+
+    for entry_point in scan_plugins():
+        plugin_name = entry_point.name
+        load_this_plugin = all_plugins or (
+            enabled_plugins is not None and plugin_name in enabled_plugins
+        )
+
+        if not load_this_plugin:
+            table.add_row(plugin_name, "available", "?", "?", "?")
+            continue
+
+        if (p := load_plugin(entry_point)) is None:
+            status_str = "[red]load failed[/red]"
+            table.add_row(plugin_name, status_str, "!", "!", "!")
+            continue
+        _name, plugin = p
+        status = (
+            "enabled"
+            if enabled_plugins and plugin_name in enabled_plugins
+            else "loaded"
+        )
+        frontend_str = ""
+        if p := plugin.frontend_path:
+            if resolved_path := resolve_frontend(path=p, dist_name=plugin_name):
+                size_kb = get_path_size(resolved_path) / 1024
+                frontend_str = f"{size_kb:.1f} B"
+            else:
+                frontend_str = f"[yellow]({p} not found)[/yellow]"
+
+        status_str = f"[green]{status}[/green]"
+        router_prefixes = [func.prefix for func in plugin.routers]
+        service_names = [func.__name__ for _, func in plugin.services]
+
+        table.add_row(
+            plugin_name,
+            status_str,
+            frontend_str,
+            "\n".join(router_prefixes),
+            "\n".join(service_names),
+        )
+
+
+    stderr.print(table)
+
+def get_path_size(path: Path | Traversable) -> int:
+    total_size = 0
+    for item in path.iterdir():
+        if item.is_file():
+            with item.open("rb") as f:
+                total_size += len(f.read())
+        elif item.is_dir():
+            total_size += get_path_size(item)
+    return total_size
 
 @app.command()
 def develop() -> None:

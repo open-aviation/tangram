@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { onMounted, getCurrentInstance } from 'vue';
 import { createTangramApi, registeredWidgets } from './tangram-api';
-import { loadPlugins } from './plugin-manager';
+import { loadPlugins } from './plugin';
 
 const widgets = registeredWidgets;
 

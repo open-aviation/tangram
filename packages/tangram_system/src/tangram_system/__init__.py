@@ -1,13 +1,12 @@
 import asyncio
 import json
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import NoReturn
 
 import psutil
 import redis.asyncio as redis
-from fastapi import FastAPI
-from tangram.config import TangramConfig
+import tangram
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +19,10 @@ def uptime(counter: int) -> dict[str, str]:
 
 
 def info_utc() -> dict[str, str | int]:
-    return {"el": "info_utc", "value": 1000 * int(datetime.now(UTC).timestamp())}
+    return {
+        "el": "info_utc",
+        "value": 1000 * int(datetime.now(timezone.utc).timestamp()),
+    }
 
 
 def cpu_load() -> dict[str, str]:
@@ -56,13 +58,8 @@ async def server_events(redis_url: str) -> NoReturn:
 
         await asyncio.sleep(1)
 
+plugin = tangram.Plugin(frontend_path="dist-frontend")
 
-def register_plugin(app: FastAPI) -> None:
-    """Register this plugin with the main FastAPI application."""
-    config: TangramConfig = app.state.config
-    redis_url = config.core.redis_url
-    log.info("System events service started in background task")
-
-    task = asyncio.create_task(server_events(redis_url))
-    app.state.background_tasks.add(task)
-    task.add_done_callback(app.state.background_tasks.discard)
+@plugin.register_service()
+async def run_system(config: tangram.Config) -> None:
+    await server_events(config.core.redis_url)

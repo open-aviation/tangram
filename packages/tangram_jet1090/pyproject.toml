@@ -16,10 +16,7 @@ dependencies = [
 tangram = { workspace = true }
 
 [project.entry-points."tangram.plugins"]
-jet1090 = "tangram_jet1090:register_plugin"
-
-[project.entry-points."tangram.services"]
-planes = "tangram_jet1090:run_planes"
+tangram_jet1090 = "tangram_jet1090:plugin"
 
 [tool.maturin]
 python-source = "src"  # needed for stubgen to output path correctly.

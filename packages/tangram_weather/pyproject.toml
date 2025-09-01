@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.entry-points."tangram.plugins"]
-weather = "tangram_weather:register_plugin"
+tangram_weather = "tangram_weather:plugin"
 
 [tool.uv.sources]
 tangram = { workspace = true }

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, FastAPI
+import tangram
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 # Create a router for your plugin
@@ -20,8 +21,10 @@ async def get_example() -> ExampleResponse:
     return ExampleResponse(data="This is an example plugin response")
 
 
-# This function will be called by the main FastAPI application
-# Place it in __init__.py to register the plugin
-def register_plugin(app: FastAPI) -> None:
-    """Register this plugin with the main FastAPI application."""
-    app.include_router(router)
+plugin = tangram.Plugin(
+    frontend_path="dist-frontend",
+    routers=[
+        # The core will add this to the main FastAPI application.
+        router
+    ],
+)

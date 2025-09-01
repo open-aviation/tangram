@@ -3,17 +3,19 @@ import os
 from typing import Any
 
 import pandas as pd
-from fastapi import APIRouter, FastAPI
+import tangram
+from fastapi import APIRouter
 from redis.asyncio import Redis
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 log = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/history",  # All routes will be prefixed with /history
-    tags=["history"],  # For API documentation organization
+    prefix="/history",
+    tags=["history"],
     responses={404: {"description": "Not found"}},
 )
+# TODO: figure out a way to pass the config down from the core
 redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
 redis_client = Redis.from_url(redis_url)
 
@@ -90,6 +92,4 @@ async def get_track(icao24: str) -> list[dict[str, Any]]:
     return result
 
 
-def register_plugin(app: FastAPI) -> None:
-    """Register this plugin with the main FastAPI application."""
-    app.include_router(router)
+plugin = tangram.Plugin(routers=[router])

@@ -38,7 +38,7 @@ This design allows you to:
 
 ## Backend Plugin System
 
-The backend discovers plugins using Python's standard **entry point** mechanism. When you `pip install tangram_jet1090`, it registers itself under the `tangram.plugins` and `tangram.services` groups in its `pyproject.toml`. The core `tangram` application queries these groups at startup to find and load all available plugins, allowing them to add their own API routes and background tasks.
+The backend discovers plugins using Python's standard **entry point** mechanism. When you `pip install tangram_jet1090`, it registers itself under the `tangram.plugins` group in its `pyproject.toml`. The core `tangram` application queries these groups at startup to find and load all available plugins, allowing them to add their own API routes and background tasks.
 
 For a detailed guide on creating your own backend extensions, see the [Backend Plugin Guide](../plugins/backend.md).
 

@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.entry-points."tangram.plugins"]
-system = "tangram_system:register_plugin"
+tangram_system = "tangram_system:plugin"
 
 [tool.uv.sources]
 tangram = { workspace = true }

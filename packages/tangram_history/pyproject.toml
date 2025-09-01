@@ -9,7 +9,7 @@ dependencies = ["pandas>=2", "tangram>=0.2.0"]
 authors = [{ name = "Xavier Olive", email = "git@xoolive.org" }]
 
 [project.entry-points."tangram.plugins"]
-history = "tangram_history:register_plugin"
+tangram_history = "tangram_history:plugin"
 
 [tool.uv.sources]
 tangram = { workspace = true }

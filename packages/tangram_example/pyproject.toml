@@ -14,7 +14,7 @@ classifiers = [
 ]
 
 [project.entry-points."tangram.plugins"]
-tangram_example = "tangram_example:register_plugin"
+tangram_example = "tangram_example:plugin"
 
 [tool.uv.sources]
 tangram = { workspace = true }

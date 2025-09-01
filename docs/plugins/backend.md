@@ -16,10 +16,7 @@ my-tangram-plugin/
 
 ## 2. The `pyproject.toml` and Entry Points
 
-Your `pyproject.toml` tells the Python ecosystem that your package is a `tangram` plugin by defining **entry points**. `tangram` uses two types of entry points:
-
-- `tangram.plugins`: For adding REST API endpoints to the main FastAPI application.
-- `tangram.services`: For running long-running background tasks (e.g., data processors, subscribers).
+Your `pyproject.toml` tells the Python ecosystem that your package is a `tangram` plugin by defining **entry points**:
 
 ```toml title="pyproject.toml"
 [project]
@@ -29,24 +26,20 @@ dependencies = [
     "tangram>=0.2.0"
 ]
 
-# this section makes your plugin's API routes discoverable.
+# this section makes your plugin discoverable by the core
 [project.entry-points."tangram.plugins"]
-my_plugin = "my_plugin:register_plugin"
-
-# this section makes your plugin's background service discoverable.
-[project.entry-points."tangram.services"]
-my_plugin_service = "my_plugin:run_service"
+my_plugin = "my_plugin:plugin"
 ```
 
 ## 3. The Plugin Code
 
 ### Adding API Routes
 
-The function registered under `tangram.plugins` receives the main `FastAPI` application instance, allowing you to attach your own routers.
+Define a FastAPI `APIRouter` and pass it to the `Plugin` constructor.
 
 ```python title="src/my_plugin/__init__.py"
-from fastapi import APIRouter, FastAPI
-from tangram.config import TangramConfig
+from fastapi import APIRouter
+import tangram
 
 router = APIRouter(prefix="/my-plugin")
 
@@ -54,28 +47,25 @@ router = APIRouter(prefix="/my-plugin")
 async def my_endpoint():
     return {"message": "Hello from my custom plugin!"}
 
-def register_plugin(app: FastAPI):
-    """This function is called by tangram to add API routes."""
-    app.include_router(router)
+plugin = tangram.Plugin(routers=[router])
 
 # ... service code below
 ```
 
+
 ### Adding a Background Service
 
-The function registered under `tangram.services` is an `async` function that receives the global `TangramConfig` object. `tangram` will start this function in the background when the server starts.
+Use the [`tangram.Plugin.register_service`][] decorator on an async function. `tangram` will start it in the background.
 
 ```python title="src/my_plugin/__init__.py"
 # ... api code above
-import asyncio
 
-async def run_service(config: TangramConfig):
+@plugin.register_service()
+async def run_service(config: tangram.Config):
     """This function is run as a background service on a separate thread."""
     redis_url = config.core.redis_url
     print(f"my service is running with Redis URL: {redis_url}")
-    while True:
-        # do some work...
-        await asyncio.sleep(10)
+    # ...
 ```
 
 ## 4. Using Your Plugin

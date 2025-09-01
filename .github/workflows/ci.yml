@@ -50,6 +50,14 @@ jobs:
         env:
           TANGRAM_CONFIG_PATH: tangram.example.toml
         run: uv run pytest packages/tangram/tests/
+        
+      - name: install tangram (all plugins)
+        run:
+          uv sync --all-groups --all-packages
+
+      - name: check plugins
+        run: uv run tangram list-plugins
+
 
   # TODO: what about sdist?
 
@@ -78,8 +86,8 @@ jobs:
       - name: upload wheel
         uses: actions/upload-artifact@v4
         with:
-          name: wheels
-          path: wheels/*.whl
+          name: dist
+          path: dist/*.whl
           retention-days: 7
 
   # adapted from: `maturin generate-ci github --platform all` and

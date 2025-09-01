@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -26,13 +27,14 @@ class CoreConfig:
 
 
 @dataclass
-class TangramConfig:
+class Config:
     core: CoreConfig = field(default_factory=CoreConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
     channel: ChannelConfig = field(default_factory=ChannelConfig)
+    plugins: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_file(cls, config_path: Path) -> TangramConfig:
+    def from_file(cls, config_path: Path) -> Config:
         if sys.version_info < (3, 11):
             import tomli as tomllib
         else:
