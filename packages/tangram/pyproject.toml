@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.scripts]
-tangram = "tangram.cli:app"
+tangram = "tangram.__main__:app"
 
 [tool.maturin]
 python-source = "src"  # needed for stubgen to output path correctly.

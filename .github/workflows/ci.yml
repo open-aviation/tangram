@@ -6,6 +6,7 @@ on:
       - main
     tags:
       - '*'
+  # keeping wheel building for pull requests on for now.
   pull_request:
   workflow_dispatch:
 
@@ -49,8 +50,6 @@ jobs:
         env:
           TANGRAM_CONFIG_PATH: tangram.example.toml
         run: uv run pytest packages/tangram/tests/
-
-      # TODO: run unit tests for each plugin
 
   # TODO: what about sdist?
 
@@ -114,10 +113,6 @@ jobs:
             target: i686
           - os: linux
             manylinux: manylinux_2_28
-            target: aarch64
-            features: --features openssl-vendored,python
-          - os: linux
-            manylinux: manylinux_2_28
             target: armv7
             interpreter: 3.10 3.11 3.12 3.13 3.14
             features: --features openssl-vendored,python
@@ -126,11 +121,8 @@ jobs:
             target: ppc64le
             interpreter: 3.10 3.11 3.12 3.13 3.14
             features: --features openssl-vendored,python
-          - os: linux
-            manylinux: manylinux_2_28
-            target: s390x
-            interpreter: 3.10 3.11 3.12 3.13 3.14
-            features: --features openssl-vendored,python
+          # skipping s390x for now: crypto/sha/keccak1600-s390x.S:399: Error: Unrecognized opcode: `cijne'
+          # we need to bundle openssl>=3.5: https://github.com/openssl/openssl/issues/27323
           - os: linux
             manylinux: musllinux_1_1
             target: x86_64

@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from typing import Iterable, List
 
 import msgspec
-
 from tangram import redis
 from tangram.common import database, rs1090
 

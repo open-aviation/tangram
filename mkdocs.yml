@@ -6,10 +6,10 @@ site_url: https://mode-s.org/tangram/
 nav:
   - Home: "index.md"
   - Quickstart: "quickstart.md"
+  - Configuration: "configuration.md"
   - Architecture:
     - "architecture/index.md"
     - channel: "architecture/channel.md"
-  - Configuration: "configuration.md"
   - Plugins:
     - "plugins/index.md"
     - "plugins/backend.md"
@@ -19,6 +19,7 @@ nav:
       - "plugins/jet1090.md"
       - "plugins/history.md"  # maybe not?
       - "plugins/weather.md"
+  - API Reference: "api_reference.md"
   - Contribute: "contribute.md"
 
 theme:
@@ -28,7 +29,8 @@ theme:
   features:
     - content.code.annotate
     - content.code.copy
-    - navigation.expand
+    - navigation.sections
+    - navigation.top
     - navigation.footer
     - navigation.indexes
     - search.highlight
@@ -63,7 +65,28 @@ extra_css:
 
 plugins:
   - search
-  - social
+  - mkdocstrings:
+      handlers:
+        python:
+          inventories:
+            - https://docs.python.org/3/objects.inv
+            - https://fastapi.tiangolo.com/objects.inv
+          options:
+            # member
+            inherited_members: true
+            members_order: source
+            # signature
+            separate_signature: true
+            show_signature_annotations: true
+            # docstring
+            docstring_style: sphinx
+            docstring_section_style: table
+            signature_crossrefs: true
+            show_source: true
+            # heading
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            show_root_heading: true
 
 markdown_extensions:
   - admonition
@@ -85,3 +108,8 @@ markdown_extensions:
   - toc:
       permalink: true
       baselevel: 1
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/open-aviation/tangram

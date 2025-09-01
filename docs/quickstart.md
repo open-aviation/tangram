@@ -47,7 +47,7 @@ jwt_expiration_secs = 315360000
 ### 3. Running `tangram`
 
 `tangram` uses Redis for messaging. The easiest way to run one is with a container.
-Install [podman](https://podman.io/docs/installation) or [Docker](https://docs.docker.com/engine/install/) and run:
+Install [podman](https://podman.io/docs/installation) or [docker](https://docs.docker.com/engine/install/) and run:
 
 ```shell
 podman run -d --rm -p 6379:6379 --name redis redis:latest
@@ -157,10 +157,18 @@ To extend `tangram`, start with the [**Backend Plugin Guide**](./plugins/backend
 Ensure you have the following installed:
 
 - git
+- redis
 - Python 3.10+ and [uv](https://docs.astral.sh/uv/getting-started/installation/)
-- [Node](https://nodejs.org/) and [pnpm](https://pnpm.io/)
 - [Rust](https://www.rust-lang.org/tools/install)
+- [Node](https://nodejs.org/) and [pnpm](https://pnpm.io/)
 
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl -fsSL https://fnm.vercel.app/install | bash
+fnm install --latest
+corepack enable pnpm
+```
 <!-- TODO clarify what how exactly is the frontend installed - does it support HMR? -->
 
 ### Environment Setup
@@ -184,7 +192,7 @@ pnpm build
 ```sh
 uv sync --all-packages --all-groups
 ```
-This installs the core application and all plugins in editable mode into a virtual environment, along with useful developer utilities.
+This installs the core application and all plugins in editable mode into a virtual environment, along with useful developer utilities. This may take a minute or two as Rust compiles the core.
 
 ### Running in Development Mode
 

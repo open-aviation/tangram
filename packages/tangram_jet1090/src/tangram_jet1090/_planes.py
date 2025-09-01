@@ -10,7 +10,6 @@ from typing import Any, Dict, NoReturn, Optional
 import redis
 import rs1090
 from pydantic import BaseModel
-
 from tangram.redis import Subscriber as SubscriberBase
 
 from .common.basestation import aircraft_db
