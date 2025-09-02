@@ -15,5 +15,5 @@ The best way to learn how to build plugins is to study the official ones:
 
 - `tangram_example`: A minimal template demonstrating both backend and frontend plugin structure.
 - [`tangram_system`](./system.md): A simple plugin that adds a background service.
-- [`tangram_jet1090`](./jet1090.md): A complex plugin that adds API routes, a background service, and depends on an external data source.
+- [`tangram_jet1090`](./jet1090.md): A complex plugin that adds API routes, a background service for real-time data, and a historical trajectory API.
 - [`tangram_weather`](./weather.md): A plugin that adds a new API endpoint for external data.

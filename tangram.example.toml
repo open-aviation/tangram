@@ -3,7 +3,6 @@ redis_url = "redis://localhost:6379"
 plugins = [
     "tangram_example",
     "tangram_jet1090",
-    "tangram_history",
     "tangram_system",
     "tangram_weather"
 ]

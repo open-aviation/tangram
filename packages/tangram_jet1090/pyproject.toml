@@ -7,9 +7,7 @@ name = "tangram_jet1090"
 version = "0.2.0"
 dependencies = [
     "tangram>=0.2.0",
-    "rs1090>=0.4.8",
-    "python-dotenv>=1.0.1",
-    "msgspec>=0.19.0",
+    "pandas>=2",
 ]
 
 [tool.uv.sources]
@@ -19,6 +17,6 @@ tangram = { workspace = true }
 tangram_jet1090 = "tangram_jet1090:plugin"
 
 [tool.maturin]
-python-source = "src"  # needed for stubgen to output path correctly.
+python-source = "src"
 module-name = "tangram_jet1090._planes"
 features = ["pyo3"]

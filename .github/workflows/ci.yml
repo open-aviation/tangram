@@ -79,7 +79,6 @@ jobs:
       - name: build wheels
         run: |
           mkdir -p wheels
-          uv build --package tangram_history
           uv build --package tangram_system
           uv build --package tangram_weather
 

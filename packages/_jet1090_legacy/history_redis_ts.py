@@ -2,9 +2,6 @@
 # coding: utf8
 
 """
-!!! warning
-    deprecated, use `tangram_history` instead.
-
 Redis-based Aircraft History Tracking System with Time Series
 ============================================================
 

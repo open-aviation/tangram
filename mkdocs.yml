@@ -17,7 +17,6 @@ nav:
     - Built-in:
       - "plugins/system.md"
       - "plugins/jet1090.md"
-      - "plugins/history.md"  # maybe not?
       - "plugins/weather.md"
   - API Reference: "api_reference.md"
   - Contribute: "contribute.md"

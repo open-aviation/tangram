@@ -1,7 +1,3 @@
-"""
-!!! warning
-    deprecated, use `tangram_history` instead.
-"""
 import asyncio
 import json
 import logging

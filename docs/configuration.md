@@ -5,7 +5,7 @@
 
 `tangram` is configured through a single `tangram.toml` file. This provides a centralized and clear way to manage the entire platform, from core services to plugins.
 
-### Example `tangram.toml`
+## Example `tangram.toml`
 
 ```toml
 [core]
