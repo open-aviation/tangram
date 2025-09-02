@@ -88,7 +88,7 @@ async def run_planes(backend_state: tangram.BackendState) -> None:
         backend_state.config.plugins.get("tangram_jet1090", {})
     )
 
-    _planes.init_logging("debug")
+    _planes.init_logging("info")
 
     rust_config = _planes.PlanesConfig(
         redis_url=backend_state.config.core.redis_url,

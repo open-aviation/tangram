@@ -6,7 +6,7 @@ services:
     volumes:
       - ${PATH_TANGRAM_TOML:-./tangram.example.toml}:/etc/tangram/config.toml:ro
     ports:
-      - "${TANGRAM_PORT_HOST:-8000}:${TANGRAM_PORT_CONTAINER:-8000}"
+      - "${TANGRAM_PORT_HOST:-2346}:${TANGRAM_PORT_CONTAINER:-2346}"
       - "${CHANNEL_PORT_HOST:-2347}:${CHANNEL_PORT_CONTAINER:-2347}"
     depends_on:
       - redis

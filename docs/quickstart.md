@@ -35,7 +35,7 @@ plugins = []
 
 [server]
 host = "127.0.0.1"
-port = 8000
+port = 2346
 
 [channel]
 host = "127.0.0.1"
@@ -59,7 +59,7 @@ To start tangram, run:
 tangram serve --config /path/to/your/tangram.toml
 ```
 
-Open your browser and navigate to <http://localhost:8000> to access the web interface.
+Open your browser and navigate to <http://localhost:2346> to access the web interface.
 
 ### 4. Adding functionality with plugins
 

@@ -24,7 +24,7 @@ plugins = [
 # main FastAPI web server, which serves the
 # frontend application and plugin API routes.
 host = "127.0.0.1"
-port = 8000
+port = 2346
 
 [channel]
 # integrated real-time WebSocket service.

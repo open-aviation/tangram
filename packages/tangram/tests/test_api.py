@@ -25,7 +25,7 @@ class ServerConfig:
 def server_config() -> Generator[ServerConfig, None, None]:
     host = "127.0.0.1"
     # TODO: find free port
-    server_port = 8000
+    server_port = 2346
     channel_port = 8001
 
     config_content = f"""

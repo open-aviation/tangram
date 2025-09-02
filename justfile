@@ -7,7 +7,7 @@ container_runtime := env("CONTAINER_RUNTIME", "podman")
 # - packages/tangram-jet1090: `planes`
 # TODO: trajectory
 
-tangram-web host="0.0.0.0" port="2345":
+legacy-web host="0.0.0.0" port="2345":
   #!/usr/bin/env bash
   set -x -euo pipefail
   cd web_legacy
@@ -42,7 +42,7 @@ c-build eccodes_strategy='prebuilt':
 
 c-run:
   {{container_runtime}} run -d --rm --name tangram \
-    -p 8000:8000 \
+    -p 2346:2346 \
     -v ./tangram.example.toml:/app/tangram.toml \
     --network=host \
     localhost/tangram:latest \
