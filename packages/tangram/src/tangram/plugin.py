@@ -1,20 +1,24 @@
+from __future__ import annotations
+
 import asyncio
 import functools
 import importlib.metadata
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import NewType, TypeAlias
+from typing import TYPE_CHECKING, NewType, TypeAlias
 
 from fastapi import APIRouter
 
-from .config import Config
+if TYPE_CHECKING:
+    from .backend import BackendState
 
-RouterFunc: TypeAlias = Callable[[], APIRouter]
-ServiceAsyncFunc: TypeAlias = Callable[[Config], Awaitable[None]]
-ServiceFunc: TypeAlias = ServiceAsyncFunc | Callable[[Config], None]
+    RouterFunc: TypeAlias = Callable[[], APIRouter]
+    ServiceAsyncFunc: TypeAlias = Callable[[BackendState], Awaitable[None]]
+    ServiceFunc: TypeAlias = ServiceAsyncFunc | Callable[[BackendState], None]
+    Priority: TypeAlias = int
+
 DistName = NewType("DistName", str)
-Priority: TypeAlias = int
 logger = logging.getLogger(__name__)
 
 
@@ -31,11 +35,11 @@ class Plugin:
     ) -> Callable[[ServiceFunc], ServiceFunc]:
         def decorator(func: ServiceFunc) -> ServiceFunc:
             @functools.wraps(func)
-            async def async_wrapper(config: Config) -> None:
+            async def async_wrapper(backend_state: BackendState) -> None:
                 if asyncio.iscoroutinefunction(func):
-                    await func(config)
+                    await func(backend_state)
                 else:
-                    await asyncio.to_thread(func, config)
+                    await asyncio.to_thread(func, backend_state)
 
             self.services.append((priority, async_wrapper))
             return func

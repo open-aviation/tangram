@@ -21,4 +21,4 @@ tangram_jet1090 = "tangram_jet1090:plugin"
 [tool.maturin]
 python-source = "src"  # needed for stubgen to output path correctly.
 module-name = "tangram_jet1090._planes"
-features = ["python"]
+features = ["pyo3"]

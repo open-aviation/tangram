@@ -102,15 +102,15 @@ import json
 r = redis.Redis()
 
 # Send message to frontend clients
-r.publish('to:system:update', json.dumps({
+await r.publish('to:system:update', json.dumps({
     'type': 'message',
     'message': 'Update from backend'
 }))
 
 # Listen for messages from frontend
 p = r.pubsub()
-p.psubscribe('from:system:*')
-for message in p.listen():
+await p.psubscribe('from:system:*')
+async for message in p.listen():
     if message['type'] == 'pmessage':
         print(f"Received: {message['data']}")
 ```

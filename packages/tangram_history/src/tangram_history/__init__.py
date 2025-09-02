@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Any
 
 import pandas as pd
@@ -15,9 +14,6 @@ router = APIRouter(
     tags=["history"],
     responses={404: {"description": "Not found"}},
 )
-# TODO: figure out a way to pass the config down from the core
-redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
-redis_client = Redis.from_url(redis_url)
 
 
 async def ensure_redis_client(redis_client: Redis) -> None:
@@ -28,10 +24,11 @@ async def ensure_redis_client(redis_client: Redis) -> None:
 
 
 @router.get("/values/{feature}/{icao24}")
-async def get_values(feature: str, icao24: str) -> list[tuple[Any, float]]:
+async def get_values(
+    feature: str, icao24: str, backend_state: tangram.InjectBackendState
+) -> list[tuple[Any, float]]:
     """Get the latest altitude for a given ICAO24 address."""
-    await ensure_redis_client(redis_client)
-    ts_client = redis_client.ts()
+    ts_client = backend_state.redis_client.ts()
 
     key = f"aircraft:ts:{feature}:{icao24}"
     try:
@@ -41,11 +38,11 @@ async def get_values(feature: str, icao24: str) -> list[tuple[Any, float]]:
         return []
     data = [(pd.Timestamp(ts, unit="ms", tz="utc"), value) for (ts, value) in data]
 
-    return data  # type: ignore
+    return data
 
 
 @router.get("/track/{icao24}")
-async def get_track(icao24: str) -> list[dict[str, Any]]:
+async def get_track(icao24: str, backend_state: tangram.InjectBackendState) -> list[dict[str, Any]]:
     features = [
         "latitude",
         "longitude",
@@ -63,7 +60,7 @@ async def get_track(icao24: str) -> list[dict[str, Any]]:
         "vrate_inertial",
         "vrate_barometric",
     ]
-    data_list = [await get_values(feature, icao24) for feature in features]
+    data_list = [await get_values(feature, icao24, backend_state) for feature in features]
     data = [
         pd.DataFrame(d, columns=["timestamp", feature])
         for (d, feature) in zip(data_list, features)

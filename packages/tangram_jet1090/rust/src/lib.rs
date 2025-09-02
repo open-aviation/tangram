@@ -4,12 +4,12 @@ pub mod state;
 pub mod stream;
 
 use anyhow::{Context, Result};
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 use pyo3::{
     exceptions::{PyOSError, PyRuntimeError},
     prelude::*,
 };
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 use pyo3_stub_gen::derive::*;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -20,7 +20,7 @@ use crate::state::StateVectors;
 use crate::stream::{start_jet1090_subscriber, start_redis_subscriber, stream_statevectors};
 
 // TODO: use https://crates.io/crates/pyo3-tracing-subscriber
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
 #[pyfunction]
 fn init_logging(level: &str) -> PyResult<()> {
@@ -30,8 +30,8 @@ fn init_logging(level: &str) -> PyResult<()> {
     Ok(())
 }
 
-#[cfg_attr(feature = "python", gen_stub_pyclass)]
-#[cfg_attr(feature = "python", pyclass(get_all, set_all))]
+#[cfg_attr(feature = "pyo3", gen_stub_pyclass)]
+#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
 #[derive(Debug, Clone)]
 pub struct PlanesConfig {
     pub redis_url: String,
@@ -39,7 +39,7 @@ pub struct PlanesConfig {
     pub history_expire: u16,
 }
 
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 #[gen_stub_pymethods]
 #[pymethods]
 impl PlanesConfig {
@@ -121,7 +121,7 @@ pub fn probe_ssl_certs() {
 #[cfg(not(feature = "openssl-vendored"))]
 pub fn probe_ssl_certs() {}
 
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
 #[pyfunction]
 fn run_planes(py: Python<'_>, config: PlanesConfig) -> PyResult<Bound<'_, PyAny>> {
@@ -133,7 +133,7 @@ fn run_planes(py: Python<'_>, config: PlanesConfig) -> PyResult<Bound<'_, PyAny>
     })
 }
 
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 #[pymodule]
 fn _planes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_planes, m)?)?;
@@ -142,7 +142,7 @@ fn _planes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 pub fn stub_info() -> pyo3_stub_gen::Result<pyo3_stub_gen::StubInfo> {
     let manifest_dir: &::std::path::Path = env!("CARGO_MANIFEST_DIR").as_ref();
     let pyproject_path = manifest_dir.parent().unwrap().join("pyproject.toml");

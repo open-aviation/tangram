@@ -27,17 +27,17 @@ class PlanesConfig:
 
 
 @plugin.register_service()
-async def run_planes(config: tangram.Config) -> None:
+async def run_planes(backend_state: tangram.BackendState) -> None:
     from . import _planes
 
     config_planes = TypeAdapter(PlanesConfig).validate_python(
-        config.plugins.get("tangram_jet1090", {})
+        backend_state.config.plugins.get("tangram_jet1090", {})
     )
 
     _planes.init_logging("debug")
 
     rust_config = _planes.PlanesConfig(
-        redis_url=config.core.redis_url,
+        redis_url=backend_state.config.core.redis_url,
         jet1090_channel=config_planes.jet1090_channel,
         history_expire=config_planes.history_expire,
     )

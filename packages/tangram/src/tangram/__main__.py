@@ -5,37 +5,16 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-import uvicorn
 from rich.console import Console
 from rich.table import Table
 
-from .backend import create_app, load_enabled_plugins, resolve_frontend, run_services
+from .backend import resolve_frontend, start_tasks
 from .config import Config
-from .plugin import DistName, Plugin, load_plugin, scan_plugins
+from .plugin import load_plugin, scan_plugins
 
 app = typer.Typer(no_args_is_help=True)
 logger = logging.getLogger(__name__)
 stderr = Console(stderr=True)
-
-
-async def run_server(
-    config: Config, loaded_plugins: list[tuple[DistName, Plugin]]
-) -> None:
-    app_instance = create_app(config, loaded_plugins)
-    server_config = uvicorn.Config(
-        app_instance, host=config.server.host, port=config.server.port, log_level="info"
-    )
-    server = uvicorn.Server(server_config)
-    await server.serve()
-
-
-async def start_tasks(config: Config) -> None:
-    loaded_plugins = load_enabled_plugins(config)
-
-    api_server_task = asyncio.create_task(run_server(config, loaded_plugins))
-    service_tasks = [s async for s in run_services(config, loaded_plugins)]
-
-    await asyncio.gather(api_server_task, *service_tasks)
 
 
 @app.command()
@@ -90,19 +69,19 @@ def list_plugins(
             status_str = "[red]load failed[/red]"
             table.add_row(plugin_name, status_str, "!", "!", "!")
             continue
-        _name, plugin = p
+        name, plugin = p
         status = (
             "enabled"
             if enabled_plugins and plugin_name in enabled_plugins
             else "loaded"
         )
         frontend_str = ""
-        if p := plugin.frontend_path:
-            if resolved_path := resolve_frontend(path=p, dist_name=plugin_name):
+        if plugin_path := plugin.frontend_path:
+            if resolved_path := resolve_frontend(path=name, dist_name=plugin_name):
                 size_kb = get_path_size(resolved_path) / 1024
                 frontend_str = f"{size_kb:.1f} B"
             else:
-                frontend_str = f"[yellow]({p} not found)[/yellow]"
+                frontend_str = f"[yellow]({plugin_path} not found)[/yellow]"
 
         status_str = f"[green]{status}[/green]"
         router_prefixes = [func.prefix for func in plugin.routers]
@@ -116,8 +95,8 @@ def list_plugins(
             "\n".join(service_names),
         )
 
-
     stderr.print(table)
+
 
 def get_path_size(path: Path | Traversable) -> int:
     total_size = 0
@@ -128,6 +107,7 @@ def get_path_size(path: Path | Traversable) -> int:
         elif item.is_dir():
             total_size += get_path_size(item)
     return total_size
+
 
 @app.command()
 def develop() -> None:

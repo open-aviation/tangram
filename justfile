@@ -49,8 +49,8 @@ c-run:
     tangram serve --config /app/tangram.toml
 
 stubgen:
-  cargo run --bin stub_gen_channel --features python
-  cargo run --bin stub_gen_planes --features python
+  cargo run --bin stub_gen_channel --features pyo3
+  cargo run --bin stub_gen_planes --features pyo3
 
 fmt:
   uv run ruff check packages --fix

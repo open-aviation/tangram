@@ -9,12 +9,12 @@ use channel::{
     utils::{generate_jwt, random_string},
     websocket::{axum_on_connected, datetime_handler, State},
 };
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 use pyo3::{
     exceptions::{PyConnectionError, PyOSError},
     prelude::*,
 };
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 use pyo3_stub_gen::derive::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -23,7 +23,7 @@ use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
 
 // TODO: use https://crates.io/crates/pyo3-tracing-subscriber
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
 #[pyfunction]
 fn init_logging(level: &str) -> PyResult<()> {
@@ -33,8 +33,8 @@ fn init_logging(level: &str) -> PyResult<()> {
     Ok(())
 }
 
-#[cfg_attr(feature = "python", gen_stub_pyclass)]
-#[cfg_attr(feature = "python", pyclass(get_all, set_all))]
+#[cfg_attr(feature = "pyo3", gen_stub_pyclass)]
+#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
 #[derive(Debug, Clone)]
 pub struct ChannelConfig {
     pub host: String,
@@ -44,7 +44,7 @@ pub struct ChannelConfig {
     pub jwt_expiration_secs: i64,
 }
 
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 #[gen_stub_pymethods]
 #[pymethods]
 impl ChannelConfig {
@@ -66,7 +66,7 @@ impl ChannelConfig {
     }
 }
 
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
 #[pyfunction]
 fn run(py: Python<'_>, config: ChannelConfig) -> PyResult<Bound<'_, PyAny>> {
@@ -172,7 +172,7 @@ pub enum ChannelError {
     ServerBind(#[from] std::io::Error),
 }
 
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 impl From<ChannelError> for PyErr {
     fn from(err: ChannelError) -> Self {
         match err {
@@ -182,7 +182,7 @@ impl From<ChannelError> for PyErr {
     }
 }
 
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 #[pymodule]
 fn _channel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run, m)?)?;
@@ -191,7 +191,7 @@ fn _channel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-#[cfg(feature = "python")]
+#[cfg(feature = "pyo3")]
 // not using define_stub_info_gatherer! macro, we need to
 // go up one level from `packages/tangram/rust` to `package/tangram`
 pub fn stub_info() -> pyo3_stub_gen::Result<pyo3_stub_gen::StubInfo> {

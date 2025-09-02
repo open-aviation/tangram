@@ -61,10 +61,10 @@ Use the [`tangram.Plugin.register_service`][] decorator on an async function. `t
 # ... api code above
 
 @plugin.register_service()
-async def run_service(config: tangram.Config):
-    """This function is run as a background service on a separate thread."""
-    redis_url = config.core.redis_url
-    print(f"my service is running with Redis URL: {redis_url}")
+async def run_service(state: tangram.State):
+    """This function is run as a background service."""
+    redis_client = state.redis_client
+    await redis_client.publish("my-channel", "hello from my service")
     # ...
 ```
 

@@ -43,10 +43,8 @@ def ram_usage() -> dict[str, str]:
         return {"el": "ram_usage", "value": "Unavailable"}
 
 
-async def server_events(redis_url: str) -> NoReturn:
+async def server_events(redis_client: redis.Redis) -> NoReturn:
     counter = 0
-    redis_client = redis.Redis.from_url(redis_url)
-
     log.info("serving system events...")
 
     while True:
@@ -61,5 +59,5 @@ async def server_events(redis_url: str) -> NoReturn:
 plugin = tangram.Plugin(frontend_path="dist-frontend")
 
 @plugin.register_service()
-async def run_system(config: tangram.Config) -> None:
-    await server_events(config.core.redis_url)
+async def run_system(backend_state: tangram.BackendState) -> None:
+    await server_events(backend_state.redis_client)

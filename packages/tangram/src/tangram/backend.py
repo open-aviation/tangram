@@ -4,20 +4,41 @@ import asyncio
 import importlib.resources
 import json
 import logging
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
+from dataclasses import dataclass
+from functools import partial
 from importlib.abc import Traversable
 from importlib.metadata import Distribution, PackageNotFoundError
 from pathlib import Path
-from typing import AsyncGenerator, Iterable
+from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, TypeAlias
 
-from fastapi import FastAPI
+import redis.asyncio as redis
+import uvicorn
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import Config
-from .plugin import DistName, Plugin, load_plugin, scan_plugins
+from .plugin import load_plugin, scan_plugins
+
+if TYPE_CHECKING:
+    from .config import Config
+    from .plugin import DistName, Plugin
 
 logger = logging.getLogger(__name__)
+
+
+# see https://www.starlette.io/lifespan/#lifespan-state
+@dataclass
+class BackendState:
+    redis_client: redis.Redis
+    config: Config
+
+
+async def get_state(request: Request) -> BackendState:
+    return request.app.state.backend_state  # type: ignore
+
+
+InjectBackendState: TypeAlias = Annotated[BackendState, Depends(get_state)]
 
 
 def resolve_frontend(*, path: str, dist_name: str) -> Path | Traversable | None:
@@ -55,23 +76,18 @@ def load_enabled_plugins(
     return loaded_plugins
 
 
-# TODO: use functools.partial and contextlib.AsyncExitStack to pass config in and
-# reduce duplication
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Lifespan context manager for FastAPI to handle startup and shutdown events."""
-
-    # keep for now, we need to set a "global redis" for plugins to use
-    logger.info("tangram api started with plugin support")
-    yield
+async def lifespan(app: FastAPI, backend_state: BackendState) -> AsyncGenerator[None, None]:
+    async with backend_state.redis_client:
+        app.state.backend_state = backend_state
+        yield
 
 
 def create_app(
-    config: Config,
+    backend_state: BackendState,
     loaded_plugins: Iterable[tuple[DistName, Plugin]],
 ) -> FastAPI:
-    app = FastAPI(lifespan=lifespan)
-    app.state.config = config
+    app = FastAPI(lifespan=partial(lifespan, backend_state=backend_state))
     frontend_plugins = []
 
     for dist_name, plugin in loaded_plugins:
@@ -115,14 +131,43 @@ async def run_channel_service(config: Config) -> None:
 
 
 async def run_services(
-    config: Config,
+    backend_state: BackendState,
     loaded_plugins: Iterable[tuple[DistName, Plugin]],
 ) -> AsyncGenerator[asyncio.Task[None], None]:
-    yield asyncio.create_task(run_channel_service(config))
+    yield asyncio.create_task(run_channel_service(backend_state.config))
 
     for dist_name, plugin in loaded_plugins:
         for _, service_func in sorted(
             plugin.services, key=lambda s: (s[0], s[1].__name__)
         ):
-            yield asyncio.create_task(service_func(config))
+            yield asyncio.create_task(service_func(backend_state))
             logger.info(f"started service from plugin: {dist_name}")
+
+
+async def run_server(
+    backend_state: BackendState, loaded_plugins: list[tuple[DistName, Plugin]]
+) -> None:
+    app_instance = create_app(backend_state, loaded_plugins)
+    server_config = uvicorn.Config(
+        app_instance,
+        host=backend_state.config.server.host,
+        port=backend_state.config.server.port,
+        log_level="info",
+    )
+    server = uvicorn.Server(server_config)
+    await server.serve()
+
+
+async def start_tasks(config: Config) -> None:
+    loaded_plugins = load_enabled_plugins(config)
+
+    async with AsyncExitStack() as stack:
+        redis_client = await stack.enter_async_context(
+            redis.from_url(config.core.redis_url)  # type: ignore
+        )
+        state = BackendState(redis_client=redis_client, config=config)
+
+        server_task = asyncio.create_task(run_server(state, loaded_plugins))
+        service_tasks = [s async for s in run_services(state, loaded_plugins)]
+
+        await asyncio.gather(server_task, *service_tasks)
