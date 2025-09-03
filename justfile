@@ -2,26 +2,22 @@
 # `export DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 CONTAINER_RUNTIME=docker`
 container_runtime := env("CONTAINER_RUNTIME", "podman")
 
-# we no longer use process-compose. previous processes are now located under:
-# - packages/tangram: `web`, `core/webapi`, `channel`
-# - packages/tangram-jet1090: `planes`
-# TODO: trajectory
-
 legacy-web host="0.0.0.0" port="2345":
   #!/usr/bin/env bash
   set -x -euo pipefail
   cd web_legacy
   npx vite --host {{host}} --port {{port}}
 
+# TODO: git cleaning and running this again fails because uv cache doesn't understand cdylib is gone
+# TODO(abr): hot reload js frontend
 install:
   pnpm i
   pnpm build
   uv venv
   uv sync --all-groups --all-packages
-  # TODO: git cleaning and running this again fails because uv cache doesn't understand cdylib is gone
 
-# TODO(abr): hot reload js frontend
-# TODO(abr): move them into `tangram service redis {up|down}`
+# NOTE: the following `c-` commands are for temporary testing with hardcoded ports.
+# a future version of tangram will manage them properly.
 
 c-redis:
   {{container_runtime}} run -d --rm -p 6379:6379 --name redis redis:latest
@@ -30,7 +26,7 @@ c-jet1090:
   {{container_runtime}} run -d --rm --name jet1090 \
     --network=host \
     ghcr.io/xoolive/jet1090:latest \
-    jet1090 --redis-url "redis://127.0.0.1:6379" "ws://feedme.mode-s.org:9876/40128@EHRD"
+    jet1090 --serve-port 8080 --redis-url "redis://127.0.0.1:6379" "ws://feedme.mode-s.org:9876/40128@EHRD"
 
 # build tangram with your container runtime.
 # on non x86_64 architectures, set eccodes_strategy to `fromsource`.
@@ -60,7 +56,8 @@ fmt:
 _rmi name:
   {{container_runtime}} images --filter "reference={{name}}" -q | xargs -r {{container_runtime}} rmi --force
 
-# nukes tangram and its build cache, keeping redis and jet1090 intact, be careful!!
+# nukes tangram and its build cache, keeping redis and jet1090 intact
+# removes virtually ALL non-running containers, images and build cache, be careful!!
 _clean:
   git clean -Xdf
   {{container_runtime}} kill tangram || true

@@ -27,6 +27,7 @@ export default {
             type: "FeatureCollection",
             features: Object.values(sensors)
                 // only display sensors seeing at least one aircraft
+                // NOTE: bug in jet1090 is returning `aircraft_count: 0`
                 .filter(sensor => sensor.aircraft_count > 0)
                 .map((sensor) => ({
                     type: "Feature",

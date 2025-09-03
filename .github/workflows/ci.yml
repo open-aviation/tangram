@@ -55,7 +55,7 @@ jobs:
         run:
           uv sync --all-groups --all-packages
 
-      - name: check plugins
+      - name: list plugins
         run: uv run tangram list-plugins --all
 
 
