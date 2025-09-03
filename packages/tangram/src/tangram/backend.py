@@ -117,10 +117,55 @@ def create_app(
     return app
 
 
-async def run_channel_service(config: Config) -> None:
-    from ._channel import ChannelConfig, init_logging, run
+LOG_LEVEL_MAP = {
+    "TRACE": logging.DEBUG,
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARN": logging.WARNING,
+    "ERROR": logging.ERROR,
+}
 
-    init_logging("debug")
+
+class TracingLayer:
+    def __init__(self, log_levels: dict[str, str], default_level: str):
+        self.log_levels = {k: v.upper() for k, v in log_levels.items()}
+        self.default_level = default_level.upper()
+
+    def on_event(self, event: str, state: None) -> None:
+        data = json.loads(event)
+        metadata = data.get("metadata", {})
+        target = metadata.get("target", "")
+        level_str = metadata.get("level", "INFO")
+        message = data.get("message", "")
+
+        if not all([target, level_str, message]):
+            return
+
+        crate_name = target.split("::", 1)[0]
+
+        config_level_str = self.log_levels.get(crate_name, self.default_level)
+        config_level = LOG_LEVEL_MAP.get(config_level_str, logging.INFO)
+        event_level = LOG_LEVEL_MAP.get(level_str, logging.INFO)
+
+        if event_level >= config_level:
+            logger = logging.getLogger(target)
+            logger.log(event_level, message)
+
+    def on_new_span(self, span_attrs: str, span_id: str) -> None:
+        return None
+
+    def on_close(self, span_id: str, state: None) -> None:
+        pass
+
+    def on_record(self, span_id: str, values: str, state: None) -> None:
+        pass
+
+
+async def run_channel_service(config: Config) -> None:
+    from ._channel import ChannelConfig, init_tracing, run
+
+    layer = TracingLayer(log_levels={}, default_level=config.core.log_level)
+    init_tracing(layer)
 
     rust_config = ChannelConfig(
         host=config.channel.host,

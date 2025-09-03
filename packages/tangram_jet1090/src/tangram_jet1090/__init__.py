@@ -22,9 +22,7 @@ async def get_trajectory_data(
     """Get the full trajectory for a given ICAO24 address from Redis Time Series."""
     ts_client = backend_state.redis_client.ts()
     try:
-        results = await ts_client.mrange(
-            "-", "+", filters=[f"icao24={icao24}"]
-        )
+        results = await ts_client.mrange("-", "+", filters=[f"icao24={icao24}"])
     except Exception as e:
         log.error(f"mrange failed for {icao24=}: {e}")
         return []
@@ -74,17 +72,21 @@ plugin = tangram.Plugin(frontend_path="dist-frontend", routers=[router])
 class PlanesConfig:
     jet1090_channel: str = "jet1090"
     history_expire: int = 20
+    log_level: str = "INFO"
 
 
 @plugin.register_service()
 async def run_planes(backend_state: tangram.BackendState) -> None:
     from . import _planes
 
-    config_planes = TypeAdapter(PlanesConfig).validate_python(
-        backend_state.config.plugins.get("tangram_jet1090", {})
-    )
+    plugin_config = backend_state.config.plugins.get("tangram_jet1090", {})
+    config_planes = TypeAdapter(PlanesConfig).validate_python(plugin_config)
 
-    _planes.init_logging("info")
+    default_log_level = plugin_config.get(
+        "log_level", backend_state.config.core.log_level
+    )
+    layer = tangram.TracingLayer(log_levels={}, default_level=default_log_level)
+    _planes.init_tracing(layer)
 
     rust_config = _planes.PlanesConfig(
         redis_url=backend_state.config.core.redis_url,

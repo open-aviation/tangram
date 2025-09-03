@@ -18,16 +18,20 @@ use tracing::{error, info};
 use crate::bbox::BoundingBoxState;
 use crate::state::StateVectors;
 use crate::stream::{start_jet1090_subscriber, start_redis_subscriber, stream_statevectors};
+#[cfg(feature = "pyo3")]
+use pyo3_python_tracing_subscriber::PythonCallbackLayerBridge;
+#[cfg(feature = "pyo3")]
+use tracing_subscriber::prelude::*;
 
-// TODO: use https://crates.io/crates/pyo3-tracing-subscriber
 #[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
 #[pyfunction]
-fn init_logging(level: &str) -> PyResult<()> {
-    let filter = tracing_subscriber::EnvFilter::try_new(level)
-        .map_err(|e| PyOSError::new_err(e.to_string()))?;
-    let _ = tracing_subscriber::fmt().with_env_filter(filter).try_init();
-    Ok(())
+fn init_tracing(py_layer: Bound<'_, PyAny>) -> PyResult<()> {
+    let bridge = PythonCallbackLayerBridge::new(py_layer);
+    tracing_subscriber::registry()
+        .with(bridge)
+        .try_init()
+        .map_err(|e| PyOSError::new_err(e.to_string()))
 }
 
 #[cfg_attr(feature = "pyo3", gen_stub_pyclass)]
@@ -137,7 +141,7 @@ fn run_planes(py: Python<'_>, config: PlanesConfig) -> PyResult<Bound<'_, PyAny>
 #[pymodule]
 fn _planes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_planes, m)?)?;
-    m.add_function(wrap_pyfunction!(init_logging, m)?)?;
+    m.add_function(wrap_pyfunction!(init_tracing, m)?)?;
     m.add_class::<PlanesConfig>()?;
     Ok(())
 }

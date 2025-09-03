@@ -24,6 +24,7 @@ class ChannelConfig:
 class CoreConfig:
     redis_url: str = "redis://127.0.0.1:6379"
     plugins: list[str] = field(default_factory=list)
+    log_level: str = "INFO"
 
 
 @dataclass

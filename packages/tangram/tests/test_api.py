@@ -108,6 +108,7 @@ async def test_static(client: httpx.AsyncClient, server_url: str) -> None:
     response.raise_for_status()
     assert response.content.startswith(b"<!DOCTYPE html>")
 
+
 @pytest.mark.anyio
 async def test_api(client: httpx.AsyncClient, server_url: str) -> None:
     response = await client.get(f"{server_url}/manifest.json")

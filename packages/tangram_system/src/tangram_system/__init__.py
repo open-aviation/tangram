@@ -56,7 +56,9 @@ async def server_events(redis_client: redis.Redis) -> NoReturn:
 
         await asyncio.sleep(1)
 
+
 plugin = tangram.Plugin(frontend_path="dist-frontend")
+
 
 @plugin.register_service()
 async def run_system(backend_state: tangram.BackendState) -> None:
