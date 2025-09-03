@@ -6,6 +6,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tracing::{debug, error};
+use redis::aio::MultiplexedConnection;
 
 use crate::{
     // TODO import this one from the rs1090 crate after release
@@ -193,18 +194,19 @@ async fn insert_value(
 pub struct StateVectors {
     pub aircraft: HashMap<String, StateVector>,
     pub aircraft_db: BTreeMap<String, Aircraft>,
-    pub client: redis::Client,
+    pub redis_conn: MultiplexedConnection,
     pub history_expire: u16,
 }
 
 impl StateVectors {
-    pub async fn new(expire: u16, redis_client: redis::Client) -> Self {
-        Self {
+    pub async fn new(expire: u16, redis_client: redis::Client) -> Result<Self> {
+        let redis_conn = redis_client.get_multiplexed_async_connection().await?;
+        Ok(Self {
             aircraft: HashMap::new(),
             aircraft_db: aircraft().await,
-            client: redis_client.clone(),
+            redis_conn,
             history_expire: expire,
-        }
+        })
     }
 
     pub async fn add(&mut self, msg: &Jet1090Message) -> Result<()> {
@@ -259,7 +261,7 @@ impl StateVectors {
         let mut common_labels = HashMap::new();
         common_labels.insert("icao24".to_string(), msg.icao24.clone());
 
-        let mut conn = self.client.get_multiplexed_async_connection().await?;
+        let mut conn = &mut self.redis_conn;
 
         sv.count += 1;
         if sv.firstseen == 0 {

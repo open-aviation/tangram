@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -16,39 +15,36 @@ router = APIRouter(
 )
 
 
-async def get_values(
-    feature: str, icao24: str, backend_state: tangram.InjectBackendState
-) -> list[tuple[Any, float]]:
-    ts_client = backend_state.redis_client.ts()
-    key = f"aircraft:ts:{feature}:{icao24}"
-    try:
-        data = await ts_client.range(key, "-", "+")
-    except Exception as e:
-        log.error(f"error fetching data from redis for {key=}: {e}")
-        return []
-    return [(pd.Timestamp(ts, unit="ms", tz="utc"), value) for (ts, value) in data]
-
-
 @router.get("/data/{icao24}")
 async def get_trajectory_data(
     icao24: str, backend_state: tangram.InjectBackendState
 ) -> list[dict[str, Any]]:
     """Get the full trajectory for a given ICAO24 address from Redis Time Series."""
-    # fmt: off
-    features = [
-        "latitude", "longitude", "altitude", "groundspeed", "track",
-        "vertical_rate", "IAS", "TAS", "selected_altitude", "nacp",
-        "roll", "Mach", "heading", "vrate_inertial", "vrate_barometric",
-    ]
-    # fmt: on
-    tasks = [get_values(feature, icao24, backend_state) for feature in features]
-    results = await asyncio.gather(*tasks)
+    ts_client = backend_state.redis_client.ts()
+    try:
+        results = await ts_client.mrange(
+            "-", "+", filters=[f"icao24={icao24}"]
+        )
+    except Exception as e:
+        log.error(f"mrange failed for {icao24=}: {e}")
+        return []
 
-    data_frames = [
-        pd.DataFrame(data, columns=["timestamp", feature])
-        for data, feature in zip(results, features)
-        if data
-    ]
+    if not results:
+        return []
+
+    data_frames = []
+    for result_dict in results:
+        # value: (labels, data_points)
+        for key, value in result_dict.items():
+            # aircraft:ts:{feature}:{icao24}
+            feature = key.split(":")[2]
+            if not (data := value[1]):
+                continue
+            df = pd.DataFrame(
+                [(pd.Timestamp(ts, unit="ms", tz="utc"), val) for ts, val in data],
+                columns=["timestamp", feature],
+            )
+            data_frames.append(df)
 
     if not data_frames:
         return []
@@ -58,14 +54,14 @@ async def get_trajectory_data(
     for df in data_frames[1:]:
         merged_df = pd.merge(merged_df, df, on="timestamp", how="outer")
 
-    merged_df = merged_df.sort_values("timestamp")
+    merged_df = merged_df.sort_values("timestamp").fillna(pd.NA)
 
     response_data = []
     for _, row in merged_df.iterrows():
         point = {"timestamp": row["timestamp"].timestamp(), "icao24": icao24}
-        for feature in features:
-            if feature in row and not pd.isna(row[feature]):
-                point[feature] = float(row[feature])
+        for col in merged_df.columns:
+            if col not in ["timestamp", "icao24"] and pd.notna(row[col]):
+                point[col] = float(row[col])
         response_data.append(point)
 
     return response_data

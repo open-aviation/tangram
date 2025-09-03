@@ -68,7 +68,7 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
     let client = redis::Client::open(config.redis_url.clone())
         .context("Failed to create Redis client for state vectors")?;
     let state_vectors = Arc::new(Mutex::new(
-        StateVectors::new(config.history_expire, client).await,
+        StateVectors::new(config.history_expire, client).await?,
     ));
     let jet1090_subscriber_state = Arc::clone(&state_vectors);
 

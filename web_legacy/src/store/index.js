@@ -204,6 +204,7 @@ export const useMapStore = defineStore("map", {
       // unselect => selected === null?
       console.log("in store, select plan: ", selected);
       this.selectedPlane = selected;
+      this.planeTrajectory = [];
       if (selected) {
         this.showDrawer = true;
       } else {
@@ -214,8 +215,8 @@ export const useMapStore = defineStore("map", {
     setPlaneData(planeData) {
       this.planeData = planeData;
       this.planeTrajectory = planeData
-        .filter(({ latitude, longitude }) => latitude !== null && longitude !== null)
-        .map(({ latitude, longitude }) => [latitude, longitude]); // used by VPolyline, lat-lngs
+        .filter(({ latitude, longitude }) => latitude != null && longitude != null)
+        .map(({ latitude, longitude }) => [latitude, longitude]);  // used by VPolyline, lat-lngs
     },
     appendPlaneTrajectory([lat, longi]) {
       this.planeTrajectory.push([lat, longi]);

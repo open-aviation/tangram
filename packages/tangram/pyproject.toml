@@ -28,6 +28,13 @@ dependencies = [
 tangram = "tangram.__main__:app"
 
 [tool.maturin]
-python-source = "src"  # needed for stubgen to output path correctly.
+python-source = "src"            # needed for stubgen to output path correctly.
 module-name = "tangram._channel"
 features = ["pyo3"]
+
+[tool.uv]
+cache-keys = [
+  { file = "pyproject.toml" },
+  { file = "rust/Cargo.toml" },
+  { file = "**/*.rs" },
+]

@@ -5,10 +5,7 @@ build-backend = "maturin"
 [project]
 name = "tangram_jet1090"
 version = "0.2.0"
-dependencies = [
-    "tangram>=0.2.0",
-    "pandas>=2",
-]
+dependencies = ["tangram>=0.2.0", "pandas>=2"]
 
 [tool.uv.sources]
 tangram = { workspace = true }
@@ -20,3 +17,10 @@ tangram_jet1090 = "tangram_jet1090:plugin"
 python-source = "src"
 module-name = "tangram_jet1090._planes"
 features = ["pyo3"]
+
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "rust/Cargo.toml" },
+    { file = "**/*.rs" },
+]

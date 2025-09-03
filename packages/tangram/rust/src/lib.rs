@@ -7,7 +7,7 @@ use axum::{
 use channel::{
     channel::ChannelControl,
     utils::{generate_jwt, random_string},
-    websocket::{axum_on_connected, datetime_handler, State},
+    websocket::{axum_on_connected, launch_channel_redis_listen_task, State},
 };
 #[cfg(feature = "pyo3")]
 use pyo3::{
@@ -75,25 +75,39 @@ fn run(py: Python<'_>, config: ChannelConfig) -> PyResult<Bound<'_, PyAny>> {
     })
 }
 
+/// Sets up a persistent channel that must listen for Redis events from startup.
+/// Unlike dynamic channels, these are needed to relay backend-initiated
+/// messages (e.g., system time) regardless of client connections.
+async fn setup_persistent_channel(
+    name: &str,
+    state: &Arc<State>,
+    redis_client: &redis::Client,
+) {
+    state.ctl.lock().await.channel_add(name.into(), None).await;
+    launch_channel_redis_listen_task(
+        state.clone(),
+        &state.ctl,
+        name.to_string(),
+        redis_client.clone(),
+    )
+    .await;
+}
+
 pub async fn run_server(config: ChannelConfig) -> Result<(), ChannelError> {
-    let redis_client = redis::Client::open(config.redis_url).map_err(ChannelError::Redis)?;
+    let redis_client = redis::Client::open(config.redis_url.clone()).map_err(ChannelError::Redis)?;
 
     let channel_control = ChannelControl::new(Arc::new(redis_client.clone()));
     let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
-        redis_client,
+        redis_client: redis_client.clone(),
         id_length: 8,
         jwt_secret: config.jwt_secret,
         jwt_expiration_secs: config.jwt_expiration_secs,
     });
 
-    let ctl = state.ctl.lock().await;
-    ctl.channel_add("phoenix".into(), None).await;
-    ctl.channel_add("system".into(), None).await;
-    ctl.channel_add("admin".into(), None).await;
-    drop(ctl);
-
-    tokio::spawn(datetime_handler(state.clone(), "system".into()));
+    state.ctl.lock().await.channel_add("phoenix".into(), None).await;
+    setup_persistent_channel("system", &state, &redis_client).await;
+    setup_persistent_channel("admin", &state, &redis_client).await;
 
     let app = Router::new()
         .route("/token", axum::routing::post(generate_token_handler))

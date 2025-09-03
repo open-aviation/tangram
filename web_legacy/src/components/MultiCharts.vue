@@ -131,12 +131,12 @@ export default {
       deep: true,
       handler(newValue) {
         console.dir('chart type updated: ', newValue);
+        this.defaultData = [];
+        this.chartData = {};
+
         if (newValue && newValue.icao24) {
           // Initial fetch when selection changes
           this.fetchChartData(newValue);
-        } else {
-          this.defaultData = [];
-          this.chartData = {};
         }
       }
     }
@@ -236,7 +236,7 @@ export default {
 
     updateSpeedChart() {
       if (this.defaultData && this.defaultData.length > 0) {
-        const data = this.defaultData.filter(item => ((item.df === 17 && item.groundspeed) || item.IAS || item.TAS));
+        const data = this.defaultData.filter(item => (item.groundspeed || item.IAS || item.TAS || item.Mach));
         this.option = null;
         this.chartData = {
           labels: data.map(item => dayjs.unix(item.timestamp).format('HH:mm')),

@@ -77,7 +77,9 @@ def load_enabled_plugins(
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI, backend_state: BackendState) -> AsyncGenerator[None, None]:
+async def lifespan(
+    app: FastAPI, backend_state: BackendState
+) -> AsyncGenerator[None, None]:
     async with backend_state.redis_client:
         app.state.backend_state = backend_state
         yield
