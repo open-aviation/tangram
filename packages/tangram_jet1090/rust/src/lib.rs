@@ -21,15 +21,26 @@ use crate::stream::{start_jet1090_subscriber, start_redis_subscriber, stream_sta
 #[cfg(feature = "pyo3")]
 use pyo3_python_tracing_subscriber::PythonCallbackLayerBridge;
 #[cfg(feature = "pyo3")]
-use tracing_subscriber::prelude::*;
+use tracing_subscriber::{fmt, EnvFilter, prelude::*};
 
 #[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
 #[pyfunction]
-fn init_tracing(py_layer: Bound<'_, PyAny>) -> PyResult<()> {
-    let bridge = PythonCallbackLayerBridge::new(py_layer);
+fn init_tracing_python(py_layer: Bound<'_, PyAny>, filter_str: String) -> PyResult<()> {
     tracing_subscriber::registry()
-        .with(bridge)
+        .with(EnvFilter::new(filter_str))
+        .with(PythonCallbackLayerBridge::new(py_layer))
+        .try_init()
+        .map_err(|e| PyOSError::new_err(e.to_string()))
+}
+
+#[cfg(feature = "pyo3")]
+#[gen_stub_pyfunction]
+#[pyfunction]
+fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
+    tracing_subscriber::registry()
+        .with(EnvFilter::new(filter_str))
+        .with(fmt::layer().with_writer(std::io::stderr))
         .try_init()
         .map_err(|e| PyOSError::new_err(e.to_string()))
 }
@@ -141,7 +152,8 @@ fn run_planes(py: Python<'_>, config: PlanesConfig) -> PyResult<Bound<'_, PyAny>
 #[pymodule]
 fn _planes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_planes, m)?)?;
-    m.add_function(wrap_pyfunction!(init_tracing, m)?)?;
+    m.add_function(wrap_pyfunction!(init_tracing_python, m)?)?;
+    m.add_function(wrap_pyfunction!(init_tracing_stderr, m)?)?;
     m.add_class::<PlanesConfig>()?;
     Ok(())
 }

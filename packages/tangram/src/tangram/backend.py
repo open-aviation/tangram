@@ -7,8 +7,8 @@ import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from functools import partial
-from importlib.abc import Traversable
 from importlib.metadata import Distribution, PackageNotFoundError
+from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, TypeAlias
 
@@ -110,10 +110,14 @@ def create_app(
     async def get_manifest() -> JSONResponse:
         return JSONResponse(content={"plugins": frontend_plugins})
 
-    core_frontend_path = resolve_frontend(path="dist-frontend", dist_name="tangram")
-    app.mount(
-        "/", StaticFiles(directory=str(core_frontend_path), html=True), name="core"
-    )
+    # TODO: we might want to host the frontend separately from the backend
+    if (
+        frontend_path := resolve_frontend(path="dist-frontend", dist_name="tangram")
+    ) is None:
+        raise ValueError(
+            "error: frontend was not found, did you run `pnpm i && pnpm run build`?"
+        )
+    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="core")
     return app
 
 
@@ -127,10 +131,6 @@ LOG_LEVEL_MAP = {
 
 
 class TracingLayer:
-    def __init__(self, log_levels: dict[str, str], default_level: str):
-        self.log_levels = {k: v.upper() for k, v in log_levels.items()}
-        self.default_level = default_level.upper()
-
     def on_event(self, event: str, state: None) -> None:
         data = json.loads(event)
         metadata = data.get("metadata", {})
@@ -141,15 +141,9 @@ class TracingLayer:
         if not all([target, level_str, message]):
             return
 
-        crate_name = target.split("::", 1)[0]
-
-        config_level_str = self.log_levels.get(crate_name, self.default_level)
-        config_level = LOG_LEVEL_MAP.get(config_level_str, logging.INFO)
         event_level = LOG_LEVEL_MAP.get(level_str, logging.INFO)
-
-        if event_level >= config_level:
-            logger = logging.getLogger(target)
-            logger.log(event_level, message)
+        logger = logging.getLogger(target)
+        logger.log(event_level, message)
 
     def on_new_span(self, span_attrs: str, span_id: str) -> None:
         return None
@@ -162,19 +156,22 @@ class TracingLayer:
 
 
 async def run_channel_service(config: Config) -> None:
-    from ._channel import ChannelConfig, init_tracing, run
+    from . import _channel
 
-    layer = TracingLayer(log_levels={}, default_level=config.core.log_level)
-    init_tracing(layer)
+    if config.channel.python_tracing_subscriber:
+        layer = TracingLayer()
+        _channel.init_tracing_python(layer, config.core.log_level)
+    else:
+        _channel.init_tracing_stderr(config.core.log_level)
 
-    rust_config = ChannelConfig(
+    rust_config = _channel.ChannelConfig(
         host=config.channel.host,
         port=config.channel.port,
         redis_url=config.core.redis_url,
         jwt_secret=config.channel.jwt_secret,
         jwt_expiration_secs=config.channel.jwt_expiration_secs,
     )
-    await run(rust_config)
+    await _channel.run(rust_config)
 
 
 async def run_services(

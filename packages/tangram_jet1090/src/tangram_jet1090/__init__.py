@@ -73,6 +73,7 @@ class PlanesConfig:
     jet1090_channel: str = "jet1090"
     history_expire: int = 20
     log_level: str = "INFO"
+    python_tracing_subscriber: bool = False
 
 
 @plugin.register_service()
@@ -85,8 +86,12 @@ async def run_planes(backend_state: tangram.BackendState) -> None:
     default_log_level = plugin_config.get(
         "log_level", backend_state.config.core.log_level
     )
-    layer = tangram.TracingLayer(log_levels={}, default_level=default_log_level)
-    _planes.init_tracing(layer)
+
+    if config_planes.python_tracing_subscriber:
+        layer = tangram.TracingLayer()
+        _planes.init_tracing_python(layer, default_log_level)
+    else:
+        _planes.init_tracing_stderr(default_log_level)
 
     rust_config = _planes.PlanesConfig(
         redis_url=backend_state.config.core.redis_url,

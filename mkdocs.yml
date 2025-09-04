@@ -67,6 +67,9 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
+          # explicitly specifying the paths so we can do `uv sync --group docs && uv run mkdocs build`
+          # without installing the entire project
+          paths: [packages/tangram/src]
           inventories:
             - https://docs.python.org/3/objects.inv
             - https://fastapi.tiangolo.com/objects.inv

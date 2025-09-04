@@ -24,6 +24,7 @@ pyo3-async-runtimes = { version = "0.25", features = [
     "tokio-runtime",
 ], optional = true }
 pyo3-stub-gen = { version = "0.12.2", optional = true }
+# using fork that supports pyo3==0.25 because upstream seems abandoned
 pyo3-python-tracing-subscriber = { git = "https://github.com/AndreasBackx/pyo3-python-tracing-subscriber", rev = "994fc99722c98a04e266ebce43b312bf295d3fed", optional = true }
 
 

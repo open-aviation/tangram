@@ -18,6 +18,7 @@ class ChannelConfig:
     port: int = 2347
     jwt_secret: str = "secret"
     jwt_expiration_secs: int = 315360000  # 10 years
+    python_tracing_subscriber: bool = False
 
 
 @dataclass

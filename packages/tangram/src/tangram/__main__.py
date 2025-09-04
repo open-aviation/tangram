@@ -13,7 +13,7 @@ from .backend import resolve_frontend, start_tasks
 from .config import Config
 from .plugin import load_plugin, scan_plugins
 
-app = typer.Typer(no_args_is_help=True)
+app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 logger = logging.getLogger(__name__)
 stderr = Console(stderr=True)
 
