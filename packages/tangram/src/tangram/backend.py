@@ -6,11 +6,12 @@ import json
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from functools import partial
 from importlib.metadata import Distribution, PackageNotFoundError
 from importlib.resources.abc import Traversable
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, TypeAlias
+from typing import TYPE_CHECKING, Annotated, Any, AsyncGenerator, Iterable, TypeAlias
 
 import redis.asyncio as redis
 import uvicorn
@@ -197,7 +198,7 @@ async def run_server(
         app_instance,
         host=backend_state.config.server.host,
         port=backend_state.config.server.port,
-        log_level="info",
+        log_config=get_log_config_dict(backend_state.config),
     )
     server = uvicorn.Server(server_config)
     await server.serve()
@@ -216,3 +217,21 @@ async def start_tasks(config: Config) -> None:
         service_tasks = [s async for s in run_services(state, loaded_plugins)]
 
         await asyncio.gather(server_task, *service_tasks)
+
+
+def get_log_config_dict(config: Config) -> dict[str, Any]:
+    def format_time(dt: datetime) -> str:
+        return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ ")
+
+    return {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "default": {
+                "class": "rich.logging.RichHandler",
+                "log_time_format": format_time,
+                "omit_repeated_times": False,
+            },
+        },
+        "root": {"handlers": ["default"], "level": config.core.log_level.upper()},
+    }

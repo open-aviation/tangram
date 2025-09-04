@@ -6,10 +6,9 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
-from rich.logging import RichHandler
 from rich.table import Table
 
-from .backend import resolve_frontend, start_tasks
+from .backend import get_log_config_dict, resolve_frontend, start_tasks
 from .config import Config
 from .plugin import load_plugin, scan_plugins
 
@@ -23,19 +22,15 @@ def serve(
     config: Annotated[Path, typer.Option(help="Path to the tangram.toml config file.")],
 ) -> None:
     """Serves the core tangram frontend and backend services."""
-    logging.basicConfig(
-        level="NOTSET",
-        format="%(message)s",
-        datefmt="[%X]",
-        handlers=[RichHandler()],
-    )
-
     if not config.is_file():
         logger.error(f"config file not found: {config}")
         raise typer.Exit()
 
+    cfg = Config.from_file(config)
+    logging.config.dictConfig(get_log_config_dict(cfg))
+
     try:
-        asyncio.run(start_tasks(Config.from_file(config)))
+        asyncio.run(start_tasks(cfg))
     except KeyboardInterrupt:
         logger.info("shutting down services.")
 

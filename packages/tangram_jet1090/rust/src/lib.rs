@@ -127,6 +127,9 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
     });
 
     tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            info!("shutting down");
+        },
         _ = bbox_subscriber_handle => {
             error!("BoundingBox subscriber task exited unexpectedly");
         }

@@ -1,3 +1,5 @@
+import asyncio
+
 import pandas as pd
 import tangram
 from fastapi import APIRouter
@@ -23,7 +25,7 @@ async def wind(isobaric: int = 300) -> ORJSONResponse:
     print("Fetching wind data")
 
     now = pd.Timestamp.now(tz="UTC").floor("1h")
-    ds = latest_arpege_data(now)
+    ds = await asyncio.to_thread(latest_arpege_data, now)
     res = ds.sel(isobaricInhPa=isobaric, time=now.tz_convert(None))[["u", "v"]]
 
     return ORJSONResponse(content=res.to_dict())

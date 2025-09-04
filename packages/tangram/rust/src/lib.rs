@@ -111,6 +111,12 @@ async fn setup_persistent_channel(
     .await;
 }
 
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("failed to install CTRL+C signal handler");
+}
+
 pub async fn run_server(config: ChannelConfig) -> Result<(), ChannelError> {
     let redis_client = redis::Client::open(config.redis_url.clone()).map_err(ChannelError::Redis)?;
 
@@ -137,7 +143,9 @@ pub async fn run_server(config: ChannelConfig) -> Result<(), ChannelError> {
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
     tracing::info!("channel service listening on {}", addr);
-    axum::serve(listener, app.into_make_service()).await?;
+    axum::serve(listener, app.into_make_service())
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
 
     Ok(())
 }
