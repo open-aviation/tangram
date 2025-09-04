@@ -72,6 +72,11 @@ plugin = tangram.Plugin(frontend_path="dist-frontend", routers=[router])
 class PlanesConfig:
     jet1090_channel: str = "jet1090"
     history_expire: int = 20
+    stream_interval_secs: float = 1.0
+    aircraft_db_url: str = (
+        "https://jetvision.de/resources/sqb_databases/basestation.zip"
+    )
+    aircraft_db_cache_path: str | None = None
     log_level: str = "INFO"
     python_tracing_subscriber: bool = False
 
@@ -97,5 +102,8 @@ async def run_planes(backend_state: tangram.BackendState) -> None:
         redis_url=backend_state.config.core.redis_url,
         jet1090_channel=config_planes.jet1090_channel,
         history_expire=config_planes.history_expire,
+        stream_interval_secs=config_planes.stream_interval_secs,
+        aircraft_db_url=config_planes.aircraft_db_url,
+        aircraft_db_cache_path=config_planes.aircraft_db_cache_path,
     )
     await _planes.run_planes(rust_config)

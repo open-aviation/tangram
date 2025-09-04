@@ -23,21 +23,27 @@ async fn download_file(url: &str, destination: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn aircraft() -> BTreeMap<String, Aircraft> {
-    let mut cache_path = dirs::cache_dir().unwrap_or_default();
-    cache_path.push("jet1090");
+pub async fn aircraft(url: String, cache_path_override: Option<String>) -> BTreeMap<String, Aircraft> {
+    let mut cache_path = match cache_path_override {
+        Some(p) => std::path::PathBuf::from(p),
+        None => {
+            let mut path = dirs::cache_dir().unwrap_or_default();
+            path.push("jet1090");
+            path
+        }
+    };
+
     if !cache_path.exists() {
         let msg = format!("failed to create {:?}", cache_path.to_str().unwrap());
         fs::create_dir_all(&cache_path).expect(&msg);
     }
 
-    let zip_url = "https://jetvision.de/resources/sqb_databases/basestation.zip";
     let zip_file_path = "basestation.zip";
     cache_path.push(zip_file_path);
 
     if !cache_path.exists() {
         println!("Downloading basestation.zip...");
-        download_file(zip_url, cache_path.to_str().unwrap())
+        download_file(&url, cache_path.to_str().unwrap())
             .await
             .expect("Failed to download basestation.zip");
     }

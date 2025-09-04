@@ -52,6 +52,9 @@ pub struct PlanesConfig {
     pub redis_url: String,
     pub jet1090_channel: String,
     pub history_expire: u16,
+    pub stream_interval_secs: f64,
+    pub aircraft_db_url: String,
+    pub aircraft_db_cache_path: Option<String>,
 }
 
 #[cfg(feature = "pyo3")]
@@ -59,11 +62,21 @@ pub struct PlanesConfig {
 #[pymethods]
 impl PlanesConfig {
     #[new]
-    fn new(redis_url: String, jet1090_channel: String, history_expire: u16) -> Self {
+    fn new(
+        redis_url: String,
+        jet1090_channel: String,
+        history_expire: u16,
+        stream_interval_secs: f64,
+        aircraft_db_url: String,
+        aircraft_db_cache_path: Option<String>,
+    ) -> Self {
         Self {
             redis_url,
             jet1090_channel,
             history_expire,
+            stream_interval_secs,
+            aircraft_db_url,
+            aircraft_db_cache_path,
         }
     }
 }
@@ -83,7 +96,12 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
     let client = redis::Client::open(config.redis_url.clone())
         .context("Failed to create Redis client for state vectors")?;
     let state_vectors = Arc::new(Mutex::new(
-        StateVectors::new(config.history_expire, client).await?,
+        StateVectors::new(
+            config.history_expire,
+            client,
+            config.aircraft_db_url.clone(),
+            config.aircraft_db_cache_path.clone(),
+        ).await?,
     ));
     let jet1090_subscriber_state = Arc::clone(&state_vectors);
 
@@ -102,7 +120,7 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
     });
 
     let streaming_handle = tokio::spawn(async move {
-        match stream_statevectors(config.redis_url, bbox_state, state_vectors).await {
+        match stream_statevectors(config.redis_url, bbox_state, state_vectors, config.stream_interval_secs).await {
             Ok(_) => info!("Streaming task stopped normally"),
             Err(e) => error!("Streaming task error: {}", e),
         }

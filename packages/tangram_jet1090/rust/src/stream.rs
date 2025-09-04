@@ -152,6 +152,7 @@ pub async fn stream_statevectors(
     redis_url: String,
     bbox_state: Arc<Mutex<BoundingBoxState>>,
     state_vectors: Arc<Mutex<StateVectors>>,
+    interval_secs: f64,
 ) -> Result<()> {
     let redis_client =
         redis::Client::open(redis_url.clone()).context("Failed to create Redis client")?;
@@ -235,6 +236,6 @@ pub async fn stream_statevectors(
             }
         }
 
-        time::sleep(Duration::from_secs(1)).await;
+        time::sleep(Duration::from_secs_f64(interval_secs)).await;
     }
 }

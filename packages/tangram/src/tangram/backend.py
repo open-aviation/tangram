@@ -170,6 +170,7 @@ async def run_channel_service(config: Config) -> None:
         redis_url=config.core.redis_url,
         jwt_secret=config.channel.jwt_secret,
         jwt_expiration_secs=config.channel.jwt_expiration_secs,
+        id_length=config.channel.id_length,
     )
     await _channel.run(rust_config)
 

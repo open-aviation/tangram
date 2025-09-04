@@ -199,11 +199,16 @@ pub struct StateVectors {
 }
 
 impl StateVectors {
-    pub async fn new(expire: u16, redis_client: redis::Client) -> Result<Self> {
+    pub async fn new(
+        expire: u16,
+        redis_client: redis::Client,
+        aircraft_db_url: String,
+        aircraft_db_cache_path: Option<String>,
+    ) -> Result<Self> {
         let redis_conn = redis_client.get_multiplexed_async_connection().await?;
         Ok(Self {
             aircraft: HashMap::new(),
-            aircraft_db: aircraft().await,
+            aircraft_db: aircraft(aircraft_db_url, aircraft_db_cache_path).await,
             redis_conn,
             history_expire: expire,
         })

@@ -57,6 +57,7 @@ pub struct ChannelConfig {
     pub redis_url: String,
     pub jwt_secret: String,
     pub jwt_expiration_secs: i64,
+    pub id_length: u8,
 }
 
 #[cfg(feature = "pyo3")]
@@ -70,6 +71,7 @@ impl ChannelConfig {
         redis_url: String,
         jwt_secret: String,
         jwt_expiration_secs: i64,
+        id_length: u8,
     ) -> Self {
         Self {
             host,
@@ -77,6 +79,7 @@ impl ChannelConfig {
             redis_url,
             jwt_secret,
             jwt_expiration_secs,
+            id_length,
         }
     }
 }
@@ -115,7 +118,7 @@ pub async fn run_server(config: ChannelConfig) -> Result<(), ChannelError> {
     let state = Arc::new(State {
         ctl: Mutex::new(channel_control),
         redis_client: redis_client.clone(),
-        id_length: 8,
+        id_length: config.id_length,
         jwt_secret: config.jwt_secret,
         jwt_expiration_secs: config.jwt_expiration_secs,
     });
