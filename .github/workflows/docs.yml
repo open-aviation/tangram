@@ -32,7 +32,7 @@ jobs:
 
       - name: Build the site
         run: |
-          uvx --with "mkdocs-material[imaging]" mkdocs build -d site
+          uv sync --group docs && uv run mkdocs build
 
       - name: Deploy pages to www.mode-s.org/jet1090
         uses: peaceiris/actions-gh-pages@v4

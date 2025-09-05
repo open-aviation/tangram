@@ -1,4 +1,4 @@
-# An open platform for modular, real-time air traffic management research
+# An open framework for modular, real-time air traffic management research
 
 **tangram** is an open research framework for ADS-B and Mode S flight surveillance data designed for various **real-time aviation research topics** such as GNSS jamming detection, aviation weather monitoring, emission analysis, and airport performance monitoring.
 
@@ -6,9 +6,9 @@
 
 ## Introduction
 
-The system consists of a **JavaScript**-based **web application** and a **backend based on Python** or Rust when performance is crucial. The web application is designed to be modular, allowing users to **implement their own plugins** for data processing and analysis. The backend is responsible for data collection, storage, and processing, while the frontend provides a user-friendly interface for visualizing and interacting with the data.
+`tangram` is built on a plugin-first architecture. It provides a lightweight core application, and all major functionality, from data processing to new UI widgets, is added through `pip`-installable packages.
 
-The whole framework is designed to be extensible, allowing researchers to develop and integrate their own plugins for specific research needs. This modularity enables the community to contribute to the platform, encouraging collaboration and knowledge sharing.
+The core framework includes a **JavaScript**-based **web application** and a **backend powered by Python and Rust**. This foundation is designed to be extended, allowing researchers to develop and integrate their own plugins for specific research needs. This modularity enables the community to contribute to the platform, encouraging collaboration and knowledge sharing.
 
 ## Contents
 

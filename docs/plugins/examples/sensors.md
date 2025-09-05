@@ -1,5 +1,8 @@
 # Map data receivers
 
+!!! danger "Legacy Frontend"
+    This example describes the plugin system for the legacy v0.1 frontend, which is configured via `.env` and `web_legacy/vite.config.js`. The following guide is scheduled for an update.
+
 ## Statement of need
 
 Mode S data is provided by the `jet1090` process, which decodes the data from aggregated various sources, such as software-defined radio devices or network streams. Each source of data corresponds to a different receiver, hence a different location.
@@ -10,13 +13,13 @@ See [Configuring jet1090](https://mode-s.org/jet1090/config/) for more details.
 
 ## Implementation
 
-The implementation of the map data receivers plugin is a Vue.js component that displays the positions of the receivers on the map. The implementation of this plugin is located in the `src/components/SensorsInfo.vue` file, i.e. in the default fallback location for plugins.
+The implementation of the map data receivers plugin is a Vue.js component that displays the positions of the receivers on the map. The implementation of this plugin is located in the `web_legacy/src/components/SensorsInfo.vue` file, i.e. in the default fallback location for plugins.
 
 !!! tip
 
     When a Vue component is a plugin, its implementation can be overridden by a custom implementation located in a different directory. This is useful if you want to have several possible implementations for a functionality, or if you want to use a different implementation for a specific use case.
 
-    If the environment variable `TANGRAM_WEB_SENSORSINFO_PLUGIN` is defined, the plugin will be loaded from the specified path. Otherwise, it will be loaded from the default `src/components/` directory.
+    If the environment variable `TANGRAM_WEB_SENSORSINFO_PLUGIN` is defined, the plugin will be loaded from the specified path. Otherwise, it will be loaded from the default `web_legacy/src/components/` directory.
 
 The information to display is provided by the `tangram` REST API, which provides the list of receivers and their positions on the `/sensors` endpoint.
 
