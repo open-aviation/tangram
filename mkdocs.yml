@@ -77,12 +77,11 @@ plugins:
         python:
           # explicitly specifying the paths so we can do `uv sync --group docs && uv run mkdocs build`
           # without installing the entire project
-          paths: [
-            packages/tangram/src
-            packages/tangram_jet1090/src
-            packages/tangram_weather/src
-            packages/tangram_system/src
-          ]
+          paths:
+            - packages/tangram/src
+            - packages/tangram_jet1090/src
+            - packages/tangram_weather/src
+            - packages/tangram_system/src
           inventories:
             - https://docs.python.org/3/objects.inv
             - https://fastapi.tiangolo.com/objects.inv
