@@ -1,12 +1,15 @@
 # Origin and destination city pair
 
+!!! danger "Legacy Frontend"
+    This example describes the plugin system for the legacy v0.1 frontend, which is configured via `.env` and `web_legacy/vite.config.js`. The following guide is scheduled for an update.
+
 ## Statement of need
 
 The city pair plugin displays the origin and destination information for the selected aircraft, showing both the airport codes (ICAO) and the city names. This makes it easy to quickly understand the flight route without leaving the main map interface.
 
 ## Implementation
 
-The implementation of the city pair plugin is a Vue.js component that displays the origin and destination of a flight when an aircraft is selected on the map. The implementation is located in the `src/plugins/CityPair.vue` file.
+The implementation of the city pair plugin is a Vue.js component that displays the origin and destination of a flight when an aircraft is selected on the map. The implementation is located in the `web_legacy/src/plugins/CityPair.vue` file.
 
 !!! tip
 

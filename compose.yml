@@ -1,0 +1,25 @@
+services:
+  tangram:
+    build:
+      context: .
+    command: tangram serve --config /etc/tangram/config.toml
+    volumes:
+      - ${PATH_TANGRAM_TOML:-./tangram.example.toml}:/etc/tangram/config.toml:ro
+    ports:
+      - "${TANGRAM_PORT_HOST:-2346}:${TANGRAM_PORT_CONTAINER:-2346}"
+      - "${CHANNEL_PORT_HOST:-2347}:${CHANNEL_PORT_CONTAINER:-2347}"
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # TODO: port, and only enable if tangram_toml specifies so
+  jet1090:
+    image: ghcr.io/xoolive/jet1090:0.4.13
+    restart: unless-stopped
+
+  # TODO: port
+  redis:
+    image: docker.io/library/redis:8-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"

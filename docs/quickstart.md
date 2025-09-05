@@ -1,132 +1,253 @@
-# Quickstart Guide for tangram
+- **For Users:** To install and run `tangram` with official plugins, [start here &raquo;](#user-quickstart)
+- **For Developers:** To contribute to the `tangram` core project, [set up the monorepo &raquo;](#developer-quickstart)
+- **For Plugin Authors:** To build your own extensions for `tangram`, read the [plugin development guide &raquo;](./plugins/backend.md)
 
-<p class="subtitle">How to quickly set up and run tangram with basic visualizations of aviation data</p>
+---
 
-!!! warning
+## User Quickstart
 
-    The framework has **only been tested on Linux and macOS**.
+### Prerequisites
 
-    It may not work on Windows without additional configuration, but contributions to improve Windows compatibility are welcome!
+Ensure you have the following installed:
 
-## Prerequisites
+- redis 8 or above (via [podman](https://podman.io/docs/installation)/[docker](https://docs.docker.com/engine/install/) or system-installed version)
+- Python 3.10 or above
 
-Before you begin, ensure you have the following tools installed:
+### 1. Install the `tangram` core
 
-1. [just](https://github.com/casey/just) is a **command runner**, similar to `make`, that simplifies running commands in your project.
+=== "uv"
 
-2. [podman](https://podman.io/) is a **container engine** for developing, managing, and running containers, similar to Docker.
+    ```sh
+    uv tool install tangram_core
+    ```
 
+=== "pip"
+
+    ```sh
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install tangram_core
+    ```
+
+For end users, the only supported installation method is from a package index (like PyPI) that hosts pre-built binary wheels. For developers wanting to use the latest git version, refer to the developer guide [below](#developer-quickstart).
+
+### 2. Configuration
+
+Create a `tangram.toml` file to control the application. This is where you define which plugins are active.
+
+```toml
+[core]
+redis_url = "redis://127.0.0.1:6379"
+plugins = []
+
+[server]
+host = "127.0.0.1"
+port = 2346
+
+[channel]
+host = "127.0.0.1"
+port = 2347
+jwt_secret = "a-better-secret-than-this"
+jwt_expiration_secs = 315360000
+```
+
+### 3. Running `tangram`
+
+`tangram` uses Redis for messaging. The easiest way to run one is with a container.
+Install [podman](https://podman.io/docs/installation) or [docker](https://docs.docker.com/engine/install/) and run:
+
+```shell
+podman run -d --rm -p 6379:6379 --name redis redis:latest
+```
+
+To start tangram, run:
+
+```shell
+tangram serve --config /path/to/your/tangram.toml
+```
+
+Open your browser and navigate to <http://localhost:2346> to access the web interface.
+
+### 4. Adding functionality with plugins
+
+The core `tangram` application provides the shell. All features are added by installing and enabling plugins.
+
+### *Example 1: add system monitoring*
+
+The `tangram_system` plugin adds a widget to the UI that displays server metrics like CPU and memory usage. It is a pure-Python package with no external services.
+
+#### 1. Install the plugin package
+
+=== "uv"
+
+    ```sh
+    uv tool install --with tangram_system tangram
+    ```
+
+=== "pip"
+
+    ```sh
+    # assuming you have an active virtual environment with tangram installed
+    pip install tangram_system
+    ```
+
+#### 2. Enable the plugin in your `tangram.toml`
+
+```toml hl_lines="3"
+[core]
+redis_url = "redis://127.0.0.1:6379"
+plugins = ["tangram_system"]
+
+[server]
+# ...
+```
+
+#### 3. Restart the server
+
+Stop the running `tangram serve` process (Ctrl+C) and start it again. The web interface will now include the system monitoring widget.
+
+### *Example 2: add live aircraft data*
+
+To display live flight data, you need the `tangram_jet1090` plugin. This plugin is more advanced, as it requires an external data source.
+
+#### 1. Run the `jet1090` service
+
+The plugin needs a running `jet1090` instance to receive Mode S/ADS-B data. The easiest way to run one is with a container.
+
+```shell
+# connects to a public feed.
+podman run -d --rm --name jet1090 \
+--network=host \
+ghcr.io/xoolive/jet1090:latest \
+jet1090 --redis-url "redis://127.0.0.1:6379" "ws://feedme.mode-s.org:9876/40128@EHRD"
+```
 !!! tip
+    The `jet1090` container is a dependency of the *plugin*, not the `tangram` core. You can run it on any machine as long as it can connect to your Redis instance.
 
-    You can have a running tangram instance in less than 5 minutes with these tools.
+#### 2. Install and enable the plugin
 
-    It will also be possible to run some of the components outside of containers, but for the quickstart, we use containers to simplify the setup.
+Just like before, install the package and add it to your `tangram.toml`.
 
-## 0. Clone the Repository
+=== "uv"
 
-First clone the tangram repository to your local machine:
-
-```shell
-git clone https://github.com/open-aviation/tangram
-cd tangram
-```
-
-## 1. Environment Configuration
-
-Create an environment file from the template:
-
-```shell
-cp .env.example .env
-```
-
-The file contains default configurations for a basic demo setup. You can modify it later to suit your needs.
-
-## 2. Build Containers
-
-Build the `tangram` container:
-
-```shell
-just create-tangram
-```
-
-## 3. Launch Redis
-
-Start a Redis container for message passing and caching between different services:
-
-```shell
-just redis
-```
-
-This command will pull the Redis image if not already available and start the container.
-
-!!! note
-
-    The redis container will keep running in the background, allowing other services to connect to it.
-
-    You can check if Redis is running with:
-
-    ```shell
-    podman container ls
+    ```sh
+    uv tool install --with tangram_system --with tangram_jet1090 tangram
     ```
 
-    You can stop the container with:
+=== "pip"
 
-    ```shell
-    podman container stop redis
+    ```sh
+    # assuming you have an active virtual environment with tangram installed
+    pip install tangram_jet1090
     ```
 
-## 4. Run the data receiver
-
-Set up the data source parameters and run the `jet1090` container:
-
-```shell
-just jet1090
+```toml hl_lines="4"
+[core]
+redis_url = "redis://127.0.0.1:6379"
+plugins = [
+    "tangram_system",
+    "tangram_jet1090"
+]
 ```
 
-You should now see the `jet1090` console displaying data received from the source:
+#### 3. Restart `tangram serve`
 
-![jet1090 console](./screenshot/jet1090.png)
+After restarting, your map should begin to populate with live aircraft data.
 
-!!! note
+```mermaid
+graph LR
+    subgraph Your Machine
+        direction LR
+        J[jet1090 container] --> R[Redis]
+        T[tangram process] --> R
+    end
+    subgraph Internet
+        F[Public ADS-B Feed] --> J
+    end
 
-    The `jet1090` executable can also be easily installed directly on your system if you prefer not to use a container. Check the [jet1090 documentation](https://mode-s.org/jet1090/) for installation instructions. However, the default configuration works with a containerized version for simplicity.
-
-    Note that it is mandatory to run `jet1090` locally if you want to feed data from a RTL-SDR device, as the containerized version may not have access to your local hardware: it can be parameterized for Linux (a bit complicated), but it is not possible for Apple computers due to limitations in the kernel implementation.
-
-    In that case, you need to edit some parameters in the `.env` file:
-
-    - `REDIS_URL` becomes `http://host.containers.internal:6379` (which will work thanks to port redirection explicited in the `justfile`)
-    - `JET1090_URL` becomes `http://host.containers.internal:8080`.
-
-## 5. Launch tangram
-
-In a new terminal, run the tangram container:
-
-```shell
-just tangram
+    B[Browser] --> T
 ```
 
-The container is orchestrated using [`process_compose`](https://github.com/F1bonacc1/process-compose), which manages the various background processes required for tangram to function.
+## Developer Quickstart
 
-![process composer](./screenshot/process.png)
+This guide is for setting up a development environment for the `tangram` core and builtin plugins.
+To extend `tangram`, start with the [**Backend Plugin Guide**](./plugins/backend.md) instead. This is the definitive resource for creating your own installable plugins with custom APIs and services.
 
-You may click on each process to see its logs in real-time. The `web` process is the web server that serves the tangram interface.
+### Prerequisites
 
-## 6. Access the web interface
+Ensure you have the following installed:
 
-Open your browser and navigate to <http://localhost:2345> to access the tangram web interface.
+- git
+- redis 8 or above (via [podman](https://podman.io/docs/installation)/[docker](https://docs.docker.com/engine/install/) or system-installed version)
+- Python 3.10 or above
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (not required, but highly recommended)
+- [Rust](https://www.rust-lang.org/tools/install)
+- [Node](https://nodejs.org/) and [pnpm](https://pnpm.io/)
 
-![web interface](./screenshot/tangram_screenshot_nl.png)
+To get things quickly installed:
 
-## Troubleshooting
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl -fsSL https://fnm.vercel.app/install | bash
+fnm install --latest
+corepack enable pnpm
+```
+<!-- TODO clarify what how exactly is the frontend installed - does it support HMR? -->
 
-| Issue                                 | Command                                                      |
-| ------------------------------------- | ------------------------------------------------------------ |
-| Check the logs for errors             | `just tangram-log`                                           |
-| Open a shell in the tangram container | `just tangram-shell`                                         |
-| Ensure all containers are running     | `podman container ls`                                        |
-| Verify Redis connection               | `podman container exec -it redis redis-cli ping`             |
-| Kill a container if needed            | `podman kill <container_name>` (e.g. `jet1090` or `tangram`) |
-| Delete containers if needed           | `podman rm <container_name>` (e.g. `jet1090` or `tangram`)   |
-| Delete images if needed               | `podman rmi <image_name>` (e.g. `tangram:latest`)            |
-| Clean up unused resources             | `podman system prune`                                        |
+### Environment Setup
+
+1. Clone the repository:
+
+    ```sh
+    git clone https://github.com/open-aviation/tangram.git
+    cd tangram
+    ```
+
+2. Build the frontend
+
+    ```sh
+    pnpm i
+    pnpm build
+    ```
+
+3. Install Python dependencies
+
+    ```sh
+    uv sync --all-packages --all-groups
+    ```
+
+This installs the core application and all plugins in editable mode into a virtual environment, along with useful developer utilities. This may take a minute or two as Rust compiles the core.
+
+### Running in Development Mode
+
+1. Ensure Redis (and any other services like `jet1090`) are running, as described in the user guide above.
+
+2. In one terminal, start the `tangram` server. This runs the FastAPI application, the `channel` service, and all enabled backend plugins.
+
+    ```sh
+    uv run tangram serve --config tangram.example.toml
+    ```
+
+3. In a second terminal, start the Vite development server for the v0.1 frontend. This provides Hot Module Replacement (HMR) for UI changes.
+
+    ```sh
+    just legacy-web
+    ```
+
+The frontend will be available at `http://localhost:2345` and will proxy API requests to the backend.
+
+!!! note "v0.2 Frontend Plugins"
+    The `pnpm build` command compiles the new v0.2 frontend plugin assets. HMR for these plugins is not yet supported; you must re-run `pnpm build` to see changes.
+
+To build the documentation:
+
+    ```sh
+    uv run mkdocs serve
+    ```
+
+To format all Rust, Python and JS code:
+
+    ```sh
+    just fmt
+    ```

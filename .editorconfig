@@ -12,9 +12,13 @@ trim_trailing_whitespace = true
 [*.{js, py}]
 charset = utf-8
 
+# TODO(abr): move this to [tool.ruff] in pyproject.toml
 [*.py]
 indent_size = 4
 max_line_length = 88
 
-[*.{js, html, css, yaml, toml, json, vue}]
+[*.toml]
+indent_size = 4
+
+[*.{js, html, css, yaml, json, vue}]
 indent_size = 2

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "tangram_jet1090"
+version = "0.2.0"
+dependencies = ["tangram>=0.2.0", "pandas>=2"]
+authors = [
+    { name = "Xavier Olive", email = "git@xoolive.org" },
+    { name = "Junzi Sun", email = "git@junzis.com" },
+    { name = "Xiaogang Huang", email = "maple.hl@gmail.com" },
+    { name = "Michel Khalaf", email = "khalafmichel98@gmail.com" },
+    { name = "Abraham Cheung", email = "abraham@ylcheung.com" },
+]
+
+[tool.uv.sources]
+tangram = { workspace = true }
+
+[project.entry-points."tangram.plugins"]
+tangram_jet1090 = "tangram_jet1090:plugin"
+
+[tool.maturin]
+python-source = "src"
+module-name = "tangram_jet1090._planes"
+features = ["pyo3"]
+
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "rust/Cargo.toml" },
+    { file = "**/*.rs" },
+]

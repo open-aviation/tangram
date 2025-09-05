@@ -1,0 +1,9 @@
+[workspace]
+resolver = "3"
+members = [
+    "packages/tangram/rust",
+    "packages/tangram_jet1090/rust",
+]
+
+[profile.release]
+lto = true

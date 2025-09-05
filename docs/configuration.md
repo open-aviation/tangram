@@ -1,11 +1,59 @@
 # Configuration
 
-Most of the configuration for the tangram platform will be done through **environment variables** and **configuration files**.
+`tangram` is configured through a single `tangram.toml` file. This provides a centralized and clear way to manage the entire platform, from core services to plugins.
+
+## Example `tangram.toml`
+
+```toml
+[core]
+# URL for the Redis instance used for pub/sub messaging.
+redis_url = "redis://localhost:6379"
+
+# a list of installed plugin packages to activate.
+# tangram will look for entry points provided by these packages.
+plugins = [
+    "tangram_system",
+    "tangram_jet1090",
+    "my_awesome_package"
+]
+
+[server]  # (1)!
+# main FastAPI web server, which serves the
+# frontend application and plugin API routes.
+host = "127.0.0.1"
+port = 2346
+
+[channel]  # (2)!
+# integrated real-time WebSocket service.
+host = "127.0.0.1"
+port = 2347
+# a secret key used to sign JSON Web Tokens (JWTs) for authenticating
+# WebSocket connections. Change this to a strong, unique secret.
+jwt_secret = "a-better-secret-than-this"
+
+[plugins.tangram_jet1090]  # (3)!
+# plugin-specific configuration is defined in its own table,
+# following the pattern `[plugins.<plugin_package_name>]`.
+# The structure of this table is defined by the plugin itself.
+jet1090_channel = "jet1090"
+history_expire = 20
+```
+
+1. See [`tangram.config.CoreConfig`][].
+2. See [`tangram.config.ServerConfig`][]
+3. See [`tangram.config.ChannelConfig`][]
+
+## Frontend
+
+!!! danger
+    The frontend will be refactored in v0.2 and the following guide is scheduled for removal.
+
+The frontend can be configured through **environment variables** and **configuration files**.
 
 These include:
 
 - the `.env` file for environment variables;
-- the `web/vite.config.js` file for the web application build configuration;
+- the `web_legacy/vite.config.js` file for the web application build configuration;
 - the `config_jet1090.toml` file for the [**`jet1090` configuration**](https://mode-s.org/jet1090/config/) relative to data sources.
 
 ## Environment variables
@@ -14,12 +62,7 @@ The `.env` file contains environment variables that configure the behaviour of t
 
 You can create this file from the template provided in the repository (`.env.example`)
 
-- `LOG_DIR` is the directory where logs will be stored. It defaults to `/tmp/tangram`, but you can change it to any directory you prefer.
-- The installation scripts should be aware of the `HTTP_PROXY` and `HTTPS_PROXY` environment variables, which are used to configure the proxy settings for the tools that require internet access.
-
-- `JET1090_CONFIG` is the path to the `jet1090` configuration file. It defaults to `config_jet1090.toml`, but you can change it to any file you prefer.
 - `JET1090_URL` is the URL where the `jet1090` service will be available. It defaults to `http://jet1090:8080`, but you can change it to any URL you prefer.
-- `REDIS_URL` is the URL where the Redis service will be available. It defaults to `redis://redis:6379`, but you can change it to any URL you prefer.
 
 !!! warning
 
@@ -48,7 +91,7 @@ They **must be prefixed with `VITE_`** to be accessible in the web application c
 
 The paths for Vue files corresponding to plugins are also set in the `.env` file: they must follow the pattern `TANGRAM_WEB_<component>_PATH`, e.g. `TANGRAM_WEB_AWESOMEPLUGIN_PATH`. These paths can be customized as needed and edited in real time without rebuilding the web application. The web application will automatically pick up changes to these paths.
 
-The plugin components are expected to be in the `web/src/components/` directory (defined as `fallbackDir`), but you can override this path to point to any other directory containing Vue components.
+The plugin components are expected to be in the `web_legacy/src/components/` directory (defined as `fallbackDir`), but you can override this path to point to any other directory containing Vue components.
 
 The plugins must be declared in the `vite.config.js` file, which is used to build the web application. You must also list `availablePlugins` that will be used to build the web application. The plugin component names must be the same as the names of the Vue files, without the `.vue` extension. Capitalization should be consistent with the file name.
 

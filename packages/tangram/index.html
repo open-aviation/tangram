@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tangram</title>
+    <!-- we externalise vue esm so plugins dont have to vendor their own -->
+    <!-- this results in a larger (initial) bundle size but is well worth it -->
+    <script type="importmap">
+      {
+        "imports": {
+          "vue": "/vue.esm-browser.prod.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/tangram/main.ts"></script>
+  </body>
+</html>

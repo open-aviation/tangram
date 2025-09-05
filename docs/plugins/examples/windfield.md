@@ -1,5 +1,8 @@
 # Add a wind field layer
 
+!!! warning "Legacy Frontend / New Backend"
+    This example describes creating a plugin with a backend component for the new v0.2 architecture and a frontend component for the legacy v0.1 interface.
+
 ## Statement of need
 
 Meteorological data is essential for understanding the impact of weather on aviation operations. Meteo France provides weather prediction data from their [ARPEGE model](https://meteofrance.com/actualites-et-dossiers/modeles-prevision-meteo). The most basic features include zonal and meridional wind components, but also temperature, pressure, and humidity. More advanced features are also available but we will not cover them here.
@@ -17,7 +20,30 @@ The objective of this plugin is to display a wind field on the map, at an isobar
 
 ### 1. Implement a backend plugin for wind information
 
-Create a `weather` folder in the `src/tangram/plugins/` directory, and register the plugin in the `__init__.py` file. The plugin, associated with the `/weather` router will provide an API endpoint to fetch the wind field data for a specific isobar.
+The `tangram_weather` plugin is a self-contained, installable Python package. Its `pyproject.toml` registers it as a `tangram` plugin via an entry point:
+
+```toml
+[project.entry-points."tangram.plugins"]
+tangram_weather = "tangram_weather:plugin"
+```
+
+The plugin's `src/tangram_weather/__init__.py` file defines a FastAPI `APIRouter` and registers it with the core `tangram` application.
+
+```python
+import tangram
+from fastapi import APIRouter
+# ...
+
+router = APIRouter(...)
+
+@router.get("/wind")
+async def wind(isobaric: int = 300) -> ORJSONResponse:
+    # ... implementation ...
+
+plugin = tangram.Plugin(routers=[router])
+```
+
+The plugin, associated with the `/weather` router will provide an API endpoint to fetch the wind field data for a specific isobar.
 
 The logic for downloading the data is implemented in the `arpege.py` file.
 
@@ -68,7 +94,7 @@ plugins: [
 
 ### 3. Implement the Vue component
 
-The Vue component will be implemented in the `src/components/WindField.vue` file. The component will include a slider to select the isobaric level, and build the JavaScript structure required to create the wind field.
+The Vue component will be implemented in the `web_legacy/src/plugins/WindField.vue` file. The component will include a slider to select the isobaric level, and build the JavaScript structure required to create the wind field.
 
 The template part of the component will include the slider, which is bound to a `v-model` variable called `isobaric`. The slider allows the user to select an isobaric level between 100 and 1000 hPa, with a step of 50 hPa.
 

@@ -1,16 +1,19 @@
 # Architecture of the tangram framework
 
-The tangram framework consists of a suite of independent components that can be combined to create a powerful and flexible aviation data processing and visualization system.
+The `tangram` framework consists of a lightweight core and a suite of independent, installable plugins that can be combined to create a powerful and flexible aviation data processing and visualization system.
 
-The system consists of a web-based frontend (in Javascript :simple-javascript: based on [**Vite**](https://vite.dev/)), a backend service (in Python :simple-python:, and Rust :simple-rust: when performance is key).
+The system consists of a web-based frontend (in Javascript :simple-javascript: based on [Vite](https://vite.dev/)), a backend service (in Python :simple-python:), and performance-critical components in Rust :simple-rust:.
 
-Communication between the frontend and backend is done through a **REST API**, while real-time data streaming is handled via **WebSockets**. The backend service aggregates data from multiple sources, processes it, and exposes it for visualization in the frontend.
+Communication between the frontend and backend is done through a **REST API**, while real-time data streaming is handled via **WebSockets**. A **Redis :simple-redis: pub/sub system** is used for efficient data distribution between backend components.
 
-A **Redis :simple-redis: pub/sub system** is used for efficient data distribution between backend components.
+## A Plugin-First Architecture
 
-## Overview of the technologies used
+The core `tangram` package provides the essential scaffolding: a web server, a plugin loader, and a frontend API. All domain-specific functionality, including data decoding and processing, is implemented in separate, `pip`-installable plugins.
 
-It is **not necessary to know all the technologies** used in the tangram framework to use it effectively, and to implement your own plugins. However, it is useful to understand the architecture and how the components interact with each other.
+This design allows you to:
+
+- install only the functionality you need.
+- develop, version, and distribute your own extensions (e.g., `my-simulation-plugin`) without modifying the core `tangram` codebase.
 
 | Component          | Technology                                                              |
 | ------------------ | ----------------------------------------------------------------------- |
@@ -19,84 +22,60 @@ It is **not necessary to know all the technologies** used in the tangram framewo
 |                    | :simple-rust: Rust for performance critical components                  |
 | Data communication | :simple-redis: Redis (pub/sub messaging system)                         |
 
-Processes on the backend side communicate with each other using a **pub/sub mechanism** provided by Redis. The frontend communicates with the backend service through a **REST API** for simple requests and a **WebSocket connection** for real-time data streaming.
+## System Overview
 
-## System overview
+When you run `tangram serve`, it starts a single Python process that manages multiple asynchronous tasks for the application's core components and enabled plugins.
 
-![tangram architecture](../screenshot/tangram_diagram.png)
+```mermaid
+graph LR
+    subgraph User
+        B[Browser/Frontend]
+    end
 
-| **Backend component** | **Description**                              |
-| --------------------- | -------------------------------------------- |
-| `jet1090`             | decode Mode S and ADS-B messages             |
-| `planes`              | maintain a state vector table of aircraft    |
-| `trajectory`          | get the history of data for a given aircraft |
-| `tangram`             | REST API for data retrieval and management   |
-| `channel`             | WebSocket connection for real-time updates   |
+    subgraph "Tangram Process (Python)"
+        direction TB
+        FAS[FastAPI Server]
+        CS[Channel Service]
+        PS[Plugin Services e.g., planes]
+    end
 
-## Backend components
+    subgraph "External Services"
+        J[jet1090 Container]
+    end
 
-### jet1090
+    R[Redis Pub/Sub]
 
-**Documentation**: <https://mode-s.org/jet1090>
+    B -- HTTP API Requests --> FAS
+    B -- WebSocket --> CS
+    FAS -- Serves Frontend Assets --> B
+    FAS -- Reads/Writes --> R
+    CS -- Relays Messages --> R
+    PS -- Subscribes to --> R
+    J -- Publishes --> R
+```
 
-`jet1090` is a Rust-based ADS-B decoder that can be used to decode ADS-B messages from a variety of sources, including software-defined radio devices and network streams such as those provided by commercial ADS-B receivers. It is designed to be fast and efficient, making it suitable for real-time applications.
+<!-- arch in png is outdated, maybe it was produced in drawio but i cant seem to edit it -->
+<!-- ![tangram architecture](../screenshot/tangram_diagram.png) -->
 
-### planes
+| **Component**             | **Provided By**                                   | **Description**                                                |
+| ------------------------- | ------------------------------------------------- | -------------------------------------------------------------- |
+| `tangram` (Core)          | `tangram` package                                 | REST API server, CLI, and frontend shell.                      |
+| [`channel`](./channel.md) | (Bundled with `tangram`)                          | WebSocket bridge between the frontend and Redis pub/sub.       |
+| `jet1090` integration     | [`tangram_jet1090` plugin](../plugins/jet1090.md) | Decodes Mode S/ADS-B messages and provides data streams.       |
+| State Vectors & History   | [`tangram_jet1090` plugin](../plugins/jet1090.md) | Maintains real-time state and stores historical aircraft data. |
+| System Info               | [`tangram_system` plugin](../plugins/system.md)   | Provides backend server metrics like CPU and memory usage.     |
+| Weather Layers            | [`tangram_weather` plugin](../plugins/weather.md) | Provides API endpoints for meteorological data.                |
 
-**Documentation**: [planes](planes.md)
+## Backend Plugin System
 
-`planes` is a Python-based component that maintains a state vector table of aircraft. It is responsible for tracking the position and other parameters of aircraft in real-time. The component uses the data provided by `jet1090` to update the state vector table and provide real-time information about the aircraft.
+The backend discovers plugins using Python's standard **[entry point mechanism](https://packaging.python.org/en/latest/specifications/entry-points/)**. When you `pip install tangram_jet1090`, it registers itself under the `tangram.plugins` group in its `pyproject.toml`. The core `tangram` application queries these groups at startup to find and load all available plugins, allowing them to add their own [API routes](../plugins/backend.md#adding-api-endpoints) and [background tasks](../plugins/backend.md#creating-background-services).
 
-A state vector table is a data structure that contains the latest information about all the parameters of the aircraft. This is necessary because all ADS-B messages do not provide all the parameters of the aircraft at once. In particular the position, the speed, the track angle and the identification all come in different messages. Having the most recent information along all the possible features is usually enough to display the aircraft on a map.
+For a detailed guide on creating your own backend extensions, see the [Backend Plugin Guide](../plugins/backend.md).
 
-### trajectory
+## Frontend Plugin System
 
-**Documentation**: [trajectory](trajectory.md)
+In v0.2, the frontend loads plugins dynamically. The backend serves a `/manifest.json` file listing all enabled frontend plugins. The core `tangram` web application fetches this manifest and dynamically imports the JavaScript entry point for each plugin. The plugin's entry point then calls the [`tangramApi.registerWidget()`](../plugins/frontend.md) function to add its Vue components to the main application.
 
-`trajectory` is a Python-based component that provides a history of data for a given aircraft. It is responsible for storing and retrieving historical data about the aircraft's position and other parameters. The component uses the data stored by the Redis system and reformat it to be used by the frontend in a more standard JSON-like format. This is useful to be able to display the trajectory of an aircraft on a map, as well as to provide historical data for plotting, e.g. altitude, speed, vertical rate, etc.
+The v0.1 frontend plugins is considered deprecated.
 
-### tangram REST API
-
-**Documentation**: available when you run the service at <http://localhost:2345/tangram/docs>
-
-The `tangram` component is a Python-based REST API that provides data retrieval and management capabilities. It is responsible for handling requests from the frontend and providing the necessary data for visualization and analysis. The API is designed to be modular and extensible, allowing researchers to add their own endpoints and functionality as needed.
-
-Basic endpoints provided by the API include the data from `trajectory` and `planes`. Other endpoints are provided to facilitate the use of other data such as meteorological data through `fastmeteo` (<https://github.com/open-aviation/fastmeteo>). Since the component is based on FastAPI, it also possible to dynamically add new endpoints to the API at the plugin level. This allows researchers to create their own endpoints for specific research needs, such as custom data processing or analysis.
-
-### channel
-
-**Documentation**: [channel](channel.md)
-
-The `channel` (<https://github.com/emctoo/channel>) component is a Rust-based WebSocket connection that makes the bridge between the frontend and the Redis pub/sub system. It is responsible for providing real-time updates from and to the frontend.
-
-For instance, state vectors updates from the `planes` component are sent on the Redis pub/sub and the `channel` tool listens to the channel before sending the data to the frontend through a WebSocket. Conversely, the bounding box of the map is sent from the frontend to the `channel` component, which then sends it on the Redis pub/sub system. For example, the `planes` component listens to this channel and updates the state vector table accordingly.
-
-## Frontend architecture
-
-The frontend is based on Vue.js and provides a dynamic, real-time visualization interface for aviation data. It is designed to be modular, allowing users to implement their own plugins for data visualization and analysis.
-
-The entry point is the `App.vue` file, which initializes the application and sets up the main component. At this point, the webpage is divided into:
-
-- a main content area in the center, which displays the map with the visible aircraft;
-- a navigation bar at the top, described in `components/TopNavBar.vue`;
-- a sidebar on the left, described in `components/LeftSideBar.vue`, which pops up when the user clicks on an aircraft on the map.
-
-Most other components (located in the `components/` directory) are referred to from the main `App.vue` file or from other components.
-
-Extensions of the web application are described in the [Plugins](../plugins/index.md) section.
-
-## Containers and process management
-
-By default, most components run within a single container managed by [`process-compose`](https://github.com/F1bonacc1/process-compose). The tool handles process startup and shutdown; manages dependencies between processes; provides process monitoring and logging.
-This architecture is defined in `container/process-compose.yaml` and can be extended to include additional services.
-
-The description of the tangram container is defined in `container/tangram.Containerfile`.
-
-The two components which are not running in the `tangram` container are the services that are the most natural to run on a different node:
-
-- the Redis service, which runs in its [own _default_ container](https://hub.docker.com/_/redis);
-- the `jet1090` component, which also runs in its [own container](https://ghcr.io/xoolive/jet1090) to allow for easier updates.
-
-!!! tip
-
-    If you want to use `jet1090` with a RTL-SDR dongle, it could be easier to configure it outside of the container as it requires access to the USB device.
+For more details, see the [Frontend Plugin Guide](../plugins/frontend.md).
