@@ -1,6 +1,6 @@
 # Channel: WebSocket Communication Service
 
-The Channel component is a Rust implementation that provides real-time bidirectional communication for Tangram using WebSockets. It implements a subset of the Phoenix Channels protocol, enabling seamless integration with both the frontend and backend components through Redis pub/sub messaging.
+The Channel component is a Rust implementation that provides real-time bidirectional communication for Tangram using WebSockets. It implements a subset of the [Phoenix Channels protocol](https://hexdocs.pm/phoenix/channels.html), enabling seamless integration with both the frontend and backend components through Redis pub/sub messaging.
 
 ## Overview
 
@@ -8,7 +8,6 @@ Channel serves as the central communication hub in Tangram, connecting the front
 
 ## Key Features
 
-- **Phoenix Channels Protocol**: Implements a subset of the Phoenix Channels protocol for WebSocket communication
 - **Channel-based Communication**: Supports multiple named channels that clients can join and leave
 - **Redis Integration**: Uses Redis pub/sub for message distribution between components
 - **JWT Authentication**: Secures channel access with JSON Web Tokens
@@ -23,12 +22,36 @@ Channel serves as the central communication hub in Tangram, connecting the front
 3. When a message is received, Channel forwards it to all WebSocket clients connected to the specified channel
 4. Clients receive the message and can update their visualizations in real-time
 
+```mermaid
+sequenceDiagram
+    participant P as Backend Plugin
+    participant R as Redis
+    participant C as Channel Service
+    participant F as Frontend Client
+
+    P->>R: PUBLISH to:system:update, "data"
+    R-->>C: Receives message
+    C->>F: PUSH system:update, "data"
+```
+
 ### Frontend to Backend
 
 1. WebSocket clients send messages to a specific channel with an event name
 2. Channel receives these messages and publishes them to Redis topics in the format `from:<channel>:<event>`
 3. Backend plugins subscribe to these Redis topics to receive client messages
 4. Plugins process the messages and can respond by publishing back to `to:<channel>:<event>`
+
+```mermaid
+sequenceDiagram
+    participant F as Frontend Client
+    participant C as Channel Service
+    participant R as Redis
+    participant P as Backend Plugin
+
+    F->>C: PUSH system:command, "payload"
+    C->>R: PUBLISH from:system:command, "payload"
+    R-->>P: Receives message
+```
 
 ## Channel Protocol
 
@@ -102,47 +125,38 @@ import json
 r = redis.Redis()
 
 # Send message to frontend clients
-r.publish('to:system:update', json.dumps({
+await r.publish('to:system:update', json.dumps({
     'type': 'message',
     'message': 'Update from backend'
 }))
 
 # Listen for messages from frontend
 p = r.pubsub()
-p.psubscribe('from:system:*')
-for message in p.listen():
+await p.psubscribe('from:system:*')
+async for message in p.listen():
     if message['type'] == 'pmessage':
         print(f"Received: {message['data']}")
 ```
 
 ## Running the Channel Service
 
-The Channel service is containerized for easy deployment:
+The Channel service is an integrated part of the core `tangram` application. It is automatically started as a background service when you run the `tangram serve` command. You do not need to run it separately.
 
-```bash
-# Pull the Channel image
-podman pull ghcr.io/emctoo/channel:latest
+Its behavior is configured in the `[channel]` section of your [`tangram.toml`](../configuration.md) file.
 
-# Run the Channel service
-podman run -it --rm --name channel --network host \
-  ghcr.io/emctoo/channel:latest \
-  channel --redis-url redis://localhost:6379 --jwt-secret your-secret-key
+```toml title="tangram.toml"
+[channel]
+host = "127.0.0.1"
+port = 2347
+jwt_secret = "a-better-secret-than-this"
 ```
-
-### Configuration Options
-
-- `--host`: Host address to bind to (default: 127.0.0.1)
-- `--port`: Port to listen on (default: 2025)
-- `--redis-url`: Redis connection URL
-- `--jwt-secret`: Secret key for JWT authentication
-- `--static-path`: Path to static assets directory (default: assets)
 
 ## Token Authentication
 
-Channels require JWT tokens for authentication. Tokens can be requested from the `/token` endpoint:
+Channels require JWT tokens for authentication. Tokens can be requested from the `/token` endpoint, which is exposed on the port defined in your configuration.
 
 ```bash
-curl -X POST http://localhost:2025/token \
+curl -X POST http://localhost:2347/token \
   -H "Content-Type: application/json" \
   -d '{"channel": "system", "id": "client1"}'
 ```
@@ -157,17 +171,6 @@ The response includes a JWT token that can be used for channel authentication:
 }
 ```
 
-## Deployment, Testing and Debugging
-
-During development, the channel service operates within the container through process-manager (defined in `../container/process-compose.yaml`). To enable browser communication with this service, a WebSocket proxy is configured in `../web/vite.config.js`. This proxy prioritizes the endpoint specified in the `CHANNEL_SERVICE` environment variable, defaulting to `localhost:2025` within the container if no value is provided. For more flexible deployment options, you can run the service on a separate node and specify its location in the `.env` file.
-
-The Channel service includes an admin interface for monitoring connections and messages:
-
-- **Admin Interface**: Available at `http://localhost:2025/admin.html`
-- **Client Test Page**: Available at `http://localhost:2025?name=testuser`
-
-(FIXME: `rust-embed` for assets embedding)
-
 ### Redis Commands for Debugging
 
 ```bash
@@ -180,28 +183,3 @@ redis-cli psubscribe "to:*"
 # Publish a test message to clients
 redis-cli publish "to:system:test" '{"type":"message","message":"Test from Redis"}'
 ```
-
-## Progressive Integration in Tangram
-
-The Channel component enables the progressive development approach in Tangram:
-
-1. **Basic API Integration**: Start with conventional REST API calls
-2. **Enhanced Processing**: Add WebSocket capabilities for specific real-time features
-3. **Real-time Streaming**: Fully leverage the WebSocket infrastructure for comprehensive real-time visualization
-
-By separating the communication layer from both the frontend and backend, Channel allows teams to adopt real-time capabilities at their own pace while maintaining backward compatibility with existing systems.
-
-### Channel (Streaming Service)
-
-The Channel component is a high-performance Rust implementation that handles real-time data streaming:
-
-- WebSocket server for frontend connections
-- Integration with Redis for pub/sub messaging
-- Efficient data serialization and transmission
-- Connection management and error handling
-
-This component enables the real-time nature of Tangram, allowing for immediate visualization of incoming aviation data.
-
-## Testing
-
-There is no dedicated test suite for `channel` at the moment. However, you can verify its functionality by running the full tangram stack and checking if real-time messages are being transmitted between the backend and frontend.

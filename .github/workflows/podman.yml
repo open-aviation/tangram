@@ -5,25 +5,30 @@ on:
     branches:
       - main
   pull_request:
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
   check-podman-build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        include:
+          - runner: ubuntu-latest
+            eccodes_strategy: prebuilt
+          - runner: ubuntu-24.04-arm
+            eccodes_strategy: fromsource
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-
-      - name: Install just command runner
-        uses: extractions/setup-just@v3
-        with:
-          just-version: '1.14'  # Specify the version you need
 
       - name: Set up Podman
         run: |
           sudo apt-get update
           sudo apt-get install -y podman
           podman --version
+          buildah --version
 
       - name: Cache Podman layers
         uses: actions/cache@v4
@@ -33,21 +38,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-podman-
 
-      - name: Create a .env file
+      - name: Build Tangram image
         run: |
-          cp .env.example .env
-
-      - name: Check tangram image creation
-        run: |
-          echo "Running create-tangram command to verify image build..."
-          just create-tangram
+          podman build . --tag tangram:latest --build-arg ECCODES_STRATEGY=${{ matrix.eccodes_strategy }}
 
       - name: Verify tangram image exists
         run: |
-          if podman image exists tangram:0.1; then
-            echo "✅ Tangram image tangram:0.1 successfully created"
+          if podman image exists tangram:latest; then
             podman image ls | grep tangram
           else
-            echo "❌ Error: Tangram image tangram:0.1 not found"
             exit 1
           fi
