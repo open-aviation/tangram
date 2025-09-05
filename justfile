@@ -51,6 +51,7 @@ stubgen:
 fmt:
   uv run ruff check packages --fix
   uv run ruff format packages
+  pnpm i
   pnpm fmt
 
 _rmi name:

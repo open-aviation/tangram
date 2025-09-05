@@ -24,25 +24,58 @@ This design allows you to:
 
 ## System Overview
 
-![tangram architecture](../screenshot/tangram_diagram.png)
+When you run `tangram serve`, it starts a single Python process that manages multiple asynchronous tasks for the application's core components and enabled plugins.
 
-| **Component**            | **Provided By**          | **Description**                                                |
-| ------------------------ | ------------------------ | -------------------------------------------------------------- |
-| `tangram` (Core)         | `tangram` package        | REST API server, CLI, and frontend shell.                      |
-| `channel`                | (Bundled with `tangram`) | WebSocket bridge between the frontend and Redis pub/sub.       |
-| `jet1090` integration    | `tangram_jet1090` plugin | Decodes Mode S/ADS-B messages and provides data streams.       |
-| State Vectors & History  | `tangram_jet1090` plugin | Maintains real-time state and stores historical aircraft data. |
-| System Info              | `tangram_system` plugin  | Provides backend server metrics like CPU and memory usage.     |
-| Weather Layers           | `tangram_weather` plugin | Provides API endpoints for meteorological data.                |
+```mermaid
+graph LR
+    subgraph User
+        B[Browser/Frontend]
+    end
+
+    subgraph "Tangram Process (Python)"
+        direction TB
+        FAS[FastAPI Server]
+        CS[Channel Service]
+        PS[Plugin Services e.g., planes]
+    end
+
+    subgraph "External Services"
+        J[jet1090 Container]
+    end
+
+    R[Redis Pub/Sub]
+
+    B -- HTTP API Requests --> FAS
+    B -- WebSocket --> CS
+    FAS -- Serves Frontend Assets --> B
+    FAS -- Reads/Writes --> R
+    CS -- Relays Messages --> R
+    PS -- Subscribes to --> R
+    J -- Publishes --> R
+```
+
+<!-- arch in png is outdated, maybe it was produced in drawio but i cant seem to edit it -->
+<!-- ![tangram architecture](../screenshot/tangram_diagram.png) -->
+
+| **Component**             | **Provided By**                                   | **Description**                                                |
+| ------------------------- | ------------------------------------------------- | -------------------------------------------------------------- |
+| `tangram` (Core)          | `tangram` package                                 | REST API server, CLI, and frontend shell.                      |
+| [`channel`](./channel.md) | (Bundled with `tangram`)                          | WebSocket bridge between the frontend and Redis pub/sub.       |
+| `jet1090` integration     | [`tangram_jet1090` plugin](../plugins/jet1090.md) | Decodes Mode S/ADS-B messages and provides data streams.       |
+| State Vectors & History   | [`tangram_jet1090` plugin](../plugins/jet1090.md) | Maintains real-time state and stores historical aircraft data. |
+| System Info               | [`tangram_system` plugin](../plugins/system.md)   | Provides backend server metrics like CPU and memory usage.     |
+| Weather Layers            | [`tangram_weather` plugin](../plugins/weather.md) | Provides API endpoints for meteorological data.                |
 
 ## Backend Plugin System
 
-The backend discovers plugins using Python's standard **entry point** mechanism. When you `pip install tangram_jet1090`, it registers itself under the `tangram.plugins` group in its `pyproject.toml`. The core `tangram` application queries these groups at startup to find and load all available plugins, allowing them to add their own API routes and background tasks.
+The backend discovers plugins using Python's standard **[entry point mechanism](https://packaging.python.org/en/latest/specifications/entry-points/)**. When you `pip install tangram_jet1090`, it registers itself under the `tangram.plugins` group in its `pyproject.toml`. The core `tangram` application queries these groups at startup to find and load all available plugins, allowing them to add their own [API routes](../plugins/backend.md#adding-api-endpoints) and [background tasks](../plugins/backend.md#creating-background-services).
 
 For a detailed guide on creating your own backend extensions, see the [Backend Plugin Guide](../plugins/backend.md).
 
 ## Frontend Plugin System
 
-The frontend loads plugins dynamically. The backend serves a `/manifest.json` file listing all enabled frontend plugins. The core `tangram` web application fetches this manifest and dynamically imports the JavaScript entry point for each plugin. The plugin's entry point then calls the `tangramApi.registerWidget()` function to add its Vue components to the main application.
+In v0.2, the frontend loads plugins dynamically. The backend serves a `/manifest.json` file listing all enabled frontend plugins. The core `tangram` web application fetches this manifest and dynamically imports the JavaScript entry point for each plugin. The plugin's entry point then calls the [`tangramApi.registerWidget()`](../plugins/frontend.md) function to add its Vue components to the main application.
+
+The v0.1 frontend plugins is considered deprecated.
 
 For more details, see the [Frontend Plugin Guide](../plugins/frontend.md).

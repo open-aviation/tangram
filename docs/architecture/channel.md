@@ -1,6 +1,6 @@
 # Channel: WebSocket Communication Service
 
-The Channel component is a Rust implementation that provides real-time bidirectional communication for Tangram using WebSockets. It implements a subset of the Phoenix Channels protocol, enabling seamless integration with both the frontend and backend components through Redis pub/sub messaging.
+The Channel component is a Rust implementation that provides real-time bidirectional communication for Tangram using WebSockets. It implements a subset of the [Phoenix Channels protocol](https://hexdocs.pm/phoenix/channels.html), enabling seamless integration with both the frontend and backend components through Redis pub/sub messaging.
 
 ## Overview
 
@@ -8,7 +8,6 @@ Channel serves as the central communication hub in Tangram, connecting the front
 
 ## Key Features
 
-- **Phoenix Channels Protocol**: Implements a subset of the Phoenix Channels protocol for WebSocket communication
 - **Channel-based Communication**: Supports multiple named channels that clients can join and leave
 - **Redis Integration**: Uses Redis pub/sub for message distribution between components
 - **JWT Authentication**: Secures channel access with JSON Web Tokens
@@ -23,12 +22,36 @@ Channel serves as the central communication hub in Tangram, connecting the front
 3. When a message is received, Channel forwards it to all WebSocket clients connected to the specified channel
 4. Clients receive the message and can update their visualizations in real-time
 
+```mermaid
+sequenceDiagram
+    participant P as Backend Plugin
+    participant R as Redis
+    participant C as Channel Service
+    participant F as Frontend Client
+
+    P->>R: PUBLISH to:system:update, "data"
+    R-->>C: Receives message
+    C->>F: PUSH system:update, "data"
+```
+
 ### Frontend to Backend
 
 1. WebSocket clients send messages to a specific channel with an event name
 2. Channel receives these messages and publishes them to Redis topics in the format `from:<channel>:<event>`
 3. Backend plugins subscribe to these Redis topics to receive client messages
 4. Plugins process the messages and can respond by publishing back to `to:<channel>:<event>`
+
+```mermaid
+sequenceDiagram
+    participant F as Frontend Client
+    participant C as Channel Service
+    participant R as Redis
+    participant P as Backend Plugin
+
+    F->>C: PUSH system:command, "payload"
+    C->>R: PUBLISH from:system:command, "payload"
+    R-->>P: Receives message
+```
 
 ## Channel Protocol
 
@@ -119,7 +142,7 @@ async for message in p.listen():
 
 The Channel service is an integrated part of the core `tangram` application. It is automatically started as a background service when you run the `tangram serve` command. You do not need to run it separately.
 
-Its behavior is configured in the `[channel]` section of your `tangram.toml` file.
+Its behavior is configured in the `[channel]` section of your [`tangram.toml`](../configuration.md) file.
 
 ```toml title="tangram.toml"
 [channel]

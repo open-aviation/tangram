@@ -18,7 +18,15 @@ nav:
       - "plugins/system.md"
       - "plugins/jet1090.md"
       - "plugins/weather.md"
-  - API Reference: "api_reference.md"
+    - Examples:
+      - "plugins/examples/citypair.md"
+      - "plugins/examples/sensors.md"
+      - "plugins/examples/windfield.md"
+  - API Reference:
+    - "api/core.md"
+    - "api/jet1090.md"
+    - "api/weather.md"
+    - "api/system.md"
   - Contribute: "contribute.md"
 
 theme:
@@ -69,7 +77,12 @@ plugins:
         python:
           # explicitly specifying the paths so we can do `uv sync --group docs && uv run mkdocs build`
           # without installing the entire project
-          paths: [packages/tangram/src]
+          paths: [
+            packages/tangram/src
+            packages/tangram_jet1090/src
+            packages/tangram_weather/src
+            packages/tangram_system/src
+          ]
           inventories:
             - https://docs.python.org/3/objects.inv
             - https://fastapi.tiangolo.com/objects.inv
@@ -104,7 +117,11 @@ markdown_extensions:
           case: lower
   - pymdownx.highlight:
       pygments_lang_class: true
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - toc:

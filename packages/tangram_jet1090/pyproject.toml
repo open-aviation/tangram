@@ -6,6 +6,13 @@ build-backend = "maturin"
 name = "tangram_jet1090"
 version = "0.2.0"
 dependencies = ["tangram>=0.2.0", "pandas>=2"]
+authors = [
+    { name = "Xavier Olive", email = "git@xoolive.org" },
+    { name = "Junzi Sun", email = "git@junzis.com" },
+    { name = "Xiaogang Huang", email = "maple.hl@gmail.com" },
+    { name = "Michel Khalaf", email = "khalafmichel98@gmail.com" },
+    { name = "Abraham Cheung", email = "abraham@ylcheung.com" },
+]
 
 [tool.uv.sources]
 tangram = { workspace = true }

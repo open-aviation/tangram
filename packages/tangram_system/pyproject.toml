@@ -6,9 +6,10 @@ build-backend = "hatchling.build"
 name = "tangram_system"
 version = "0.2.0"
 readme = "readme.md"
-dependencies = [
-    "tangram>=0.2.0",
-    "psutil",
+dependencies = ["tangram>=0.2.0", "psutil"]
+authors = [
+    { name = "Xavier Olive", email = "git@xoolive.org" },
+    { name = "Junzi Sun", email = "git@junzis.com" }
 ]
 
 [project.entry-points."tangram.plugins"]

@@ -1,8 +1,5 @@
 # Configuration
 
-!!! warning
-    The new configuration and plugin system is under active development. APIs and configuration schemas may change.
-
 `tangram` is configured through a single `tangram.toml` file. This provides a centralized and clear way to manage the entire platform, from core services to plugins.
 
 ## Example `tangram.toml`
@@ -20,13 +17,13 @@ plugins = [
     "my_awesome_package"
 ]
 
-[server]
+[server]  # (1)!
 # main FastAPI web server, which serves the
 # frontend application and plugin API routes.
 host = "127.0.0.1"
 port = 2346
 
-[channel]
+[channel]  # (2)!
 # integrated real-time WebSocket service.
 host = "127.0.0.1"
 port = 2347
@@ -34,7 +31,7 @@ port = 2347
 # WebSocket connections. Change this to a strong, unique secret.
 jwt_secret = "a-better-secret-than-this"
 
-[plugins.tangram_jet1090]
+[plugins.tangram_jet1090]  # (3)!
 # plugin-specific configuration is defined in its own table,
 # following the pattern `[plugins.<plugin_package_name>]`.
 # The structure of this table is defined by the plugin itself.
@@ -42,7 +39,16 @@ jet1090_channel = "jet1090"
 history_expire = 20
 ```
 
-<!-- Most of the configuration for the tangram platform will be done through **environment variables** and **configuration files**.
+1. See [`tangram.config.CoreConfig`][].
+2. See [`tangram.config.ServerConfig`][]
+3. See [`tangram.config.ChannelConfig`][]
+
+## Frontend
+
+!!! danger
+    The frontend will be refactored in v0.2 and the following guide is scheduled for removal.
+
+The frontend can be configured through **environment variables** and **configuration files**.
 
 These include:
 
@@ -56,12 +62,7 @@ The `.env` file contains environment variables that configure the behaviour of t
 
 You can create this file from the template provided in the repository (`.env.example`)
 
-- `LOG_DIR` is the directory where logs will be stored. It defaults to `/tmp/tangram`, but you can change it to any directory you prefer.
-- The installation scripts should be aware of the `HTTP_PROXY` and `HTTPS_PROXY` environment variables, which are used to configure the proxy settings for the tools that require internet access.
-
-- `JET1090_CONFIG` is the path to the `jet1090` configuration file. It defaults to `config_jet1090.toml`, but you can change it to any file you prefer.
 - `JET1090_URL` is the URL where the `jet1090` service will be available. It defaults to `http://jet1090:8080`, but you can change it to any URL you prefer.
-- `REDIS_URL` is the URL where the Redis service will be available. It defaults to `redis://redis:6379`, but you can change it to any URL you prefer.
 
 !!! warning
 
@@ -119,4 +120,4 @@ proxy: {
     rewrite: (path) => path.replace(/^\/new-service/, ''),
   },
 },
-``` -->
+```

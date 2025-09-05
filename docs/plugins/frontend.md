@@ -1,3 +1,6 @@
+!!! note
+    The first section covers the experimental v0.2 frontend plugins, while the second half covers the legacy v0.1 frontend plugins.
+
 Frontend plugins are standalone NPM packages that add new widgets and functionality to the `tangram` web interface. This system is designed for modularity, allowing you to build and share custom UI components.
 
 ## 1. Project Structure
@@ -31,6 +34,7 @@ export function install(api: TangramApi) {
 ```
 
 The `TangramApi` provides two main functions:
+
 -   `registerWidget(id: string, component: Component)`: Makes your component available to the core UI.
 -   `getVueApp(): App`: Provides access to the core Vue application instance for advanced use cases.
 
@@ -79,7 +83,27 @@ When `tangram serve` runs, it will:
 2. Include your plugin in the `/manifest.json` endpoint.
 3. The core web app will fetch the manifest and dynamically load and install your plugin.
 
-<!-- # Implement a frontend plugin
+```mermaid
+sequenceDiagram
+    participant P as Plugin Module
+    participant B as Browser
+    participant S as Tangram Server
+
+    B->>S: GET /manifest.json
+    S-->>B: Respond with {"plugins": ["my_plugin"]}
+    B->>S: GET /plugins/my_plugin/plugin.json
+    S-->>B: Respond with {"main": "index.js"}
+    B->>S: GET /plugins/my_plugin/index.js
+    S-->>B: Serve plugin's JS entry point
+    Note over B, P: Browser executes plugin code
+    P->>B: install(tangramApi)
+    Note over B: Plugin registers its widgets
+```
+
+____
+
+!!! danger
+    The following guide is the legacy v0.1 plugins system and should NOT be used. See the above.
 
 Frontend plugins are Vue.js components that can be dynamically loaded into the tangram web application. The common use case is to get data from the backend (REST API or Websocket) and display it in a custom way, such as on a map or in a table.
 
@@ -195,4 +219,4 @@ If you see style conflicts or unexpected behavior:
 If the hot reloading does not work as expected:
 
 - Verify the env file is being watched correctly
-- Check for errors in the console during reload -->
+- Check for errors in the console during reload

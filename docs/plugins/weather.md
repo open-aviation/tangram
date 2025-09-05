@@ -10,7 +10,7 @@ This plugin fetches weather prediction data from Meteo-France's ARPEGE model, pr
 
 1. The plugin downloads GRIB files containing ARPEGE weather model predictions from the public [data.gouv.fr](https://www.data.gouv.fr/fr/datasets/donnees-pnt-retention-14-jours/) repository. These files are cached locally in a temporary directory.
 
-2. It registers a `/weather` router with the main FastAPI application. The key endpoint is `/weather/wind`.
+2. It registers a [`/weather` router][tangram_weather.router] with the main FastAPI application. The key endpoint is [`/weather/wind`][tangram_weather.wind].
 
 3. When a request is made to `/weather/wind?isobaric=<level>`, the plugin:
     - Determines the latest available GRIB file for the current time.

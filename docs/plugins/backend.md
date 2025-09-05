@@ -1,10 +1,12 @@
 Backend plugins are the standard way to add new server-side capabilities to `tangram`. They are self-contained Python packages that `tangram` discovers and loads at runtime, allowing for clean separation from the core framework.
 
-This guide walks you through creating a backend plugin.
+This guide covers the key concepts for building a backend plugin.
 
-## 1. Project Structure
+## Plugin Anatomy
 
-A backend plugin is a standard Python package.
+A `tangram` plugin is a standard Python package that exposes its functionality through two key mechanisms: an entry point and a [`Plugin`][tangram.Plugin] object.
+
+Assuming you have the following project structure:
 
 ```text
 my-tangram-plugin/
@@ -14,32 +16,39 @@ my-tangram-plugin/
         └── __init__.py
 ```
 
-## 2. The `pyproject.toml` and Entry Points
+### 1. The `pyproject.toml` Entry Point
 
-Your `pyproject.toml` tells the Python ecosystem that your package is a `tangram` plugin by defining **entry points**:
+Your `pyproject.toml` must declare an entry point under the `tangram.plugins` group. This makes your package discoverable by the core application.
 
-```toml title="pyproject.toml"
+```toml title="pyproject.toml" hl_lines="6 7"
 [project]
 name = "my-tangram-plugin"
 version = "0.1.0"
-dependencies = [
-    "tangram>=0.2.0"
-]
+dependencies = ["tangram>=0.2.0"]
 
-# this section makes your plugin discoverable by the core
 [project.entry-points."tangram.plugins"]
 my_plugin = "my_plugin:plugin"
 ```
 
-## 3. The Plugin Code
+### 2. The `Plugin` Object
 
-### Adding API Routes
+The entry point must point to an instance of the `tangram.Plugin` class. This object is the central hub for registering your plugin's components.
 
-Define a FastAPI `APIRouter` and pass it to the `Plugin` constructor.
-
-```python title="src/my_plugin/__init__.py"
-from fastapi import APIRouter
+```py title="src/my_plugin/__init__.py"
 import tangram
+
+plugin = tangram.Plugin(
+    # ... component registrations go here ...
+)
+```
+
+## Adding API Endpoints
+
+To add REST API endpoints, define a standard FastAPI [`APIRouter`][fastapi.APIRouter] and pass a list of routers to the [`Plugin`][tangram.Plugin] constructor. `tangram` will automatically mount them into the main application.
+
+```py title="src/my_plugin/__init__.py" hl_lines="11"
+import tangram
+from fastapi import APIRouter
 
 router = APIRouter(prefix="/my-plugin")
 
@@ -47,208 +56,135 @@ router = APIRouter(prefix="/my-plugin")
 async def my_endpoint():
     return {"message": "Hello from my custom plugin!"}
 
-plugin = tangram.Plugin(routers=[router])
-
-# ... service code below
+plugin = tangram.Plugin(
+    routers=[router]
+)
 ```
 
+## Creating Background Services
 
-### Adding a Background Service
+To run persistent background tasks, use the [`@plugin.register_service` decorator][tangram.Plugin.register_service]. The decorated function will be started as a background task when `tangram serve` runs.
 
-Use the [`tangram.Plugin.register_service`][] decorator on an async function. `tangram` will start it in the background.
+The service function receives a [`tangram.BackendState`][] object, which provides access to core components like the Redis client.
 
-```python title="src/my_plugin/__init__.py"
-# ... api code above
+```py title="src/my_plugin/__init__.py" hl_lines="6"
+import asyncio
+import tangram
+
+plugin = tangram.Plugin()
 
 @plugin.register_service()
-async def run_service(backend_state: tangram.BackendState):
-    """This function is run as a background service."""
+async def run_periodic_task(backend_state: tangram.BackendState):
+    """A background service that publishes a message every 10 seconds."""
     redis_client = backend_state.redis_client
-    await redis_client.publish("my-channel", "hello from my service")
-    # ...
+    while True:
+        await redis_client.publish("my-plugin:status", "alive")
+        await asyncio.sleep(10)
 ```
 
-## 4. Using Your Plugin
+## Inter-Component Communication with Redis
 
-Once your package is installed (e.g., via `uv pip install .` or `uv sync` in the monorepo), enable it in your `tangram.toml`:
+Redis pub/sub is the backbone for real-time communication between all `tangram` components, including backend services, the frontend, and performance-critical Rust modules.
+
+### Communicating with the Frontend via WebSockets
+
+The `channel` service acts as a transparent bridge between Redis and frontend WebSockets. A simple convention is used for routing messages:
+
+```mermaid
+graph TB
+    subgraph Frontend
+        direction TB
+        FC[Client]
+    end
+
+    subgraph Backend
+        direction TB
+        BP[Plugin]
+    end
+
+    WS[WebSocket Channel]
+    R[Redis Pub/Sub]
+
+    FC -- "push('event', payload)" --> WS
+    WS -- "PUBLISH from:channel:event" --> R
+    R -- "LISTEN from:*" --> BP
+
+    BP -- "PUBLISH to:channel:event" --> R
+    R -- "LISTEN to:*" --> WS
+    WS -- "on('event', payload)" --> FC
+```
+
+- **Backend to Frontend**: To send a message to the frontend, publish it to a Redis channel prefixed with `to:<channel_name>:<event_name>`. The `channel` service relays this to the browser.
+- **Frontend to Backend**: When the frontend sends a message, the `channel` service relays it to a Redis channel prefixed with `from:<channel_name>:<event_name>`.
+
+
+### Publishing Messages
+
+You can publish messages from any backend service using the Redis client available in [`tangram.BackendState`][].
+
+=== "Python"
+
+    ```py
+    # from within a service function
+    redis_client = backend_state.redis_client
+    await redis_client.publish("to:system:update", "Hello from plugin")
+    ```
+
+=== "Rust"
+
+    ```rs
+    let redis_client = redis::Client::open("redis://localhost:6379").unwrap()?;
+    let mut con = redis_client.get_multiplexed_async_connection().await?;
+    con.publish("to:system:update", "Hello from plugin").await?;
+    ```
+
+### Subscribing to Messages
+
+To handle incoming messages, `tangram` provides a [`Subscriber`][tangram.redis.Subscriber] base class. This is the recommended pattern for creating robust, long-running listeners within a service.
+
+```py title="src/my_plugin/__init__.py"
+import asyncio
+from dataclasses import dataclass
+import tangram
+from tangram.redis import Subscriber
+
+plugin = tangram.Plugin()
+
+@dataclass
+class CommandSubscriberState:
+    command_count: int = 0
+
+class CommandSubscriber(Subscriber[CommandSubscriberState]):
+    """A subscriber that listens for commands on a Redis channel."""
+    async def message_handler(
+        self, event: str, payload: str, pattern: str, state: CommandSubscriberState
+    ) -> None:
+        state.command_count += 1
+        print(f"Command #{state.command_count} received on `{event}`: {payload}")
+
+@plugin.register_service()
+async def run_command_listener(backend_state: tangram.BackendState) -> None:
+    """This service listens for commands from the frontend."""
+    subscriber = CommandSubscriber(
+        name="CommandListener",
+        redis_url=backend_state.config.core.redis_url,
+        channels=["from:system:my-plugin-command"],
+        initial_state=CommandSubscriberState(),
+    )
+    await subscriber.subscribe()
+    try:
+        await asyncio.Future()  # run forever
+    finally:
+        await subscriber.cleanup()
+```
+
+## Using Your Plugin
+
+Install your package in the same environment as `tangram` and enable it in your `tangram.toml`:
 
 ```toml
 [core]
 plugins = ["my_tangram_plugin"]
 ```
 
-When you run `tangram serve`, the core application will automatically find and load your plugin's entry points, making the `/my-plugin` endpoint available and starting your background service.
-
-<!-- # Implement a backend plugin
-
-Implementing a backend plugin for tangram involves creating a standalone application (in Python or any other language) than can communicate with other components of the tangram system. This process should be able to:
-
-- provide additional REST API endpoints;
-- process real-time data through the Redis pub/sub
-
-## REST API endpoint
-
-Queries to the tangram endpoint is a very easy task. Any HTTP client can do the job, e.g. `httpx` in Python or `reqwest` in Rust. The REST API is provided by the tangram service, which is a FastAPI application.
-
-The API documentation is available at <http://localhost:2345/tangram/docs> when the service is running.
-
-Implementing a new endpoint requires a bit more work. Here, you have two possibilities:
-
-- create a new endpoint on a different port, and use the `vite.config.js` configuration file to proxy requests to this endpoint.
-
-- integrate your plugin with the main FastAPI application with the FastAPI router system. This allows you to add new endpoints to the main API while maintaining separation of concerns.
-
-### Proxy to external resources
-
-This is the simplest way to implement a new endpoint, as you can use any programming language, any web framework you like (Flask, FastAPI, etc.) and run the process on any node. The frontend will be able to access this endpoint through the proxy configuration.
-
-In the `vite.config.js` file, you can add a proxy configuration to redirect requests to your plugin:
-
-```javascript
-server: {
-  proxy: {
-    "/api/my-plugin": `${host_address}:8001`, // where you serve your new process
-    changeOrigin: true,
-    rewrite: (path) => path.replace(/^\/api\/my-plugin/, ''),
-  },
-},
-```
-
-### Extend the FastAPI application
-
-!!! warning
-
-    This approach is only possible in Python as the base backend is also implemented in Python using FastAPI. If you want to implement a plugin in another language, you should use the proxy approach described above.
-
-For more complex plugins that need to integrate directly with the main FastAPI application, you can use FastAPI's router system. This approach allows your plugin to add endpoints to the main API while maintaining separation of concerns.
-
-!!! tip
-
-    The upside of this approach is that you can reuse all instances of the FastAPI application.
-
-    The `docs/` endpoint will also automatically include your new endpoints in the API documentation.
-
-In order to implement a FastAPI plugin, you need to create a Python package with a `__init__.py` file that defines the plugin's endpoints. Plugins can be located in the `src/tangram/plugins/` directory, and they should be structured as Python packages.
-
-The main FastAPI application will automatically discover and register these plugins if they follow the naming convention and include an `__init__.py` file.
-
-```python
-from fastapi import APIRouter, FastAPI
-from pydantic import BaseModel
-
-# Create a router for your plugin
-router = APIRouter(
-    prefix="/example",  # All routes will be prefixed with /example
-    tags=["example"],  # For API documentation organization
-    responses={404: {"description": "Not found"}},
-)
-
-
-class ExampleResponse(BaseModel):
-    data: str
-
-
-# Define endpoints on your router
-@router.get("/", response_model=ExampleResponse)
-async def get_example() -> ExampleResponse:
-    "An example endpoint that returns some data."
-    return ExampleResponse(data="This is an example plugin response")
-
-
-def register_plugin(app: FastAPI) -> None:
-    """Register this plugin with the main FastAPI application."""
-    app.include_router(router)
-
-```
-
-!!! warning
-
-    Note that there is no activate/deactivate mechanism for backend plugins. If they are found in the `src/tangram/plugins/` directory, they will be automatically registered when the main FastAPI application starts.
-
-    This is insignificant for most plugins creating new endpoints as they are usually stateless. However, if your plugin has a state (e.g. it subscribes to Redis channels, consume heavy resources at load time, etc.), then you may want to deactivate it. In that case, we recommend that you read an environment variable and conditionally execute commands in the `register_plugin` function. This way, you can control whether the plugin is active or not based on the environment variable.
-
-## Communicate with Redis
-
-Receiving and sending data from Redis is a common task for backend plugins. The process is based on a pub/sub system, where the plugin subscribes to specific channels to receive messages and can publish messages to other channels.
-
-### Send messages to Redis
-
-This is a straightforward task, regardless the programming language you use.
-
-=== "Python"
-
-    Use the `redis` Python package to publish messages to Redis channels:
-
-    ```python
-    import redis
-
-    redis_client = redis.Redis.from_url("redis://localhost:6379")
-    redis_client.publish("to:system:update", "Hello from plugin")
-
-    ```
-
-=== "Rust"
-
-    Use the `redis` crate to publish messages to Redis channels:
-
-    ```rust
-
-    let redis_client = redis::Client::open("redis://localhost:6379").unwrap()?;
-    let mut con = redis_client.get_multiplexed_async_connection().await?;
-    con.publish("to:system:update", "Hello from plugin").await?;
-    ```
-
-### Receiving messages from Redis
-
-The main difference between Redis messages and HTTP requests is that Redis messages are sent in real-time, while HTTP requests are stateless and can be processed at any time. This means that your plugin should be able to handle incoming messages asynchronously.
-
-In Python, the `tangram` package provides a convenient way to interact with Redis based on the `redis-py` library. We provide a helper class to manage the connection, subscriptions, and message processing.
-
-```python
-import asyncio
-from dataclasses import dataclass
-from typing import NoReturn
-
-from tangram.common.redis import Subscriber
-
-@dataclass
-class CurrentState:
-    """A class to hold the current state of the plugin."""
-    icao24: set[str]
-
-class AircraftSubscriber(Subscriber[CurrentState]):
-    """A subscriber that listens to aircraft updates."""
-
-    async def message_handler(self, event: str, payload: str, pattern: str, state: CurrentState) -> None:
-        # Process the message and update the state
-        # For example, you can parse the message and update the icao24 set
-        data = json.loads(message)
-        state.icao24.add(data["icao24"])
-
-async def main() -> NoReturn:
-    # Run the subscriber to listen for aircraft updates in the main loop
-    initial_state = CurrentState(icao24=set())
-    aircraft_subscriber = AircraftSubscriber(
-        redis_client="redis://localhost:6379",
-        channels=["jet1090"],
-        initial_state=initial_state,
-    )
-    # This call returns after creating a task running in the background
-    await aircraft_subscriber.subscribe()
-
-    while True:
-        ...  # your main application logic here
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-## Plugin to WebSocket events
-
-To send messages to the frontend through the WebSocket connection, you can use the `channel` service. This service listens to Redis channels and forwards messages to the frontend clients.
-
-The convention on the Redis channels is to use the `to:system:` prefix for messages sent from the backend to the frontend, and `from:system:` for messages sent from the frontend to the backend.
-
-For instance, every time the map is moved or zoomed, the frontend sends a WebSocket message on the `bound-box` channel, which is then forwarded by `channel` on the Redis using the `from:system:bound-box` label. Conversely, state vector updates from the backend components are sent on the `to:streaming-(*):new-data` channel, which is then forwarded to the frontend clients labelled as `new-data`.[^1]
-
-[^1]: The `(*)` placeholder is to be replaced by a unique identifier assigned to a session (When many browsers are connected to the same tangram service, they may be focused on different areas of the map, and thus receive different data). -->
+Run `tangram serve`. The core application will load your plugin, making its API endpoints available and starting its background services. The full API documentation, including your new endpoint, is available at <http://localhost:2346/docs>.
