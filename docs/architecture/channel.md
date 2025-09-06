@@ -201,3 +201,7 @@ The Channel component is a high-performance Rust implementation that handles rea
 - Connection management and error handling
 
 This component enables the real-time nature of Tangram, allowing for immediate visualization of incoming aviation data.
+
+## Testing
+
+There is no dedicated test suite for `channel` at the moment. However, you can verify its functionality by running the full tangram stack and checking if real-time messages are being transmitted between the backend and frontend.

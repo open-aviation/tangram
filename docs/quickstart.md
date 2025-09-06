@@ -129,3 +129,4 @@ Open your browser and navigate to <http://localhost:2345> to access the tangram 
 | Kill a container if needed            | `podman kill <container_name>` (e.g. `jet1090` or `tangram`) |
 | Delete containers if needed           | `podman rm <container_name>` (e.g. `jet1090` or `tangram`)   |
 | Delete images if needed               | `podman rmi <image_name>` (e.g. `tangram:latest`)            |
+| Clean up unused resources             | `podman system prune`                                        |

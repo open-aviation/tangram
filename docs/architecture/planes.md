@@ -21,3 +21,7 @@ There are two available implementations of planes:
 
 - the Python implementation is used for development and quick implementations of improvements,
 - the stable Rust implementation is used as a _production_ version.
+
+## Testing
+
+There is no dedicated test suite for `planes` at the moment. However, you can verify its functionality by running the full tangram stack and checking if aircraft are being tracked and displayed correctly on the map interface. You can also monitor the Redis channels to see if state vector updates are being published as expected.
