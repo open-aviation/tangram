@@ -20,7 +20,7 @@
       
       
       <link rel="icon" href="../../icons/favicon.ico">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.17">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.18">
     
     
       
@@ -760,6 +760,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Testing
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1135,6 +1144,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Testing
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1164,6 +1182,8 @@ While <code>planes</code> focuses on real-time tracking and state vector updates
 <li>Historical data storage: Maintaining a searchable database (in Redis) of past aircraft states</li>
 <li>REST API access: Providing standardized interfaces to query aircraft data</li>
 </ul>
+<h2 id="testing">Testing<a class="headerlink" href="#testing" title="Permanent link">&para;</a></h2>
+<p>There is no dedicated test suite for <code>trajectory</code> at the moment. However, you can verify its functionality by running the full tangram stack and checking if historical data is being stored and can be queried via the API. The most direct check is to click on an aircraft in the tangram web interface and see if its past trajectory is displayed.</p>
 
 
 
