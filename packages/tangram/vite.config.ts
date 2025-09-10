@@ -9,10 +9,7 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: path.resolve(
-            __dirname,
-            "node_modules/vue/dist/vue.esm-browser.prod.js"
-          ),
+          src: path.resolve(__dirname, "node_modules/vue/dist/vue.esm-browser.prod.js"),
           dest: "."
         }
       ]
@@ -36,7 +33,8 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "./src/tangram/dist-frontend"),
     emptyOutDir: false,
     rollupOptions: {
-      input: path.resolve(__dirname, "index.html")
+      input: path.resolve(__dirname, "index.html"),
+      external: ["vue"]
     }
   }
 });

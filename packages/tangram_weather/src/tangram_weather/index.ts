@@ -1,6 +1,6 @@
-import type { TangramApi } from "@open-aviation/tangram/types";
+import type { TangramApi } from "@open-aviation/tangram/api";
 import WeatherWidget from "./WeatherWidget.vue";
 
 export function install(api: TangramApi) {
-  api.registerWidget("weather", WeatherWidget);
+  api.ui.registerWidget("weather-widget", "SideBar", WeatherWidget);
 }

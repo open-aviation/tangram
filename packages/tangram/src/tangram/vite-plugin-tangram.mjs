@@ -56,11 +56,16 @@ export function tangramPlugin() {
   const manifestGenerator = {
     name: "tangram-manifest-generator",
     apply: "build",
-    async writeBundle(outputOptions) {
+    async writeBundle(outputOptions, bundle) {
       const outDir = outputOptions.dir;
+      const cssAsset = Object.values(bundle).find(
+        asset => asset.type === "asset" && asset.fileName.endsWith(".css")
+      );
+
       const manifest = {
         name: pkg.name,
-        main: `${entryFileName}.js`
+        main: `${entryFileName}.js`,
+        ...(cssAsset && { style: cssAsset.fileName })
       };
       await fs.writeFile(
         path.resolve(outDir, "plugin.json"),

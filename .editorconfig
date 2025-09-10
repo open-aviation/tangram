@@ -20,5 +20,5 @@ max_line_length = 88
 [*.toml]
 indent_size = 4
 
-[*.{js, html, css, yaml, json, vue}]
+[*.{js, mjs, ts, mts, vue, html, css, yaml, json}]
 indent_size = 2

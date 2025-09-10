@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 channel = { git = "https://github.com/emctoo/channel.git", tag = "v0.2.8" }
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8", features = ["ws"] }
-tower-http = { version = "0.6", features = ["fs", "trace"] }
+tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 redis = { version = "0.29", features = ["tokio-comp"] }
