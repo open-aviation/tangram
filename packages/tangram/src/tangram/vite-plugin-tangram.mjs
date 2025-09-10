@@ -36,13 +36,14 @@ export function tangramPlugin() {
           conditions: ["source"]
         },
         build: {
+          sourcemap: true,
           lib: {
             entry: pkg.main,
             fileName: entryFileName,
             formats: ["es"]
           },
           rollupOptions: {
-            external: ["vue"]
+            external: ["vue", "leaflet", "lit-html"]
           },
           outDir: "dist-frontend",
           minify: true

@@ -10,7 +10,6 @@
       <l-tile-layer :url="map_url" layer-type="base"
         name="OpenStreetMap"></l-tile-layer>
 
-      <PlaneData />
       <PlaneTrail />
 
       <plugin-airportsearch />
@@ -35,7 +34,6 @@ import "leaflet/dist/leaflet.css";
 
 import TopNavBar from "./components/TopNavBar.vue";
 import LeftSideBar from "./components/LeftSideBar.vue";
-import PlaneData from "./components/AirPlane.vue";
 import PlaneTrail from "./components/PlaneTrail.vue";
 
 export default {
@@ -45,7 +43,6 @@ export default {
     LMap,
     LTileLayer,
     TopNavBar,
-    PlaneData,
   },
 
   setup() {
