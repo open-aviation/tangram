@@ -17,6 +17,7 @@ install:
 
 # NOTE: the following `c-` commands are for temporary testing with hardcoded ports.
 # a future version of tangram will manage them properly.
+# TODO: migrate to podman networks
 
 c-redis:
   {{container_runtime}} run -d --rm -p 6379:6379 --name redis redis:latest
@@ -25,7 +26,7 @@ c-jet1090:
   {{container_runtime}} run -d --rm --name jet1090 \
     --network=host \
     ghcr.io/xoolive/jet1090:latest \
-    jet1090 --serve-port 8080 --redis-url "redis://127.0.0.1:6379" "ws://feedme.mode-s.org:9876/40128@EHRD"
+    jet1090 --serve-port 8080 --history-expire 5 --redis-url "redis://127.0.0.1:6379" "ws://feedme.mode-s.org:9876/40128@EHRD"
 
 # build tangram with your container runtime.
 # on non x86_64 architectures, set eccodes_strategy to `fromsource`.
@@ -47,8 +48,7 @@ stubgen:
   cargo run --bin stub_gen_channel --features pyo3
   cargo run --bin stub_gen_planes --features pyo3
 
-# fix code quality (eslint, ruff) and formatting (prettier, ruff)
-# TODO: cargo fmt and clippy
+# fix code quality (eslint, ruff, clippy) and formatting (prettier, ruff, rustfmt)
 fmt:
   uv run ruff check packages --fix
   uv run ruff format packages

@@ -35,15 +35,29 @@
           :key="widget.id"
         />
       </div>
-      <div class="map-container">
-        <!-- TODO -->
+      <div ref="mapContainer" class="map-container">
+        <component
+          :is="widget.id"
+          v-for="widget in tangramApi.ui.widgets.MapOverlay"
+          :key="widget.id"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, getCurrentInstance, provide, ref, type Ref } from "vue";
+import {
+  onMounted,
+  onUnmounted,
+  getCurrentInstance,
+  provide,
+  ref,
+  watch,
+  type Ref
+} from "vue";
+import * as L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { TangramApi } from "./api";
 import { loadPlugins } from "./plugin";
 
@@ -52,6 +66,8 @@ type ApiState = "loading" | "ready" | "error";
 const app = getCurrentInstance()!.appContext.app;
 const apiState = ref<ApiState>("loading");
 const tangramApi: Ref<TangramApi | null> = ref(null);
+const mapContainer = ref<HTMLElement | null>(null);
+let mapInstance: L.Map | null = null;
 
 provide("tangramApi", tangramApi);
 
@@ -66,10 +82,36 @@ onMounted(async () => {
     apiState.value = "error";
   }
 });
+
+watch(mapContainer, newEl => {
+  if (newEl && tangramApi.value && !mapInstance) {
+    mapInstance = L.map(newEl).setView([48, 7], 6);
+    mapInstance.on("click", () => {
+      tangramApi.value!.state.deselectActiveEntity();
+    });
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    }).addTo(mapInstance);
+    tangramApi.value.map.initialize(mapInstance);
+  }
+});
+
+onUnmounted(() => {
+  tangramApi.value?.map.dispose();
+  if (mapInstance) {
+    mapInstance.remove();
+    mapInstance = null;
+  }
+});
 </script>
 
 <style>
-/* Styles from v0.1 App.vue */
+#app {
+  height: 100%;
+}
+
+/* styles from v0.1 App.vue */
 html {
   width: 100%;
   height: 100%;
@@ -108,7 +150,7 @@ body {
   z-index: 400;
 }
 
-/* Styles from v0.2 App.vue */
+/* styles from v0.2 App.vue */
 .content-container {
   flex-grow: 1;
   display: flex;
@@ -127,7 +169,7 @@ body {
   flex-grow: 1;
 }
 
-/* Styles from v0.1 TopNavBar.vue */
+/* styles from v0.1 TopNavBar.vue */
 .navbar {
   min-height: 50px;
   background: white;

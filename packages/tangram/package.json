@@ -13,13 +13,14 @@
     "./types": "./src/tangram/types.d.ts"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
+    "lit-html": "^3.3.1",
     "phoenix": "^1.7.11",
-    "vue": "^3.5.18",
-    "leaflet": "^1.9.4"
+    "vue": "^3.5.18"
   },
   "devDependencies": {
-    "@types/phoenix": "^1.6.6",
     "@types/leaflet": "^1.9.20",
+    "@types/phoenix": "^1.6.6",
     "@vitejs/plugin-vue": "^5.0.5",
     "vite-plugin-static-copy": "^1.0.5"
   }

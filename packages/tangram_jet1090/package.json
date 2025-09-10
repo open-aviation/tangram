@@ -8,6 +8,8 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@open-aviation/tangram": "workspace:*"
+    "@open-aviation/tangram": "workspace:*",
+    "leaflet-rotatedmarker": "^0.2.0",
+    "raphael": "^2.3.0"
   }
 }
