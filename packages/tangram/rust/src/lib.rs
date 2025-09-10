@@ -20,7 +20,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tower_http::trace::TraceLayer;
+use tower_http::{
+    cors::{Any, CorsLayer},
+    trace::TraceLayer
+};
 #[cfg(feature = "pyo3")]
 use pyo3_python_tracing_subscriber::PythonCallbackLayerBridge;
 #[cfg(feature = "pyo3")]
@@ -133,11 +136,18 @@ pub async fn run_server(config: ChannelConfig) -> Result<(), ChannelError> {
     setup_persistent_channel("system", &state, &redis_client).await;
     setup_persistent_channel("admin", &state, &redis_client).await;
 
+    // TODO: allow this to be configurable
+    let cors = CorsLayer::new()
+        .allow_methods(Any)
+        .allow_headers(Any)
+        .allow_origin(Any);
+
     let app = Router::new()
         .route("/token", axum::routing::post(generate_token_handler))
         .route("/websocket", get(websocket_handler))
         .with_state(state)
-        .layer(TraceLayer::new_for_http());
+        .layer(TraceLayer::new_for_http())
+        .layer(cors);
 
     let addr = format!("{}:{}", config.host, config.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;

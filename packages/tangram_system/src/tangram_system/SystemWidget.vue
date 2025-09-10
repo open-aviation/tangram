@@ -1,5 +1,81 @@
 <template>
   <div>
-    <h3>@open-aviation/tangram-system</h3>
+    <ul class="nav nav-tabs navbar-nav">
+      <li
+        class="nav-item clock"
+        @mouseover="state.hovered = true"
+        @mouseleave="state.hovered = false"
+      >
+        <span id="info_time">{{ state.hovered ? local_time : utc_time }}</span>
+      </li>
+      <span id="uptime">{{ state.uptime }}</span>
+    </ul>
   </div>
 </template>
+
+<script setup lang="ts">
+import { reactive, computed, inject, onMounted, onUnmounted, type Ref } from "vue";
+import type { TangramApi, Disposable } from "@open-aviation/tangram/api";
+
+const tangramApi = inject<Ref<TangramApi | null>>("tangramApi");
+
+const state = reactive({
+  hovered: false,
+  uptime: "",
+  info_utc: new Date().getTime()
+});
+
+let subscription: Disposable | null = null;
+
+onMounted(async () => {
+  const api = tangramApi?.value;
+  if (!api) return;
+
+  try {
+    subscription = await api.realtime.subscribe(
+      "system:update-node",
+      (payload: { el: string; value: any }) => {
+        if (payload.el === "uptime") state.uptime = payload.value;
+        if (payload.el === "info_utc") state.info_utc = payload.value;
+      }
+    );
+  } catch (e) {
+    console.error("failed to subscribe to system:update-node", e);
+  }
+});
+
+onUnmounted(() => {
+  subscription?.dispose();
+});
+
+const utc_time = computed(() => {
+  const date = new Date(state.info_utc);
+  const hours = date.getUTCHours().toString().padStart(2, "0");
+  const minutes = date.getUTCMinutes().toString().padStart(2, "0");
+  const seconds = date.getUTCSeconds().toString().padStart(2, "0");
+  return `${hours}:${minutes}:${seconds} Z`;
+});
+
+const local_time = computed(() => {
+  const date = new Date(state.info_utc);
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZoneName: "shortOffset"
+  });
+});
+</script>
+
+<style scoped>
+#uptime {
+  color: #79706e;
+  font-size: 9pt;
+  text-align: center;
+}
+
+.nav {
+  align-items: center;
+}
+</style>

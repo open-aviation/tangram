@@ -19,10 +19,10 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from .config import Config, FrontendChannelConfig, FrontendConfig
 from .plugin import load_plugin, scan_plugins
 
 if TYPE_CHECKING:
-    from .config import Config
     from .plugin import DistName, Plugin
 
 logger = logging.getLogger(__name__)
@@ -106,6 +106,18 @@ def create_app(
                 name=dist_name,
             )
             frontend_plugins.append(dist_name)
+
+    # avoid using `process.env` on the frontend.
+    @app.get("/config")
+    async def get_frontend_config(
+        state: Annotated[BackendState, Depends(get_state)],
+    ) -> FrontendConfig:
+        return FrontendConfig(
+            channel=FrontendChannelConfig(
+                host=state.config.channel.host,
+                port=state.config.channel.port,
+            )
+        )
 
     @app.get("/manifest.json")
     async def get_manifest() -> JSONResponse:

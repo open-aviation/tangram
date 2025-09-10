@@ -50,3 +50,14 @@ class Config:
         config_adapter = TypeAdapter(cls)
         config = config_adapter.validate_python(cfg_data)
         return config
+
+
+@dataclass
+class FrontendChannelConfig:
+    host: str
+    port: int
+
+
+@dataclass
+class FrontendConfig:
+    channel: FrontendChannelConfig
