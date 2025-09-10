@@ -1,4 +1,5 @@
 use anyhow::Result;
+use redis::aio::MultiplexedConnection;
 use rs1090::data::patterns::aircraft_information;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -6,7 +7,6 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tracing::{debug, error};
-use redis::aio::MultiplexedConnection;
 
 use crate::{
     // TODO import this one from the rs1090 crate after release
@@ -266,7 +266,7 @@ impl StateVectors {
         let mut common_labels = HashMap::new();
         common_labels.insert("icao24".to_string(), msg.icao24.clone());
 
-        let mut conn = &mut self.redis_conn;
+        let conn = &mut self.redis_conn;
 
         sv.count += 1;
         if sv.firstseen == 0 {
@@ -285,7 +285,7 @@ impl StateVectors {
                 altitude as f64,
                 common_labels.clone(),
                 self.history_expire,
-                &mut conn,
+                conn,
             )
             .await?;
         }
@@ -305,7 +305,7 @@ impl StateVectors {
                         latitude,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -318,7 +318,7 @@ impl StateVectors {
                         longitude,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -333,7 +333,7 @@ impl StateVectors {
                         latitude,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -346,7 +346,7 @@ impl StateVectors {
                         longitude,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -359,7 +359,7 @@ impl StateVectors {
                         groundspeed,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -372,7 +372,7 @@ impl StateVectors {
                         track,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -392,7 +392,7 @@ impl StateVectors {
                         groundspeed,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -405,7 +405,7 @@ impl StateVectors {
                         track,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -418,7 +418,7 @@ impl StateVectors {
                         vertical_rate as f64,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -431,7 +431,7 @@ impl StateVectors {
                         ias as f64,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -444,7 +444,7 @@ impl StateVectors {
                         tas as f64,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -466,7 +466,7 @@ impl StateVectors {
                         selected_altitude as f64,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -481,7 +481,7 @@ impl StateVectors {
                         nacp as f64,
                         common_labels.clone(),
                         self.history_expire,
-                        &mut conn,
+                        conn,
                     )
                     .await?;
                 }
@@ -498,7 +498,7 @@ impl StateVectors {
                     selected_altitude as f64,
                     common_labels.clone(),
                     self.history_expire,
-                    &mut conn,
+                    conn,
                 )
                 .await?;
             }
@@ -516,7 +516,7 @@ impl StateVectors {
                     roll,
                     common_labels.clone(),
                     self.history_expire,
-                    &mut conn,
+                    conn,
                 )
                 .await?;
             }
@@ -528,7 +528,7 @@ impl StateVectors {
                     track,
                     common_labels.clone(),
                     self.history_expire,
-                    &mut conn,
+                    conn,
                 )
                 .await?;
             }
@@ -540,7 +540,7 @@ impl StateVectors {
                     groundspeed,
                     common_labels.clone(),
                     self.history_expire,
-                    &mut conn,
+                    conn,
                 )
                 .await?;
             }
@@ -552,7 +552,7 @@ impl StateVectors {
                     tas as f64,
                     common_labels.clone(),
                     self.history_expire,
-                    &mut conn,
+                    conn,
                 )
                 .await?;
             }
@@ -570,7 +570,7 @@ impl StateVectors {
                     ias as f64,
                     common_labels.clone(),
                     self.history_expire,
-                    &mut conn,
+                    conn,
                 )
                 .await?;
             }
@@ -582,7 +582,7 @@ impl StateVectors {
                     mach,
                     common_labels.clone(),
                     self.history_expire,
-                    &mut conn,
+                    conn,
                 )
                 .await?;
             }
@@ -594,7 +594,7 @@ impl StateVectors {
                     heading,
                     common_labels.clone(),
                     self.history_expire,
-                    &mut conn,
+                    conn,
                 )
                 .await?;
             }
@@ -606,7 +606,7 @@ impl StateVectors {
                     vrate_inertial as f64,
                     common_labels.clone(),
                     self.history_expire,
-                    &mut conn,
+                    conn,
                 )
                 .await?;
             }
@@ -618,7 +618,7 @@ impl StateVectors {
                     vrate_barometric as f64,
                     common_labels.clone(),
                     self.history_expire,
-                    &mut conn,
+                    conn,
                 )
                 .await?;
             }
