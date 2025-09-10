@@ -9,7 +9,22 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: path.resolve(__dirname, "node_modules/vue/dist/vue.esm-browser.prod.js"),
+          src: [
+            path.resolve(__dirname, "node_modules/vue/dist/vue.esm-browser.prod.js"),
+            path.resolve(__dirname, "node_modules/leaflet/dist/leaflet-src.esm.js"),
+            path.resolve(
+              __dirname,
+              "node_modules/leaflet/dist/leaflet-src.esm.js.map"
+            ),
+            path.resolve(
+              __dirname,
+              "node_modules/lit-html/lit-html.js"
+            ),
+            path.resolve(
+              __dirname,
+              "node_modules/lit-html/lit-html.js.map"
+            )
+          ],
           dest: "."
         }
       ]
@@ -30,11 +45,12 @@ export default defineConfig({
      * but for some reason maturin doesn't copy it,
      * so we output to the src dir for now.
      */
+    sourcemap: true,
     outDir: path.resolve(__dirname, "./src/tangram/dist-frontend"),
     emptyOutDir: false,
     rollupOptions: {
       input: path.resolve(__dirname, "index.html"),
-      external: ["vue"]
+      external: ["vue", "leaflet", "lit-html"]
     }
   }
 });

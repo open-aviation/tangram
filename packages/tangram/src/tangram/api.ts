@@ -4,10 +4,12 @@ import {
   Component,
   computed,
   reactive,
+  shallowRef,
+  type ShallowRef,
   type Ref,
   type ComputedRef
 } from "vue";
-import L from "leaflet";
+import * as L from "leaflet";
 import type { LatLngBounds, Layer, Map as LeafletMap } from "leaflet";
 import { Socket, Channel } from "phoenix";
 
@@ -105,11 +107,34 @@ export class UiApi {
     };
   }
 }
+// NOTE: we use arrow functions to capture lexical `this` properly.
 
-export class MapApi {
+export class MapApi implements Disposable {
   readonly bounds: Ref<Readonly<LatLngBounds>> = ref(
     new L.LatLngBounds([0, 0], [0, 0])
   );
+  private leafletMap = shallowRef<LeafletMap | null>(null);
+  readonly isReady = computed(() => !!this.leafletMap.value);
+
+  initialize = (mapInstance: LeafletMap) => {
+    this.leafletMap.value = mapInstance;
+    this.leafletMap.value.on("moveend", () => {
+      (this.bounds as Ref).value = this.leafletMap.value!.getBounds();
+    });
+    (this.bounds as Ref).value = this.leafletMap.value.getBounds();
+  };
+
+  dispose = () => {
+    this.leafletMap.value?.remove();
+    this.leafletMap.value = null;
+  };
+
+  getMapInstance = (): LeafletMap => {
+    if (!this.leafletMap.value) {
+      throw new Error("map not initialized");
+    }
+    return this.leafletMap.value;
+  };
 
   setView(position: { lat: number; lng: number }, zoom: number): void {
     throw new NotImplementedError();
@@ -117,36 +142,81 @@ export class MapApi {
   addLayer(layer: Layer): Disposable {
     throw new NotImplementedError();
   }
-  getMapInstance(): LeafletMap {
-    throw new NotImplementedError();
-  }
 }
 
+// TODO: how about different entity types? might want to use hashmap-based ECS
+// TODO: in the future, entities may simply mean rows in a arrow table (e.g. from a parquet file)
+// NOTE: the server may return entities within the map bounding box
+// so the entities stored may not represent the full set of entities
+// we thus do not provide a "total entity count" in this api.
 export class StateApi {
-  readonly entities: Ref<ReadonlyMap<EntityId, Entity>> = ref(new Map());
+  readonly entities: ShallowRef<ReadonlyMap<EntityId, Entity>> = shallowRef(new Map());
+  // TODO: allow multi-selection.
   readonly activeEntityId: Ref<EntityId | null> = ref(null);
-  readonly activeEntity: ComputedRef<Entity | null> = computed(() => null);
+  readonly activeEntity: ComputedRef<Entity | null> = computed(() => {
+    const id = this.activeEntityId.value;
+    return id ? (this.entities.value.get(id) ?? null) : null;
+  });
+  readonly totalCount: Ref<number> = ref(0);
 
-  registerEntityType(type: string): void {
-    throw new NotImplementedError();
-  }
-  getEntitiesByType<T extends EntityState>(
+  private entityTypes = new Set<string>();
+  private entitiesByTypeCache: Map<string, ComputedRef<ReadonlyMap<EntityId, Entity>>> =
+    new Map();
+
+  registerEntityType = (type: string): void => {
+    this.entityTypes.add(type);
+  };
+
+  getEntitiesByType = <T extends EntityState>(
     type: string
-  ): ComputedRef<ReadonlyMap<EntityId, Entity<T>>> {
+  ): ComputedRef<ReadonlyMap<EntityId, Entity<T>>> => {
+    if (!this.entitiesByTypeCache.has(type)) {
+      const computedRef = computed(() => {
+        const filteredMap = new Map<EntityId, Entity<T>>();
+        for (const entity of this.entities.value.values()) {
+          if (entity.type === type) {
+            filteredMap.set(entity.id, entity as Entity<T>);
+          }
+        }
+        return filteredMap;
+      });
+      this.entitiesByTypeCache.set(type, computedRef);
+    }
+    return this.entitiesByTypeCache.get(type)!;
+  };
+
+  replaceAllEntitiesByType = (type: string, newEntities: Entity[]): void => {
+    const newMap = new Map(this.entities.value);
+    for (const entity of this.entities.value.values()) {
+      if (entity.type === type) {
+        newMap.delete(entity.id);
+      }
+    }
+    for (const entity of newEntities) {
+      newMap.set(entity.id, entity);
+    }
+    this.entities.value = newMap;
+  };
+
+  setActiveEntity = (entityId: EntityId): void => {
+    this.activeEntityId.value = entityId;
+  };
+
+  deselectActiveEntity = (): void => {
+    this.activeEntityId.value = null;
+  };
+
+  setTotalCount = (count: number): void => {
+    this.totalCount.value = count;
+  };
+
+  upsertEntities = (entities: Entity[]): void => {
     throw new NotImplementedError();
-  }
-  setActiveEntity(entityId: EntityId): void {
+  };
+
+  removeEntities = (entityIds: EntityId[]): void => {
     throw new NotImplementedError();
-  }
-  deselectActiveEntity(): void {
-    throw new NotImplementedError();
-  }
-  upsertEntities(entities: Entity[]): void {
-    throw new NotImplementedError();
-  }
-  removeEntities(entityIds: EntityId[]): void {
-    throw new NotImplementedError();
-  }
+  };
 }
 
 export class DataApi {
