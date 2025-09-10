@@ -13,7 +13,6 @@ legacy-web host="0.0.0.0" port="2345":
 install:
   pnpm i
   pnpm build
-  uv venv
   uv sync --all-groups --all-packages
 
 # NOTE: the following `c-` commands are for temporary testing with hardcoded ports.
@@ -48,11 +47,16 @@ stubgen:
   cargo run --bin stub_gen_channel --features pyo3
   cargo run --bin stub_gen_planes --features pyo3
 
+# fix code quality (eslint, ruff) and formatting (prettier, ruff)
+# TODO: cargo fmt and clippy
 fmt:
   uv run ruff check packages --fix
   uv run ruff format packages
   pnpm i
   pnpm fmt
+  pnpm lint
+  cargo fmt --all
+  cargo clippy --all-targets --fix --allow-dirty --allow-staged --all-features
 
 _rmi name:
   {{container_runtime}} images --filter "reference={{name}}" -q | xargs -r {{container_runtime}} rmi --force

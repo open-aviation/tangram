@@ -35,6 +35,12 @@ pub struct BoundingBoxState {
     pub clients: HashSet<String>,
 }
 
+impl Default for BoundingBoxState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BoundingBoxState {
     pub fn new() -> Self {
         Self {

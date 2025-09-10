@@ -23,7 +23,10 @@ async fn download_file(url: &str, destination: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn aircraft(url: String, cache_path_override: Option<String>) -> BTreeMap<String, Aircraft> {
+pub async fn aircraft(
+    url: String,
+    cache_path_override: Option<String>,
+) -> BTreeMap<String, Aircraft> {
     let mut cache_path = match cache_path_override {
         Some(p) => std::path::PathBuf::from(p),
         None => {

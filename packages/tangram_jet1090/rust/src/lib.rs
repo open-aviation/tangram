@@ -21,7 +21,7 @@ use crate::stream::{start_jet1090_subscriber, start_redis_subscriber, stream_sta
 #[cfg(feature = "pyo3")]
 use pyo3_python_tracing_subscriber::PythonCallbackLayerBridge;
 #[cfg(feature = "pyo3")]
-use tracing_subscriber::{fmt, EnvFilter, prelude::*};
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
@@ -101,7 +101,8 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
             client,
             config.aircraft_db_url.clone(),
             config.aircraft_db_cache_path.clone(),
-        ).await?,
+        )
+        .await?,
     ));
     let jet1090_subscriber_state = Arc::clone(&state_vectors);
 
@@ -120,7 +121,14 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
     });
 
     let streaming_handle = tokio::spawn(async move {
-        match stream_statevectors(config.redis_url, bbox_state, state_vectors, config.stream_interval_secs).await {
+        match stream_statevectors(
+            config.redis_url,
+            bbox_state,
+            state_vectors,
+            config.stream_interval_secs,
+        )
+        .await
+        {
             Ok(_) => info!("Streaming task stopped normally"),
             Err(e) => error!("Streaming task error: {}", e),
         }
@@ -147,10 +155,10 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
 // needed for aircraft db on aarch64
 // see: https://github.com/PyO3/maturin-action/discussions/162#discussioncomment-7978369
 #[cfg(feature = "openssl-vendored")]
-use openssl_probe;
-
-#[cfg(feature = "openssl-vendored")]
 pub fn probe_ssl_certs() {
+    use openssl_probe;
+
+    #[allow(deprecated)]
     openssl_probe::init_ssl_cert_env_vars();
 }
 

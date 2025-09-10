@@ -15,6 +15,8 @@ use pyo3::{
     prelude::*,
 };
 #[cfg(feature = "pyo3")]
+use pyo3_python_tracing_subscriber::PythonCallbackLayerBridge;
+#[cfg(feature = "pyo3")]
 use pyo3_stub_gen::derive::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -22,12 +24,10 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tower_http::{
     cors::{Any, CorsLayer},
-    trace::TraceLayer
+    trace::TraceLayer,
 };
 #[cfg(feature = "pyo3")]
-use pyo3_python_tracing_subscriber::PythonCallbackLayerBridge;
-#[cfg(feature = "pyo3")]
-use tracing_subscriber::{fmt, EnvFilter, prelude::*};
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
@@ -99,11 +99,7 @@ fn run(py: Python<'_>, config: ChannelConfig) -> PyResult<Bound<'_, PyAny>> {
 /// Sets up a persistent channel that must listen for Redis events from startup.
 /// Unlike dynamic channels, these are needed to relay backend-initiated
 /// messages (e.g., system time) regardless of client connections.
-async fn setup_persistent_channel(
-    name: &str,
-    state: &Arc<State>,
-    redis_client: &redis::Client,
-) {
+async fn setup_persistent_channel(name: &str, state: &Arc<State>, redis_client: &redis::Client) {
     state.ctl.lock().await.channel_add(name.into(), None).await;
     launch_channel_redis_listen_task(
         state.clone(),
@@ -121,7 +117,8 @@ async fn shutdown_signal() {
 }
 
 pub async fn run_server(config: ChannelConfig) -> Result<(), ChannelError> {
-    let redis_client = redis::Client::open(config.redis_url.clone()).map_err(ChannelError::Redis)?;
+    let redis_client =
+        redis::Client::open(config.redis_url.clone()).map_err(ChannelError::Redis)?;
 
     let channel_control = ChannelControl::new(Arc::new(redis_client.clone()));
     let state = Arc::new(State {
@@ -132,7 +129,12 @@ pub async fn run_server(config: ChannelConfig) -> Result<(), ChannelError> {
         jwt_expiration_secs: config.jwt_expiration_secs,
     });
 
-    state.ctl.lock().await.channel_add("phoenix".into(), None).await;
+    state
+        .ctl
+        .lock()
+        .await
+        .channel_add("phoenix".into(), None)
+        .await;
     setup_persistent_channel("system", &state, &redis_client).await;
     setup_persistent_channel("admin", &state, &redis_client).await;
 
