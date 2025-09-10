@@ -85,7 +85,6 @@ export default defineConfig({
       fallbackDir: "/src/plugins/",
       availablePlugins: [
         "airportSearch",
-        "systemInfo",
         "sensorsInfo",
         // "windField",
         "cityPair",
