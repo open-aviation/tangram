@@ -41,8 +41,15 @@ const createAircraftSvg = (icao24: string, iconProps: any): HTMLElement => {
   );
 
   const path = svg`<path stroke="#0014aa" stroke-width="0.65" d="${transformedPath}"/>`;
-  const template = html`<svg id="${icao24}" version="1.1" shape-rendering="geometricPrecision" width="32px" height="32px"
-        viewBox="-16 -16 32 32" xmlns="http://www.w3.org/2000/svg">
+  const template = html`<svg
+    id="${icao24}"
+    version="1.1"
+    shape-rendering="geometricPrecision"
+    width="32px"
+    height="32px"
+    viewBox="-16 -16 32 32"
+    xmlns="http://www.w3.org/2000/svg"
+  >
     ${path}
   </svg>`;
   const container = document.createElement("div");
@@ -71,9 +78,7 @@ const getRotate = (feature: AircraftState) => {
 const createTooltipTemplate = (aircraft: AircraftState) => {
   const altitude =
     aircraft.altitude > 0
-      ? html`<div class="altitude">
-          FL${Math.round(aircraft.altitude / 1000) * 10}
-        </div>`
+      ? html`<div class="altitude">FL${Math.round(aircraft.altitude / 1000) * 10}</div>`
       : "";
   return html`
     <div class="tooltip-grid">
