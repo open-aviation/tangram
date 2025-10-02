@@ -81,10 +81,23 @@ export class UiApi {
     SideBar: [],
     MapOverlay: []
   });
+  readonly isSidebarCollapsed = ref(true);
 
   constructor(app: App) {
     this.app = app;
   }
+
+  openSidebar = (): void => {
+    this.isSidebarCollapsed.value = false;
+  };
+
+  closeSidebar = (): void => {
+    this.isSidebarCollapsed.value = true;
+  };
+
+  toggleSidebar = (): void => {
+    this.isSidebarCollapsed.value = !this.isSidebarCollapsed.value;
+  };
 
   registerWidget(
     id: string,
@@ -230,10 +243,22 @@ export class RealtimeApi {
   private channels: Map<string, Channel> = new Map();
   private channelConfig: ChannelConfig;
   private connectionPromise: Promise<void> | null = null;
-  public readonly connectionId: Ref<string | null> = ref(null);
+  private connectionId: string | null = null;
 
   constructor(config: TangramConfig) {
     this.channelConfig = config.channel;
+  }
+
+  getConnectionId(): string | null {
+    return this.connectionId;
+  }
+
+  async ensureConnected(): Promise<string> {
+    await this.connect();
+    if (!this.connectionId) {
+      throw new Error("connection id unavailable after connect");
+    }
+    return this.connectionId;
   }
 
   private async fetchToken(channel: string): Promise<{ id: string; token: string }> {
@@ -260,7 +285,7 @@ export class RealtimeApi {
         const socketUrl = `ws://${this.channelConfig.host}:${this.channelConfig.port}`;
         this.socket = new Socket(socketUrl, { params: { userToken } });
 
-        return new Promise((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
           this.socket!.connect();
           this.socket!.onOpen(() => {
             console.log("ws connected");
@@ -274,7 +299,7 @@ export class RealtimeApi {
         });
       })();
     }
-    return this.connectionPromise;
+    return this.connectionPromise!;
   }
 
   private async getChannel(topic: string): Promise<Channel> {

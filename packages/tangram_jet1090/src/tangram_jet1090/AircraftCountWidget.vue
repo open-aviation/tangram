@@ -3,7 +3,7 @@
     <ul class="nav nav-tabs navbar-nav">
       <li class="nav-item li-center">
         <span id="visible_count">{{ visibleCount }}</span> (<span id="plane_count">{{
-          totalCount
+          totalCount ?? 0
         }}</span
         >)
       </li>
@@ -18,8 +18,7 @@ import type { TangramApi } from "@open-aviation/tangram/api";
 
 const tangramApi = inject<Ref<TangramApi | null>>("tangramApi");
 
-// for some reason this is stuck??
-const totalCount = computed(() => tangramApi?.value?.state.totalCount.value ?? 0);
+const totalCount = computed(() => tangramApi?.value?.state.totalCount);
 
 const visibleCount = computed(
   () => tangramApi?.value?.state.getEntitiesByType("aircraft").value?.size ?? 0

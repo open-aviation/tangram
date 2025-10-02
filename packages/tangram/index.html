@@ -18,12 +18,14 @@
     />
     <!-- we externalise vue esm so plugins dont have to vendor their own -->
     <!-- this results in a larger (initial) bundle size but is well worth it -->
+    <!-- TODO: esm shim -->
     <script type="importmap">
       {
         "imports": {
           "vue": "/vue.esm-browser.prod.js",
           "leaflet": "/leaflet-src.esm.js",
-          "lit-html": "/lit-html.js"
+          "lit-html": "/lit-html.js",
+          "rs1090-wasm": "/rs1090_wasm.js"
         }
       }
     </script>

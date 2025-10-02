@@ -16,7 +16,8 @@
     "leaflet": "^1.9.4",
     "lit-html": "^3.3.1",
     "phoenix": "^1.7.11",
-    "vue": "^3.5.18"
+    "vue": "^3.5.18",
+    "rs1090-wasm": "^0.4.14"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.20",
