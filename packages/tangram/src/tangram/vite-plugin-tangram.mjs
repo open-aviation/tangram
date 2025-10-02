@@ -32,9 +32,6 @@ export function tangramPlugin() {
 
       /** @type {import('vite').UserConfig} */
       const tangramBuildConfig = {
-        resolve: {
-          conditions: ["source"]
-        },
         build: {
           sourcemap: true,
           lib: {
@@ -43,7 +40,7 @@ export function tangramPlugin() {
             formats: ["es"]
           },
           rollupOptions: {
-            external: ["vue", "leaflet", "lit-html"]
+            external: ["vue", "leaflet", "lit-html", "rs1090-wasm"]
           },
           outDir: "dist-frontend",
           minify: true

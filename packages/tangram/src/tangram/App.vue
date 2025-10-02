@@ -27,21 +27,37 @@
       </div>
     </div>
 
-    <div class="content-container">
-      <div class="side-bar">
+    <div
+      id="sidebar"
+      class="leaflet-sidebar"
+      :class="{
+        collapsed: !tangramApi.state.activeEntity || tangramApi.ui.isSidebarCollapsed
+      }"
+    >
+      <div class="leaflet-sidebar-tabs">
+        <ul role="tablist">
+          <li>
+            <a role="tab" @click="tangramApi.ui.toggleSidebar()">
+              <span class="fa fa-plane"></span>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="leaflet-sidebar-content">
         <component
           :is="widget.id"
           v-for="widget in tangramApi.ui.widgets.SideBar"
           :key="widget.id"
         />
       </div>
-      <div ref="mapContainer" class="map-container">
-        <component
-          :is="widget.id"
-          v-for="widget in tangramApi.ui.widgets.MapOverlay"
-          :key="widget.id"
-        />
-      </div>
+    </div>
+
+    <div ref="mapContainer" class="map-container">
+      <component
+        :is="widget.id"
+        v-for="widget in tangramApi.ui.widgets.MapOverlay"
+        :key="widget.id"
+      />
     </div>
   </div>
 </template>
@@ -82,6 +98,15 @@ onMounted(async () => {
     apiState.value = "error";
   }
 });
+
+watch(
+  () => tangramApi.value?.state.activeEntity,
+  newEntity => {
+    if (newEntity) {
+      tangramApi.value?.ui.openSidebar();
+    }
+  }
+);
 
 watch(mapContainer, newEl => {
   if (newEl && tangramApi.value && !mapInstance) {
@@ -130,13 +155,78 @@ body {
   flex-direction: column;
 }
 
+.leaflet-sidebar {
+  position: absolute;
+  bottom: 15px;
+  left: 15px;
+  width: 21rem;
+  height: calc(100% - 95px);
+  transform: translate(2.5%, 0%);
+  overflow: hidden;
+  z-index: 1000;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
+  border-radius: 4px;
+  display: flex;
+}
+
+.leaflet-sidebar.collapsed {
+  width: 40px;
+  height: 40px;
+}
+
+.leaflet-sidebar-tabs,
+.leaflet-sidebar-tabs > ul {
+  width: 40px;
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+  border-right: 1px solid #ddd;
+}
+
+.leaflet-sidebar-tabs > li,
+.leaflet-sidebar-tabs > ul > li {
+  width: 40px;
+  height: 40px;
+  color: #333;
+  font-size: 12pt;
+  font-family: "B612", monospace;
+  overflow: hidden;
+  transition: all 80ms;
+}
+
+.leaflet-sidebar-tabs > li > a,
+.leaflet-sidebar-tabs > ul > li > a {
+  display: block;
+  width: 40px;
+  height: 100%;
+  line-height: 40px;
+  color: inherit;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+}
+
+.leaflet-sidebar-content {
+  flex: 1;
+  background-color: rgba(255, 255, 255, 1);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+}
+
+.leaflet-sidebar.collapsed > .leaflet-sidebar-content {
+  overflow-y: hidden;
+}
+
 .leaflet-control-container {
   position: absolute;
   right: 55px;
   bottom: 90px;
 }
 
-.main-container .map-container {
+.map-container {
   flex: 1;
   flex-grow: 1;
 }
@@ -148,25 +238,6 @@ body {
 .leaflet-top,
 .leaflet-bottom {
   z-index: 400;
-}
-
-/* styles from v0.2 App.vue */
-.content-container {
-  flex-grow: 1;
-  display: flex;
-  position: relative;
-  overflow: hidden;
-}
-.side-bar {
-  width: 350px;
-  border-right: 1px solid #ddd;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.map-container {
-  flex-grow: 1;
 }
 
 /* styles from v0.1 TopNavBar.vue */

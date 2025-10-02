@@ -13,6 +13,7 @@ from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, AsyncGenerator, Iterable, TypeAlias
 
+import httpx
 import redis.asyncio as redis
 import uvicorn
 from fastapi import Depends, FastAPI, Request
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BackendState:
     redis_client: redis.Redis
+    http_client: httpx.AsyncClient
     config: Config
 
 
@@ -81,6 +83,7 @@ def load_enabled_plugins(
 async def lifespan(
     app: FastAPI, backend_state: BackendState
 ) -> AsyncGenerator[None, None]:
+    # we don't need to __aenter__ httpx.AsyncClient again
     async with backend_state.redis_client:
         app.state.backend_state = backend_state
         yield
@@ -223,7 +226,10 @@ async def start_tasks(config: Config) -> None:
         redis_client = await stack.enter_async_context(
             redis.from_url(config.core.redis_url)  # type: ignore
         )
-        state = BackendState(redis_client=redis_client, config=config)
+        http_client = await stack.enter_async_context(httpx.AsyncClient(http2=True))
+        state = BackendState(
+            redis_client=redis_client, http_client=http_client, config=config
+        )
 
         server_task = asyncio.create_task(run_server(state, loaded_plugins))
         service_tasks = [s async for s in run_services(state, loaded_plugins)]
