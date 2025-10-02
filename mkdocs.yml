@@ -18,6 +18,7 @@ nav:
       - "plugins/system.md"
       - "plugins/jet1090.md"
       - "plugins/weather.md"
+      - "plugins/airports.md"
     - Examples:
       - "plugins/examples/citypair.md"
       - "plugins/examples/sensors.md"

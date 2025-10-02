@@ -16,6 +16,7 @@ COPY packages/tangram_example/package.json /packages/tangram_example/
 COPY packages/tangram_jet1090/package.json /packages/tangram_jet1090/
 COPY packages/tangram_system/package.json /packages/tangram_system/
 COPY packages/tangram_weather/package.json /packages/tangram_weather/
+COPY packages/tangram_airports/package.json /packages/tangram_airports/
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml /
 FROM node:24-alpine AS frontend-builder
 WORKDIR /app

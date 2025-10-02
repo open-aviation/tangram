@@ -10,6 +10,7 @@ resolution-markers = [
 [manifest]
 members = [
     "tangram",
+    "tangram-airports",
     "tangram-example",
     "tangram-jet1090",
     "tangram-system",
@@ -1998,6 +1999,17 @@ requires-dist = [
     { name = "typer" },
     { name = "uvicorn", specifier = ">=0.32.0" },
 ]
+
+[[package]]
+name = "tangram-airports"
+version = "0.2.0"
+source = { editable = "packages/tangram_airports" }
+dependencies = [
+    { name = "tangram" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tangram", editable = "packages/tangram" }]
 
 [[package]]
 name = "tangram-example"
