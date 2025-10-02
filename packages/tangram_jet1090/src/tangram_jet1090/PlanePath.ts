@@ -13,7 +13,7 @@ export interface AcSymbol {
   sym: string;
 }
 
-let acImagePathsR: Record<string, IconProps> = {
+const acImagePathsR: Record<string, IconProps> = {
   // triangle
   $0: { x: 12, y: 12, scale: 1, rotcorr: 180, path: "M0,0 6,12 12,0z" },
   // small aircraft
@@ -287,7 +287,7 @@ let acImagePathsR: Record<string, IconProps> = {
   }
 };
 
-var ac_symbol_map = [
+let ac_symbol_map = [
   { id: "A109", sym: "$7" },
   { id: "A119", sym: "$7" },
   { id: "A124", sym: "$5" },
@@ -728,8 +728,8 @@ var ac_symbol_map = [
  * would be selected.
  */
 function sortPlaneSymbolList(a, b) {
-  var al = a.id;
-  var bl = b.id;
+  const al = a.id;
+  const bl = b.id;
 
   if (al < bl) return 1;
   if (al > bl) return -1;
@@ -739,12 +739,12 @@ ac_symbol_map = ac_symbol_map.sort(sortPlaneSymbolList);
 
 // based on ac cat and type, returns according svg path
 export function get_image_object(ac_type) {
-  var retval = {};
+  let retval = {};
   Object.assign(retval, acImagePathsR["$A320"]);
   // Assign aircraft symbol based on ICAO type code */
   if (ac_type != null) {
-    for (var i = 0; i < ac_symbol_map.length; i++) {
-      var ac_symbol = ac_symbol_map[i];
+    for (let i = 0; i < ac_symbol_map.length; i++) {
+      const ac_symbol = ac_symbol_map[i];
       if (ac_type.indexOf(ac_symbol.id) == 0) {
         retval = {};
         Object.assign(retval, acImagePathsR[ac_symbol.sym]); // copy symbol to new object

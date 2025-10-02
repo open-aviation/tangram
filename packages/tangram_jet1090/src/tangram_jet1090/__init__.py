@@ -5,6 +5,7 @@ from typing import Any
 import pandas as pd
 import tangram
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter
 
 log = logging.getLogger(__name__)
@@ -63,6 +64,23 @@ async def get_trajectory_data(
         response_data.append(point)
 
     return response_data
+
+
+@router.get("/route/{callsign}")
+async def get_route_data(
+    callsign: str, backend_state: tangram.InjectBackendState
+) -> JSONResponse:
+    url = "https://flightroutes.opensky-network.org/api/routeset"
+    payload = {"planes": [{"callsign": callsign}]}
+    client = backend_state.http_client
+    try:
+        response = await client.post(url, json=payload, timeout=5.0)
+        response.raise_for_status()
+        data = response.json()
+        return JSONResponse(content=data)
+    except Exception as e:
+        log.error(f"Failed to fetch route data for {callsign}: {e}")
+        return JSONResponse(content=[], status_code=500)
 
 
 plugin = tangram.Plugin(frontend_path="dist-frontend", routers=[router])
