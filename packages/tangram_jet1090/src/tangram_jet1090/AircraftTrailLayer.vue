@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, inject, isRef, onUnmounted, ref, watch, type Ref } from "vue";
+import { computed, inject, isRef, onUnmounted, ref, watch } from "vue";
 import type { TangramApi } from "@open-aviation/tangram/api";
 import * as L from "leaflet";
 
-const tangramApi = inject<Ref<TangramApi | null>>("tangramApi");
+const tangramApi = inject<TangramApi>("tangramApi");
+if (!tangramApi) {
+  throw new Error("assert: tangram api not provided");
+}
 const activeEntityId = computed(() => {
-  const id = tangramApi?.value?.state.activeEntityId;
+  const id = tangramApi.state.activeEntityId;
   return isRef(id) ? id.value : (id ?? null);
 });
 const polyline = ref<L.Polyline | null>(null);
@@ -13,10 +16,9 @@ const polyline = ref<L.Polyline | null>(null);
 watch(
   () => activeEntityId.value,
   async newId => {
-    const api = tangramApi?.value;
-    if (!api || !api.map.isReady) return;
+    if (!tangramApi.map.isReady.value) return;
 
-    const map = api.map.getMapInstance();
+    const map = tangramApi.map.getMapInstance();
 
     if (polyline.value) {
       polyline.value.remove();

@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, inject, type Ref } from "vue";
+import { ref, inject } from "vue";
 import type { TangramApi } from "@open-aviation/tangram/api";
 import { airport_information } from "rs1090-wasm";
 
@@ -32,7 +32,10 @@ interface Airport {
   icao: string;
 }
 
-const tangramApi = inject<Ref<TangramApi | null>>("tangramApi");
+const tangramApi = inject<TangramApi>("tangramApi");
+if (!tangramApi) {
+  throw new Error("assert: tangram api not provided");
+}
 const query = ref("");
 const results = ref<Airport[]>([]);
 const timeoutId = ref<number | null>(null);
@@ -55,7 +58,7 @@ const searchAirports = () => {
 };
 
 const selectAirport = (airport: Airport) => {
-  tangramApi?.value?.map.getMapInstance().setView([airport.lat, airport.lon], 13);
+  tangramApi.map.getMapInstance().setView([airport.lat, airport.lon], 13);
   query.value = "";
   results.value = [];
 };

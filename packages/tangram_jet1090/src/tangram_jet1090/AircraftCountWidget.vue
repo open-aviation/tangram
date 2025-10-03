@@ -13,15 +13,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, type Ref } from "vue";
+import { computed, inject } from "vue";
 import type { TangramApi } from "@open-aviation/tangram/api";
 
-const tangramApi = inject<Ref<TangramApi | null>>("tangramApi");
+const tangramApi = inject<TangramApi>("tangramApi");
+if (!tangramApi) {
+  throw new Error("assert: tangram api not provided");
+}
 
-const totalCount = computed(() => tangramApi?.value?.state.totalCount);
+const totalCount = computed(() => tangramApi.state.totalCount);
 
 const visibleCount = computed(
-  () => tangramApi?.value?.state.getEntitiesByType("aircraft").value?.size ?? 0
+  () => tangramApi.state.getEntitiesByType("aircraft").value?.size ?? 0
 );
 </script>
 

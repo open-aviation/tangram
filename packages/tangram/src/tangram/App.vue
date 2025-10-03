@@ -63,15 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  onMounted,
-  onUnmounted,
-  getCurrentInstance,
-  provide,
-  ref,
-  watch,
-  type Ref
-} from "vue";
+import { onMounted, onUnmounted, getCurrentInstance, ref, watch } from "vue";
 import * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { TangramApi } from "./api";
@@ -81,15 +73,14 @@ type ApiState = "loading" | "ready" | "error";
 
 const app = getCurrentInstance()!.appContext.app;
 const apiState = ref<ApiState>("loading");
-const tangramApi: Ref<TangramApi | null> = ref(null);
+const tangramApi = ref<TangramApi | null>(null);
 const mapContainer = ref<HTMLElement | null>(null);
 let mapInstance: L.Map | null = null;
-
-provide("tangramApi", tangramApi);
 
 onMounted(async () => {
   try {
     const api = await TangramApi.create(app);
+    app.provide("tangramApi", api);
     await loadPlugins(api);
     tangramApi.value = api;
     apiState.value = "ready";

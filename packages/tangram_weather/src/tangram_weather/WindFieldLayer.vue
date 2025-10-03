@@ -15,13 +15,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, inject, onUnmounted, type Ref } from "vue";
+import { ref, watch, inject, onUnmounted } from "vue";
 import type { TangramApi } from "@open-aviation/tangram/api";
 import "leaflet-velocity";
 import "leaflet-velocity/dist/leaflet-velocity.css";
 
 declare const L: any;
-const tangramApi = inject<Ref<TangramApi | null>>("tangramApi");
+const tangramApi = inject<TangramApi>("tangramApi");
+if (!tangramApi) {
+  throw new Error("assert: tangram api not provided");
+}
 
 const isobaric = ref(300);
 const FL = ref(300);
@@ -92,8 +95,7 @@ const formatData = (data: any) => {
 };
 
 const fetchAndDisplay = async () => {
-  const api = tangramApi?.value;
-  if (!api || !api.map.isReady) return;
+  if (!tangramApi.map.isReady.value) return;
 
   try {
     const response = await fetch(`/weather/wind?isobaric=${isobaric.value}`);
@@ -104,7 +106,7 @@ const fetchAndDisplay = async () => {
     if (velocityLayer.value) {
       velocityLayer.value.setData(velocityData);
     } else {
-      const map = api.map.getMapInstance();
+      const map = tangramApi.map.getMapInstance();
       velocityLayer.value = L.velocityLayer({
         displayValues: true,
         displayOptions: {
@@ -137,7 +139,7 @@ const fetchAndDisplay = async () => {
 };
 
 watch(
-  () => tangramApi?.value?.map.isReady,
+  tangramApi.map.isReady,
   isReady => {
     if (isReady) {
       fetchAndDisplay();
@@ -147,9 +149,8 @@ watch(
 );
 
 onUnmounted(() => {
-  const map = tangramApi?.value?.map.getMapInstance();
-  if (velocityLayer.value && map) {
-    map.removeLayer(velocityLayer.value);
+  if (velocityLayer.value && tangramApi.map.isReady.value) {
+    tangramApi.map.getMapInstance().removeLayer(velocityLayer.value);
     velocityLayer.value = null;
   }
 });

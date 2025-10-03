@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onUnmounted, ref, watchEffect, type Ref } from "vue";
+import { computed, inject, onUnmounted, ref, watchEffect } from "vue";
 import * as L from "leaflet";
 import "leaflet-rotatedmarker";
 import Raphael from "raphael";
@@ -18,11 +18,14 @@ interface AircraftState {
   altitude: number;
 }
 
-const tangramApi = inject<Ref<TangramApi | null>>("tangramApi");
+const tangramApi = inject<TangramApi>("tangramApi");
+if (!tangramApi) {
+  throw new Error("assert: tangram api not provided");
+}
 const aircraftEntities = computed(
-  () => tangramApi?.value?.state.getEntitiesByType<AircraftState>("aircraft").value
+  () => tangramApi.state.getEntitiesByType<AircraftState>("aircraft").value
 );
-const activeEntityId = computed(() => tangramApi?.value?.state.activeEntityId?.value);
+const activeEntityId = computed(() => tangramApi.state.activeEntityId?.value);
 
 const aircraftMarkers = ref(new Map<EntityId, L.Marker>());
 
@@ -94,11 +97,9 @@ const createTooltipTemplate = (aircraft: AircraftState) => {
 // TODO: fix icon colour not changing when aircraft is selected
 // but v0.1 didn't work either so... eh
 watchEffect(() => {
-  if (!tangramApi?.value || !aircraftEntities?.value || !tangramApi.value.map.isReady)
-    return;
+  if (!aircraftEntities.value || !tangramApi.map.isReady.value) return;
 
-  const api = tangramApi.value;
-  const map = api.map.getMapInstance();
+  const map = tangramApi.map.getMapInstance();
   const currentMarkers = aircraftMarkers.value;
   const newMarkerIds = new Set<EntityId>();
 
@@ -139,7 +140,7 @@ watchEffect(() => {
 
       marker.on("click", (e: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(e);
-        api.state.setActiveEntity(entity.id);
+        tangramApi.state.setActiveEntity(entity.id);
       });
       currentMarkers.set(entity.id, marker);
     }

@@ -14,10 +14,13 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, inject, onMounted, onUnmounted, type Ref } from "vue";
+import { reactive, computed, inject, onMounted, onUnmounted } from "vue";
 import type { TangramApi, Disposable } from "@open-aviation/tangram/api";
 
-const tangramApi = inject<Ref<TangramApi | null>>("tangramApi");
+const tangramApi = inject<TangramApi>("tangramApi");
+if (!tangramApi) {
+  throw new Error("assert: tangram api not provided");
+}
 
 const state = reactive({
   hovered: false,
@@ -28,11 +31,8 @@ const state = reactive({
 let subscription: Disposable | null = null;
 
 onMounted(async () => {
-  const api = tangramApi?.value;
-  if (!api) return;
-
   try {
-    subscription = await api.realtime.subscribe(
+    subscription = await tangramApi.realtime.subscribe(
       "system:update-node",
       (payload: { el: string; value: any }) => {
         if (payload.el === "uptime") state.uptime = payload.value;
