@@ -87,7 +87,7 @@ The `tangram_system` plugin adds a widget to the UI that displays server metrics
 === "pip"
 
     ```sh
-    # assuming you have an active virtual environment with tangram installed
+    # assuming you have an active virtual environment with tangram_core installed
     pip install tangram_system
     ```
 
@@ -104,7 +104,7 @@ plugins = ["tangram_system"]
 
 #### 3. Restart the server
 
-Stop the running `tangram serve` process (Ctrl+C) and start it again. The web interface will now include the system monitoring widget.
+Stop the running `tangram serve` process (<kbd>Ctrl</kbd> + <kbd>C</kbd>) and start it again. The web interface will now include the system monitoring widget.
 
 ### *Example 2: add live aircraft data*
 
@@ -137,11 +137,11 @@ Just like before, install the package and add it to your `tangram.toml`.
 === "pip"
 
     ```sh
-    # assuming you have an active virtual environment with tangram installed
+    # assuming you have an active virtual environment with tangram_core installed
     pip install tangram_jet1090
     ```
 
-```toml hl_lines="4"
+```toml hl_lines="5"
 [core]
 redis_url = "redis://127.0.0.1:6379"
 plugins = [
@@ -223,31 +223,25 @@ This installs the core application and all plugins in editable mode into a virtu
 
 1. Ensure Redis (and any other services like `jet1090`) are running, as described in the user guide above.
 
-2. In one terminal, start the `tangram` server. This runs the FastAPI application, the `channel` service, and all enabled backend plugins.
+2. Start the `tangram` server. This runs the FastAPI application, the `channel` service, and all enabled backend plugins.
 
     ```sh
     uv run tangram serve --config tangram.example.toml
     ```
 
-3. In a second terminal, start the Vite development server for the v0.1 frontend. This provides Hot Module Replacement (HMR) for UI changes.
+The application will be available at `http://localhost:2346`.
 
-    ```sh
-    just legacy-web
-    ```
-
-The frontend will be available at `http://localhost:2345` and will proxy API requests to the backend.
-
-!!! note "v0.2 Frontend Plugins"
-    The `pnpm build` command compiles the new v0.2 frontend plugin assets. HMR for these plugins is not yet supported; you must re-run `pnpm build` to see changes.
+!!! note "Frontend Development"
+    Hot Module Replacement (HMR) for frontend plugins is not yet supported. To see changes to frontend components, you must re-run `pnpm build` and restart the `tangram serve` process.
 
 To build the documentation:
 
-    ```sh
-    uv run mkdocs serve
-    ```
+```sh
+uv run mkdocs serve
+```
 
 To format all Rust, Python and JS code:
 
-    ```sh
-    just fmt
-    ```
+```sh
+just fmt
+```

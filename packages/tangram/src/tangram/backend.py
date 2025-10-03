@@ -119,7 +119,8 @@ def create_app(
             channel=FrontendChannelConfig(
                 host=state.config.channel.host,
                 port=state.config.channel.port,
-            )
+            ),
+            map=state.config.map,
         )
 
     @app.get("/manifest.json")

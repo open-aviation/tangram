@@ -2,12 +2,6 @@
 # `export DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 CONTAINER_RUNTIME=docker`
 container_runtime := env("CONTAINER_RUNTIME", "podman")
 
-legacy-web host="0.0.0.0" port="2345":
-  #!/usr/bin/env bash
-  set -x -euo pipefail
-  cd web_legacy
-  npx vite --host {{host}} --port {{port}}
-
 # TODO: git cleaning and running this again fails because uv cache doesn't understand cdylib is gone
 # TODO(abr): hot reload js frontend
 install:

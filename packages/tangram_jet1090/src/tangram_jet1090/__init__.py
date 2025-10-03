@@ -83,6 +83,22 @@ async def get_route_data(
         return JSONResponse(content=[], status_code=500)
 
 
+@router.get("/sensors")
+async def get_sensors_data(
+    backend_state: tangram.InjectBackendState,
+) -> JSONResponse:
+    plugin_config = backend_state.config.plugins.get("tangram_jet1090", {})
+    config = TypeAdapter(PlanesConfig).validate_python(plugin_config)
+    url = f"{config.jet1090_url}/sensors"
+    try:
+        response = await backend_state.http_client.get(url)
+        response.raise_for_status()
+        return JSONResponse(content=response.json())
+    except Exception as e:
+        log.error(f"Failed to fetch sensors data from {url}: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=502)
+
+
 plugin = tangram.Plugin(frontend_path="dist-frontend", routers=[router])
 
 
@@ -94,6 +110,7 @@ class PlanesConfig:
     aircraft_db_url: str = (
         "https://jetvision.de/resources/sqb_databases/basestation.zip"
     )
+    jet1090_url: str = "http://localhost:8080"
     aircraft_db_cache_path: str | None = None
     log_level: str = "INFO"
     python_tracing_subscriber: bool = False

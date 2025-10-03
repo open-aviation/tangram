@@ -23,6 +23,19 @@ class ChannelConfig:
 
 
 @dataclass
+class MapConfig:
+    tile_url: str = r"https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+    attribution: str = (
+        '&copy; <a href="https://www.openstreetmap.org/copyright">'
+        "OpenStreetMap</a> contributors &copy; "
+        '<a href="https://carto.com/attributions">CARTO</a>'
+    )
+    center_lat: float = 48.0
+    center_lon: float = 7.0
+    zoom: int = 6
+
+
+@dataclass
 class CoreConfig:
     redis_url: str = "redis://127.0.0.1:6379"
     plugins: list[str] = field(default_factory=list)
@@ -34,6 +47,7 @@ class Config:
     core: CoreConfig = field(default_factory=CoreConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
     channel: ChannelConfig = field(default_factory=ChannelConfig)
+    map: MapConfig = field(default_factory=MapConfig)
     plugins: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -61,3 +75,4 @@ class FrontendChannelConfig:
 @dataclass
 class FrontendConfig:
     channel: FrontendChannelConfig
+    map: MapConfig
