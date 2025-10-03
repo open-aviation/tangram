@@ -1,6 +1,6 @@
 import type { TangramApi } from "@open-aviation/tangram/api";
-import WeatherWidget from "./WeatherWidget.vue";
+import WindFieldLayer from "./WindFieldLayer.vue";
 
 export function install(api: TangramApi) {
-  api.ui.registerWidget("weather-widget", "SideBar", WeatherWidget);
+  api.ui.registerWidget("wind-field-layer", "MapOverlay", WindFieldLayer);
 }

@@ -8,6 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@open-aviation/tangram": "workspace:*"
+    "@open-aviation/tangram": "workspace:*",
+    "leaflet-velocity": "^2.1.4"
   }
 }

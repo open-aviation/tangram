@@ -1,4 +1,4 @@
-import asyncio
+from logging import getLogger
 
 import pandas as pd
 import tangram
@@ -6,6 +6,8 @@ from fastapi import APIRouter
 from fastapi.responses import ORJSONResponse
 
 from .arpege import latest_data as latest_arpege_data
+
+logger = getLogger(__name__)
 
 router = APIRouter(
     prefix="/weather",
@@ -16,16 +18,17 @@ router = APIRouter(
 
 @router.get("/")
 async def get_weather() -> dict[str, str]:
-    """An example endpoint that returns some data."""
     return {"message": "This is the weather plugin response"}
 
 
 @router.get("/wind")
-async def wind(isobaric: int = 300) -> ORJSONResponse:
-    print("Fetching wind data")
+async def wind(
+    isobaric: int, backend_state: tangram.InjectBackendState
+) -> ORJSONResponse:
+    logger.info("fetching wind data for %s", isobaric)
 
     now = pd.Timestamp.now(tz="UTC").floor("1h")
-    ds = await asyncio.to_thread(latest_arpege_data, now)
+    ds = await latest_arpege_data(backend_state.http_client, now)
     res = ds.sel(isobaricInhPa=isobaric, time=now.tz_convert(None))[["u", "v"]]
 
     return ORJSONResponse(content=res.to_dict())

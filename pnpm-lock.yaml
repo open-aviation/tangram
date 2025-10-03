@@ -115,6 +115,9 @@ importers:
       '@open-aviation/tangram':
         specifier: workspace:*
         version: link:../tangram
+      leaflet-velocity:
+        specifier: ^2.1.4
+        version: 2.1.4
 
 packages:
 
@@ -900,6 +903,9 @@ packages:
 
   leaflet-rotatedmarker@0.2.0:
     resolution: {integrity: sha512-yc97gxLXwbZa+Gk9VCcqI0CkvIBC9oNTTjFsHqq4EQvANrvaboib4UdeQLyTnEqDpaXHCqzwwVIDHtvz2mUiDg==}
+
+  leaflet-velocity@2.1.4:
+    resolution: {integrity: sha512-uTmSb2/Kn28S0itlmJBMy2ZRKsisWUr2wm9rtkKXjpq9Sai7tqKdTRHKfLgTOgEdWFf5Ctt2bQoB7kb50qC7eg==}
 
   leaflet@1.9.4:
     resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
@@ -1933,6 +1939,8 @@ snapshots:
       json-buffer: 3.0.1
 
   leaflet-rotatedmarker@0.2.0: {}
+
+  leaflet-velocity@2.1.4: {}
 
   leaflet@1.9.4: {}
 

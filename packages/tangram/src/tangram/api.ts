@@ -25,8 +25,17 @@ export interface ChannelConfig {
   port: number;
 }
 
+export interface MapConfig {
+  tile_url: string;
+  attribution: string;
+  center_lat: number;
+  center_lon: number;
+  zoom: number;
+}
+
 export interface TangramConfig {
   channel: ChannelConfig;
+  map: MapConfig;
 }
 
 export type EntityId = string;
@@ -282,6 +291,7 @@ export class RealtimeApi {
         const { id, token: userToken } = await this.fetchToken("system");
         this.connectionId = id;
 
+        // NOTE: phoenix appends `/websocket` automatically, do not add it here.
         const socketUrl = `ws://${this.channelConfig.host}:${this.channelConfig.port}`;
         this.socket = new Socket(socketUrl, { params: { userToken } });
 
@@ -358,11 +368,13 @@ export class TangramApi {
   readonly state: StateApi;
   readonly data: DataApi;
   readonly realtime: RealtimeApi;
+  readonly config: TangramConfig;
 
   private constructor(
     private app: App,
     config: TangramConfig
   ) {
+    this.config = config;
     this.realtime = new RealtimeApi(config);
     this.ui = new UiApi(this.app);
     this.time = new TimeApi();

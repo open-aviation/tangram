@@ -1,3 +1,4 @@
+import asyncio
 import tempfile
 from pathlib import Path
 from typing import Literal
@@ -20,31 +21,42 @@ DEFAULT_IP1_FEATURES = ['u', 'v', 't', 'r']
 tempdir = Path(tempfile.gettempdir())
 
 
-def download_with_progress(url: str, file: Path) -> None:
-    with httpx.stream("GET", url) as r:
-        total_size = int(r.headers.get("Content-Length", 0))
-        with file.open("wb") as buffer:
-            with tqdm(
-                total=total_size,
-                unit="B",
-                unit_scale=True,
-                desc=url.split("/")[-1],
-            ) as progress_bar:
-                first_chunk = True
-                for chunk in r.iter_bytes():
-                    if first_chunk and chunk.startswith(b"<?xml"):
-                        raise RuntimeError(
-                            f"Error downloading data from {url}. "
-                            "Check if the requested data is available."
-                        )
-                    first_chunk = False
-                    buffer.write(chunk)
-                    progress_bar.update(len(chunk))
+async def download_with_progress(
+    client: httpx.AsyncClient, url: str, file: Path
+) -> None:
+    try:
+        async with client.stream("GET", url) as r:
+            if r.status_code != 200:
+                raise httpx.HTTPStatusError(
+                    f"Error downloading data from {url}", request=r.request, response=r
+                )
 
-        return None
+            total_size = int(r.headers.get("Content-Length", 0))
+            with file.open("wb") as buffer:
+                with tqdm(
+                    total=total_size,
+                    unit="B",
+                    unit_scale=True,
+                    desc=url.split("/")[-1],
+                ) as progress_bar:
+                    first_chunk = True
+                    async for chunk in r.aiter_bytes():
+                        if first_chunk and chunk.startswith(b"<?xml"):
+                            raise RuntimeError(
+                                f"Error downloading data from {url}. "
+                                "Check if the requested data is available."
+                            )
+                        first_chunk = False
+                        await asyncio.to_thread(buffer.write, chunk)
+                        progress_bar.update(len(chunk))
+    except (httpx.RequestError, RuntimeError) as e:
+        if file.exists():
+            file.unlink()
+        raise e
 
 
-def latest_data(
+async def latest_data(
+    client: httpx.AsyncClient,
     hour: pd.Timestamp,
     model: str = "ARPEGE",
     resolution: Literal["025", "01"] = "025",
@@ -83,14 +95,15 @@ def latest_data(
     if not (tempdir / filename).exists():
         # If the file does not exist, we try to download it.
         try:
-            download_with_progress(url, tempdir / filename)
+            await download_with_progress(client, url, tempdir / filename)
         except Exception:
             (tempdir / filename).unlink(missing_ok=True)  # remove the file if it exists
             # If the download fails, we try to fetch the latest data
             # (or survive with older data we may have in the /tmp directory)
             if recursion >= 3:
                 raise  # do not insist too much in history
-            return latest_data(
+            return await latest_data(
+                client,
                 hour - pd.Timedelta("6h"),
                 model,
                 resolution,
@@ -99,16 +112,19 @@ def latest_data(
                 recursion + 1,
             )
 
-    ds = xr.open_dataset(
-        tempdir / filename,
-        engine="cfgrib",
-        backend_kwargs={
-            "filter_by_keys": {
-                "typeOfLevel": "isobaricInhPa",
-                "level": DEFAULT_LEVELS_37,
-            }
-        },
-    )
-    ds = ds.assign(step=ds.time + ds.step).drop_vars("time")
-    ds = ds.rename(step="time")
-    return ds
+    def _load_and_process_dataset() -> xr.Dataset:
+        ds = xr.open_dataset(
+            tempdir / filename,
+            engine="cfgrib",
+            backend_kwargs={
+                "filter_by_keys": {
+                    "typeOfLevel": "isobaricInhPa",
+                    "level": DEFAULT_LEVELS_37,
+                }
+            },
+        )
+        ds = ds.assign(step=ds.time + ds.step).drop_vars("time")
+        ds = ds.rename(step="time")
+        return ds  # type: ignore
+
+    return await asyncio.to_thread(_load_and_process_dataset)

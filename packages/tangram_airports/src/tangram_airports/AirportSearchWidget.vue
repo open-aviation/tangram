@@ -8,7 +8,11 @@
       @input="onInput"
     />
     <ul v-if="results.length" class="search-results">
-      <li v-for="airport in results" :key="airport.icao" @click="selectAirport(airport)">
+      <li
+        v-for="airport in results"
+        :key="airport.icao"
+        @click="selectAirport(airport)"
+      >
         {{ airport.name }} ({{ airport.iata }} | {{ airport.icao }})
       </li>
     </ul>
