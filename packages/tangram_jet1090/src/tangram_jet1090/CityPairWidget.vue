@@ -1,5 +1,5 @@
 <template>
-  <div id="city_pair" v-if="state.origin && state.destination">
+  <div v-if="state.origin && state.destination" id="city_pair">
     <div class="airport">
       <span class="icao">{{ state.origin }}</span>
       <span class="city">{{ state.originName }}</span>

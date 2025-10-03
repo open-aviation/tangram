@@ -47,6 +47,10 @@ export default defineConfig({
             path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm_bg.wasm")
           ],
           dest: "."
+        },
+        {
+          src: path.resolve(__dirname, "node_modules/leaflet/dist/images/*"),
+          dest: "images"
         }
       ]
     })

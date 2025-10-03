@@ -46,12 +46,12 @@ graph LR
     R[Redis Pub/Sub]
 
     B -- HTTP API Requests --> FAS
-    B -- WebSocket --> CS
+    B <-- WebSocket --> CS
     FAS -- Serves Frontend Assets --> B
-    FAS -- Reads/Writes --> R
-    CS -- Relays Messages --> R
-    PS -- Subscribes to --> R
-    J -- Publishes --> R
+    FAS <-- Reads/Writes --> R
+    CS <-- Relays Messages --> R
+    PS -- ◀ Subscribes to --> R
+    J -- Publishes ▶ --> R
 ```
 
 <!-- arch in png is outdated, maybe it was produced in drawio but i cant seem to edit it -->
@@ -74,8 +74,6 @@ For a detailed guide on creating your own backend extensions, see the [Backend P
 
 ## Frontend Plugin System
 
-In v0.2, the frontend loads plugins dynamically. The backend serves a `/manifest.json` file listing all enabled frontend plugins. The core `tangram` web application fetches this manifest and dynamically imports the JavaScript entry point for each plugin. The plugin's entry point then calls the [`tangramApi.registerWidget()`](../plugins/frontend.md) function to add its Vue components to the main application.
-
-The v0.1 frontend plugins is considered deprecated.
+The frontend loads plugins dynamically. The backend serves a `/manifest.json` file listing all enabled frontend plugins. The core `tangram` web application fetches this manifest and dynamically imports the JavaScript entry point for each plugin. The plugin's entry point then calls the [`tangramApi.registerWidget()`](../plugins/frontend.md) function to add its Vue components to the main application.
 
 For more details, see the [Frontend Plugin Guide](../plugins/frontend.md).
