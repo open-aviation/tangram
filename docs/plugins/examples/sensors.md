@@ -1,136 +1,16 @@
-# Map data receivers
-
-!!! danger "Legacy Frontend"
-    This example describes the plugin system for the legacy v0.1 frontend, which is configured via `.env` and `web_legacy/vite.config.js`. The following guide is scheduled for an update.
+# Data Receiver Map Layer
 
 ## Statement of need
 
-Mode S data is provided by the `jet1090` process, which decodes the data from aggregated various sources, such as software-defined radio devices or network streams. Each source of data corresponds to a different receiver, hence a different location.
+Mode S data is provided by one or more `jet1090` processes, which decode data from various sources like software-defined radios or network streams. Each source corresponds to a receiver at a specific location.
 
-It is useful to visualize the position of the receivers on the map, so that the user can see where the data is coming from. The position of the receivers is provided by the `jet1090` process, which can be configured to provide the position of the receivers in the `config_jet1090.toml` file.
-
-See [Configuring jet1090](https://mode-s.org/jet1090/config/) for more details.
+The `tangram_jet1090` plugin provides a map layer to visualize the positions of these receivers, allowing users to see where their data is coming from.
 
 ## Implementation
 
-The implementation of the map data receivers plugin is a Vue.js component that displays the positions of the receivers on the map. The implementation of this plugin is located in the `web_legacy/src/components/SensorsInfo.vue` file, i.e. in the default fallback location for plugins.
+The implementation is a Vue component, `SensorsLayer.vue`, which is registered as a map overlay by the `tangram_jet1090` frontend plugin.
 
-!!! tip
-
-    When a Vue component is a plugin, its implementation can be overridden by a custom implementation located in a different directory. This is useful if you want to have several possible implementations for a functionality, or if you want to use a different implementation for a specific use case.
-
-    If the environment variable `TANGRAM_WEB_SENSORSINFO_PLUGIN` is defined, the plugin will be loaded from the specified path. Otherwise, it will be loaded from the default `web_legacy/src/components/` directory.
-
-The information to display is provided by the `tangram` REST API, which provides the list of receivers and their positions on the `/sensors` endpoint.
-
-### 1. Declare the plugin in the `vite.config.js` file
-
-In order to use the `SensorsInfo` component as a plugin, you need to declare it in the `vite.config.js` file. This allows the Vue application to dynamically load the component when needed.
-
-```javascript
-plugins: [
-  // ..., other settings
-  dynamicComponentsPlugin({
-    envPath: "../.env",
-    fallbackDir: "./src/components/",
-    availablePlugins: [
-        "airportSearch",
-        "systemInfo",
-        "sensorsInfo",  // <-- new line
-    ],
-  }),
-],
-```
-
-### 2. Proxy the /sensors endpoint
-
-In the `vite.config.js` file, you need to add a proxy configuration to redirect requests to the `/sensors` endpoint to the `tangram` REST API:
-
-```javascript
-server: {
-  proxy: {
-    // ..., other settings
-    "/sensors": {
-        target: `${jet1090_service}/sensors`,
-        changeOrigin: true,
-        secure: false,
-    }
-  },
-```
-
-This proxy rule is already implemented by default. It redirects requests to the `/sensors` endpoint to the `jet1090` service, which provides the list of receivers and their positions.
-
-### 3. Implement the Vue component
-
-A Vue component consists of a template, a script, and a style section. The template defines the HTML structure of the component, the script contains the logic, and the style section defines the CSS styles.
-
-In this example, we do not need to define any styles, so we will only implement the template and the script sections.
-
-In the template part, we add a `<l-geo-json>` ([Documentation](https://vue2-leaflet.netlify.app/components/LGeoJson.html)) component that will display the GeoJSON data of the receivers on the map.
-
-```vue
-<template>
-  <div>
-    <l-geo-json v-if="geoJsonData" :geojson="geoJsonData"></l-geo-json>
-  </div>
-</template>
-```
-
-In the script part, we will fetch the data from the `/sensors` endpoint, transform it in a GeoJSON structure and store it in a reactive variable. We will use the `fetch` API to get the data and handle it accordingly.
-
-The fetch command happens in the `mounted` lifecycle hook, which is called when the component is mounted to the DOM, i.e. when the component is ready to be displayed (after the page is loaded).
-
-```vue
-<script>
-import { LGeoJson } from "@vue-leaflet/vue-leaflet";
-
-export default {
-  name: "SensorLayer",
-  components: {
-    LGeoJson,
-  },
-  data() {
-    // initialize the geoJSON data
-    return {
-      geoJsonData: null,
-    };
-  },
-  async mounted() {
-    // `/sensors` is served by jet1090, the proxy is coded in vite.config.js
-    const response = await fetch("/sensors");
-    const sensors = await response.json();
-    // Convert sensor data to GeoJSON format
-    this.geoJsonData = {
-      type: "FeatureCollection",
-      features: Object.values(sensors)
-        // only display sensors seeing at least one aircraft
-        .filter((sensor) => sensor.aircraft_count > 0)
-        .map((sensor) => ({
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [sensor.reference.longitude, sensor.reference.latitude],
-          },
-          properties: {
-            name: sensor.name,
-            aircraft_count: sensor.aircraft_count,
-          },
-        })),
-    };
-  },
-};
-</script>
-```
-
-### 4. Refer to the component in the main application
-
-In the `App.vue` file, use the `<plugin-sensorsinfo />` component to include the plugin in the main application. This will render the component and display the sensors' positions on the map.
-
-!!! tip
-
-    After you declared the plugin in the `vite.config.js` file, you can use the `<plugin-sensorsinfo />` component in any Vue file, not only in the `App.vue` file. The import will be done dynamically based on the environment variable `TANGRAM_WEB_SENSORSINFO_PLUGIN`.
-
-### 5. Reload your application
-
-Confirm the sensors are displayed on the map.
-The reloading of the page should be dynamic, triggered everytime you save one of the critical files.
+1. When the map is initialized, the component fetches a list of sensors from the `/sensors` API endpoint.
+2. This endpoint, provided by the `tangram_jet1090` backend, proxies the request to the configured `jet1090` service. The sensor information must be configured within the `jet1090` instance itself. See the [jet1090 configuration guide](https://mode-s.org/jet1090/config/) for details.
+3. The component then converts the sensor data into a GeoJSON `FeatureCollection`.
+4. Finally, it uses Leaflet's `L.geoJSON` to render the sensor locations as points on the map, with a tooltip showing the sensor's name and the number of aircraft it is currently tracking.

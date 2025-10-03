@@ -110,13 +110,16 @@ watch(
 
 watch(mapContainer, newEl => {
   if (newEl && tangramApi.value && !mapInstance) {
-    mapInstance = L.map(newEl).setView([48, 7], 6);
+    const mapConfig = tangramApi.value.config.map;
+    mapInstance = L.map(newEl).setView(
+      [mapConfig.center_lat, mapConfig.center_lon],
+      mapConfig.zoom
+    );
     mapInstance.on("click", () => {
       tangramApi.value!.state.deselectActiveEntity();
     });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    L.tileLayer(mapConfig.tile_url, {
+      attribution: mapConfig.attribution
     }).addTo(mapInstance);
     tangramApi.value.map.initialize(mapInstance);
   }
