@@ -1,6 +1,9 @@
 <template>
   <!-- NOTE: copied largely from v0.1. -->
-  <div v-if="apiState === 'loading'">loading...</div>
+  <div v-if="apiState === 'loading'" class="loading-container">
+    <div>initialising tangram…</div>
+    <div v-if="loadingMessage" class="loading-detail">{{ loadingMessage }}</div>
+  </div>
   <div v-else-if="apiState === 'error'">
     error: could not connect to the tangram backend.
   </div>
@@ -73,6 +76,7 @@ type ApiState = "loading" | "ready" | "error";
 
 const app = getCurrentInstance()!.appContext.app;
 const apiState = ref<ApiState>("loading");
+const loadingMessage = ref<string>("");
 const tangramApi = ref<TangramApi | null>(null);
 const mapContainer = ref<HTMLElement | null>(null);
 let mapInstance: L.Map | null = null;
@@ -81,7 +85,15 @@ onMounted(async () => {
   try {
     const api = await TangramApi.create(app);
     app.provide("tangramApi", api);
-    await loadPlugins(api);
+    await loadPlugins(api, progress => {
+      if (progress.stage === "manifest") {
+        loadingMessage.value = "fetching plugin manifest";
+      } else if (progress.stage === "plugin" && progress.pluginName) {
+        loadingMessage.value = `loading plugin: ${progress.pluginName}`;
+      } else if (progress.stage === "done") {
+        loadingMessage.value = "starting user interface";
+      }
+    });
     tangramApi.value = api;
     apiState.value = "ready";
   } catch (e) {
@@ -243,5 +255,14 @@ body {
 
 .mr-2 {
   margin-right: 2rem;
+}
+
+.loading-container {
+  padding: 1.5rem;
+}
+
+.loading-detail {
+  margin-top: 0.5rem;
+  color: #555;
 }
 </style>
