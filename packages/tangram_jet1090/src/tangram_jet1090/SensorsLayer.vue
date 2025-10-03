@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { inject, onUnmounted, ref, watch, type Ref } from "vue";
+import { inject, onUnmounted, ref, watch } from "vue";
 import type { TangramApi } from "@open-aviation/tangram/api";
 import * as L from "leaflet";
 import { html, render } from "lit-html";
 
-const tangramApi = inject<Ref<TangramApi | null>>("tangramApi");
+const tangramApi = inject<TangramApi>("tangramApi");
+if (!tangramApi) {
+  throw new Error("assert: tangram api not provided");
+}
 const geoJsonLayer = ref<L.GeoJSON | null>(null);
 
 const createTooltipTemplate = (name: string, aircraft_count: number) => {
@@ -12,14 +15,13 @@ const createTooltipTemplate = (name: string, aircraft_count: number) => {
 };
 
 const stopWatch = watch(
-  () => tangramApi?.value?.map.isReady,
+  () => tangramApi.map.isReady.value,
   isReady => {
     if (!isReady) {
       return;
     }
 
-    const api = tangramApi!.value!;
-    const map = api.map.getMapInstance();
+    const map = tangramApi.map.getMapInstance();
 
     fetch("/sensors")
       .then(response => {

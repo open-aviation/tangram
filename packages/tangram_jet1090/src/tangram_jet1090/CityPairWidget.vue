@@ -16,11 +16,14 @@
 </template>
 
 <script setup lang="ts">
-import { inject, reactive, watch, type Ref } from "vue";
+import { inject, reactive, watch } from "vue";
 import type { TangramApi } from "@open-aviation/tangram/api";
 import { airport_information } from "rs1090-wasm";
 
-const tangramApi = inject<Ref<TangramApi | null>>("tangramApi");
+const tangramApi = inject<TangramApi>("tangramApi");
+if (!tangramApi) {
+  throw new Error("assert: tangram api not provided");
+}
 
 const state = reactive({
   loading: false,
@@ -85,11 +88,11 @@ const fetchRouteData = async (callsign: string) => {
 };
 
 watch(
-  () => tangramApi?.value?.state.activeEntity?.id,
+  () => tangramApi.state.activeEntity?.id,
   newId => {
     resetData();
     if (newId) {
-      const activeEntity = tangramApi?.value?.state.activeEntity;
+      const activeEntity = tangramApi.state.activeEntity;
       const callsign = (activeEntity?.state as any)?.callsign;
       if (callsign) {
         fetchRouteData(callsign);

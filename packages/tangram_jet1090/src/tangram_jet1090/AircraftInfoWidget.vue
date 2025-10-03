@@ -38,15 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  computed,
-  inject,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  watch,
-  type Ref
-} from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, reactive, watch } from "vue";
 import type { TangramApi, Entity } from "@open-aviation/tangram/api";
 import { aircraft_information } from "rs1090-wasm";
 import {
@@ -143,8 +135,11 @@ const X_SCALE = {
   grid: { display: true, drawBorder: false }
 };
 
-const tangramApi = inject<Ref<TangramApi | null>>("tangramApi");
-const activeEntity = computed(() => tangramApi?.value?.state.activeEntity);
+const tangramApi = inject<TangramApi>("tangramApi");
+if (!tangramApi) {
+  throw new Error("assert: tangram api not provided");
+}
+const activeEntity = tangramApi.state.activeEntity;
 const aircraft = computed(() => activeEntity.value?.state as any);
 const flag = computed(() => {
   if (!aircraft.value) return "";
@@ -161,7 +156,6 @@ const chartState = reactive({
 });
 
 const fetchChartData = async (entity: Entity) => {
-  if (!entity) return;
   try {
     const response = await fetch(`/data/${entity.id}`);
     if (!response.ok) throw new Error("Failed to fetch trajectory");
@@ -455,8 +449,8 @@ watch(
   newId => {
     chartState.trajectoryData = [];
     chartState.chartData = {};
-    if (newId) {
-      fetchChartData(activeEntity.value!);
+    if (newId && activeEntity.value) {
+      fetchChartData(activeEntity.value);
     }
   },
   { immediate: true }
