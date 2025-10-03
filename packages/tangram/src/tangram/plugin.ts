@@ -1,9 +1,20 @@
 import type { TangramApi } from "./api";
 
-export async function loadPlugins(tangramApi: TangramApi) {
+type PluginProgressStage = "manifest" | "plugin" | "done";
+type PluginProgress = {
+  stage: PluginProgressStage;
+  pluginName?: string;
+};
+
+export async function loadPlugins(
+  tangramApi: TangramApi,
+  onProgress?: (progress: PluginProgress) => void
+) {
+  onProgress?.({ stage: "manifest" });
   const manifest = await fetch("/manifest.json").then(res => res.json());
 
   for (const pluginName of manifest.plugins) {
+    onProgress?.({ stage: "plugin", pluginName });
     const pluginManifestUrl = `/plugins/${pluginName}/plugin.json`;
     const pluginManifest = await fetch(pluginManifestUrl).then(res => res.json());
 
@@ -25,4 +36,6 @@ export async function loadPlugins(tangramApi: TangramApi) {
       console.error(`failed to load plugin "${pluginName}":`, e);
     }
   }
+
+  onProgress?.({ stage: "done" });
 }
