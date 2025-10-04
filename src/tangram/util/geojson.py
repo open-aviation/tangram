@@ -1,10 +1,34 @@
 import json
-from typing import Any, Dict, List, Optional
 import pathlib
-
-import pandas as pd
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import numpy as np
+import pandas as pd
+from traffic.core import FlightPlan
+
+
+def geojson_fp():
+    fi = json.loads(
+        Path("~/Documents/nextCloud/flightplan.json").expanduser().read_text()
+    )
+    return {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [point.longitude, point.latitude],
+                },
+            }
+            for point in FlightPlan(
+                fi["data"]["flight"]["icaoRoute"],
+                fi["data"]["flight"]["flightId"]["keys"]["aerodromeOfDeparture"],
+                fi["data"]["flight"]["flightId"]["keys"]["aerodromeOfDestination"],
+            ).all_points
+        ],
+    }
 
 
 def geojson_flight(stv) -> Optional[Dict[str, Any]]:

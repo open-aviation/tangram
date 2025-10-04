@@ -16,11 +16,11 @@ nix run:
 poetry-run:
   #!/usr/bin/env bash
   pushd src/tangram
-    poetry run -- uvicorn --host 0.0.0.0 --port 18000 tangram.app:app --ws websockets --log-config=log.yml --reload
+    poetry run -- tangram run
   popd
 
 
-## podman/docker tasks 
+## podman/docker tasks
 
 remove-image cli:
   {{cli}} image rm -f tangram:0.1

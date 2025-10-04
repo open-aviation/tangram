@@ -11,7 +11,8 @@ var options = {
 
 var hexLayer = L.hexbinLayer(options);
 var baselayer = L.tileLayer(
-  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+  //"https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+  "http://localhost:4321/light_all/{z}/{x}/{y}",
   {
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://cartodb.com/attributions">CartoDB</a>',
@@ -19,6 +20,7 @@ var baselayer = L.tileLayer(
 );
 
 var traj = L.layerGroup();
+var fplayer = L.layerGroup();
 var map = L.map("map", {
   layers: [cat_mod, cat_sev, sigmets, aireps, turbulences, planes],
 }).setView([48, 5], 5);
@@ -35,6 +37,7 @@ map.on("click", function (e) {
 
   sidebar.close();
 });
+map.addLayer(fplayer);
 map.addLayer(traj);
 map.addLayer(baselayer);
 var sidebar = L.control.sidebar({ container: "sidebar" });
@@ -105,6 +108,7 @@ channel
   )
   .receive("timeout", () => console.log(`timeout joining ${systemChannel}`));
 
+var fp = getFlightPlan();
 //getCat();
 //getSigmet();
 //getAirep();

@@ -9,18 +9,20 @@ async function draw_chart(icao, columns) {
       "altitude",
       "selected_altitude",
       "groundspeed",
-      "TAS",
-      "IAS",
       "track",
-      "heading",
-      "roll",
       "vertical_rate",
-      "vrate_barometric",
-      "vrate_inertial",
+      "bds50",
+      "bds60",
     ])
     .derive({
       timestamp: aq.escape((x) => 1000 * x.timestamp),
       callsign: aq.op.fill_down("callsign"),
+      TAS: aq.escape((x) => x.bds50?.TAS),
+      roll: aq.escape((x) => x.bds50?.roll),
+      heading: aq.escape((x) => x.bds60?.heading),
+      IAS: aq.escape((x) => x.bds60?.IAS),
+      vrate_barometric: aq.escape((x) => x.bds60?.vrate_barometric),
+      vrate_inertial: aq.escape((x) => x.bds60?.vrate_inertial),
       // TODO traffic.js
       /*track: aq.escape((d) => {
         let prevAngle = 0;

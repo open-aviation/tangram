@@ -19,12 +19,17 @@ from flask_cors import CORS
 from requests.exceptions import HTTPError
 
 from ..client.turbulence import TurbulenceClient
-from ..util.geojson import geojson_traffic, geojson_turbulence
+from ..util.geojson import geojson_fp, geojson_traffic, geojson_turbulence
 from ..views.forms import DatabaseForm, ThresholdForm
 
 log = logging.getLogger(__name__)
 base_bp = Blueprint("base", __name__)
 CORS(base_bp)
+
+
+@base_bp.route("/fp.geojson")
+def fetch_fp():
+    return geojson_fp()
 
 
 @base_bp.route("/stop")

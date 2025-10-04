@@ -365,6 +365,14 @@ function getPlanes(und = "", history = 0, icao24 = "", callsign = "") {
 
   $.getJSON(url, function (data) {});
 }
+function getFlightPlan() {
+  url = "fp.geojson";
+  $.getJSON(url, function (data) {
+    L.geoJson(data, {
+      color: "black",
+    }).addTo(fplayer);
+  });
+}
 
 function getTurbulence(und = "", history = 0, icao24 = "", callsign = "") {
   url = "turb.geojson";
