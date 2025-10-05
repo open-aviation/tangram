@@ -8,26 +8,19 @@
     error: could not connect to the tangram backend.
   </div>
   <div v-else-if="apiState === 'ready' && tangramApi" class="main-container">
-    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
-      <div class="container-fluid">
-        <div style="display: flex; align-items: center">
-          <img
-            src="/favicon.png"
-            alt="tangram"
-            style="height: 30px; margin-right: 5px"
-          />
-          <span class="navbar-brand mb-0 mr-2 h" style="color: black">tangram</span>
-        </div>
-
-        <div style="margin-left: auto"></div>
-
-        <component
-          :is="widget.id"
-          v-for="widget in tangramApi.ui.widgets.TopBar"
-          :key="widget.id"
-        />
-        <div class="navbar-collapse collapse"></div>
+    <div class="navbar" role="navigation">
+      <div class="navbar-brand">
+        <img src="/favicon.png" alt="tangram" class="navbar-logo" />
+        <span class="navbar-title">tangram</span>
       </div>
+
+      <div class="navbar-spacer"></div>
+
+      <component
+        :is="widget.id"
+        v-for="widget in tangramApi.ui.widgets.TopBar"
+        :key="widget.id"
+      />
     </div>
 
     <div
@@ -152,6 +145,8 @@ body {
   font-family: "B612", sans-serif;
   width: 100%;
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 .main-container {
@@ -159,6 +154,42 @@ body {
   width: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.navbar {
+  min-height: 50px;
+  background: white;
+  z-index: 500;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  border-bottom: 1px solid #e7e7e7;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-logo {
+  height: 24px;
+  margin-right: 5px;
+}
+
+.navbar-title {
+  padding-top: 0.3125rem;
+  padding-bottom: 0.3125rem;
+  font-size: 1.25rem;
+  margin-bottom: 0;
+  color: black;
+}
+
+.navbar-spacer {
+  margin-left: auto;
 }
 
 .leaflet-sidebar {
@@ -244,17 +275,6 @@ body {
 .leaflet-top,
 .leaflet-bottom {
   z-index: 400;
-}
-
-/* styles from v0.1 TopNavBar.vue */
-.navbar {
-  min-height: 50px;
-  background: white;
-  z-index: 500;
-}
-
-.mr-2 {
-  margin-right: 2rem;
 }
 
 .loading-container {

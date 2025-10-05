@@ -5,7 +5,7 @@ plugins = [
     "tangram_jet1090",
     "tangram_system",
     "tangram_airports",
-    "tangram_weather"
+    # "tangram_weather"
 ]
 
 [server]

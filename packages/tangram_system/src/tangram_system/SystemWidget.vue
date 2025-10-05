@@ -1,15 +1,13 @@
 <template>
-  <div>
-    <ul class="nav nav-tabs navbar-nav">
-      <li
-        class="nav-item clock"
-        @mouseover="state.hovered = true"
-        @mouseleave="state.hovered = false"
-      >
-        <span id="info_time">{{ state.hovered ? local_time : utc_time }}</span>
-      </li>
-      <span id="uptime">{{ state.uptime }}</span>
-    </ul>
+  <div class="system-widget">
+    <div
+      class="clock"
+      @mouseover="state.hovered = true"
+      @mouseleave="state.hovered = false"
+    >
+      <span id="info_time">{{ state.hovered ? local_time : utc_time }}</span>
+    </div>
+    <span id="uptime">{{ state.uptime }}</span>
   </div>
 </template>
 
@@ -75,7 +73,11 @@ const local_time = computed(() => {
   text-align: center;
 }
 
-.nav {
+.system-widget {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  padding: 1px;
+  border-bottom: 1px solid #ddd;
 }
 </style>

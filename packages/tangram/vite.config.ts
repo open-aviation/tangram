@@ -44,13 +44,21 @@ export default defineConfig({
              */
             path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm.js"),
             path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm_bg.js"),
-            path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm_bg.wasm")
+            path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm_bg.wasm"),
+            path.resolve(
+              __dirname,
+              "node_modules/font-awesome/css/font-awesome.min.css"
+            )
           ],
           dest: "."
         },
         {
           src: path.resolve(__dirname, "node_modules/leaflet/dist/images/*"),
           dest: "images"
+        },
+        {
+          src: path.resolve(__dirname, "node_modules/font-awesome/fonts/*"),
+          dest: "fonts"
         }
       ]
     })

@@ -10,12 +10,6 @@ body,
   width: 100%;
 }
 
-h5 {
-  font-family: "Roboto Condensed", sans-serif;
-  font-weight: 500;
-  font-size: 1.3rem;
-}
-
 #map {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   height: 100%;
@@ -122,34 +116,3 @@ a.flag:hover::after {
   padding: 10px;
   background-color: white;
 }
-
-
-
-/* @media (min-width: 768px) {
-  .leaflet-sidebar {
-    top: 10px;
-    bottom: 10px;
-    transition: width 500ms;
-  }
-}
-
-@media (min-width: 768px) and (max-width: 991px) {
-  .leaflet-sidebar {
-    width: 305px;
-    max-width: 305px;
-  }
-}
-
-@media (min-width: 992px) and (max-width: 1199px) {
-  .leaflet-sidebar {
-    width: 305;
-    max-width: 390px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .leaflet-sidebar {
-    width: 460px;
-    max-width: 460px;
-  }
-} */

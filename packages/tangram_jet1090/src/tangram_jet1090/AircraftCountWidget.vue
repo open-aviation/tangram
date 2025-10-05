@@ -1,14 +1,12 @@
 <template>
-  <div class="visible_aircraft_box">
-    <ul class="nav nav-tabs navbar-nav">
-      <li class="nav-item li-center">
-        <span id="visible_count">{{ visibleCount }}</span> (<span id="plane_count">{{
-          totalCount ?? 0
-        }}</span
-        >)
-      </li>
-      <span id="count_aircraft">visible aircraft</span>
-    </ul>
+  <div class="aircraft-count-widget">
+    <div class="count-display">
+      <span id="visible_count">{{ visibleCount }}</span> (<span id="plane_count">{{
+        totalCount ?? 0
+      }}</span
+      >)
+    </div>
+    <span id="count_aircraft">visible aircraft</span>
   </div>
 </template>
 
@@ -38,10 +36,14 @@ const visibleCount = computed(
   font-size: 9pt;
   text-align: center;
 }
-.visible_aircraft_box {
-  margin-right: 1em;
+.aircraft-count-widget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1px;
+  border-bottom: 1px solid #ddd;
 }
-.li-center {
+.count-display {
   text-align: center;
 }
 </style>
