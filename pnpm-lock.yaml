@@ -35,6 +35,9 @@ importers:
 
   packages/tangram:
     dependencies:
+      font-awesome:
+        specifier: ^4.7.0
+        version: 4.7.0
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
@@ -811,6 +814,10 @@ packages:
 
   flatted@3.3.3:
     resolution: {integrity: sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==}
+
+  font-awesome@4.7.0:
+    resolution: {integrity: sha512-U6kGnykA/6bFmg1M/oT9EkFeIYv7JlX3bozwQJWiiLz6L0w3F5vBVPxHlwyX/vtNq1ckcpRKOB9f2Qal/VtFpg==}
+    engines: {node: '>=0.10.3'}
 
   fs-extra@11.3.1:
     resolution: {integrity: sha512-eXvGGwZ5CL17ZSwHWd3bbgk7UUpF6IFHtP57NYYakPvHOs8GDgDe5KJI36jIJzDkJ6eJjuzRA8eBQb6SkKue0g==}
@@ -1865,6 +1872,8 @@ snapshots:
       keyv: 4.5.4
 
   flatted@3.3.3: {}
+
+  font-awesome@4.7.0: {}
 
   fs-extra@11.3.1:
     dependencies:
