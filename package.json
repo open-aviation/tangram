@@ -9,11 +9,11 @@
   "devDependencies": {
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.6.0",
-    "eslint": "^9.35.0",
-    "eslint-plugin-vue": "^10.4.0",
-    "jiti": "^2.5.1",
+    "eslint": "^9.37.0",
+    "eslint-plugin-vue": "^10.5.0",
+    "jiti": "^2.6.1",
     "prettier": "^3.6.2",
-    "typescript": "~5.4.5",
-    "vite": "^5.3.1"
+    "typescript": "^5.9.3",
+    "vite": "^7.1.9"
   }
 }
