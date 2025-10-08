@@ -513,7 +513,7 @@ onBeforeUnmount(stopPolling);
 }
 h5 {
   margin: 0.5rem 0 1rem 0;
-  padding-top: .25rem;
+  padding-top: 0.25rem;
   border-top: solid 1px #bab0ac;
   font-family: "Roboto Condensed", sans-serif;
   font-weight: 500;

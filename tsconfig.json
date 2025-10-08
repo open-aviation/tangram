@@ -15,7 +15,15 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "skipLibCheck": true,
-    "customConditions": ["source"]
+    "customConditions": ["source"],
+    // HACK: for some reason specifying `peerDepedencies` in each package
+    // doesn't work so we just override it for now
+    "paths": {
+      "vue": ["./packages/tangram/node_modules/vue"],
+      "leaflet": ["./packages/tangram/node_modules/@types/leaflet"],
+      "lit-html": ["./packages/tangram/node_modules/lit-html"],
+      "rs1090-wasm": ["./packages/tangram/node_modules/rs1090-wasm"],
+    }
   },
   "include": ["packages/**/*.ts", "packages/**/*.d.ts", "packages/**/*.vue"]
 }
