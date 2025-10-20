@@ -42,7 +42,7 @@ The whole framework is designed to be extensible, allowing researchers to develo
 
 The world of aviation involves many stakeholders producing a vast amount of data, but most of it is not publicly available for confidentiality and security reasons. Research in aviation is also often limited by the availability of data, but this has evolved in the past decade thanks to open data initiatives [@eurocontrol_rd].
 
-ADS-B and Mode S enable aircraft to broadcast their position and flight parameters, allowing real-time air traffic data collection. This data supports research on flight patterns [@olive_training_2025], emissions [@seymour_fuel_2020], and air traffic performance [@schultz_predictive_2021]. Since ADS-B is unencrypted and easily decoded with software-defined radios, many open-source tools, such as dump1090, pyModeS [@sun_pymodes_2020], and platforms like The OpenSky Network [@opensky2014], have emerged, providing researchers with free access to real-time and historical aviation data.
+ADS-B and Mode S enable aircraft to broadcast their position and flight parameters, allowing real-time air traffic data collection. This data supports research on flight patterns [@olive_training_2025], emissions [@seymour_fuel_2020], and air traffic performance [@schultz_predictive_2021]. Since ADS-B is unencrypted and easily decoded with software-defined radios, many open-source tools, such as dump1090 [@dump1090], pyModeS [@sun_pymodes_2020], and platforms like The OpenSky Network [@opensky2014], have emerged, providing researchers with free access to real-time and historical aviation data.
 
 Most research initiatives and proofs of concept based on ADS-B data are limited to the use of historical data [@olive_traffic_2019]. However, the potential impact of such research depends on the possibility of adapting the algorithms to real-time data. The tangram framework aims to bridge this gap by providing a platform for real-time data collection and analysis.
 
@@ -54,7 +54,7 @@ The tangram framework consists of a suite of independent components that can be 
 
 ## jet1090
 
-The `jet1090` (<https://mode-s.org/jet1090>) tool is a Rust-based ADS-B decoder that can be used to decode ADS-B messages from a variety of sources, including software-defined radio devices. It is designed to be fast and efficient, making it suitable for real-time applications. `jet1090` is comparable to the historical `dump1090` decoder (<https://github.com/antirez/dump1090>), with additional features such as the ability to decode Extended Mode S messages.
+The `jet1090` [@jet1090] tool is a Rust-based ADS-B decoder that can be used to decode ADS-B messages from a variety of sources, including software-defined radio devices. It is designed to be fast and efficient, making it suitable for real-time applications. `jet1090` is comparable to the historical `dump1090` decoder [@dump1090], with additional features such as the ability to decode Extended Mode S messages.
 
 ![The table view of `jet1090` in the terminal](../docs/screenshot/jet1090.png){#jet1090}
 
@@ -72,20 +72,20 @@ The core `tangram` component is a Python-based REST API that provides data retri
 
 ## channel
 
-The `channel` (<https://github.com/emctoo/channel>) component is a Rust-based WebSocket connection that makes the bridge between the frontend and the Redis pub/sub system. It is responsible for providing real-time updates from and to the frontend.
+The `channel` component [@channel] is a Rust-based WebSocket connection that makes the bridge between the frontend and the Redis pub/sub system. It is responsible for providing real-time updates from and to the frontend.
 
 # The plugin system in tangram
 
 The tangram system is designed to be extensible. Users can easily implement particular functionalities by creating their own backend and frontend plugins.
 
-A backend plugin is usually an executable or a Python module which can, for example:
+A backend plugin is usually an executable or a Python module which could, for example:
 
 - listen to a Redis channel;
 - access private data or services requiring authentication;
 - post-process and enrich data;
 - share the resulting information on a Redis channel or REST endpoint.
 
-A frontend plugin will usually be a Vue component, which can, for example:
+A frontend plugin will usually be a Vue component, which could, for example:
 
 - add HTML elements to the web application (in the navigation bar or the sidebar);
 - capture user interactions (e.g., mouse clicks, keyboard events);
@@ -94,7 +94,7 @@ A frontend plugin will usually be a Vue component, which can, for example:
 
 # Potential applications
 
-The tangram framework has been thought to display ADS-B data on a map, similarly to the OpenSky Network or FlightRadar24, and to enrich it to include extra visualization features based on algorithms published by the authors in the literature: turbulence detection [@olive_turbulence_2020], GNSS jamming detection [@felux_impacts_2024], anomaly detection, airspace occupancy metrics or aircraft trajectory prediction.
+The tangram framework has been thought to display ADS-B data on a map, similarly to the OpenSky Network or FlightRadar24, and to enrich it to include extra visualization features based on previously developed algorithms published by the authors in the literature: turbulence detection [@olive_turbulence_2020], GNSS jamming detection [@felux_impacts_2024], anomaly detection [@basora_recent_2019], airspace occupancy metrics or aircraft trajectory prediction [@jarry_neural_2025].
 
 # Acknowledgement
 
