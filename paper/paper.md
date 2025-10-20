@@ -94,7 +94,7 @@ A frontend plugin will usually be a Vue component, which could, for example:
 
 # Potential applications
 
-The tangram framework has been thought to display ADS-B data on a map, similarly to the OpenSky Network or FlightRadar24, and to enrich it to include extra visualization features based on previously developed algorithms published by the authors in the literature: turbulence detection [@olive_turbulence_2020], GNSS jamming detection [@felux_impacts_2024], anomaly detection [@basora_recent_2019], airspace occupancy metrics or aircraft trajectory prediction [@jarry_neural_2025].
+The tangram framework has been thought to display ADS-B data on a map, similarly to the OpenSky Network or FlightRadar24, and to enrich it to include extra visualization features based on previously developed algorithms for turbulence detection [@olive_turbulence_2020], GNSS jamming detection [@felux_impacts_2024], anomaly detection [@basora_recent_2019], airspace occupancy metrics or aircraft trajectory prediction [@jarry_neural_2025].
 
 # Acknowledgement
 
