@@ -36,13 +36,13 @@ The system comprises a JavaScript-based web application and a backend implemente
 
 The whole framework is designed to be extensible, allowing researchers to develop and integrate their plugins for specific research needs. This modularity enables the community to contribute to the platform.
 
-![The tangram web application](../docs/screenshot/tangram_screenshot_fr.png){#tangram}
+![The tangram web application](../docs/screenshot/tangram_screenshot_fr.png){#fig_tangram}
 
 # Statement of need
 
 The world of aviation involves many stakeholders producing a vast amount of data, but most of it is not publicly available for confidentiality and security reasons. Research in aviation is also often limited by the availability of data, but this has evolved in the past decade thanks to open data initiatives [@eurocontrol_rd].
 
-ADS-B and Mode S enable aircraft to broadcast their position and flight parameters, allowing real-time air traffic data collection. This data supports research on flight patterns [@olive_training_2025], emissions [@seymour_fuel_2020], and air traffic performance [@schultz_predictive_2021]. Since ADS-B is unencrypted and easily decoded with software-defined radios, many open-source tools, such as dump1090 [@dump1090], pyModeS [@sun_pymodes_2020], and platforms like The OpenSky Network [@opensky2014], have emerged, providing researchers with free access to real-time and historical aviation data.
+ADS-B and Mode S enable aircraft to broadcast their position and flight parameters, allowing real-time air traffic data collection. This data supports research on flight patterns [@olive_training_2025], emissions [@seymour_fuel_2020], and air traffic performance [@schultz_predictive_2021]. Since ADS-B is unencrypted and easily decoded with software-defined radios, many open-source tools, such as dump1090 [@dump1090_github], pyModeS [@sun_pymodes_2020], and platforms like The OpenSky Network [@opensky2014], have emerged, providing researchers with free access to real-time and historical aviation data.
 
 Most research initiatives and proofs of concept based on ADS-B data are limited to the use of historical data [@olive_traffic_2019]. However, the potential impact of such research depends on the possibility of adapting the algorithms to real-time data. The tangram framework aims to bridge this gap by providing a platform for real-time data collection and analysis.
 
@@ -54,9 +54,9 @@ The tangram framework consists of a suite of independent components that can be 
 
 ## jet1090
 
-The `jet1090` [@jet1090] tool is a Rust-based ADS-B decoder that can be used to decode ADS-B messages from a variety of sources, including software-defined radio devices. It is designed to be fast and efficient, making it suitable for real-time applications. `jet1090` is comparable to the historical `dump1090` decoder [@dump1090], with additional features such as the ability to decode Extended Mode S messages.
+The `jet1090` [@jet1090_github] tool is a Rust-based ADS-B decoder that can be used to decode ADS-B messages from a variety of sources, including software-defined radio devices. It is designed to be fast and efficient, making it suitable for real-time applications. `jet1090` is comparable to the historical `dump1090` decoder [@dump1090_github], with additional features such as the ability to decode Extended Mode S messages.
 
-![The table view of `jet1090` in the terminal](../docs/screenshot/jet1090.png){#jet1090}
+![The table view of `jet1090` in the terminal](../docs/screenshot/jet1090.png){#fig_jet1090}
 
 ## planes
 
@@ -72,7 +72,7 @@ The core `tangram` component is a Python-based REST API that provides data retri
 
 ## channel
 
-The `channel` component [@channel] is a Rust-based WebSocket connection that makes the bridge between the frontend and the Redis pub/sub system. It is responsible for providing real-time updates from and to the frontend.
+The `channel` component [@channel_github] is a Rust-based WebSocket connection that makes the bridge between the frontend and the Redis pub/sub system. It is responsible for providing real-time updates from and to the frontend.
 
 # The plugin system in tangram
 
