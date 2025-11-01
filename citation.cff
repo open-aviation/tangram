@@ -1,0 +1,42 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Olive
+  given-names: Xavier
+  orcid: "https://orcid.org/0000-0002-2335-5774"
+- family-names: Sun
+  given-names: Junzi
+  orcid: "https://orcid.org/0000-0003-3888-1192"
+- family-names: Huang
+  given-names: Xiaogang
+- family-names: Khalaf
+  given-names: Michel
+doi: 10.6084/m9.figshare.30401569
+message: If you use this software, please cite our article in the
+  Journal of Open Source Software.
+preferred-citation:
+  authors:
+  - family-names: Olive
+    given-names: Xavier
+    orcid: "https://orcid.org/0000-0002-2335-5774"
+  - family-names: Sun
+    given-names: Junzi
+    orcid: "https://orcid.org/0000-0003-3888-1192"
+  - family-names: Huang
+    given-names: Xiaogang
+  - family-names: Khalaf
+    given-names: Michel
+  date-published: 2025-11-01
+  doi: 10.21105/joss.08662
+  issn: 2475-9066
+  issue: 115
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 8662
+  title: tangram, an open platform for modular, real-time air traffic
+    management research
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.08662"
+  volume: 10
+title: tangram, an open platform for modular, real-time air traffic
+  management research
