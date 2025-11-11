@@ -21,6 +21,27 @@ The system is designed to be modular, so each component can be tested independen
 
 Integration tests is currently limited to the construction of the container image, with the `just create-tangram` command.
 
+## Cite this work
+
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.08662/status.svg)](https://doi.org/10.21105/joss.08662)
+
+If you find this work useful and use it in your academic research, you may use the following BibTeX entry.
+
+```bibtex
+@article{tangram_2025,
+author = {Olive, Xavier and Sun, Junzi and Huang, Xiaogang and Khalaf, Michel},
+doi = {10.21105/joss.08662},
+journal = {Journal of Open Source Software},
+month = nov,
+number = {115},
+pages = {8662},
+title = {{tangram, an open platform for modular, real-time air traffic management research}},
+url = {https://joss.theoj.org/papers/10.21105/joss.08662},
+volume = {10},
+year = {2025}
+}
+```
+
 ## Funding
 
 This project is currently funded by the Dutch Research Council (NWO)'s Open Science Fund, **OSF23.1.051**: https://www.nwo.nl/en/projects/osf231051.
