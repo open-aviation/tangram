@@ -13,6 +13,8 @@ dependencies = [
     "tqdm>=4.67.1",
     "orjson>=3.10.18",
     "pandas",
+    "numpy>=2",
+    "pillow>=10",
 ]
 authors = [
     { name = "Xavier Olive", email = "git@xoolive.org" }

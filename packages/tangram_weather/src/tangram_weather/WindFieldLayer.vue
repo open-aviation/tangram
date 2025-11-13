@@ -15,12 +15,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, inject, onUnmounted } from "vue";
-import type { TangramApi } from "@open-aviation/tangram/api";
-import "leaflet-velocity";
-import "leaflet-velocity/dist/leaflet-velocity.css";
+import { ref, watch, inject, onUnmounted, onMounted } from "vue";
+import type { TangramApi, Disposable } from "@open-aviation/tangram/api";
+import { ParticleLayer, ImageType } from "weatherlayers-gl";
 
-declare const L: any;
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
   throw new Error("assert: tangram api not provided");
@@ -28,7 +26,7 @@ if (!tangramApi) {
 
 const isobaric = ref(300);
 const FL = ref(300);
-const velocityLayer = ref<any>(null);
+const layerDisposable = ref<Disposable | null>(null);
 
 const convertHpaToFlightLevel = (hpa: number) => {
   const P0 = 1013.25;
@@ -57,82 +55,74 @@ const updateValue = () => {
   fetchAndDisplay();
 };
 
-const formatData = (data: any) => {
-  return [
-    {
-      header: {
-        parameterCategory: 2,
-        parameterNumber: 2,
-        dx: data.data_vars.u.attrs.GRIB_iDirectionIncrementInDegrees,
-        dy: data.data_vars.u.attrs.GRIB_jDirectionIncrementInDegrees,
-        la1: data.data_vars.u.attrs.GRIB_latitudeOfFirstGridPointInDegrees,
-        lo1: data.data_vars.u.attrs.GRIB_longitudeOfFirstGridPointInDegrees,
-        la2: data.data_vars.u.attrs.GRIB_latitudeOfLastGridPointInDegrees,
-        lo2: data.data_vars.u.attrs.GRIB_longitudeOfLastGridPointInDegrees,
-        nx: data.data_vars.u.attrs.GRIB_Nx,
-        ny: data.data_vars.u.attrs.GRIB_Ny,
-        refTime: new Date().toISOString()
-      },
-      data: data.data_vars.u.data.flat()
-    },
-    {
-      header: {
-        parameterCategory: 2,
-        parameterNumber: 3,
-        dx: data.data_vars.v.attrs.GRIB_iDirectionIncrementInDegrees,
-        dy: data.data_vars.v.attrs.GRIB_jDirectionIncrementInDegrees,
-        la1: data.data_vars.v.attrs.GRIB_latitudeOfFirstGridPointInDegrees,
-        lo1: data.data_vars.v.attrs.GRIB_longitudeOfFirstGridPointInDegrees,
-        la2: data.data_vars.v.attrs.GRIB_latitudeOfLastGridPointInDegrees,
-        lo2: data.data_vars.v.attrs.GRIB_longitudeOfLastGridPointInDegrees,
-        nx: data.data_vars.v.attrs.GRIB_Nx,
-        ny: data.data_vars.v.attrs.GRIB_Ny,
-        refTime: new Date().toISOString()
-      },
-      data: data.data_vars.v.data.flat()
-    }
-  ];
-};
+async function loadTextureDataFromUri(
+  uri: string
+): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return reject(new Error("Could not get 2d context from canvas"));
+      }
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, img.width, img.height);
+      resolve({
+        data: imageData.data,
+        width: imageData.width,
+        height: imageData.height
+      });
+    };
+    img.onerror = err => {
+      reject(err);
+    };
+    img.src = uri;
+  });
+}
 
 const fetchAndDisplay = async () => {
   if (!tangramApi.map.isReady.value) return;
 
+  if (layerDisposable.value) {
+    layerDisposable.value.dispose();
+    layerDisposable.value = null;
+  }
+
   try {
     const response = await fetch(`/weather/wind?isobaric=${isobaric.value}`);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const data = await response.json();
-    const velocityData = formatData(data);
+    const { imageDataUri, bounds, imageUnscale } = await response.json();
 
-    if (velocityLayer.value) {
-      velocityLayer.value.setData(velocityData);
-    } else {
-      const map = tangramApi.map.getMapInstance();
-      velocityLayer.value = L.velocityLayer({
-        displayValues: true,
-        displayOptions: {
-          velocityType: "Wind",
-          position: "bottomleft",
-          emptyString: "No wind data",
-          angleConvention: "bearingCW",
-          speedUnit: "ms"
-        },
-        data: velocityData,
-        minVelocity: 0,
-        maxVelocity: 100,
-        velocityScale: 0.01,
-        colorScale: [
-          "#3288bd", // light blue
-          "#66c2a5",
-          "#abdda4",
-          "#e6f598",
-          "#fee08b",
-          "#fdae61",
-          "#f46d43",
-          "#d53e4f" // dark red
-        ]
-      });
-      velocityLayer.value.addTo(map);
-    }
+    const textureData = await loadTextureDataFromUri(imageDataUri);
+
+    const windPalette: [number, [number, number, number]][] = [
+      [0, [37, 99, 235]],
+      [10, [65, 171, 93]],
+      [20, [253, 174, 97]],
+      [30, [244, 109, 67]],
+      [40, [215, 25, 28]],
+      [50, [128, 0, 38]]
+    ];
+
+    const windLayer = new ParticleLayer({
+      id: "wind-field-layer",
+      image: textureData,
+      imageType: ImageType.VECTOR,
+      imageUnscale: imageUnscale,
+      bounds: bounds,
+
+      numParticles: 1500,
+      maxAge: 15,
+      speedFactor: 20,
+      width: 1,
+      palette: windPalette,
+      animate: true
+    });
+
+    layerDisposable.value = tangramApi.map.addLayer(windLayer);
   } catch (error) {
     console.error("Failed to fetch or display wind data:", error);
   }
@@ -148,10 +138,14 @@ watch(
   { immediate: true }
 );
 
+onMounted(() => {
+  FL.value = convertHpaToFlightLevel(isobaric.value);
+});
+
 onUnmounted(() => {
-  if (velocityLayer.value && tangramApi.map.isReady.value) {
-    tangramApi.map.getMapInstance().removeLayer(velocityLayer.value);
-    velocityLayer.value = null;
+  if (layerDisposable.value) {
+    layerDisposable.value.dispose();
+    layerDisposable.value = null;
   }
 });
 </script>
@@ -179,9 +173,5 @@ input[type="range"] {
   background: #bab0ac;
   height: 2px;
   border-radius: 5px;
-}
-
-.leaflet-control-velocity {
-  width: 200px;
 }
 </style>

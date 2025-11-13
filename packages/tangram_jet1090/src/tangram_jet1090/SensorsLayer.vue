@@ -1,85 +1,106 @@
 <script setup lang="ts">
-import { inject, onUnmounted, ref, watch } from "vue";
-import type { TangramApi } from "@open-aviation/tangram/api";
-import * as L from "leaflet";
-import { html, render } from "lit-html";
+import { inject, onUnmounted, ref, watch, reactive, type Ref } from "vue";
+import { ScatterplotLayer } from "@deck.gl/layers";
+import type { TangramApi, Disposable } from "@open-aviation/tangram/api";
+import type { PickingInfo } from "@deck.gl/core";
+
+interface Sensor {
+  position: [number, number];
+  name: string;
+  aircraft_count: number;
+}
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
   throw new Error("assert: tangram api not provided");
 }
-const geoJsonLayer = ref<L.GeoJSON | null>(null);
 
-const createTooltipTemplate = (name: string, aircraft_count: number) => {
-  return html`<b>${name}</b><br />${aircraft_count} aircraft`;
-};
+const layerDisposable: Ref<Disposable | null> = ref(null);
 
-const stopWatch = watch(
+const tooltip = reactive<{
+  x: number;
+  y: number;
+  object: Sensor | null;
+}>({ x: 0, y: 0, object: null });
+
+watch(
   () => tangramApi.map.isReady.value,
   isReady => {
-    if (!isReady) {
-      return;
-    }
-
-    const map = tangramApi.map.getMapInstance();
+    if (!isReady) return;
 
     fetch("/sensors")
       .then(response => {
-        if (!response.ok) {
-          throw new Error("network response was not ok");
-        }
+        if (!response.ok) throw new Error("network response was not ok");
         return response.json();
       })
       .then(sensors => {
-        const geoJsonData = {
-          type: "FeatureCollection",
-          features: Object.values(sensors)
-            // .filter((sensor: any) => sensor.aircraft_count > 0)
-            .map((sensor: any) => ({
-              type: "Feature",
-              geometry: {
-                type: "Point",
-                coordinates: [sensor.reference.longitude, sensor.reference.latitude]
-              },
-              properties: {
-                name: sensor.name,
-                aircraft_count: sensor.aircraft_count
-              }
-            }))
-        };
+        const sensorData: Sensor[] = Object.values(sensors).map((sensor: any) => ({
+          position: [sensor.reference.longitude, sensor.reference.latitude],
+          name: sensor.name,
+          aircraft_count: sensor.aircraft_count
+        }));
 
-        if (geoJsonLayer.value) {
-          geoJsonLayer.value.remove();
-        }
-
-        geoJsonLayer.value = L.geoJSON(geoJsonData as any, {
-          onEachFeature: (feature, layer) => {
-            if (feature.properties?.name) {
-              const tooltipContainer = document.createElement("div");
-              render(
-                createTooltipTemplate(
-                  feature.properties.name,
-                  feature.properties.aircraft_count
-                ),
-                tooltipContainer
-              );
-              layer.bindTooltip(tooltipContainer);
+        const sensorsLayer = new ScatterplotLayer<Sensor>({
+          id: "sensors-layer",
+          data: sensorData,
+          pickable: true,
+          stroked: true,
+          filled: true,
+          radiusMinPixels: 5,
+          radiusMaxPixels: 20,
+          lineWidthMinPixels: 1,
+          getPosition: d => d.position,
+          getFillColor: [51, 136, 255, 255] /* blue */,
+          getLineColor: [255, 255, 255, 255] /* white */,
+          onHover: (info: PickingInfo<Sensor>) => {
+            if (info.object) {
+              tooltip.object = info.object;
+              tooltip.x = info.x;
+              tooltip.y = info.y;
+            } else {
+              tooltip.object = null;
             }
           }
-        }).addTo(map);
+        });
+
+        if (layerDisposable.value) layerDisposable.value.dispose();
+        layerDisposable.value = tangramApi.map.addLayer(sensorsLayer);
       })
       .catch(error => {
         console.error("failed to fetch or display sensor data:", error);
       });
-
-    stopWatch();
   },
   { immediate: true }
 );
 
 onUnmounted(() => {
-  if (geoJsonLayer.value) {
-    geoJsonLayer.value.remove();
-  }
+  layerDisposable.value?.dispose();
 });
 </script>
+
+<template>
+  <div
+    v-if="tooltip.object"
+    class="deck-tooltip"
+    :style="{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }"
+  >
+    <b>{{ tooltip.object.name }}</b>
+    <br />
+    {{ tooltip.object.aircraft_count }} aircraft
+  </div>
+</template>
+
+<style>
+.deck-tooltip {
+  position: absolute;
+  background: white;
+  color: black;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: "B612", sans-serif;
+  pointer-events: none;
+  transform: translate(10px, -10px);
+  z-index: 10;
+}
+</style>

@@ -9,10 +9,9 @@
   },
   "dependencies": {
     "@open-aviation/tangram": "workspace:*",
-    "chart.js": "^4.4.3",
-    "dayjs": "^1.11.12",
-    "leaflet-rotatedmarker": "^0.2.0",
+    "chart.js": "^4.5.1",
+    "dayjs": "^1.11.19",
     "raphael": "^2.3.0",
-    "vue-chartjs": "^5.3.1"
+    "vue-chartjs": "^5.3.3"
   }
 }

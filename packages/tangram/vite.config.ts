@@ -3,6 +3,22 @@ import vue from "@vitejs/plugin-vue";
 import path from "path";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 
+const DECKGL_PACKAGES = [
+  "@deck.gl/core",
+  "@deck.gl/layers",
+  "@deck.gl/aggregation-layers",
+  "@deck.gl/geo-layers",
+  "@deck.gl/mesh-layers",
+  "@deck.gl/json",
+  "@deck.gl/mapbox",
+  "@deck.gl/widgets"
+];
+// when modifying, also update:
+// - ./index.html (importmap)
+// - ./vite.lib-esm.config.ts
+// - ./src/tangram/vite-plugin-tangram.mjs
+// - ../../tsconfig.json paths
+
 export default defineConfig({
   plugins: [
     vue(),
@@ -11,8 +27,8 @@ export default defineConfig({
         {
           src: [
             path.resolve(__dirname, "node_modules/vue/dist/vue.esm-browser.prod.js"),
-            path.resolve(__dirname, "node_modules/leaflet/dist/leaflet-src.esm.js"),
-            path.resolve(__dirname, "node_modules/leaflet/dist/leaflet-src.esm.js.map"),
+            path.resolve(__dirname, "node_modules/maplibre-gl/dist/maplibre-gl.js"),
+            path.resolve(__dirname, "node_modules/maplibre-gl/dist/maplibre-gl.js.map"),
             path.resolve(__dirname, "node_modules/lit-html/lit-html.js"),
             path.resolve(__dirname, "node_modules/lit-html/lit-html.js.map"),
             path.resolve(__dirname, "node_modules/lit-html/lit-html.js.map"),
@@ -53,10 +69,6 @@ export default defineConfig({
           dest: "."
         },
         {
-          src: path.resolve(__dirname, "node_modules/leaflet/dist/images/*"),
-          dest: "images"
-        },
-        {
           src: path.resolve(__dirname, "node_modules/font-awesome/fonts/*"),
           dest: "fonts"
         }
@@ -83,7 +95,7 @@ export default defineConfig({
     emptyOutDir: false,
     rollupOptions: {
       input: path.resolve(__dirname, "index.html"),
-      external: ["vue", "leaflet", "lit-html", "rs1090-wasm"]
+      external: ["vue", "maplibre", ...DECKGL_PACKAGES, "lit-html", "rs1090-wasm"]
     }
   }
 });

@@ -14,6 +14,8 @@ class ServerConfig:
 
 @dataclass
 class ChannelConfig:
+    # TODO: we should make it clear that host:port is for the *backend* to
+    # listen on, and not to be confused with the frontend.
     host: str = "127.0.0.1"
     port: int = 2347
     jwt_secret: str = "secret"
@@ -22,9 +24,16 @@ class ChannelConfig:
     python_tracing_subscriber: bool = False
 
 
+@dataclass  # TODO: resolve the path to the style.json
+class StyleConfig:
+    path: str
+
+
 @dataclass
 class MapConfig:
-    tile_url: str = r"https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+    style: str | StyleConfig = (
+        "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+    )
     attribution: str = (
         '&copy; <a href="https://www.openstreetmap.org/copyright">'
         "OpenStreetMap</a> contributors &copy; "
@@ -32,7 +41,9 @@ class MapConfig:
     )
     center_lat: float = 48.0
     center_lon: float = 7.0
-    zoom: int = 6
+    zoom: int = 4
+    pitch: float = 0
+    bearing: float = 0
 
 
 @dataclass

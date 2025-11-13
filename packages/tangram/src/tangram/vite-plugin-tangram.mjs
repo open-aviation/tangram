@@ -7,6 +7,17 @@ import vue from "@vitejs/plugin-vue";
 import path from "path";
 import fs from "fs/promises";
 
+const DECKGL_PACKAGES = [
+  "@deck.gl/core",
+  "@deck.gl/layers",
+  "@deck.gl/aggregation-layers",
+  "@deck.gl/geo-layers",
+  "@deck.gl/mesh-layers",
+  "@deck.gl/json",
+  "@deck.gl/mapbox",
+  "@deck.gl/widgets"
+];
+
 /**
  * @returns {import('vite').Plugin[]}
  */
@@ -40,7 +51,7 @@ export function tangramPlugin() {
             formats: ["es"]
           },
           rollupOptions: {
-            external: ["vue", "leaflet", "lit-html", "rs1090-wasm"]
+            external: ["vue", "maplibre", ...DECKGL_PACKAGES, "lit-html", "rs1090-wasm"]
           },
           outDir: "dist-frontend",
           minify: true

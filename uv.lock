@@ -2058,8 +2058,11 @@ version = "0.2.0"
 source = { editable = "packages/tangram_weather" }
 dependencies = [
     { name = "cfgrib" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "orjson" },
     { name = "pandas" },
+    { name = "pillow" },
     { name = "tangram" },
     { name = "tqdm" },
     { name = "xarray", version = "2025.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -2069,8 +2072,10 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "cfgrib", specifier = ">=0.9.15.0" },
+    { name = "numpy", specifier = ">=2" },
     { name = "orjson", specifier = ">=3.10.18" },
     { name = "pandas" },
+    { name = "pillow", specifier = ">=10" },
     { name = "tangram", editable = "packages/tangram" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "xarray", specifier = ">=2025.6.1" },

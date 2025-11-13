@@ -13,7 +13,7 @@ host = "0.0.0.0"
 port = 2346
 
 [channel]
-host = "0.0.0.0"
+host = "localhost"  # change back to 0.0.0.0 once we add public_url.
 port = 2347
 jwt_secret = "a-better-secret-than-this"
 jwt_expiration_secs = 315360000

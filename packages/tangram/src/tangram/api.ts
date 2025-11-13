@@ -5,12 +5,13 @@ import {
   computed,
   reactive,
   shallowRef,
+  watch,
   type ShallowRef,
   type Ref,
   type ComputedRef
 } from "vue";
-import * as L from "leaflet";
-import type { LatLngBounds, Layer, Map as LeafletMap } from "leaflet";
+import type { Map, LngLatBounds, StyleSpecification } from "maplibre-gl";
+import { MapboxOverlay } from "@deck.gl/mapbox";
 import { Socket, Channel } from "phoenix";
 
 class NotImplementedError extends Error {
@@ -26,11 +27,13 @@ export interface ChannelConfig {
 }
 
 export interface MapConfig {
-  tile_url: string;
+  style: string | StyleSpecification;
   attribution: string;
   center_lat: number;
   center_lon: number;
   zoom: number;
+  pitch: number;
+  bearing: number;
 }
 
 export interface TangramConfig {
@@ -132,37 +135,84 @@ export class UiApi {
 // NOTE: we use arrow functions to capture lexical `this` properly.
 
 export class MapApi implements Disposable {
-  readonly bounds: Ref<Readonly<LatLngBounds>> = ref(
-    new L.LatLngBounds([0, 0], [0, 0])
-  );
-  private leafletMap = shallowRef<LeafletMap | null>(null);
-  readonly isReady = computed(() => !!this.leafletMap.value);
+  private tangramApi: TangramApi;
 
-  initialize = (mapInstance: LeafletMap) => {
-    this.leafletMap.value = mapInstance;
-    this.leafletMap.value.on("moveend", () => {
-      (this.bounds as Ref).value = this.leafletMap.value!.getBounds();
+  constructor(tangramApi: TangramApi) {
+    this.tangramApi = tangramApi;
+  }
+
+  readonly map = shallowRef<Map | null>(null);
+  private overlay = shallowRef<MapboxOverlay | null>(null);
+  readonly layers = shallowRef<any[]>([]);
+  readonly isReady = computed(() => !!this.map.value);
+
+  readonly center = ref({ lng: 0, lat: 0 });
+  readonly zoom = ref(0);
+  readonly pitch = ref(0);
+  readonly bearing = ref(0);
+  readonly bounds: Ref<Readonly<LngLatBounds> | null> = ref(null);
+
+  private updateState = () => {
+    if (!this.map.value) return;
+    const map = this.map.value;
+    this.center.value = map.getCenter();
+    this.zoom.value = map.getZoom();
+    this.pitch.value = map.getPitch();
+    this.bearing.value = map.getBearing();
+    (this.bounds as Ref).value = map.getBounds();
+  };
+
+  initialize = (mapInstance: Map) => {
+    this.map.value = mapInstance;
+    this.overlay.value = new MapboxOverlay({
+      interleaved: false,
+      onClick: info => {
+        if (!info.object) {
+          this.tangramApi.state.deselectActiveEntity();
+        }
+      }
     });
-    (this.bounds as Ref).value = this.leafletMap.value.getBounds();
+    this.map.value.addControl(this.overlay.value);
+
+    watch(
+      this.layers,
+      newLayers => {
+        this.overlay.value?.setProps({ layers: newLayers });
+      },
+      { deep: true }
+    );
+
+    const onMapLoad = () => {
+      this.updateState();
+      this.map.value?.off("load", onMapLoad);
+    };
+    this.map.value.on("load", onMapLoad);
+
+    this.map.value.on("moveend", this.updateState);
+    this.map.value.on("zoomend", this.updateState);
+    this.map.value.on("pitchend", this.updateState);
+    this.map.value.on("rotateend", this.updateState);
   };
 
   dispose = () => {
-    this.leafletMap.value?.remove();
-    this.leafletMap.value = null;
+    this.map.value?.remove();
+    this.map.value = null;
   };
 
-  getMapInstance = (): LeafletMap => {
-    if (!this.leafletMap.value) {
+  getMapInstance = (): Map => {
+    if (!this.map.value) {
       throw new Error("map not initialized");
     }
-    return this.leafletMap.value;
+    return this.map.value;
   };
 
-  setView(position: { lat: number; lng: number }, zoom: number): void {
-    throw new NotImplementedError();
-  }
-  addLayer(layer: Layer): Disposable {
-    throw new NotImplementedError();
+  addLayer(layer: any): Disposable {
+    this.layers.value = [...this.layers.value, layer];
+    return {
+      dispose: () => {
+        this.layers.value = this.layers.value.filter(l => l !== layer);
+      }
+    };
   }
 }
 
@@ -378,7 +428,7 @@ export class TangramApi {
     this.realtime = new RealtimeApi(config);
     this.ui = new UiApi(this.app);
     this.time = new TimeApi();
-    this.map = new MapApi();
+    this.map = new MapApi(this);
     this.state = new StateApi();
     this.data = new DataApi();
   }

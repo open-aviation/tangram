@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "@open-aviation/tangram": "workspace:*",
-    "leaflet-velocity": "^2.1.4"
+    "weatherlayers-gl": "^2025.7.0"
   }
 }
