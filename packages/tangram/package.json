@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build"
+    "build": "vite build --config vite.lib-esm.config.ts && vite build"
   },
   "types": "./src/tangram/types.d.ts",
   "exports": {
@@ -13,17 +13,24 @@
     "./types": "./src/tangram/types.d.ts"
   },
   "dependencies": {
-    "leaflet": "^1.9.4",
+    "@deck.gl/core": "^9.2.2",
+    "@deck.gl/layers": "^9.2.2",
+    "@deck.gl/aggregation-layers": "^9.2.2",
+    "@deck.gl/geo-layers": "^9.2.2",
+    "@deck.gl/mesh-layers": "^9.2.2",
+    "@deck.gl/json": "^9.2.2",
+    "@deck.gl/mapbox": "^9.2.2",
+    "@deck.gl/widgets": "^9.2.2",
+    "font-awesome": "^4.7.0",
     "lit-html": "^3.3.1",
+    "maplibre-gl": "^5.12.0",
     "phoenix": "^1.7.11",
-    "vue": "^3.5.22",
     "rs1090-wasm": "^0.4.14",
-    "font-awesome": "^4.7.0"
+    "vue": "^3.5.24"
   },
   "devDependencies": {
-    "@types/leaflet": "^1.9.20",
     "@types/phoenix": "^1.6.6",
     "@vitejs/plugin-vue": "^6.0.1",
-    "vite-plugin-static-copy": "^3.1.3"
+    "vite-plugin-static-copy": "^3.1.4"
   }
 }

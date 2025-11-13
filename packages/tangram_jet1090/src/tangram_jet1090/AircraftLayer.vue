@@ -1,13 +1,30 @@
+<template>
+  <div
+    v-if="tooltip.object"
+    class="deck-tooltip"
+    :style="{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }"
+  >
+    <div class="tooltip-grid">
+      <div class="callsign">{{ tooltip.object.state.callsign }}</div>
+      <div class="typecode">{{ tooltip.object.state.typecode }}</div>
+      <div class="registration">{{ tooltip.object.state.registration }}</div>
+      <div class="icao24">{{ tooltip.object.state.icao24 }}</div>
+      <div v-if="tooltip.object.state.altitude > 0" class="altitude">
+        FL{{ Math.round(tooltip.object.state.altitude / 1000) * 10 }}
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
-import { computed, inject, onUnmounted, ref, watchEffect } from "vue";
-import * as L from "leaflet";
-import "leaflet-rotatedmarker";
+import { computed, inject, onUnmounted, ref, watch, reactive, type Ref } from "vue";
+import { IconLayer } from "@deck.gl/layers";
+import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram/api";
 import Raphael from "raphael";
 import { html, svg, render } from "lit-html";
-import type { TangramApi, EntityId } from "@open-aviation/tangram/api";
 import { get_image_object } from "./PlanePath";
 
-interface AircraftState {
+export interface AircraftState {
   latitude: number;
   longitude: number;
   typecode: string;
@@ -22,14 +39,28 @@ const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
   throw new Error("assert: tangram api not provided");
 }
+
 const aircraftEntities = computed(
   () => tangramApi.state.getEntitiesByType<AircraftState>("aircraft").value
 );
 const activeEntityId = computed(() => tangramApi.state.activeEntityId?.value);
+const layerDisposable: Ref<Disposable | null> = ref(null);
 
-const aircraftMarkers = ref(new Map<EntityId, L.Marker>());
+const tooltip = reactive<{
+  x: number;
+  y: number;
+  object: Entity<AircraftState> | null;
+}>({ x: 0, y: 0, object: null });
 
-const createAircraftSvg = (icao24: string, iconProps: any): HTMLElement => {
+const iconCache = new Map<string, string>();
+
+const createAircraftSvgDataURL = (typecode: string, isSelected: boolean): string => {
+  const cacheKey = `${typecode}-${isSelected}`;
+  if (iconCache.has(cacheKey)) {
+    return iconCache.get(cacheKey)!;
+  }
+
+  const iconProps = get_image_object(typecode);
   const bbox = Raphael.pathBBox(iconProps.path);
   const centerX = Math.floor(bbox.x + bbox.width / 2.0);
   const centerY = Math.floor(bbox.y + bbox.height / 2.0);
@@ -43,9 +74,9 @@ const createAircraftSvg = (icao24: string, iconProps: any): HTMLElement => {
     Raphael.toMatrix(iconProps.path, transform)
   );
 
-  const path = svg`<path stroke="#0014aa" stroke-width="0.65" d="${transformedPath}"/>`;
+  const fillColor = isSelected ? "#ff6464" : "#f9fd15";
+  const path = svg`<path stroke="#0014aa" fill="${fillColor}" stroke-width="0.65" d="${transformedPath}"/>`;
   const template = html`<svg
-    id="${icao24}"
     version="1.1"
     shape-rendering="geometricPrecision"
     width="32px"
@@ -57,130 +88,89 @@ const createAircraftSvg = (icao24: string, iconProps: any): HTMLElement => {
   </svg>`;
   const container = document.createElement("div");
   render(template, container);
-  return container;
+
+  const svgString = container.innerHTML;
+  const dataUrl = `data:image/svg+xml;base64,${btoa(svgString)}`;
+  iconCache.set(cacheKey, dataUrl);
+  return dataUrl;
 };
 
-const getIcon = (feature: AircraftState) => {
-  const iconProps = get_image_object(feature.typecode);
-  const iconHtml = createAircraftSvg(feature.icao24, iconProps);
-  const className =
-    activeEntityId.value === feature.icao24 ? "aircraft_selected" : "aircraft_default";
-  return L.divIcon({
-    html: iconHtml,
-    className: className,
-    iconSize: [33, 35],
-    iconAnchor: [16.5, 17.5]
-  });
-};
+watch(
+  [aircraftEntities, activeEntityId, () => tangramApi.map.isReady.value],
+  ([entities, activeId, isMapReady]) => {
+    if (!entities || !isMapReady) return;
 
-const getRotate = (feature: AircraftState) => {
-  const iconProps = get_image_object(feature.typecode);
-  return (feature.track + iconProps.rotcorr) % 360;
-};
+    if (layerDisposable.value) {
+      layerDisposable.value.dispose();
+    }
 
-const createTooltipTemplate = (aircraft: AircraftState) => {
-  const altitude =
-    aircraft.altitude > 0
-      ? html`<div class="altitude">FL${Math.round(aircraft.altitude / 1000) * 10}</div>`
-      : "";
-  return html`
-    <div class="tooltip-grid">
-      <div class="callsign">${aircraft.callsign}</div>
-      <div class="typecode">${aircraft.typecode}</div>
-      <div class="registration">${aircraft.registration}</div>
-      <div class="icao24">${aircraft.icao24}</div>
-      ${altitude}
-    </div>
-  `;
-};
-
-// TODO: fix icon colour not changing when aircraft is selected
-// but v0.1 didn't work either so... eh
-watchEffect(() => {
-  if (!aircraftEntities.value || !tangramApi.map.isReady.value) return;
-
-  const map = tangramApi.map.getMapInstance();
-  const currentMarkers = aircraftMarkers.value;
-  const newMarkerIds = new Set<EntityId>();
-
-  for (const entity of aircraftEntities.value.values()) {
-    newMarkerIds.add(entity.id);
-    const aircraft = entity.state as AircraftState;
-    if (aircraft.latitude == null || aircraft.longitude == null) continue;
-
-    const latLng = new L.LatLng(aircraft.latitude, aircraft.longitude);
-
-    if (currentMarkers.has(entity.id)) {
-      const marker = currentMarkers.get(entity.id)!;
-      marker.setLatLng(latLng);
-      (marker as any).setRotationAngle(getRotate(aircraft));
-      marker.setIcon(getIcon(aircraft));
-
-      const tooltip = marker.getTooltip();
-      if (tooltip) {
-        const container = tooltip.getContent() as HTMLElement;
-        if (container) {
-          render(createTooltipTemplate(aircraft), container);
+    const aircraftLayer = new IconLayer<Entity<AircraftState>>({
+      id: "aircraft-layer",
+      data: Array.from(entities.values()),
+      pickable: true,
+      billboard: false,
+      getIcon: d => ({
+        url: createAircraftSvgDataURL(d.state.typecode, d.id === activeId),
+        width: 32,
+        height: 32,
+        anchorY: 16
+      }),
+      sizeScale: 1,
+      getPosition: d => [d.state.longitude, d.state.latitude],
+      getSize: 32,
+      getAngle: d => {
+        const iconProps = get_image_object(d.state.typecode);
+        return -d.state.track + iconProps.rotcorr;
+      },
+      onClick: ({ object }) => {
+        if (object) {
+          tangramApi.state.setActiveEntity(object.id);
         }
+      },
+      onHover: info => {
+        if (info.object) {
+          tooltip.object = info.object;
+          tooltip.x = info.x;
+          tooltip.y = info.y;
+        } else {
+          tooltip.object = null;
+        }
+      },
+      updateTriggers: {
+        getIcon: [activeId]
       }
-    } else {
-      const marker = L.marker(latLng, {
-        icon: getIcon(aircraft),
-        rotationAngle: getRotate(aircraft)
-      } as L.MarkerOptions).addTo(map);
+    });
 
-      const tooltipContainer = document.createElement("div");
-      render(createTooltipTemplate(aircraft), tooltipContainer);
-
-      marker.bindTooltip(tooltipContainer, {
-        direction: "top",
-        offset: [0, -10],
-        className: "leaflet-tooltip-custom"
-      });
-
-      marker.on("click", (e: L.LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(e);
-        tangramApi.state.setActiveEntity(entity.id);
-      });
-      currentMarkers.set(entity.id, marker);
-    }
-  }
-
-  for (const [id, marker] of currentMarkers.entries()) {
-    if (!newMarkerIds.has(id)) {
-      marker.remove();
-      currentMarkers.delete(id);
-    }
-  }
-});
+    layerDisposable.value = tangramApi.map.addLayer(aircraftLayer);
+  },
+  { immediate: true }
+);
 
 onUnmounted(() => {
-  for (const marker of aircraftMarkers.value.values()) {
-    marker.remove();
-  }
-  aircraftMarkers.value.clear();
+  layerDisposable.value?.dispose();
 });
 </script>
 
 <style>
-.leaflet-tooltip-custom {
+.deck-tooltip {
+  position: absolute;
+  background: white;
+  color: black;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
   font-family: "B612", sans-serif;
+  pointer-events: none;
+  transform: translate(10px, -20px);
+  z-index: 10;
+  min-width: 120px;
 }
-
-.aircraft_default svg {
-  fill: #f9fd15;
-}
-.aircraft_selected svg {
-  fill: #ff6464;
-}
-
-/* aircraft tooltip: not using v0.1 styles. */
 .tooltip-grid {
   border-radius: 10px;
   display: grid;
   grid-template-columns: auto auto;
   align-items: baseline;
-  column-gap: 1rem;
+  column-gap: 0.5rem;
   font-size: 11px;
   min-width: 120px;
 }
@@ -198,10 +188,5 @@ onUnmounted(() => {
 .altitude {
   grid-column: 1 / -1;
   margin-top: 2px;
-}
-
-/* ensure one tooltip visiable at a time, preventing clutter */
-.leaflet-tooltip:not(:last-child) {
-  display: none;
 }
 </style>
