@@ -25,12 +25,12 @@
 
     <div
       id="sidebar"
-      class="leaflet-sidebar"
+      class="sidebar"
       :class="{
         collapsed: !tangramApi.state.activeEntity || tangramApi.ui.isSidebarCollapsed
       }"
     >
-      <div class="leaflet-sidebar-tabs">
+      <div class="sidebar-tabs">
         <ul role="tablist">
           <li>
             <a role="tab" @click="tangramApi.ui.toggleSidebar()">
@@ -39,7 +39,7 @@
           </li>
         </ul>
       </div>
-      <div class="leaflet-sidebar-content">
+      <div class="sidebar-content">
         <component
           :is="widget.id"
           v-for="widget in tangramApi.ui.widgets.SideBar"
@@ -60,8 +60,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, getCurrentInstance, ref, watch } from "vue";
-import * as L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import maplibregl from "maplibre-gl";
 import { TangramApi } from "./api";
 import { loadPlugins } from "./plugin";
 
@@ -72,7 +71,7 @@ const apiState = ref<ApiState>("loading");
 const loadingMessage = ref<string>("");
 const tangramApi = ref<TangramApi | null>(null);
 const mapContainer = ref<HTMLElement | null>(null);
-let mapInstance: L.Map | null = null;
+let mapInstance: maplibregl.Map | undefined = undefined;
 
 onMounted(async () => {
   try {
@@ -107,16 +106,15 @@ watch(
 watch(mapContainer, newEl => {
   if (newEl && tangramApi.value && !mapInstance) {
     const mapConfig = tangramApi.value.config.map;
-    mapInstance = L.map(newEl).setView(
-      [mapConfig.center_lat, mapConfig.center_lon],
-      mapConfig.zoom
-    );
-    mapInstance.on("click", () => {
-      tangramApi.value!.state.deselectActiveEntity();
-    });
-    L.tileLayer(mapConfig.tile_url, {
-      attribution: mapConfig.attribution
-    }).addTo(mapInstance);
+    mapInstance = new maplibregl.Map({
+      container: newEl,
+      style: mapConfig.style,
+      center: [mapConfig.center_lon, mapConfig.center_lat],
+      zoom: mapConfig.zoom,
+      pitch: mapConfig.pitch,
+      bearing: mapConfig.bearing,
+      attributionControl: false
+    }); // TODO: attribution
     tangramApi.value.map.initialize(mapInstance);
   }
 });
@@ -125,7 +123,7 @@ onUnmounted(() => {
   tangramApi.value?.map.dispose();
   if (mapInstance) {
     mapInstance.remove();
-    mapInstance = null;
+    mapInstance = undefined;
   }
 });
 </script>
@@ -192,7 +190,7 @@ body {
   margin-left: auto;
 }
 
-.leaflet-sidebar {
+.sidebar {
   position: absolute;
   bottom: 15px;
   left: 15px;
@@ -206,13 +204,13 @@ body {
   display: flex;
 }
 
-.leaflet-sidebar.collapsed {
+.sidebar.collapsed {
   width: 40px;
   height: 40px;
 }
 
-.leaflet-sidebar-tabs,
-.leaflet-sidebar-tabs > ul {
+.sidebar-tabs,
+.sidebar-tabs > ul {
   width: 40px;
   margin: 0;
   padding: 0;
@@ -220,8 +218,8 @@ body {
   border-right: 1px solid #ddd;
 }
 
-.leaflet-sidebar-tabs > li,
-.leaflet-sidebar-tabs > ul > li {
+.sidebar-tabs > li,
+.sidebar-tabs > ul > li {
   width: 40px;
   height: 40px;
   color: #333;
@@ -231,8 +229,8 @@ body {
   transition: all 80ms;
 }
 
-.leaflet-sidebar-tabs > li > a,
-.leaflet-sidebar-tabs > ul > li > a {
+.sidebar-tabs > li > a,
+.sidebar-tabs > ul > li > a {
   display: block;
   width: 40px;
   height: 100%;
@@ -243,7 +241,7 @@ body {
   cursor: pointer;
 }
 
-.leaflet-sidebar-content {
+.sidebar-content {
   flex: 1;
   background-color: rgba(255, 255, 255, 1);
   overflow-x: hidden;
@@ -253,11 +251,11 @@ body {
   flex-direction: column;
 }
 
-.leaflet-sidebar.collapsed > .leaflet-sidebar-content {
+.sidebar.collapsed > .sidebar-content {
   overflow-y: hidden;
 }
 
-.leaflet-control-container {
+.control-container {
   position: absolute;
   right: 55px;
   bottom: 90px;
@@ -268,12 +266,12 @@ body {
   flex-grow: 1;
 }
 
-.leaflet-control-attribution {
+.control-attribution {
   display: none !important;
 }
 
-.leaflet-top,
-.leaflet-bottom {
+.top,
+.bottom {
   z-index: 400;
 }
 

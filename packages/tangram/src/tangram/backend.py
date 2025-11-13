@@ -110,14 +110,22 @@ def create_app(
             )
             frontend_plugins.append(dist_name)
 
-    # avoid using `process.env` on the frontend.
+    # unlike v0.1 which uses `process.env`, v0.2 *compiles* the js so we no
+    # no longer have access to it, so we selectively forward the config.
     @app.get("/config")
     async def get_frontend_config(
+        request: Request,
         state: Annotated[BackendState, Depends(get_state)],
     ) -> FrontendConfig:
+        # NOTE: in tangram.toml, if one specifies 0.0.0.0 the frontend will fail
+        # to connect, so we override that to `window.location.hostname`
+        # NOTE: but this setup still assumes the frontend and the backend is on
+        # the same machine. in reverse proxies, the port is not exposed
+        # so we should allow the user to specify an optional `public_url`.
+        host = request.url.hostname or state.config.channel.host
         return FrontendConfig(
             channel=FrontendChannelConfig(
-                host=state.config.channel.host,
+                host=host,
                 port=state.config.channel.port,
             ),
             map=state.config.map,

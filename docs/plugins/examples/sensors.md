@@ -8,9 +8,9 @@ The `tangram_jet1090` plugin provides a map layer to visualize the positions of 
 
 ## Implementation
 
-The implementation is a Vue component, `SensorsLayer.vue`, which is registered as a map overlay by the `tangram_jet1090` frontend plugin.
+The implementation is a Vue component, `SensorsLayer.vue`, which is registered as a map overlay by the `tangram_jet1090` frontend plugin. It uses [Deck.gl](https://deck.gl) to render the sensor locations.
 
 1. When the map is initialized, the component fetches a list of sensors from the `/sensors` API endpoint.
 2. This endpoint, provided by the `tangram_jet1090` backend, proxies the request to the configured `jet1090` service. The sensor information must be configured within the `jet1090` instance itself. See the [jet1090 configuration guide](https://mode-s.org/jet1090/config/) for details.
-3. The component then converts the sensor data into a GeoJSON `FeatureCollection`.
-4. Finally, it uses Leaflet's `L.geoJSON` to render the sensor locations as points on the map, with a tooltip showing the sensor's name and the number of aircraft it is currently tracking.
+3. The component then maps the sensor data into an array of objects suitable for Deck.gl, with each object containing a `position` array (`[longitude, latitude]`), `name`, and `aircraft_count`.
+4. Finally, it creates a Deck.gl `ScatterplotLayer` to render the sensor locations as points on the map. The layer's `onHover` property is used to display a tooltip with the sensor's name and the number of aircraft it is currently tracking.

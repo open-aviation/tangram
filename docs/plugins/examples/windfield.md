@@ -68,40 +68,20 @@ The code is self-explanatory, but the following points are worth noting:
 
 ### 2. Frontend: The `WindFieldLayer`
 
-The frontend component, `WindFieldLayer.vue`, provides the user interface for the wind layer.
+The frontend component, `WindFieldLayer.vue`, provides the user interface for the wind layer. It is rendered using [Deck.gl](https://deck.gl) and the [`weatherlayers-gl`](https://github.com/weatherlayers/weatherlayers-gl) library for high-performance visualization.
 
 #### User Interface
 
-The component renders a slider as a map overlay. This slider allows the user to select an isobaric level (in hPa), and it displays the corresponding approximate flight level (FL).
+The component renders a slider as a map overlay. This slider allows the user to select an isobaric level (in hPa) and displays the corresponding approximate flight level (FL). When the user changes the slider's value, the component calls the `/weather/wind` backend endpoint.
 
-```vue
-<template>
-  <div class="wind-altitude-control" @mousedown.stop @touchstart.stop>
-    <label for="hpa-slider">{{ isobaric }}hPa | FL{{ FL }}</label>
-    <input
-      id="hpa-slider"
-      v-model="isobaric"
-      type="range"
-      min="100"
-      max="1000"
-      step="50"
-      @input="updateLabel"
-      @change="updateValue"
-    />
-  </div>
-</template>
-```
+#### Wind Field Rendering with Deck.gl
 
-When the user changes the slider's value, the component calls the `/weather/wind` backend endpoint with the new isobaric level.
+The rendering process leverages WebGL for smooth particle animation:
 
-#### Velocity Field Rendering
-
-!!! note
-    The `leaflet-velocity` library is not available as a Vue component, so it is integrated directly as a standard JavaScript library.
-
-The `WindFieldLayer` component imports `leaflet-velocity` and its CSS. After fetching the wind data from the backend, it formats the JSON response into the structure required by `leaflet-velocity`.
-
-It then creates an `L.velocityLayer` and adds it to the Leaflet map instance provided by the `TangramApi`. If the layer already exists, it simply updates the layer with the new data, allowing for smooth updates as the user adjusts the altitude slider.
+1. The backend API (`/weather/wind`) processes the GRIB file and returns the U and V wind components encoded as an RGBA PNG image (in a Base64 data URI), along with geographic bounds.
+2. The frontend decodes this image data into a texture.
+3. A `ParticleLayer` from `weatherlayers-gl` is created using this texture to visualize the wind flow with animated particles.
+4. This Deck.gl layer is added to the map via the `tangramApi`.
 
 ### 3. Enabling the Plugin
 
