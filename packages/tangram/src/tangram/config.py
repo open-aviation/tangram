@@ -18,6 +18,7 @@ class ChannelConfig:
     # listen on, and not to be confused with the frontend.
     host: str = "127.0.0.1"
     port: int = 2347
+    public_url: str | None = None
     jwt_secret: str = "secret"
     jwt_expiration_secs: int = 315360000  # 10 years
     id_length: int = 8
@@ -79,8 +80,7 @@ class Config:
 
 @dataclass
 class FrontendChannelConfig:
-    host: str
-    port: int
+    url: str
 
 
 @dataclass
