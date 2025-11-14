@@ -27,6 +27,9 @@ port = 2346
 # integrated real-time WebSocket service.
 host = "127.0.0.1"
 port = 2347
+# (optional) the public-facing base URL for the channel service, e.g., "https://tangram.example.com".
+# use this when running behind a reverse proxy.
+# public_url = "http://localhost:2347"
 # a secret key used to sign JSON Web Tokens (JWTs) for authenticating
 # WebSocket connections. Change this to a strong, unique secret.
 jwt_secret = "a-better-secret-than-this"

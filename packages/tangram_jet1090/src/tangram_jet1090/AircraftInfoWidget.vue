@@ -79,6 +79,7 @@ const corsairPlugin = {
   beforeDatasetsDraw: (chart, _args, opts) => {
     const { ctx } = chart;
     const { top, bottom, left, right } = chart.chartArea;
+    if (!chart.corsair) return;
     const { x, y, draw } = chart.corsair;
     if (!draw) return;
     ctx.save();

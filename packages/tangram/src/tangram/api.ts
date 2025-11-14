@@ -22,8 +22,7 @@ class NotImplementedError extends Error {
 }
 
 export interface ChannelConfig {
-  host: string;
-  port: number;
+  url: string;
 }
 
 export interface MapConfig {
@@ -320,8 +319,8 @@ export class RealtimeApi {
     return this.connectionId;
   }
 
-  private async fetchToken(channel: string): Promise<{ id: string; token: string }> {
-    const tokenUrl = `http://${this.channelConfig.host}:${this.channelConfig.port}/token`;
+   private async fetchToken(channel: string): Promise<{ id: string; token: string }> {
+    const tokenUrl = `${this.channelConfig.url}/token`;
     const resp = await fetch(tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -342,7 +341,7 @@ export class RealtimeApi {
         this.connectionId = id;
 
         // NOTE: phoenix appends `/websocket` automatically, do not add it here.
-        const socketUrl = `ws://${this.channelConfig.host}:${this.channelConfig.port}`;
+        const socketUrl = this.channelConfig.url.replace(/^http/, "ws");
         this.socket = new Socket(socketUrl, { params: { userToken } });
 
         await new Promise<void>((resolve, reject) => {
