@@ -114,20 +114,19 @@ def create_app(
     # no longer have access to it, so we selectively forward the config.
     @app.get("/config")
     async def get_frontend_config(
-        request: Request,
         state: Annotated[BackendState, Depends(get_state)],
     ) -> FrontendConfig:
-        # NOTE: in tangram.toml, if one specifies 0.0.0.0 the frontend will fail
-        # to connect, so we override that to `window.location.hostname`
-        # NOTE: but this setup still assumes the frontend and the backend is on
-        # the same machine. in reverse proxies, the port is not exposed
-        # so we should allow the user to specify an optional `public_url`.
-        host = request.url.hostname or state.config.channel.host
+        channel_cfg = state.config.channel
+        if channel_cfg.public_url:
+            channel_url = channel_cfg.public_url
+        else:
+            # for local/non-proxied setups, user must set a reachable host.
+            # '0.0.0.0' is for listening, not connecting.
+            host = "localhost" if channel_cfg.host == "0.0.0.0" else channel_cfg.host
+            channel_url = f"http://{host}:{channel_cfg.port}"
+
         return FrontendConfig(
-            channel=FrontendChannelConfig(
-                host=host,
-                port=state.config.channel.port,
-            ),
+            channel=FrontendChannelConfig(url=channel_url),
             map=state.config.map,
         )
 

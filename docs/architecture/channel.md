@@ -148,6 +148,9 @@ Its behavior is configured in the `[channel]` section of your [`tangram.toml`](.
 [channel]
 host = "127.0.0.1"
 port = 2347
+# The public-facing URL for the channel service.
+# Required when running behind a reverse proxy.
+# public_url = "http://localhost:2347"
 jwt_secret = "a-better-secret-than-this"
 ```
 
