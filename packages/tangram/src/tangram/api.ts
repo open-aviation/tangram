@@ -165,6 +165,12 @@ export class MapApi implements Disposable {
     this.map.value = mapInstance;
     this.overlay.value = new MapboxOverlay({
       interleaved: false,
+      onHover: info => {
+        const canvas = this.map.value?.getCanvas();
+        if (canvas) {
+          canvas.style.cursor = info.object ? "pointer" : "";
+        }
+      },
       onClick: info => {
         if (!info.object) {
           this.tangramApi.state.deselectActiveEntity();
@@ -228,7 +234,7 @@ export class StateApi {
     const id = this.activeEntityId.value;
     return id ? (this.entities.value.get(id) ?? null) : null;
   });
-  readonly totalCount: Ref<number> = ref(0);
+  readonly totalCounts: Ref<ReadonlyMap<string, number>> = ref(new Map());
 
   private entityTypes = new Set<string>();
   private entitiesByTypeCache: Map<string, ComputedRef<ReadonlyMap<EntityId, Entity>>> =
@@ -277,23 +283,11 @@ export class StateApi {
     this.activeEntityId.value = null;
   };
 
-  setTotalCount = (count: number): void => {
-    this.totalCount.value = count;
+  setTotalCount = (type: string, count: number): void => {
+    const newMap = new Map(this.totalCounts.value);
+    newMap.set(type, count);
+    this.totalCounts.value = newMap;
   };
-
-  upsertEntities = (entities: Entity[]): void => {
-    throw new NotImplementedError();
-  };
-
-  removeEntities = (entityIds: EntityId[]): void => {
-    throw new NotImplementedError();
-  };
-}
-
-export class DataApi {
-  fetch(pluginId: string, path: string, options?: RequestInit): Promise<Response> {
-    throw new NotImplementedError();
-  }
 }
 
 export class RealtimeApi {
@@ -319,7 +313,7 @@ export class RealtimeApi {
     return this.connectionId;
   }
 
-   private async fetchToken(channel: string): Promise<{ id: string; token: string }> {
+  private async fetchToken(channel: string): Promise<{ id: string; token: string }> {
     const tokenUrl = `${this.channelConfig.url}/token`;
     const resp = await fetch(tokenUrl, {
       method: "POST",
@@ -415,7 +409,6 @@ export class TangramApi {
   readonly ui: UiApi;
   readonly map: MapApi;
   readonly state: StateApi;
-  readonly data: DataApi;
   readonly realtime: RealtimeApi;
   readonly config: TangramConfig;
 
@@ -429,7 +422,6 @@ export class TangramApi {
     this.time = new TimeApi();
     this.map = new MapApi(this);
     this.state = new StateApi();
-    this.data = new DataApi();
   }
 
   public static async create(app: App): Promise<TangramApi> {

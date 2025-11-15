@@ -83,6 +83,7 @@ plugins:
             - packages/tangram_jet1090/src
             - packages/tangram_weather/src
             - packages/tangram_system/src
+            - packages/tangram_ship162/src
           inventories:
             - https://docs.python.org/3/objects.inv
             - https://fastapi.tiangolo.com/objects.inv

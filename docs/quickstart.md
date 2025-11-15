@@ -233,6 +233,7 @@ The application will be available at `http://localhost:2346`.
 
 !!! note "Frontend Development"
     Hot Module Replacement (HMR) for frontend plugins is not yet supported. To see changes to frontend components, you must re-run `pnpm build` and restart the `tangram serve` process.
+    If you made changes to Rust code, you may need to re-run `uv` with the `--force-reinstall` or `--reinstall-package` flag.
 
 To build the documentation:
 
