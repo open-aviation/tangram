@@ -41,7 +41,7 @@ if (!tangramApi) {
 }
 
 const aircraftEntities = computed(
-  () => tangramApi.state.getEntitiesByType<AircraftState>("aircraft").value
+  () => tangramApi.state.getEntitiesByType<AircraftState>("jet1090_aircraft").value
 );
 const activeEntityId = computed(() => tangramApi.state.activeEntityId?.value);
 const layerDisposable: Ref<Disposable | null> = ref(null);

@@ -1,27 +1,22 @@
 [package]
-name = "jet1090_planes"
+name = "ship162_ships"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Tangram jet1090 plugin"
+description = "Tangram ship162 plugin"
 repository = "https://github.com/open-aviation/tangram"
 
 [lib]
-name = "_planes"
+name = "_ships"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 tangram_core = { path = "../../tangram/rust" }
 anyhow = "1.0"
-dirs = "6.0.0"
 futures = "0.3"
 redis = { version = "0.29", features = ["tokio-comp"] }
-reqwest = { version = "0.12", features = ["json"] }
-openssl = { version = "0.10", features = ["vendored"], optional = true }
-openssl-probe = { version = "0.1", optional = true }
-
-rs1090 = "0.4.8"
-rusqlite = { version = "0.34.0", features = ["bundled"] }
+rs162 = { path = "../../../../ship162/crates/rs162" }
+# rs162 = { git = "https://github.com/xoolive/ship162" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
@@ -29,7 +24,6 @@ tokio-stream = "0.1"
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-zip = "4.5.0"
 
 pyo3 = { version = "0.25", features = ["extension-module"], optional = true }
 pyo3-async-runtimes = { version = "0.25", features = [
@@ -40,9 +34,8 @@ pyo3-stub-gen = { version = "0.12.2", optional = true }
 pyo3-python-tracing-subscriber = { git = "https://github.com/AndreasBackx/pyo3-python-tracing-subscriber", rev = "994fc99722c98a04e266ebce43b312bf295d3fed", optional = true }
 
 [[bin]]
-name = "stub_gen_planes"
+name = "stub_gen_ships"
 path = "src/bin/stub_gen.rs"
 
 [features]
 pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:pyo3-stub-gen", "dep:pyo3-python-tracing-subscriber"]
-openssl-vendored = ["dep:openssl", "dep:openssl-probe"]

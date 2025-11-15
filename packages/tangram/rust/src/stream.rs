@@ -1,9 +1,8 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-
 use anyhow::{Context, Result};
 use futures::StreamExt;
 use redis::{AsyncCommands, RedisResult};
@@ -13,17 +12,30 @@ use tracing::{debug, error, info};
 
 use crate::{
     bbox::{is_within_bbox, BoundingBox, BoundingBoxMessage, BoundingBoxState},
-    state::{Jet1090Message, StateVector, StateVectors},
 };
 
-/// Response data to clients
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ResponseData {
-    count: usize,
-    aircraft: Vec<StateVector>,
+pub trait Positioned {
+    fn latitude(&self) -> Option<f64>;
+    fn longitude(&self) -> Option<f64>;
 }
 
-// Message from Redis
+pub trait Tracked {
+    fn lastseen(&self) -> u64;
+}
+
+pub trait StateCollection {
+    type Item: Positioned + Tracked + Clone + Serialize + Send;
+    fn get_all(&self) -> Vec<Self::Item>;
+    fn history_expire_secs(&self) -> u64;
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ResponseData<T> {
+    count: usize,
+    #[serde(flatten)]
+    items: HashMap<String, Vec<T>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ClientMessage {
     #[serde(rename = "connectionId")]
@@ -32,7 +44,6 @@ struct ClientMessage {
     data: HashMap<String, serde_json::Value>,
 }
 
-// Start a Redis subscriber to listen for client events
 pub async fn start_redis_subscriber(
     redis_url: String,
     state: Arc<Mutex<BoundingBoxState>>,
@@ -53,7 +64,6 @@ pub async fn start_redis_subscriber(
 
         debug!("Received message: channel={}, payload={}", channel, payload);
 
-        // Handle different message types
         if channel == "from:system:join-streaming" {
             if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&payload) {
                 let mut state = state.lock().await;
@@ -62,8 +72,6 @@ pub async fn start_redis_subscriber(
                     "+ client joins: {}, {:?}",
                     client_msg.connection_id, state.clients
                 );
-            } else {
-                error!("Failed to parse join message: {}", payload);
             }
         } else if channel == "from:system:leave-streaming" {
             if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&payload) {
@@ -74,8 +82,6 @@ pub async fn start_redis_subscriber(
                     "- client leaves: {}, {:?}",
                     client_msg.connection_id, state.clients
                 );
-            } else {
-                error!("Failed to parse leave message: {}", payload);
             }
         } else if channel == "from:system:bound-box" {
             if let Ok(bbox_msg) = serde_json::from_str::<BoundingBoxMessage>(&payload) {
@@ -89,79 +95,36 @@ pub async fn start_redis_subscriber(
                         south_west_lng: bbox_msg.south_west_lng,
                     },
                 );
-            } else {
-                error!("Failed to parse bounding box message: {}", payload);
             }
         }
     }
-
     Ok(())
 }
 
-// Start a Redis subscriber to listen for Jet1090 messages
-pub async fn start_jet1090_subscriber(
-    redis_url: String,
-    channel: String,
-    state_vectors: Arc<Mutex<StateVectors>>,
-) -> Result<()> {
-    let client = redis::Client::open(redis_url.clone())
-        .context("Failed to create Redis client for Jet1090 subscriber")?;
-    let mut pubsub = client.get_async_pubsub().await?;
-    pubsub.subscribe(&channel).await?;
-
-    info!(
-        "Jet1090 subscriber started, listening for aircraft updates on channel '{}'...",
-        channel
-    );
-
-    let mut stream = pubsub.on_message();
-
-    while let Some(msg) = stream.next().await {
-        let payload: String = msg.get_payload()?;
-
-        // Skip messages that don't contain DF17, DF18, DF20, or DF21
-        if !payload.contains(r#""17""#)
-            && !payload.contains(r#""18""#)
-            && !payload.contains(r#""20""#)
-            && !payload.contains(r#""21""#)
-        {
-            continue;
-        }
-
-        // Parse and process message
-        match serde_json::from_str::<Jet1090Message>(&payload) {
-            Ok(jet1090_msg) => {
-                let mut state = state_vectors.lock().await;
-                if let Err(e) = state.add(&jet1090_msg).await {
-                    error!("Failed to add aircraft data: {}", e);
-                }
-            }
-            Err(e) => {
-                error!(
-                    "Failed to parse Jet1090 message: {} - Error: {}",
-                    payload, e
-                );
-            }
-        }
-    }
-
-    Ok(())
+#[derive(Clone)]
+pub struct StreamConfig {
+    pub redis_url: String,
+    pub stream_interval_secs: f64,
+    pub entity_type_name: String,
+    pub broadcast_channel_suffix: String,
 }
 
-pub async fn stream_statevectors(
-    redis_url: String,
+pub async fn stream_statevectors<S>(
+    config: StreamConfig,
     bbox_state: Arc<Mutex<BoundingBoxState>>,
-    state_vectors: Arc<Mutex<StateVectors>>,
-    interval_secs: f64,
-) -> Result<()> {
+    state_vectors: Arc<Mutex<S>>,
+) -> Result<()>
+where
+    S: StateCollection + Send + 'static,
+    S::Item: Send,
+{
     let redis_client =
-        redis::Client::open(redis_url.clone()).context("Failed to create Redis client")?;
+        redis::Client::open(config.redis_url.clone()).context("Failed to create Redis client")?;
     let mut redis_conn = redis_client
         .get_multiplexed_async_connection()
         .await
         .context("Failed to connect to Redis")?;
     loop {
-        // Check if we have any clients
         let clients = {
             let state = bbox_state.lock().await;
             if state.clients.is_empty() {
@@ -171,71 +134,49 @@ pub async fn stream_statevectors(
             state.clients.clone()
         };
 
-        // Get current time to filter out old aircraft
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
-            .as_secs_f64();
+            .as_secs();
 
-        // Get all aircraft from state vectors
-        let all_aircraft = {
+        let all_items = {
             let state = state_vectors.lock().await;
+            let expire_secs = state.history_expire_secs();
             state
-                .aircraft
-                .values()
-                .filter(|sv| {
-                    sv.latitude.is_some() && sv.lastseen > now as u64 - state.history_expire as u64
-                })
-                .cloned()
-                .collect::<Vec<StateVector>>()
+                .get_all()
+                .into_iter()
+                .filter(|sv| sv.lastseen() > now.saturating_sub(expire_secs))
+                .collect::<Vec<_>>()
         };
 
-        let icao24_set: HashSet<String> = all_aircraft.iter().map(|a| a.icao24.clone()).collect();
-
         for client_id in &clients {
-            // Filter aircraft based on client's bounding box
             let filtered_data = {
                 let state = bbox_state.lock().await;
                 if state.has_bbox(client_id) {
-                    all_aircraft
+                    all_items
                         .iter()
-                        .filter(|a| is_within_bbox(a, &state, client_id))
+                        .filter(|a| is_within_bbox(*a, &state, client_id))
                         .cloned()
-                        .collect::<Vec<StateVector>>()
+                        .collect::<Vec<_>>()
                 } else {
-                    all_aircraft.clone()
+                    all_items.clone()
                 }
             };
 
-            info!(
-                "Client {}: filtering, {} {} => {}",
-                client_id,
-                all_aircraft.len(),
-                icao24_set.len(),
-                filtered_data.len()
-            );
-
-            // Build response data
             let response = ResponseData {
-                count: all_aircraft.len(),
-                aircraft: filtered_data,
+                count: all_items.len(),
+                items: HashMap::from([(config.entity_type_name.clone(), filtered_data)]),
             };
 
-            // Publish to client-specific channel
-            let channel = format!("to:streaming-{}:new-data", client_id);
+            let channel = format!("to:streaming-{}:{}", client_id, config.broadcast_channel_suffix);
             match serde_json::to_string(&response) {
                 Ok(json) => {
                     let _: RedisResult<()> = redis_conn.publish(&channel, json).await;
-                    info!(
-                        "Published to {} (len: {})",
-                        channel,
-                        response.aircraft.len()
-                    );
                 }
                 Err(e) => error!("Failed to serialize response: {}", e),
             }
         }
 
-        time::sleep(Duration::from_secs_f64(interval_secs)).await;
+        time::sleep(Duration::from_secs_f64(config.stream_interval_secs)).await;
     }
 }

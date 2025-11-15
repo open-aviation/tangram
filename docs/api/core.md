@@ -7,7 +7,7 @@
         filters:
             - "!^_"
             - "tangram.__main__"
-::: tangram._channel
+::: tangram._core
     options:
         show_if_no_docstring: true
         show_source: false

@@ -24,7 +24,7 @@ export function install(api: TangramApi) {
   api.ui.registerWidget("jet1090-trail-layer", "MapOverlay", AircraftTrailLayer);
   api.ui.registerWidget("jet1090-sensors-layer", "MapOverlay", SensorsLayer);
 
-  api.state.registerEntityType("aircraft");
+  api.state.registerEntityType("jet1090_aircraft");
 
   (async () => {
     try {
@@ -54,19 +54,18 @@ export function install(api: TangramApi) {
 }
 
 async function subscribeToAircraftData(api: TangramApi, connectionId: string) {
-  const topic = `streaming-${connectionId}:new-data`;
+  const topic = `streaming-${connectionId}:new-jet1090-data`;
   try {
     await api.realtime.subscribe<{ aircraft: RawAircraft[]; count: number }>(
       topic,
       payload => {
         const entities: Entity[] = payload.aircraft.map(ac => ({
           id: ac.icao24,
-          type: "aircraft",
+          type: "jet1090_aircraft",
           state: ac
         }));
-        api.state.replaceAllEntitiesByType("aircraft", entities);
-        // FIXME: right now we assume all entities come from jet1090. not a good idea.
-        api.state.setTotalCount(payload.count);
+        api.state.replaceAllEntitiesByType("jet1090_aircraft", entities);
+        api.state.setTotalCount("jet1090_aircraft", payload.count);
       }
     );
     await api.realtime.publish("system:join-streaming", { connectionId });

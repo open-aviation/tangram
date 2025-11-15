@@ -30,8 +30,8 @@ tangram = "tangram.__main__:app"
 
 [tool.maturin]
 python-source = "src"            # needed for stubgen to output path correctly.
-module-name = "tangram._channel"
-features = ["pyo3"]
+module-name = "tangram._core"
+features = ["pyo3", "channel"]
 
 [tool.uv]
 cache-keys = [

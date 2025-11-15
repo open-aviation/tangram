@@ -1,11 +1,8 @@
 use std::collections::{HashMap, HashSet};
-
 use serde::{Deserialize, Serialize};
 use tracing::info;
+use crate::stream::Positioned;
 
-use crate::state::StateVector;
-
-// Struct for bounding box data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BoundingBox {
     pub north_east_lat: f64,
@@ -14,7 +11,6 @@ pub struct BoundingBox {
     pub south_west_lng: f64,
 }
 
-// Bounding box message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BoundingBoxMessage {
     #[serde(rename = "connectionId")]
@@ -29,16 +25,10 @@ pub struct BoundingBoxMessage {
     pub south_west_lng: f64,
 }
 
-// State to track client connections and their bounding boxes
+#[derive(Default)]
 pub struct BoundingBoxState {
     pub bboxes: HashMap<String, BoundingBox>,
     pub clients: HashSet<String>,
-}
-
-impl Default for BoundingBoxState {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl BoundingBoxState {
@@ -74,13 +64,11 @@ impl BoundingBoxState {
     }
 }
 
-// Check if an aircraft is within a specific client's bounding box
-pub fn is_within_bbox(
-    aircraft: &StateVector,
+pub fn is_within_bbox<T: Positioned>(
+    item: &T,
     state: &BoundingBoxState,
     connection_id: &str,
 ) -> bool {
-    // If no bounding box is set for this connection, include all aircraft
     if !state.has_bbox(connection_id) {
         return true;
     }
@@ -90,12 +78,12 @@ pub fn is_within_bbox(
         None => return true,
     };
 
-    let lat = match aircraft.latitude {
+    let lat = match item.latitude() {
         Some(lat) => lat,
         None => return false,
     };
 
-    let lng = match aircraft.longitude {
+    let lng = match item.longitude() {
         Some(lng) => lng,
         None => return false,
     };

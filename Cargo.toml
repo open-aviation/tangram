@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "packages/tangram/rust",
     "packages/tangram_jet1090/rust",
+    "packages/tangram_ship162/rust",
 ]
 
 [profile.release]

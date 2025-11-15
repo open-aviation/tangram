@@ -1,9 +1,14 @@
+pub mod stream;
+pub mod bbox;
+
+#[cfg(feature = "channel")]
 use axum::{
     extract::{Query, State as AxumState, WebSocketUpgrade},
     response::IntoResponse,
     routing::get,
     Json, Router,
 };
+#[cfg(feature = "channel")]
 use channel::{
     channel::ChannelControl,
     utils::{generate_jwt, random_string},
@@ -18,14 +23,21 @@ use pyo3::{
 use pyo3_python_tracing_subscriber::PythonCallbackLayerBridge;
 #[cfg(feature = "pyo3")]
 use pyo3_stub_gen::derive::*;
+
+#[cfg(feature = "channel")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "channel")]
 use std::sync::Arc;
+#[cfg(feature = "channel")]
 use thiserror::Error;
+#[cfg(feature = "channel")]
 use tokio::sync::Mutex;
+#[cfg(feature = "channel")]
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
 };
+
 #[cfg(feature = "pyo3")]
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
@@ -51,6 +63,7 @@ fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
         .map_err(|e| PyOSError::new_err(e.to_string()))
 }
 
+#[cfg(feature = "channel")]
 #[cfg_attr(feature = "pyo3", gen_stub_pyclass)]
 #[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
 #[derive(Debug, Clone)]
@@ -63,6 +76,7 @@ pub struct ChannelConfig {
     pub id_length: u8,
 }
 
+#[cfg(feature = "channel")]
 #[cfg(feature = "pyo3")]
 #[gen_stub_pymethods]
 #[pymethods]
@@ -87,6 +101,7 @@ impl ChannelConfig {
     }
 }
 
+#[cfg(feature = "channel")]
 #[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
 #[pyfunction]
@@ -99,6 +114,7 @@ fn run(py: Python<'_>, config: ChannelConfig) -> PyResult<Bound<'_, PyAny>> {
 /// Sets up a persistent channel that must listen for Redis events from startup.
 /// Unlike dynamic channels, these are needed to relay backend-initiated
 /// messages (e.g., system time) regardless of client connections.
+#[cfg(feature = "channel")]
 async fn setup_persistent_channel(name: &str, state: &Arc<State>, redis_client: &redis::Client) {
     state.ctl.lock().await.channel_add(name.into(), None).await;
     launch_channel_redis_listen_task(
@@ -110,12 +126,14 @@ async fn setup_persistent_channel(name: &str, state: &Arc<State>, redis_client: 
     .await;
 }
 
+#[cfg(feature = "channel")]
 async fn shutdown_signal() {
     tokio::signal::ctrl_c()
         .await
         .expect("failed to install CTRL+C signal handler");
 }
 
+#[cfg(feature = "channel")]
 pub async fn run_server(config: ChannelConfig) -> Result<(), ChannelError> {
     let redis_client =
         redis::Client::open(config.redis_url.clone()).map_err(ChannelError::Redis)?;
@@ -162,12 +180,14 @@ pub async fn run_server(config: ChannelConfig) -> Result<(), ChannelError> {
     Ok(())
 }
 
+#[cfg(feature = "channel")]
 #[derive(Debug, Clone, Deserialize)]
 struct TokenRequest {
     channel: String,
     id: Option<String>,
 }
 
+#[cfg(feature = "channel")]
 #[derive(Debug, Clone, Serialize)]
 struct TokenResponse {
     channel: String,
@@ -175,6 +195,7 @@ struct TokenResponse {
     token: String,
 }
 
+#[cfg(feature = "channel")]
 async fn generate_token_handler(
     AxumState(state): AxumState<Arc<State>>,
     Json(payload): Json<TokenRequest>,
@@ -201,12 +222,15 @@ async fn generate_token_handler(
             .into_response(),
     }
 }
+
+#[cfg(feature = "channel")]
 #[derive(Debug, Clone, Deserialize)]
 struct WebSocketParams {
     #[serde(rename = "userToken")]
     user_token: Option<String>,
 }
 
+#[cfg(feature = "channel")]
 async fn websocket_handler(
     ws: WebSocketUpgrade,
     AxumState(state): AxumState<Arc<State>>,
@@ -216,6 +240,7 @@ async fn websocket_handler(
     ws.on_upgrade(move |socket| axum_on_connected(socket, state, user_token))
 }
 
+#[cfg(feature = "channel")]
 #[derive(Error, Debug)]
 pub enum ChannelError {
     #[error("redis error: {0}")]
@@ -224,6 +249,7 @@ pub enum ChannelError {
     ServerBind(#[from] std::io::Error),
 }
 
+#[cfg(feature = "channel")]
 #[cfg(feature = "pyo3")]
 impl From<ChannelError> for PyErr {
     fn from(err: ChannelError) -> Self {
@@ -236,11 +262,15 @@ impl From<ChannelError> for PyErr {
 
 #[cfg(feature = "pyo3")]
 #[pymodule]
-fn _channel(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(run, m)?)?;
+fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(init_tracing_python, m)?)?;
     m.add_function(wrap_pyfunction!(init_tracing_stderr, m)?)?;
-    m.add_class::<ChannelConfig>()?;
+
+    #[cfg(feature = "channel")]
+    {
+        m.add_function(wrap_pyfunction!(run, m)?)?;
+        m.add_class::<ChannelConfig>()?;
+    }
     Ok(())
 }
 
