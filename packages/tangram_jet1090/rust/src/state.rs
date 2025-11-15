@@ -6,6 +6,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     time::{SystemTime, UNIX_EPOCH},
 };
+use tangram_core::stream::{Positioned, StateCollection, Tracked};
 use tracing::{debug, error};
 
 use crate::{
@@ -114,6 +115,31 @@ pub struct StateVector {
     pub nacp: Option<u8>,
     /// Number of messages received for the aircraft
     pub count: usize,
+}
+
+impl Positioned for StateVector {
+    fn latitude(&self) -> Option<f64> {
+        self.latitude
+    }
+    fn longitude(&self) -> Option<f64> {
+        self.longitude
+    }
+}
+
+impl Tracked for StateVector {
+    fn lastseen(&self) -> u64 {
+        self.lastseen
+    }
+}
+
+impl StateCollection for StateVectors {
+    type Item = StateVector;
+    fn get_all(&self) -> Vec<Self::Item> {
+        self.aircraft.values().cloned().collect()
+    }
+    fn history_expire_secs(&self) -> u64 {
+        self.history_expire as u64
+    }
 }
 
 async fn ensure_timeseries_exists(

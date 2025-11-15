@@ -22,6 +22,10 @@ c-jet1090:
     ghcr.io/xoolive/jet1090:latest \
     jet1090 --serve-port 8080 --history-expire 5 --redis-url "redis://127.0.0.1:6379" "ws://feedme.mode-s.org:9876/40128@EHRD"
 
+# before running this, clone the repo and `cargo install --path crates/ship162`
+ship162:
+  ship162 --redis-url "redis://127.0.0.1:6379" tcp://153.44.253.27:5631
+
 # build tangram with your container runtime.
 # on non x86_64 architectures, set eccodes_strategy to `fromsource`.
 c-build eccodes_strategy='prebuilt':
@@ -39,8 +43,9 @@ c-run:
     tangram serve --config /app/tangram.toml
 
 stubgen:
-  cargo run --bin stub_gen_channel --features pyo3
-  cargo run --bin stub_gen_planes --features pyo3
+  cargo run --package tangram_core --bin stub_gen_core --features pyo3
+  cargo run --package jet1090_planes --bin stub_gen_planes --features pyo3
+  cargo run --package ship162_ships --bin stub_gen_ships --features pyo3
 
 # fix code quality (eslint, ruff, clippy) and formatting (prettier, ruff, rustfmt)
 fmt:

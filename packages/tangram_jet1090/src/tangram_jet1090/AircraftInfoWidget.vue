@@ -1,5 +1,5 @@
 <template>
-  <div v-if="activeEntity">
+  <div v-if="activeEntity && activeEntity.type === 'jet1090_aircraft'">
     <div v-if="aircraft" id="metadata">
       <span v-if="aircraft.typecode" id="typecode"> {{ aircraft.typecode }}</span>
       <span>{{ aircraft.callsign }}</span>

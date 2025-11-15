@@ -180,15 +180,15 @@ class TracingLayer:
 
 
 async def run_channel_service(config: Config) -> None:
-    from . import _channel
+    from . import _core
 
     if config.channel.python_tracing_subscriber:
         layer = TracingLayer()
-        _channel.init_tracing_python(layer, config.core.log_level)
+        _core.init_tracing_python(layer, config.core.log_level)
     else:
-        _channel.init_tracing_stderr(config.core.log_level)
+        _core.init_tracing_stderr(config.core.log_level)
 
-    rust_config = _channel.ChannelConfig(
+    rust_config = _core.ChannelConfig(
         host=config.channel.host,
         port=config.channel.port,
         redis_url=config.core.redis_url,
@@ -196,7 +196,7 @@ async def run_channel_service(config: Config) -> None:
         jwt_expiration_secs=config.channel.jwt_expiration_secs,
         id_length=config.channel.id_length,
     )
-    await _channel.run(rust_config)
+    await _core.run(rust_config)
 
 
 async def run_services(

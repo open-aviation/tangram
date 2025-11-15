@@ -13,6 +13,7 @@ members = [
     "tangram-airports",
     "tangram-example",
     "tangram-jet1090",
+    "tangram-ship162",
     "tangram-system",
     "tangram-weather",
     "tangram-workspace",
@@ -2036,6 +2037,17 @@ requires-dist = [
     { name = "pandas", specifier = ">=2" },
     { name = "tangram", editable = "packages/tangram" },
 ]
+
+[[package]]
+name = "tangram-ship162"
+version = "0.1.0"
+source = { editable = "packages/tangram_ship162" }
+dependencies = [
+    { name = "tangram" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tangram", editable = "packages/tangram" }]
 
 [[package]]
 name = "tangram-system"

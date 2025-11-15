@@ -1,37 +1,49 @@
 [package]
-name = "channel"
-version = "0.2.8"
+name = "tangram_core"
+version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "_channel"
+name = "tangram_core"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-channel = { git = "https://github.com/emctoo/channel.git", tag = "v0.2.8" }
-tokio = { version = "1", features = ["full"] }
-axum = { version = "0.8", features = ["ws"] }
-tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# stream
+anyhow = "1.0"
+futures = "0.3"
 redis = { version = "0.29", features = ["tokio-comp"] }
-serde = "1.0"
-thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+tracing = "0.1"
 
+# channel (optional)
+axum = { version = "0.8", features = ["ws"], optional = true }
+channel = { git = "https://github.com/emctoo/channel.git", tag = "v0.2.8", optional = true }
+tower-http = { version = "0.6", features = ["fs", "trace", "cors"], optional = true }
+thiserror = { version = "2.0", optional = true }
+
+# pyo3
 pyo3 = { version = "0.25", features = ["extension-module"], optional = true }
-pyo3-async-runtimes = { version = "0.25", features = [
-    "attributes",
-    "tokio-runtime",
-], optional = true }
+pyo3-async-runtimes = { version = "0.25", features = ["attributes", "tokio-runtime"], optional = true }
 pyo3-stub-gen = { version = "0.12.2", optional = true }
-# using fork that supports pyo3==0.25 because upstream seems abandoned
 pyo3-python-tracing-subscriber = { git = "https://github.com/AndreasBackx/pyo3-python-tracing-subscriber", rev = "994fc99722c98a04e266ebce43b312bf295d3fed", optional = true }
-
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 
 [[bin]]
-name = "stub_gen_channel"
+name = "stub_gen_core"
 path = "src/bin/stub_gen.rs"
+required-features = ["pyo3"]
 
 [features]
-pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:pyo3-stub-gen", "dep:pyo3-python-tracing-subscriber"]
-
+default = []
+channel = ["dep:axum", "dep:channel", "dep:tower-http", "dep:thiserror"]
+pyo3 = [
+    "dep:pyo3",
+    "dep:pyo3-async-runtimes",
+    "dep:pyo3-stub-gen",
+    "dep:pyo3-python-tracing-subscriber",
+    "dep:tracing-subscriber",
+    "channel",
+]

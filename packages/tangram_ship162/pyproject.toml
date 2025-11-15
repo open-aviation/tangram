@@ -1,0 +1,30 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "tangram_ship162"
+version = "0.1.0"
+dependencies = ["tangram>=0.2.0"]
+authors = [
+    { name = "Abraham Cheung", email = "abraham@ylcheung.com" },
+]
+license = "MIT"
+
+[project.entry-points."tangram.plugins"]
+tangram_ship162 = "tangram_ship162:plugin"
+
+[tool.uv.sources]
+tangram = { workspace = true }
+
+[tool.maturin]
+python-source = "src"
+module-name = "tangram_ship162._ships"
+features = ["pyo3"]
+
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "rust/Cargo.toml" },
+    { file = "**/*.rs" },
+]
