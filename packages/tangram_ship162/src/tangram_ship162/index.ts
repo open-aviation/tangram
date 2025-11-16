@@ -45,19 +45,16 @@ export function install(api: TangramApi) {
 async function subscribeToShipData(api: TangramApi, connectionId: string) {
   const topic = `streaming-${connectionId}:new-ship162-data`;
   try {
-    await api.realtime.subscribe<{ ship: RawShip[]; count: number }>(
-      topic,
-      payload => {
-        console.log(payload);
-        const entities: Entity[] = payload.ship.map(ship => ({
-          id: ship.mmsi.toString(),
-          type: "ship162_ship",
-          state: ship
-        }));
-        api.state.replaceAllEntitiesByType("ship162_ship", entities);
-        api.state.setTotalCount("ship162_ship", payload.count);
-      }
-    );
+    await api.realtime.subscribe<{ ship: RawShip[]; count: number }>(topic, payload => {
+      console.log(payload);
+      const entities: Entity[] = payload.ship.map(ship => ({
+        id: ship.mmsi.toString(),
+        type: "ship162_ship",
+        state: ship
+      }));
+      api.state.replaceAllEntitiesByType("ship162_ship", entities);
+      api.state.setTotalCount("ship162_ship", payload.count);
+    });
     await api.realtime.publish("system:join-streaming", { connectionId });
   } catch (e) {
     console.error(`failed to subscribe to ${topic}`, e);

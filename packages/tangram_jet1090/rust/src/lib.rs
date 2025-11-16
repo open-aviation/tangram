@@ -17,9 +17,9 @@ use tokio::sync::Mutex;
 use tracing::{error, info};
 
 use crate::state::{Aircraft, Jet1090Message, StateVectors};
+use futures::StreamExt;
 #[cfg(feature = "pyo3")]
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-use futures::StreamExt;
 
 #[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]

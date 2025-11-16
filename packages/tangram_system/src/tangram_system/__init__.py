@@ -27,7 +27,7 @@ def info_utc() -> dict[str, str | int]:
 
 def cpu_load() -> dict[str, str]:
     try:
-        load1, load5, load15 = psutil.getloadavg()
+        load1, _load5, _load15 = psutil.getloadavg()
         cpu_count = psutil.cpu_count(logical=True) or 1
         load_percent = (load1 / cpu_count) * 100
         return {"el": "cpu_load", "value": f"{load_percent:.2f}%"}
