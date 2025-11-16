@@ -120,7 +120,6 @@ class PlanesConfig:
     jet1090_url: str = "http://localhost:8080"
     path_cache: Path = Path(platformdirs.user_cache_dir("tangram_jet1090"))
     log_level: str = "INFO"
-    python_tracing_subscriber: bool = False
 
 
 # NOTE: we fetch the aircraft database on the python side, not Rust. two reasons:
@@ -186,11 +185,7 @@ async def run_planes(backend_state: tangram.BackendState) -> None:
         "log_level", backend_state.config.core.log_level
     )
 
-    if config_planes.python_tracing_subscriber:
-        layer = tangram.TracingLayer()
-        _planes.init_tracing_python(layer, default_log_level)
-    else:
-        _planes.init_tracing_stderr(default_log_level)
+    _planes.init_tracing_stderr(default_log_level)
 
     aircraft_db = await get_aircraft_db(
         backend_state.http_client,

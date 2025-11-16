@@ -24,17 +24,16 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-pyo3 = { version = "0.25", features = ["extension-module"], optional = true }
-pyo3-async-runtimes = { version = "0.25", features = [
+pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
+pyo3-async-runtimes = { version = "0.27", features = [
     "attributes",
     "tokio-runtime",
 ], optional = true }
-pyo3-stub-gen = { version = "0.12.2", optional = true }
-pyo3-python-tracing-subscriber = { git = "https://github.com/AndreasBackx/pyo3-python-tracing-subscriber", rev = "994fc99722c98a04e266ebce43b312bf295d3fed", optional = true }
+pyo3-stub-gen = { version = "0.17", optional = true }
 
 [[bin]]
 name = "stub_gen_ships"
 path = "src/bin/stub_gen.rs"
 
 [features]
-pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:pyo3-stub-gen", "dep:pyo3-python-tracing-subscriber"]
+pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:pyo3-stub-gen"]

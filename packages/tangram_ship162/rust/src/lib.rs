@@ -18,21 +18,8 @@ use tracing::{error, info};
 
 use crate::state::{ShipStateVectors, TimedMessage};
 #[cfg(feature = "pyo3")]
-use pyo3_python_tracing_subscriber::PythonCallbackLayerBridge;
-#[cfg(feature = "pyo3")]
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use futures::StreamExt;
-
-#[cfg(feature = "pyo3")]
-#[gen_stub_pyfunction]
-#[pyfunction]
-fn init_tracing_python(py_layer: Bound<'_, PyAny>, filter_str: String) -> PyResult<()> {
-    tracing_subscriber::registry()
-        .with(EnvFilter::new(filter_str))
-        .with(PythonCallbackLayerBridge::new(py_layer))
-        .try_init()
-        .map_err(|e| PyOSError::new_err(e.to_string()))
-}
 
 #[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
@@ -184,7 +171,6 @@ fn run_ships(py: Python<'_>, config: ShipsConfig) -> PyResult<Bound<'_, PyAny>> 
 #[pymodule]
 fn _ships(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_ships, m)?)?;
-    m.add_function(wrap_pyfunction!(init_tracing_python, m)?)?;
     m.add_function(wrap_pyfunction!(init_tracing_stderr, m)?)?;
     m.add_class::<ShipsConfig>()?;
     Ok(())
