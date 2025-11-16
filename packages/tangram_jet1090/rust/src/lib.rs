@@ -1,4 +1,3 @@
-pub mod aircraftdb;
 pub mod state;
 
 use anyhow::{Context, Result};
@@ -9,7 +8,7 @@ use pyo3::{
 };
 #[cfg(feature = "pyo3")]
 use pyo3_stub_gen::derive::*;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 use tangram_core::{
     bbox::BoundingBoxState,
     stream::{start_redis_subscriber, stream_statevectors, StreamConfig},
@@ -17,7 +16,7 @@ use tangram_core::{
 use tokio::sync::Mutex;
 use tracing::{error, info};
 
-use crate::state::{Jet1090Message, StateVectors};
+use crate::state::{Aircraft, Jet1090Message, StateVectors};
 #[cfg(feature = "pyo3")]
 use pyo3_python_tracing_subscriber::PythonCallbackLayerBridge;
 #[cfg(feature = "pyo3")]
@@ -54,8 +53,7 @@ pub struct PlanesConfig {
     pub jet1090_channel: String,
     pub history_expire: u16,
     pub stream_interval_secs: f64,
-    pub aircraft_db_url: String,
-    pub aircraft_db_cache_path: Option<String>,
+    pub aircraft_db: BTreeMap<String, Aircraft>,
 }
 
 #[cfg(feature = "pyo3")]
@@ -68,16 +66,14 @@ impl PlanesConfig {
         jet1090_channel: String,
         history_expire: u16,
         stream_interval_secs: f64,
-        aircraft_db_url: String,
-        aircraft_db_cache_path: Option<String>,
+        aircraft_db: BTreeMap<String, Aircraft>,
     ) -> Self {
         Self {
             redis_url,
             jet1090_channel,
             history_expire,
             stream_interval_secs,
-            aircraft_db_url,
-            aircraft_db_cache_path,
+            aircraft_db,
         }
     }
 }
@@ -141,14 +137,9 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
 
     let client = redis::Client::open(config.redis_url.clone())
         .context("Failed to create Redis client for state vectors")?;
+
     let state_vectors = Arc::new(Mutex::new(
-        StateVectors::new(
-            config.history_expire,
-            client,
-            config.aircraft_db_url.clone(),
-            config.aircraft_db_cache_path.clone(),
-        )
-        .await?,
+        StateVectors::new(config.history_expire, client, config.aircraft_db).await?,
     ));
     let jet1090_subscriber_state = Arc::clone(&state_vectors);
 
@@ -196,24 +187,10 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
     Ok(())
 }
 
-// needed for aircraft db on aarch64
-// see: https://github.com/PyO3/maturin-action/discussions/162#discussioncomment-7978369
-#[cfg(feature = "openssl-vendored")]
-pub fn probe_ssl_certs() {
-    use openssl_probe;
-
-    #[allow(deprecated)]
-    openssl_probe::init_ssl_cert_env_vars();
-}
-
-#[cfg(not(feature = "openssl-vendored"))]
-pub fn probe_ssl_certs() {}
-
 #[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
 #[pyfunction]
 fn run_planes(py: Python<'_>, config: PlanesConfig) -> PyResult<Bound<'_, PyAny>> {
-    probe_ssl_certs();
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
         _run_service(config)
             .await
@@ -228,6 +205,7 @@ fn _planes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(init_tracing_python, m)?)?;
     m.add_function(wrap_pyfunction!(init_tracing_stderr, m)?)?;
     m.add_class::<PlanesConfig>()?;
+    m.add_class::<state::Aircraft>()?;
     Ok(())
 }
 
