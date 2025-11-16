@@ -1,5 +1,5 @@
-from .backend import BackendState, InjectBackendState, TracingLayer
+from .backend import BackendState, InjectBackendState
 from .config import Config
 from .plugin import Plugin
 
-__all__ = ["BackendState", "Config", "InjectBackendState", "Plugin", "TracingLayer"]
+__all__ = ["BackendState", "Config", "InjectBackendState", "Plugin"]

@@ -12,7 +12,6 @@ class ShipsConfig:
     history_expire: int = 600  # 10 minutes
     stream_interval_secs: float = 1.0
     log_level: str = "INFO"
-    python_tracing_subscriber: bool = False
 
 
 @plugin.register_service()
@@ -26,11 +25,7 @@ async def run_ships(backend_state: tangram.BackendState) -> None:
         "log_level", backend_state.config.core.log_level
     )
 
-    if config_ships.python_tracing_subscriber:
-        layer = tangram.TracingLayer()
-        _ships.init_tracing_python(layer, default_log_level)
-    else:
-        _ships.init_tracing_stderr(default_log_level)
+    _ships.init_tracing_stderr(default_log_level)
 
     rust_config = _ships.ShipsConfig(
         redis_url=backend_state.config.core.redis_url,

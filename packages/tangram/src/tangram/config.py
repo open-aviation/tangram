@@ -22,7 +22,6 @@ class ChannelConfig:
     jwt_secret: str = "secret"
     jwt_expiration_secs: int = 315360000  # 10 years
     id_length: int = 8
-    python_tracing_subscriber: bool = False
 
 
 @dataclass  # TODO: resolve the path to the style.json

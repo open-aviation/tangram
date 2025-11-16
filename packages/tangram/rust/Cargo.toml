@@ -25,10 +25,9 @@ tower-http = { version = "0.6", features = ["fs", "trace", "cors"], optional = t
 thiserror = { version = "2.0", optional = true }
 
 # pyo3
-pyo3 = { version = "0.25", features = ["extension-module"], optional = true }
-pyo3-async-runtimes = { version = "0.25", features = ["attributes", "tokio-runtime"], optional = true }
-pyo3-stub-gen = { version = "0.12.2", optional = true }
-pyo3-python-tracing-subscriber = { git = "https://github.com/AndreasBackx/pyo3-python-tracing-subscriber", rev = "994fc99722c98a04e266ebce43b312bf295d3fed", optional = true }
+pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
+pyo3-async-runtimes = { version = "0.27", features = ["attributes", "tokio-runtime"], optional = true }
+pyo3-stub-gen = { version = "0.17", optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 
 [[bin]]
@@ -43,7 +42,6 @@ pyo3 = [
     "dep:pyo3",
     "dep:pyo3-async-runtimes",
     "dep:pyo3-stub-gen",
-    "dep:pyo3-python-tracing-subscriber",
     "dep:tracing-subscriber",
     "channel",
 ]
