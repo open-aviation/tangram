@@ -28,7 +28,7 @@ COPY packages packages
 RUN pnpm build
 
 FROM python:${PYTHON_VERSION}-slim-trixie AS eccodes-builder
-ARG ECCODES_VERSION=2.42.0
+ARG ECCODES_VERSION=2.44.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake gfortran \
     libopenjp2-7-dev libaec-dev libpng-dev \

@@ -23,7 +23,7 @@
     "@deck.gl/widgets": "^9.2.2",
     "font-awesome": "^4.7.0",
     "lit-html": "^3.3.1",
-    "maplibre-gl": "^5.12.0",
+    "maplibre-gl": "^5.13.0",
     "phoenix": "^1.7.11",
     "rs1090-wasm": "^0.4.14",
     "vue": "^3.5.24"
