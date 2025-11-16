@@ -154,39 +154,10 @@ LOG_LEVEL_MAP = {
 }
 
 
-class TracingLayer:
-    def on_event(self, event: str, state: None) -> None:
-        data = json.loads(event)
-        metadata = data.get("metadata", {})
-        target = metadata.get("target", "")
-        level_str = metadata.get("level", "INFO")
-        message = data.get("message", "")
-
-        if not all([target, level_str, message]):
-            return
-
-        event_level = LOG_LEVEL_MAP.get(level_str, logging.INFO)
-        logger = logging.getLogger(target)
-        logger.log(event_level, message)
-
-    def on_new_span(self, span_attrs: str, span_id: str) -> None:
-        return None
-
-    def on_close(self, span_id: str, state: None) -> None:
-        pass
-
-    def on_record(self, span_id: str, values: str, state: None) -> None:
-        pass
-
-
 async def run_channel_service(config: Config) -> None:
     from . import _core
 
-    if config.channel.python_tracing_subscriber:
-        layer = TracingLayer()
-        _core.init_tracing_python(layer, config.core.log_level)
-    else:
-        _core.init_tracing_stderr(config.core.log_level)
+    _core.init_tracing_stderr(config.core.log_level)
 
     rust_config = _core.ChannelConfig(
         host=config.channel.host,
