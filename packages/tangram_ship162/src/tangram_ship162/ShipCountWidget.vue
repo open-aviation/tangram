@@ -19,7 +19,9 @@ if (!tangramApi) {
   throw new Error("assert: tangram api not provided");
 }
 
-const totalCount = computed(() => tangramApi.state.totalCounts.value?.get("ship162_ship") ?? 0);
+const totalCount = computed(
+  () => tangramApi.state.totalCounts.value?.get("ship162_ship") ?? 0
+);
 const visibleCount = computed(
   () => tangramApi.state.getEntitiesByType("ship162_ship").value?.size ?? 0
 );

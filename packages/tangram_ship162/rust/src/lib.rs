@@ -17,9 +17,9 @@ use tokio::sync::Mutex;
 use tracing::{error, info};
 
 use crate::state::{ShipStateVectors, TimedMessage};
+use futures::StreamExt;
 #[cfg(feature = "pyo3")]
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-use futures::StreamExt;
 
 #[cfg(feature = "pyo3")]
 #[gen_stub_pyfunction]
@@ -27,7 +27,7 @@ use futures::StreamExt;
 fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
     tracing_subscriber::registry()
         .with(EnvFilter::new(filter_str))
-        .with(fmt::layer().with_writer(|| std::io::stderr()))
+        .with(fmt::layer().with_writer(std::io::stderr))
         .try_init()
         .map_err(|e| PyOSError::new_err(e.to_string()))
 }
@@ -67,8 +67,7 @@ async fn start_ship162_subscriber(
     channel: String,
     state_vectors: Arc<Mutex<ShipStateVectors>>,
 ) -> Result<()> {
-    let client =
-        redis::Client::open(redis_url.clone()).context("Failed to create Redis client")?;
+    let client = redis::Client::open(redis_url.clone()).context("Failed to create Redis client")?;
     let mut pubsub = client.get_async_pubsub().await?;
     pubsub.subscribe(&channel).await?;
 

@@ -1,18 +1,16 @@
+use anyhow::{Context, Result};
+use futures::StreamExt;
+use redis::{AsyncCommands, RedisResult};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use anyhow::{Context, Result};
-use futures::StreamExt;
-use redis::{AsyncCommands, RedisResult};
-use serde::{Deserialize, Serialize};
 use tokio::{sync::Mutex, time};
 use tracing::{debug, error, info};
 
-use crate::{
-    bbox::{is_within_bbox, BoundingBox, BoundingBoxMessage, BoundingBoxState},
-};
+use crate::bbox::{is_within_bbox, BoundingBox, BoundingBoxMessage, BoundingBoxState};
 
 pub trait Positioned {
     fn latitude(&self) -> Option<f64>;
@@ -168,7 +166,10 @@ where
                 items: HashMap::from([(config.entity_type_name.clone(), filtered_data)]),
             };
 
-            let channel = format!("to:streaming-{}:{}", client_id, config.broadcast_channel_suffix);
+            let channel = format!(
+                "to:streaming-{}:{}",
+                client_id, config.broadcast_channel_suffix
+            );
             match serde_json::to_string(&response) {
                 Ok(json) => {
                     let _: RedisResult<()> = redis_conn.publish(&channel, json).await;

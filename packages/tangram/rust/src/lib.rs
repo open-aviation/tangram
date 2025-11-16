@@ -1,5 +1,5 @@
-pub mod stream;
 pub mod bbox;
+pub mod stream;
 
 #[cfg(feature = "channel")]
 use axum::{

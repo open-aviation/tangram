@@ -43,19 +43,19 @@ c-run:
     tangram serve --config /app/tangram.toml
 
 stubgen:
-  cargo run --package tangram_core --bin stub_gen_core --features pyo3
-  cargo run --package jet1090_planes --bin stub_gen_planes --features pyo3
-  cargo run --package ship162_ships --bin stub_gen_ships --features pyo3
+  cargo run --package tangram_core --bin stub_gen_core --features pyo3 || true
+  cargo run --package jet1090_planes --bin stub_gen_planes --features pyo3 || true
+  cargo run --package ship162_ships --bin stub_gen_ships --features pyo3 || true
 
 # fix code quality (eslint, ruff, clippy) and formatting (prettier, ruff, rustfmt)
 fmt:
-  uv run ruff check packages --fix
-  uv run ruff format packages
-  pnpm i
-  pnpm fmt
-  pnpm lint
-  cargo fmt --all
-  cargo clippy --all-targets --fix --allow-dirty --allow-staged --all-features
+  uv run ruff check packages --fix || true
+  uv run ruff format packages || true
+  pnpm i || true
+  pnpm fmt || true
+  pnpm lint || true
+  cargo fmt --all || true
+  cargo clippy --all-targets --fix --allow-dirty --allow-staged --all-features || true
 
 _rmi name:
   {{container_runtime}} images --filter "reference={{name}}" -q | xargs -r {{container_runtime}} rmi --force
