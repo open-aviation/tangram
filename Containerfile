@@ -28,7 +28,13 @@ COPY packages packages
 RUN pnpm build
 
 FROM python:${PYTHON_VERSION}-slim-trixie AS eccodes-builder
-ARG ECCODES_VERSION=2.44.0
+# NOTE: eccodes==2.44 fails to compile on aarch64 because `eccodeslib` is hardcoded as a dependency
+# of `eccodes-python`.
+# there is a fix here but is not yet published:
+# https://github.com/ecmwf/eccodes-python/commit/83cf5485a45863e8d9ecd977c4d568102c65bbc8
+# in the meantime, we can use `override-dependencies` and try to install `eccodeslib` manually
+# but its not worth the hassle for now.
+ARG ECCODES_VERSION=2.42.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake gfortran \
     libopenjp2-7-dev libaec-dev libpng-dev \
