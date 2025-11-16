@@ -1,4 +1,8 @@
 use anyhow::Result;
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+#[cfg(feature = "pyo3")]
+use pyo3_stub_gen::derive::*;
 use redis::aio::MultiplexedConnection;
 use rs1090::data::patterns::aircraft_information;
 use serde::{Deserialize, Serialize};
@@ -9,10 +13,26 @@ use std::{
 use tangram_core::stream::{Positioned, StateCollection, Tracked};
 use tracing::{debug, error};
 
-use crate::{
-    // TODO import this one from the rs1090 crate after release
-    aircraftdb::{aircraft, Aircraft},
-};
+#[cfg_attr(feature = "pyo3", gen_stub_pyclass)]
+#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Aircraft {
+    pub typecode: Option<String>,
+    pub registration: Option<String>,
+}
+
+#[cfg(feature = "pyo3")]
+#[gen_stub_pymethods]
+#[pymethods]
+impl Aircraft {
+    #[new]
+    fn new(typecode: Option<String>, registration: Option<String>) -> Self {
+        Self {
+            typecode,
+            registration,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// BDS40 message format
@@ -228,13 +248,12 @@ impl StateVectors {
     pub async fn new(
         expire: u16,
         redis_client: redis::Client,
-        aircraft_db_url: String,
-        aircraft_db_cache_path: Option<String>,
+        aircraft_db: BTreeMap<String, Aircraft>,
     ) -> Result<Self> {
         let redis_conn = redis_client.get_multiplexed_async_connection().await?;
         Ok(Self {
             aircraft: HashMap::new(),
-            aircraft_db: aircraft(aircraft_db_url, aircraft_db_cache_path).await,
+            aircraft_db,
             redis_conn,
             history_expire: expire,
         })

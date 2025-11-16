@@ -1,12 +1,19 @@
 import logging
+import sqlite3
+import zipfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+import httpx
 import pandas as pd
+import platformdirs
 import tangram
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter
+
+from . import _planes
 
 log = logging.getLogger(__name__)
 
@@ -111,9 +118,61 @@ class PlanesConfig:
         "https://jetvision.de/resources/sqb_databases/basestation.zip"
     )
     jet1090_url: str = "http://localhost:8080"
-    aircraft_db_cache_path: str | None = None
+    path_cache: Path = Path(platformdirs.user_cache_dir("tangram_jet1090"))
     log_level: str = "INFO"
     python_tracing_subscriber: bool = False
+
+
+# NOTE: we fetch the aircraft database on the python side, not Rust. two reasons:
+# - the httpx AsyncClient is already available in the tangram core, and the user may
+#   have configured proxies, timeouts, etc, so we want to respect that
+# - moving the implementation into Rust adds complexity. in particular:
+#   - apache datafusion (used by `tangram_history`) depends on `xz2`
+#     but `zip` depends on the newer `liblzma` fork:
+#     https://github.com/apache/datafusion/issues/15342
+#   - `maturin_action` requires that `openssl_probe` is configured correctly
+#     for aarch64 and other nonstandard platforms:
+#     https://github.com/PyO3/maturin-action/discussions/162
+# so for simplicity we just do it here.
+async def get_aircraft_db(
+    client: httpx.AsyncClient, url: str, path_cache: Path
+) -> dict[str, _planes.Aircraft]:
+    path_cache.mkdir(parents=True, exist_ok=True)
+    zip_path = path_cache / "basestation.zip"
+    db_path = path_cache / "basestation.sqb"
+
+    if not zip_path.exists():
+        log.info(f"downloading aircraft database from {url} to {zip_path}")
+        async with client.stream("GET", url, follow_redirects=True) as response:
+            response.raise_for_status()
+            with zip_path.open("wb") as f:
+                async for chunk in response.aiter_bytes():
+                    f.write(chunk)
+
+    if not db_path.exists():
+        log.info(f"extracting {zip_path} to {db_path}")
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            db_filename = zip_ref.namelist()[0]
+            zip_ref.extract(db_filename, path=path_cache)
+            (path_cache / db_filename).rename(db_path)
+
+    db = {}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        cur = con.cursor()
+        res = cur.execute("SELECT ModeS, Registration, ICAOTypeCode FROM Aircraft")
+        for modes, registration, icaotypecode in res.fetchall():
+            if modes:
+                db[modes.lower()] = _planes.Aircraft(
+                    registration=registration,
+                    typecode=icaotypecode,
+                )
+        con.close()
+    except sqlite3.Error as e:
+        log.error(f"error reading aircraft database {db_path}: {e}")
+        db_path.unlink(missing_ok=True)
+
+    return db
 
 
 @plugin.register_service()
@@ -133,12 +192,17 @@ async def run_planes(backend_state: tangram.BackendState) -> None:
     else:
         _planes.init_tracing_stderr(default_log_level)
 
+    aircraft_db = await get_aircraft_db(
+        backend_state.http_client,
+        config_planes.aircraft_db_url,
+        config_planes.path_cache,
+    )
+
     rust_config = _planes.PlanesConfig(
         redis_url=backend_state.config.core.redis_url,
         jet1090_channel=config_planes.jet1090_channel,
         history_expire=config_planes.history_expire,
         stream_interval_secs=config_planes.stream_interval_secs,
-        aircraft_db_url=config_planes.aircraft_db_url,
-        aircraft_db_cache_path=config_planes.aircraft_db_cache_path,
+        aircraft_db=aircraft_db,
     )
     await _planes.run_planes(rust_config)

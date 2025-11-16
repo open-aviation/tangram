@@ -67,8 +67,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     # tangram > channel > httpparse
     build-essential \
-    # tangram_jet1090 > aircraftdb > reqwest > openssl-sys
-    libssl-dev pkg-config \
     && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
         sh -s -- -y \
         --default-toolchain $RUST_VERSION \

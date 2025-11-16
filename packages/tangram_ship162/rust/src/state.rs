@@ -1,4 +1,3 @@
-use anyhow::Result;
 use rs162::prelude::{Message, MmsiInfo, NavigationStatus, ShipType, StaticDataReport};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
