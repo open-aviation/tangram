@@ -48,15 +48,16 @@ RUN wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-${EC
     && mv eccodes-${ECCODES_VERSION}-Source eccodes-src \
     && wget https://github.com/ecmwf/eccodes-python/archive/refs/tags/${ECCODES_VERSION}.tar.gz -O eccodes-python.tar.gz \
     && tar -xzf eccodes-python.tar.gz \
-    && mv eccodes-python-${ECCODES_VERSION} /opt/eccodes-python
-
-RUN mkdir eccodes-build && cd eccodes-build \
+    && mv eccodes-python-${ECCODES_VERSION} /opt/eccodes-python \
+    && mkdir eccodes-build && cd eccodes-build \
     && cmake ../eccodes-src \
         -DCMAKE_INSTALL_PREFIX=/opt/eccodes \
         -DENABLE_PYTHON=OFF \
         -DENABLE_FORTRAN=ON \
     && make -j$(nproc) \
-    && make install
+    && make install \
+    && cd / \
+    && rm -rf /build
 
 FROM python:${PYTHON_VERSION}-slim-trixie AS python-builder-base
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -68,11 +69,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     # tangram_jet1090 > aircraftdb > reqwest > openssl-sys
     libssl-dev pkg-config \
-    && rm -rf /var/lib/apt/lists/* \
     && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
         sh -s -- -y \
         --default-toolchain $RUST_VERSION \
-        --profile minimal
+        --profile minimal \
+    && apt-get purge -y --auto-remove curl \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /app
@@ -101,7 +103,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
         --no-install-package eccodes \
         --no-install-package eccodeslib \
         --no-install-package eckitlib \
-        --no-install-package fckitlib
+        --no-install-package fckitlib \
+    && rm -rf /root/.cargo \
+    && find . -type d -name "target" -exec rm -rf {} +
 
 FROM python-builder-base AS python-builder-eccodes-prebuilt
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -113,7 +117,9 @@ COPY --from=frontend-builder /app .
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-dev --all-packages --inexact
+    uv sync --frozen --no-dev --all-packages --inexact \
+    && rm -rf /root/.cargo \
+    && find . -type d -name "target" -exec rm -rf {} +
 
 FROM python:${PYTHON_VERSION}-slim-trixie AS release-eccodes-fromsource
 RUN apt-get update && apt-get install -y --no-install-recommends \

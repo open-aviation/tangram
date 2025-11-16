@@ -20,6 +20,16 @@ jobs:
           - runner: ubuntu-24.04-arm
             eccodes_strategy: fromsource
     steps:
+      # despite best efforts the rust cache is huge so we try freeing up some space
+      - name: Maximize build space
+        uses: AdityaGarg8/remove-unwanted-software@v5
+        with:
+          remove-android: 'true'
+          remove-dotnet: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-large-packages: 'true'
+
       - name: Checkout repository
         uses: actions/checkout@v5
 
@@ -30,13 +40,20 @@ jobs:
           podman --version
           buildah --version
 
-      - name: Cache Podman layers
+      # see: https://github.com/containers/podman/discussions/17868#discussioncomment-8001857
+      - name: Tar as root
+        run: |
+          sudo mv -fv /usr/bin/tar /usr/bin/tar.orig
+          echo -e '#!/bin/sh\n\nsudo /usr/bin/tar.orig "$@"' | sudo tee -a /usr/bin/tar
+          sudo chmod +x /usr/bin/tar
+
+      - name: Cache podman images
         uses: actions/cache@v4
         with:
-          path: /tmp/.podman-cache
-          key: ${{ runner.os }}-podman-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-podman-
+          path: |
+            ~/.local/share/containers
+            ~/.config/containers
+          key: ${{ runner.os }}-operator-image-${{ hashFiles('Containerfile') }}
 
       - name: Build Tangram image
         run: |
