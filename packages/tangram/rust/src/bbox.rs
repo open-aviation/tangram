@@ -1,7 +1,7 @@
-use std::collections::{HashMap, HashSet};
-use serde::{Deserialize, Serialize};
-use tracing::info;
 use crate::stream::Positioned;
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use tracing::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BoundingBox {
