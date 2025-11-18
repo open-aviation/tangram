@@ -1,23 +1,34 @@
+from __future__ import annotations
+
 import logging
 import sqlite3
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
-import pandas as pd
 import platformdirs
 import tangram
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter
 
-from . import _planes
+if TYPE_CHECKING:
+    from . import _planes
+
+try:
+    import polars as pl
+
+    _HISTORY_AVAILABLE = True
+except ImportError:
+    _HISTORY_AVAILABLE = False
+
 
 log = logging.getLogger(__name__)
 
 router = APIRouter(
+    prefix="/jet1090",
     tags=["jet1090"],
     responses={404: {"description": "Not found"}},
 )
@@ -27,50 +38,38 @@ router = APIRouter(
 async def get_trajectory_data(
     icao24: str, backend_state: tangram.InjectBackendState
 ) -> list[dict[str, Any]]:
-    """Get the full trajectory for a given ICAO24 address from Redis Time Series."""
-    ts_client = backend_state.redis_client.ts()
+    """Get the full trajectory for a given ICAO24 address."""
+    if not _HISTORY_AVAILABLE:
+        raise HTTPException(
+            status_code=501,
+            detail="History feature is not installed. "
+            "Install with `pip install 'tangram_jet1090[history]'`",
+        )
+
+    redis_key = "tangram:history:table_uri:jet1090"
+    table_uri_bytes = await backend_state.redis_client.get(redis_key)
+
+    if not table_uri_bytes:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Table 'jet1090' not found.\nhelp: is the history service running?"
+            ),
+        )
+    table_uri = table_uri_bytes.decode("utf-8")
+
     try:
-        results = await ts_client.mrange("-", "+", filters=[f"icao24={icao24}"])
+        df = (
+            pl.scan_delta(table_uri)
+            .filter(pl.col("icao24") == icao24)
+            .with_columns(pl.col("timestamp").dt.epoch(time_unit="s"))
+            .sort("timestamp")
+            .collect()
+        )
+        return df.to_dicts()
     except Exception as e:
-        log.error(f"mrange failed for {icao24=}: {e}")
-        return []
-
-    if not results:
-        return []
-
-    data_frames = []
-    for result_dict in results:
-        # value: (labels, data_points)
-        for key, value in result_dict.items():
-            # aircraft:ts:{feature}:{icao24}
-            feature = key.split(":")[2]
-            if not (data := value[1]):
-                continue
-            df = pd.DataFrame(
-                [(pd.Timestamp(ts, unit="ms", tz="utc"), val) for ts, val in data],
-                columns=["timestamp", feature],
-            )
-            data_frames.append(df)
-
-    if not data_frames:
-        return []
-
-    # merge all dataframes on the timestamp index
-    merged_df = data_frames[0]
-    for df in data_frames[1:]:
-        merged_df = pd.merge(merged_df, df, on="timestamp", how="outer")
-
-    merged_df = merged_df.sort_values("timestamp").fillna(pd.NA)
-
-    response_data = []
-    for _, row in merged_df.iterrows():
-        point = {"timestamp": row["timestamp"].timestamp(), "icao24": icao24}
-        for col in merged_df.columns:
-            if col not in ["timestamp", "icao24"] and pd.notna(row[col]):
-                point[col] = float(row[col])
-        response_data.append(point)
-
-    return response_data
+        log.error(f"Failed to query trajectory for {icao24}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to query trajectory data.")
 
 
 @router.get("/route/{callsign}")
@@ -112,7 +111,9 @@ plugin = tangram.Plugin(frontend_path="dist-frontend", routers=[router])
 @dataclass(frozen=True)
 class PlanesConfig:
     jet1090_channel: str = "jet1090"
-    history_expire: int = 20
+    history_table_name: str = "jet1090"
+    history_control_channel: str = "history:control"
+    state_vector_expire: int = 20
     stream_interval_secs: float = 1.0
     aircraft_db_url: str = (
         "https://jetvision.de/resources/sqb_databases/basestation.zip"
@@ -120,6 +121,13 @@ class PlanesConfig:
     jet1090_url: str = "http://localhost:8080"
     path_cache: Path = Path(platformdirs.user_cache_dir("tangram_jet1090"))
     log_level: str = "INFO"
+    # flush is primarily time-based. this buffer is a backpressure mechanism.
+    history_buffer_size: int = 100_000
+    history_flush_interval_secs: int = 5
+    history_optimize_interval_secs: int = 120
+    history_optimize_target_file_size: int = 134217728
+    history_vacuum_interval_secs: int = 120
+    history_vacuum_retention_period_secs: int | None = 120
 
 
 # NOTE: we fetch the aircraft database on the python side, not Rust. two reasons:
@@ -136,6 +144,8 @@ class PlanesConfig:
 async def get_aircraft_db(
     client: httpx.AsyncClient, url: str, path_cache: Path
 ) -> dict[str, _planes.Aircraft]:
+    from . import _planes
+
     path_cache.mkdir(parents=True, exist_ok=True)
     zip_path = path_cache / "basestation.zip"
     db_path = path_cache / "basestation.sqb"
@@ -196,8 +206,16 @@ async def run_planes(backend_state: tangram.BackendState) -> None:
     rust_config = _planes.PlanesConfig(
         redis_url=backend_state.config.core.redis_url,
         jet1090_channel=config_planes.jet1090_channel,
-        history_expire=config_planes.history_expire,
+        history_table_name=config_planes.history_table_name,
+        state_vector_expire=config_planes.state_vector_expire,
         stream_interval_secs=config_planes.stream_interval_secs,
         aircraft_db=aircraft_db,
+        history_buffer_size=config_planes.history_buffer_size,
+        history_flush_interval_secs=config_planes.history_flush_interval_secs,
+        history_control_channel=config_planes.history_control_channel,
+        history_optimize_interval_secs=config_planes.history_optimize_interval_secs,
+        history_optimize_target_file_size=config_planes.history_optimize_target_file_size,
+        history_vacuum_interval_secs=config_planes.history_vacuum_interval_secs,
+        history_vacuum_retention_period_secs=config_planes.history_vacuum_retention_period_secs,
     )
     await _planes.run_planes(rust_config)

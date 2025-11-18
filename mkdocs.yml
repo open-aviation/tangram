@@ -17,6 +17,8 @@ nav:
     - Built-in:
       - "plugins/system.md"
       - "plugins/jet1090.md"
+      - "plugins/ship162.md"
+      - "plugins/history.md"
       - "plugins/weather.md"
       - "plugins/airports.md"
     - Examples:

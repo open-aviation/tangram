@@ -1,17 +1,22 @@
 use anyhow::Result;
+use arrow_array::{
+    ArrayRef, Float64Array, Int16Array, Int32Array, Int8Array, RecordBatch, StringArray,
+    TimestampMicrosecondArray,
+};
+use arrow_schema::{DataType as ArrowDataType, Field, Schema as ArrowSchema, TimeUnit};
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
 #[cfg(feature = "pyo3")]
 use pyo3_stub_gen::derive::*;
-use redis::aio::MultiplexedConnection;
 use rs1090::data::patterns::aircraft_information;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
+    sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 use tangram_core::stream::{Positioned, StateCollection, Tracked};
-use tracing::{debug, error};
+use tangram_history::client::{HistoryBuffer, HistoryFrame};
 
 #[cfg_attr(feature = "pyo3", gen_stub_pyclass)]
 #[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
@@ -91,6 +96,15 @@ pub struct Jet1090Message {
     pub extra: HashMap<String, serde_json::Value>,
 }
 
+impl HistoryFrame for Jet1090HistoryFrame {
+    fn table_schema() -> Arc<ArrowSchema> {
+        Self::table_schema()
+    }
+    fn to_record_batch(frames: &[&Self]) -> Result<RecordBatch> {
+        Self::to_record_batch(frames)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateVector {
     /// The ICAO 24-bit address of the aircraft transponder
@@ -137,6 +151,193 @@ pub struct StateVector {
     pub count: usize,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Jet1090HistoryFrame {
+    pub icao24: String,
+    pub timestamp: i64,
+    pub df: i8,
+    pub bds: Option<String>,
+    pub callsign: Option<String>,
+    pub altitude: Option<i32>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    pub track: Option<f64>,
+    pub selected_altitude: Option<i32>,
+    pub groundspeed: Option<f64>,
+    pub vertical_rate: Option<i16>,
+    pub ias: Option<i16>,
+    pub tas: Option<i16>,
+    pub nacp: Option<i8>,
+    pub bds40_selected_altitude: Option<i32>,
+    pub bds50_roll: Option<f64>,
+    pub bds50_track: Option<f64>,
+    pub bds50_groundspeed: Option<f64>,
+    pub bds50_tas: Option<i16>,
+    pub bds60_ias: Option<i16>,
+    pub bds60_mach: Option<f64>,
+    pub bds60_heading: Option<f64>,
+    pub bds60_vrate_barometric: Option<i16>,
+    pub bds60_vrate_inertial: Option<i16>,
+    pub squawk: Option<i16>,
+}
+
+impl From<&Jet1090Message> for Jet1090HistoryFrame {
+    fn from(msg: &Jet1090Message) -> Self {
+        Self {
+            icao24: msg.icao24.clone(),
+            timestamp: (msg.timestamp * 1_000_000.0) as i64,
+            df: msg.df.parse().unwrap_or(0),
+            bds: msg.bds.clone(),
+            callsign: msg.callsign.clone(),
+            altitude: msg.altitude.map(|v| v as i32),
+            latitude: msg.latitude,
+            longitude: msg.longitude,
+            track: msg.track,
+            selected_altitude: msg.selected_altitude.map(|v| v as i32),
+            groundspeed: msg.groundspeed,
+            vertical_rate: msg.vertical_rate,
+            ias: msg.ias.map(|v| v as i16),
+            tas: msg.tas.map(|v| v as i16),
+            nacp: msg.nacp.map(|v| v as i8),
+            bds40_selected_altitude: msg
+                .bds40
+                .as_ref()
+                .and_then(|b| b.selected_altitude.map(|v| v as i32)),
+            bds50_roll: msg.bds50.as_ref().and_then(|b| b.roll),
+            bds50_track: msg.bds50.as_ref().and_then(|b| b.track),
+            bds50_groundspeed: msg.bds50.as_ref().and_then(|b| b.groundspeed),
+            bds50_tas: msg.bds50.as_ref().and_then(|b| b.tas.map(|v| v as i16)),
+            bds60_ias: msg.bds60.as_ref().and_then(|b| b.ias.map(|v| v as i16)),
+            bds60_mach: msg.bds60.as_ref().and_then(|b| b.mach),
+            bds60_heading: msg.bds60.as_ref().and_then(|b| b.heading),
+            bds60_vrate_barometric: msg.bds60.as_ref().and_then(|b| b.vrate_barometric),
+            bds60_vrate_inertial: msg.bds60.as_ref().and_then(|b| b.vrate_inertial),
+            squawk: msg.squawk.as_ref().and_then(|s| s.parse().ok()),
+        }
+    }
+}
+
+impl Jet1090HistoryFrame {
+    /// Schema for the jet1090 history table.
+    ///
+    /// Delta lake does not support unsigned integers. To avoid implicit cast, we modify:
+    /// - altitude, selected_altitude: u16 -> i32 (i16::MAX = 32767 so its not sufficient)
+    /// - ias, tas: u16 -> i16
+    /// - nacp: u8 -> i8
+    /// - squawk: u16 -> i16 (max 0x7777 = 30583 so ok)
+    pub fn table_schema() -> Arc<ArrowSchema> {
+        let mut fields = Self::data_schema_fields();
+        let mut metadata = HashMap::new();
+        metadata.insert(
+            "delta.generationExpression".to_string(),
+            "CAST(timestamp AS DATE)".to_string(),
+        );
+        fields.insert(
+            2,
+            Field::new("date", ArrowDataType::Date32, false).with_metadata(metadata),
+        );
+        Arc::new(ArrowSchema::new(fields))
+    }
+
+    pub fn data_schema() -> Arc<ArrowSchema> {
+        Arc::new(ArrowSchema::new(Self::data_schema_fields()))
+    }
+
+    fn data_schema_fields() -> Vec<Field> {
+        vec![
+            Field::new("icao24", ArrowDataType::Utf8, false),
+            Field::new(
+                "timestamp",
+                ArrowDataType::Timestamp(TimeUnit::Microsecond, None),
+                false,
+            ),
+            Field::new("df", ArrowDataType::Int8, false),
+            Field::new("bds", ArrowDataType::Utf8, true),
+            Field::new("callsign", ArrowDataType::Utf8, true),
+            Field::new("altitude", ArrowDataType::Int32, true),
+            Field::new("latitude", ArrowDataType::Float64, true),
+            Field::new("longitude", ArrowDataType::Float64, true),
+            Field::new("track", ArrowDataType::Float64, true),
+            Field::new("selected_altitude", ArrowDataType::Int32, true),
+            Field::new("groundspeed", ArrowDataType::Float64, true),
+            Field::new("vertical_rate", ArrowDataType::Int16, true),
+            Field::new("ias", ArrowDataType::Int16, true),
+            Field::new("tas", ArrowDataType::Int16, true),
+            Field::new("nacp", ArrowDataType::Int8, true),
+            Field::new("bds40_selected_altitude", ArrowDataType::Int32, true),
+            Field::new("bds50_roll", ArrowDataType::Float64, true),
+            Field::new("bds50_track", ArrowDataType::Float64, true),
+            Field::new("bds50_groundspeed", ArrowDataType::Float64, true),
+            Field::new("bds50_tas", ArrowDataType::Int16, true),
+            Field::new("bds60_ias", ArrowDataType::Int16, true),
+            Field::new("bds60_mach", ArrowDataType::Float64, true),
+            Field::new("bds60_heading", ArrowDataType::Float64, true),
+            Field::new("bds60_vrate_barometric", ArrowDataType::Int16, true),
+            Field::new("bds60_vrate_inertial", ArrowDataType::Int16, true),
+            Field::new("squawk", ArrowDataType::Int16, true),
+        ]
+    }
+
+    pub fn to_record_batch(frames: &[&Self]) -> Result<RecordBatch> {
+        let schema = Self::data_schema();
+        let columns: Vec<ArrayRef> = vec![
+            Arc::new(StringArray::from_iter_values(
+                frames.iter().map(|f| &f.icao24),
+            )),
+            Arc::new(TimestampMicrosecondArray::from_iter_values(
+                frames.iter().map(|f| f.timestamp),
+            )),
+            Arc::new(Int8Array::from_iter_values(frames.iter().map(|f| f.df))),
+            Arc::new(StringArray::from_iter(
+                frames.iter().map(|f| f.bds.as_ref()),
+            )),
+            Arc::new(StringArray::from_iter(
+                frames.iter().map(|f| f.callsign.as_ref()),
+            )),
+            Arc::new(Int32Array::from_iter(frames.iter().map(|f| f.altitude))),
+            Arc::new(Float64Array::from_iter(frames.iter().map(|f| f.latitude))),
+            Arc::new(Float64Array::from_iter(frames.iter().map(|f| f.longitude))),
+            Arc::new(Float64Array::from_iter(frames.iter().map(|f| f.track))),
+            Arc::new(Int32Array::from_iter(
+                frames.iter().map(|f| f.selected_altitude),
+            )),
+            Arc::new(Float64Array::from_iter(
+                frames.iter().map(|f| f.groundspeed),
+            )),
+            Arc::new(Int16Array::from_iter(
+                frames.iter().map(|f| f.vertical_rate),
+            )),
+            Arc::new(Int16Array::from_iter(frames.iter().map(|f| f.ias))),
+            Arc::new(Int16Array::from_iter(frames.iter().map(|f| f.tas))),
+            Arc::new(Int8Array::from_iter(frames.iter().map(|f| f.nacp))),
+            Arc::new(Int32Array::from_iter(
+                frames.iter().map(|f| f.bds40_selected_altitude),
+            )),
+            Arc::new(Float64Array::from_iter(frames.iter().map(|f| f.bds50_roll))),
+            Arc::new(Float64Array::from_iter(
+                frames.iter().map(|f| f.bds50_track),
+            )),
+            Arc::new(Float64Array::from_iter(
+                frames.iter().map(|f| f.bds50_groundspeed),
+            )),
+            Arc::new(Int16Array::from_iter(frames.iter().map(|f| f.bds50_tas))),
+            Arc::new(Int16Array::from_iter(frames.iter().map(|f| f.bds60_ias))),
+            Arc::new(Float64Array::from_iter(frames.iter().map(|f| f.bds60_mach))),
+            Arc::new(Float64Array::from_iter(
+                frames.iter().map(|f| f.bds60_heading),
+            )),
+            Arc::new(Int16Array::from_iter(
+                frames.iter().map(|f| f.bds60_vrate_barometric),
+            )),
+            Arc::new(Int16Array::from_iter(
+                frames.iter().map(|f| f.bds60_vrate_inertial),
+            )),
+            Arc::new(Int16Array::from_iter(frames.iter().map(|f| f.squawk))),
+        ];
+        Ok(RecordBatch::try_new(schema, columns)?)
+    }
+}
+
 impl Positioned for StateVector {
     fn latitude(&self) -> Option<f64> {
         self.latitude
@@ -157,115 +358,42 @@ impl StateCollection for StateVectors {
     fn get_all(&self) -> Vec<Self::Item> {
         self.aircraft.values().cloned().collect()
     }
-    fn history_expire_secs(&self) -> u64 {
-        self.history_expire as u64
+    fn state_vector_expire_secs(&self) -> u64 {
+        self.state_vector_expire as u64
     }
 }
 
-async fn ensure_timeseries_exists(
-    key: &str,
-    labels: HashMap<String, String>,
-    history_expire: u16,
-    conn: &mut redis::aio::MultiplexedConnection,
-) -> Result<bool> {
-    // Check if the time series exists
-    let exists: bool = redis::cmd("TS.INFO")
-        .arg(key)
-        .query_async(conn)
-        .await
-        .map(|_: ()| true)
-        .unwrap_or(false);
-
-    if exists {
-        return Ok(true);
-    }
-
-    // Create the time series if it doesn't exist
-    let mut cmd = redis::cmd("TS.CREATE");
-    cmd.arg(key);
-    cmd.arg("RETENTION").arg((history_expire as i64) * 1000);
-
-    // Set duplicate policy to LAST to allow updating values
-    cmd.arg("DUPLICATE_POLICY").arg("LAST");
-
-    // Add labels
-    if !labels.is_empty() {
-        cmd.arg("LABELS");
-        for (k, v) in &labels {
-            cmd.arg(k).arg(v);
-        }
-    }
-
-    match cmd.query_async::<()>(conn).await {
-        Ok(_) => {
-            debug!("Created time series {}", key);
-            Ok(true)
-        }
-        Err(e) => {
-            error!("Failed to create time series {}: {}", key, e);
-            Ok(false)
-        }
-    }
-}
-
-async fn insert_value(
-    icao24: &str,
-    timestamp: f64,
-    label: String,
-    value: f64,
-    mut labels: HashMap<String, String>,
-    history_expire: u16,
-    conn: &mut redis::aio::MultiplexedConnection,
-) -> Result<()> {
-    debug!(
-        "Inserted value {}={} for {} at {}",
-        label, value, icao24, timestamp
-    );
-    let key = format!("aircraft:ts:{}:{}", label, icao24);
-    labels.insert("type".to_string(), label);
-    if ensure_timeseries_exists(&key, labels, history_expire, conn).await? {
-        // Use TS.ADD with DUPLICATE_POLICY LAST to handle duplicate timestamps
-        redis::cmd("TS.ADD")
-            .arg(&key)
-            .arg((timestamp * 1000.) as u64)
-            .arg(value)
-            .query_async::<()>(conn)
-            .await?;
-    }
-    Ok(())
-}
-
-/// State vectors collection to track aircraft
 #[derive(Debug)]
 pub struct StateVectors {
     pub aircraft: HashMap<String, StateVector>,
     pub aircraft_db: BTreeMap<String, Aircraft>,
-    pub redis_conn: MultiplexedConnection,
-    pub history_expire: u16,
+    pub state_vector_expire: u16,
+    history_buffer: Option<HistoryBuffer<Jet1090HistoryFrame>>,
 }
 
 impl StateVectors {
-    pub async fn new(
+    pub fn new(
         expire: u16,
-        redis_client: redis::Client,
         aircraft_db: BTreeMap<String, Aircraft>,
-    ) -> Result<Self> {
-        let redis_conn = redis_client.get_multiplexed_async_connection().await?;
-        Ok(Self {
+        history_buffer: Option<HistoryBuffer<Jet1090HistoryFrame>>,
+    ) -> Self {
+        Self {
             aircraft: HashMap::new(),
             aircraft_db,
-            redis_conn,
-            history_expire: expire,
-        })
+            state_vector_expire: expire,
+            history_buffer,
+        }
+    }
+
+    pub fn set_history_buffer(&mut self, buffer: HistoryBuffer<Jet1090HistoryFrame>) {
+        self.history_buffer = Some(buffer);
     }
 
     pub async fn add(&mut self, msg: &Jet1090Message) -> Result<()> {
-        // Skip messages that don't match criteria
         if msg.df != "17" && msg.df != "18" && msg.df != "20" && msg.df != "21" {
             return Ok(());
         }
 
-        // Get or create state vector
         let sv = self.aircraft.entry(msg.icao24.clone()).or_insert_with(|| {
             let mut registration = match aircraft_information(&msg.icao24, None) {
                 Ok(aircraft_info) => aircraft_info.registration.clone(),
@@ -275,7 +403,7 @@ impl StateVectors {
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
-                .as_secs_f64();
+                .as_micros() as u64;
 
             let mut typecode = None;
 
@@ -286,7 +414,7 @@ impl StateVectors {
             StateVector {
                 icao24: msg.icao24.clone(),
                 firstseen: 0,
-                lastseen: now as u64,
+                lastseen: now,
                 callsign: msg.callsign.clone(),
                 registration,
                 typecode,
@@ -308,31 +436,16 @@ impl StateVectors {
             }
         });
 
-        let mut common_labels = HashMap::new();
-        common_labels.insert("icao24".to_string(), msg.icao24.clone());
-
-        let conn = &mut self.redis_conn;
-
         sv.count += 1;
         if sv.firstseen == 0 {
-            sv.firstseen = msg.timestamp as u64;
+            sv.firstseen = (msg.timestamp * 1_000_000.0) as u64;
         }
-        sv.lastseen = msg.timestamp as u64;
+        sv.lastseen = (msg.timestamp * 1_000_000.0) as u64;
         if msg.df == "18" {
             sv.typecode = Some("GRND".to_string());
         }
         if let Some(altitude) = msg.altitude {
             sv.altitude = Some(altitude);
-            insert_value(
-                &msg.icao24,
-                msg.timestamp,
-                "altitude".to_string(),
-                altitude as f64,
-                common_labels.clone(),
-                self.history_expire,
-                conn,
-            )
-            .await?;
         }
         if let Some(squawk) = &msg.squawk {
             if let Ok(squawk_val) = squawk.parse::<u16>() {
@@ -343,83 +456,23 @@ impl StateVectors {
             Some(val) if val == "05" => {
                 if let Some(latitude) = msg.latitude {
                     sv.latitude = Some(latitude);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "latitude".to_string(),
-                        latitude,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
                 if let Some(longitude) = msg.longitude {
                     sv.longitude = Some(longitude);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "longitude".to_string(),
-                        longitude,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
             }
             Some(val) if val == "06" => {
                 if let Some(latitude) = msg.latitude {
                     sv.latitude = Some(latitude);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "latitude".to_string(),
-                        latitude,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
                 if let Some(longitude) = msg.longitude {
                     sv.longitude = Some(longitude);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "longitude".to_string(),
-                        longitude,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
                 if let Some(groundspeed) = msg.groundspeed {
                     sv.groundspeed = Some(groundspeed);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "groundspeed".to_string(),
-                        groundspeed,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
                 if let Some(track) = msg.track {
                     sv.track = Some(track);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "track".to_string(),
-                        track,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
             }
             Some(val) if val == "08" => {
@@ -430,68 +483,18 @@ impl StateVectors {
             Some(val) if val == "09" => {
                 if let Some(groundspeed) = msg.groundspeed {
                     sv.groundspeed = Some(groundspeed);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "groundspeed".to_string(),
-                        groundspeed,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
                 if let Some(track) = msg.track {
                     sv.track = Some(track);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "track".to_string(),
-                        track,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
                 if let Some(vertical_rate) = msg.vertical_rate {
                     sv.vertical_rate = Some(vertical_rate);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "vertical_rate".to_string(),
-                        vertical_rate as f64,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
                 if let Some(ias) = msg.ias {
                     sv.ias = Some(ias);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "ias".to_string(),
-                        ias as f64,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
                 if let Some(tas) = msg.tas {
                     sv.tas = Some(tas);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "tas".to_string(),
-                        tas as f64,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
             }
             Some(val) if val == "61" => {
@@ -504,171 +507,35 @@ impl StateVectors {
             Some(val) if val == "62" => {
                 if let Some(selected_altitude) = msg.selected_altitude {
                     sv.selected_altitude = Some(selected_altitude);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "selected_altitude".to_string(),
-                        selected_altitude as f64,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
             }
             Some(val) if val == "65" => {
                 if let Some(nacp) = msg.nacp {
                     sv.nacp = Some(nacp);
-                    insert_value(
-                        &msg.icao24,
-                        msg.timestamp,
-                        "nacp".to_string(),
-                        nacp as f64,
-                        common_labels.clone(),
-                        self.history_expire,
-                        conn,
-                    )
-                    .await?;
                 }
             }
             _ => {}
         }
         if let Some(bds40) = &msg.bds40 {
             sv.selected_altitude = bds40.selected_altitude;
-            if let Some(selected_altitude) = bds40.selected_altitude {
-                insert_value(
-                    &msg.icao24,
-                    msg.timestamp,
-                    "selected_altitude".to_string(),
-                    selected_altitude as f64,
-                    common_labels.clone(),
-                    self.history_expire,
-                    conn,
-                )
-                .await?;
-            }
         }
         if let Some(bds50) = &msg.bds50 {
             sv.roll = bds50.roll;
             sv.track = bds50.track;
             sv.groundspeed = bds50.groundspeed;
             sv.tas = bds50.tas;
-            if let Some(roll) = bds50.roll {
-                insert_value(
-                    &msg.icao24,
-                    msg.timestamp,
-                    "roll".to_string(),
-                    roll,
-                    common_labels.clone(),
-                    self.history_expire,
-                    conn,
-                )
-                .await?;
-            }
-            if let Some(track) = bds50.track {
-                insert_value(
-                    &msg.icao24,
-                    msg.timestamp,
-                    "track".to_string(),
-                    track,
-                    common_labels.clone(),
-                    self.history_expire,
-                    conn,
-                )
-                .await?;
-            }
-            if let Some(groundspeed) = bds50.groundspeed {
-                insert_value(
-                    &msg.icao24,
-                    msg.timestamp,
-                    "groundspeed".to_string(),
-                    groundspeed,
-                    common_labels.clone(),
-                    self.history_expire,
-                    conn,
-                )
-                .await?;
-            }
-            if let Some(tas) = bds50.tas {
-                insert_value(
-                    &msg.icao24,
-                    msg.timestamp,
-                    "tas".to_string(),
-                    tas as f64,
-                    common_labels.clone(),
-                    self.history_expire,
-                    conn,
-                )
-                .await?;
-            }
         }
         if let Some(bds60) = &msg.bds60 {
             sv.ias = bds60.ias;
             sv.mach = bds60.mach;
             sv.heading = bds60.heading;
             sv.vertical_rate = bds60.vrate_inertial;
-            if let Some(ias) = bds60.ias {
-                insert_value(
-                    &msg.icao24,
-                    msg.timestamp,
-                    "ias".to_string(),
-                    ias as f64,
-                    common_labels.clone(),
-                    self.history_expire,
-                    conn,
-                )
-                .await?;
-            }
-            if let Some(mach) = bds60.mach {
-                insert_value(
-                    &msg.icao24,
-                    msg.timestamp,
-                    "mach".to_string(),
-                    mach,
-                    common_labels.clone(),
-                    self.history_expire,
-                    conn,
-                )
-                .await?;
-            }
-            if let Some(heading) = bds60.heading {
-                insert_value(
-                    &msg.icao24,
-                    msg.timestamp,
-                    "heading".to_string(),
-                    heading,
-                    common_labels.clone(),
-                    self.history_expire,
-                    conn,
-                )
-                .await?;
-            }
-            if let Some(vrate_inertial) = bds60.vrate_inertial {
-                insert_value(
-                    &msg.icao24,
-                    msg.timestamp,
-                    "vrate_inertial".to_string(),
-                    vrate_inertial as f64,
-                    common_labels.clone(),
-                    self.history_expire,
-                    conn,
-                )
-                .await?;
-            }
-            if let Some(vrate_barometric) = bds60.vrate_barometric {
-                insert_value(
-                    &msg.icao24,
-                    msg.timestamp,
-                    "vrate_barometric".to_string(),
-                    vrate_barometric as f64,
-                    common_labels.clone(),
-                    self.history_expire,
-                    conn,
-                )
-                .await?;
-            }
         }
 
+        let frame = Jet1090HistoryFrame::from(msg);
+        if let Some(buffer) = &self.history_buffer {
+            buffer.add(frame).await;
+        }
         Ok(())
     }
 }

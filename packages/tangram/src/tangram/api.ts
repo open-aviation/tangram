@@ -221,19 +221,14 @@ export class MapApi implements Disposable {
   }
 }
 
-// TODO: how about different entity types? might want to use hashmap-based ECS
 // TODO: in the future, entities may simply mean rows in a arrow table (e.g. from a parquet file)
 // NOTE: the server may return entities within the map bounding box
 // so the entities stored may not represent the full set of entities
 // we thus do not provide a "total entity count" in this api.
 export class StateApi {
   readonly entities: ShallowRef<ReadonlyMap<EntityId, Entity>> = shallowRef(new Map());
-  // TODO: allow multi-selection.
-  readonly activeEntityId: Ref<EntityId | null> = ref(null);
-  readonly activeEntity: ComputedRef<Entity | null> = computed(() => {
-    const id = this.activeEntityId.value;
-    return id ? (this.entities.value.get(id) ?? null) : null;
-  });
+  // TODO: allow multi-selection
+  readonly activeEntity: Ref<Entity | null> = ref(null);
   readonly totalCounts: Ref<ReadonlyMap<string, number>> = ref(new Map());
 
   private entityTypes = new Set<string>();
@@ -275,12 +270,12 @@ export class StateApi {
     this.entities.value = newMap;
   };
 
-  setActiveEntity = (entityId: EntityId): void => {
-    this.activeEntityId.value = entityId;
+  setActiveEntity = (entity: Entity): void => {
+    this.activeEntity.value = entity;
   };
 
   deselectActiveEntity = (): void => {
-    this.activeEntityId.value = null;
+    this.activeEntity.value = null;
   };
 
   setTotalCount = (type: string, count: number): void => {
