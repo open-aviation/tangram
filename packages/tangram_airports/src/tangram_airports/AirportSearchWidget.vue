@@ -1,18 +1,10 @@
 <template>
   <div class="airport-search">
-    <input
-      v-model="query"
-      type="text"
-      placeholder="Search for airports..."
-      @click="($event.target as HTMLInputElement).select()"
-      @input="onInput"
-    />
+    <input v-model="query" type="text" placeholder="Search for airports..."
+      @click="($event.target as HTMLInputElement).select()" @input="onInput" />
     <ul v-if="results.length" class="search-results">
-      <li
-        v-for="airport in results"
-        :key="airport.icao"
-        @click="selectAirport(airport)"
-      >
+      <li v-for="airport in results" :key="airport.icao"
+        @click="selectAirport(airport)">
         {{ airport.name }} ({{ airport.iata }} | {{ airport.icao }})
       </li>
     </ul>
@@ -58,7 +50,11 @@ const searchAirports = () => {
 };
 
 const selectAirport = (airport: Airport) => {
-  tangramApi.map.getMapInstance().setView([airport.lat, airport.lon], 13);
+  tangramApi.map.getMapInstance().flyTo({
+    center: [airport.lon, airport.lat],
+    zoom: 13,
+    speed: 1.2,
+  });
   query.value = "";
   results.value = [];
 };
