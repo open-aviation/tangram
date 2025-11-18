@@ -24,7 +24,7 @@ pub trait Tracked {
 pub trait StateCollection {
     type Item: Positioned + Tracked + Clone + Serialize + Send;
     fn get_all(&self) -> Vec<Self::Item>;
-    fn history_expire_secs(&self) -> u64;
+    fn state_vector_expire_secs(&self) -> u64;
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -139,7 +139,7 @@ where
 
         let all_items = {
             let state = state_vectors.lock().await;
-            let expire_secs = state.history_expire_secs();
+            let expire_secs = state.state_vector_expire_secs();
             state
                 .get_all()
                 .into_iter()

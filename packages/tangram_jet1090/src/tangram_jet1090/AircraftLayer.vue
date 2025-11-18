@@ -43,7 +43,7 @@ if (!tangramApi) {
 const aircraftEntities = computed(
   () => tangramApi.state.getEntitiesByType<AircraftState>("jet1090_aircraft").value
 );
-const activeEntityId = computed(() => tangramApi.state.activeEntityId?.value);
+const activeEntity = computed(() => tangramApi.state.activeEntity.value);
 const layerDisposable: Ref<Disposable | null> = ref(null);
 
 const tooltip = reactive<{
@@ -96,8 +96,8 @@ const createAircraftSvgDataURL = (typecode: string, isSelected: boolean): string
 };
 
 watch(
-  [aircraftEntities, activeEntityId, () => tangramApi.map.isReady.value],
-  ([entities, activeId, isMapReady]) => {
+  [aircraftEntities, activeEntity, () => tangramApi.map.isReady.value],
+  ([entities, currentActiveEntity, isMapReady]) => {
     if (!entities || !isMapReady) return;
 
     if (layerDisposable.value) {
@@ -110,7 +110,7 @@ watch(
       pickable: true,
       billboard: false,
       getIcon: d => ({
-        url: createAircraftSvgDataURL(d.state.typecode, d.id === activeId),
+        url: createAircraftSvgDataURL(d.state.typecode, d.id === currentActiveEntity?.id),
         width: 32,
         height: 32,
         anchorY: 16
@@ -124,7 +124,7 @@ watch(
       },
       onClick: ({ object }) => {
         if (object) {
-          tangramApi.state.setActiveEntity(object.id);
+          tangramApi.state.setActiveEntity(object);
         }
       },
       onHover: info => {
@@ -137,7 +137,7 @@ watch(
         }
       },
       updateTriggers: {
-        getIcon: [activeId]
+        getIcon: [currentActiveEntity?.id]
       }
     });
 

@@ -3,26 +3,22 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "tangram_ship162"
+name = "tangram_history"
 version = "0.1.0"
-dependencies = ["tangram>=0.2.0"]
+dependencies = ["tangram>=0.2.0", "platformdirs"]
 authors = [
     { name = "Abraham Cheung", email = "abraham@ylcheung.com" },
 ]
-license = "MIT"
-
-[project.optional-dependencies]
-history = ["polars[deltalake]"]
 
 [project.entry-points."tangram.plugins"]
-tangram_ship162 = "tangram_ship162:plugin"
+tangram_history = "tangram_history:plugin"
 
 [tool.uv.sources]
 tangram = { workspace = true }
 
 [tool.maturin]
 python-source = "src"
-module-name = "tangram_ship162._ships"
+module-name = "tangram_history._history"
 features = ["pyo3"]
 
 [tool.uv]

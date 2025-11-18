@@ -158,7 +158,7 @@ const chartState = reactive({
 
 const fetchChartData = async (entity: Entity) => {
   try {
-    const response = await fetch(`/data/${entity.id}`);
+    const response = await fetch(`/jet1090/data/${entity.id}`);
     if (!response.ok) throw new Error("Failed to fetch trajectory");
     const data = await response.json();
     if (activeEntity.value?.id === entity.id) {

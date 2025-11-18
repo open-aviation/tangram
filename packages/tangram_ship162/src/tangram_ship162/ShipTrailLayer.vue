@@ -21,7 +21,7 @@ watch(
       layerDisposable.value = null;
     }
 
-    if (!isMapReady || !newEntity || newEntity.type !== "jet1090_aircraft") {
+    if (!isMapReady || !newEntity || newEntity.type !== "ship162_ship") {
       return;
     }
 
@@ -29,7 +29,7 @@ watch(
     const { signal } = abortController.value;
 
     try {
-      const response = await fetch(`/jet1090/data/${newEntity.id}`, { signal });
+      const response = await fetch(`/ship162/data/${newEntity.id}`, { signal });
       if (!response.ok) throw new Error("Failed to fetch trajectory");
       const data = await response.json();
 
@@ -42,7 +42,7 @@ watch(
 
       if (latLngs.length > 1) {
         const trailLayer = new PathLayer({
-          id: `trail-layer-${newEntity.id}`,
+          id: `ship-trail-layer-${newEntity.id}`,
           data: [{ path: latLngs }],
           pickable: false,
           widthScale: 1,

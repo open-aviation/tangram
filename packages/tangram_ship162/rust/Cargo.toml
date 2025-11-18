@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 tangram_core = { path = "../../tangram/rust" }
+tangram_history = { path = "../../tangram_history/rust", default-features = false, features = ["client"] }
 anyhow = "1.0"
 futures = "0.3"
 redis = { version = "0.29", features = ["tokio-comp"] }
@@ -24,16 +25,21 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+arrow-array = "56.2.0"
+arrow-schema = "56.2.0"
+
 pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
 pyo3-async-runtimes = { version = "0.27", features = [
     "attributes",
     "tokio-runtime",
 ], optional = true }
-pyo3-stub-gen = { version = "0.17", optional = true }
+# NOTE: v0.17 introduced support for overloading but that caused an odd post-compile
+# runtime issue, do not upgrade yet.
+pyo3-stub-gen = { version = "0.16", optional = true }
 
 [[bin]]
 name = "stub_gen_ships"
 path = "src/bin/stub_gen.rs"
 
 [features]
-pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:pyo3-stub-gen"]
+pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:pyo3-stub-gen", "tangram_history/pyo3"]

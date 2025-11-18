@@ -4,6 +4,7 @@ import asyncio
 import functools
 import importlib.metadata
 import logging
+import traceback
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, NewType, TypeAlias
@@ -57,8 +58,9 @@ def load_plugin(
     try:
         plugin_instance = entry_point.load()
     except Exception as e:
+        tb = traceback.format_exc()
         logger.error(
-            f"failed to load plugin {entry_point.name}: {e}"
+            f"failed to load plugin {entry_point.name}: {e}. {tb}"
             f"\n= help: does {entry_point.value} exist?"
         )
         return None

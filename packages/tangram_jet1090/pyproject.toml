@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "tangram_jet1090"
 version = "0.2.0"
-dependencies = ["tangram>=0.2.0", "pandas>=2", "platformdirs"]
+dependencies = ["tangram>=0.2.0", "platformdirs"]
 authors = [
     { name = "Xavier Olive", email = "git@xoolive.org" },
     { name = "Junzi Sun", email = "git@junzis.com" },
@@ -13,6 +13,9 @@ authors = [
     { name = "Michel Khalaf", email = "khalafmichel98@gmail.com" },
     { name = "Abraham Cheung", email = "abraham@ylcheung.com" },
 ]
+
+[project.optional-dependencies]
+history = ["polars[deltalake]"]
 
 [tool.uv.sources]
 tangram = { workspace = true }

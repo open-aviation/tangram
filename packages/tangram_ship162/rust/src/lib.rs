@@ -13,10 +13,11 @@ use tangram_core::{
     bbox::BoundingBoxState,
     stream::{start_redis_subscriber, stream_statevectors, StreamConfig},
 };
+use tangram_history::{client::start_producer_service_components, HistoryProducerConfig};
 use tokio::sync::Mutex;
 use tracing::{error, info};
 
-use crate::state::{ShipStateVectors, TimedMessage};
+use crate::state::{ShipHistoryFrame, ShipStateVectors, TimedMessage};
 use futures::StreamExt;
 #[cfg(feature = "pyo3")]
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
@@ -38,8 +39,16 @@ fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
 pub struct ShipsConfig {
     pub redis_url: String,
     pub ship162_channel: String,
-    pub history_expire: u16,
+    pub history_control_channel: String,
+    pub state_vector_expire: u16,
     pub stream_interval_secs: f64,
+    pub history_table_name: String,
+    pub history_buffer_size: usize,
+    pub history_flush_interval_secs: u64,
+    pub history_optimize_interval_secs: u64,
+    pub history_optimize_target_file_size: u64,
+    pub history_vacuum_interval_secs: u64,
+    pub history_vacuum_retention_period_secs: Option<u64>,
 }
 
 #[cfg(feature = "pyo3")]
@@ -47,17 +56,34 @@ pub struct ShipsConfig {
 #[pymethods]
 impl ShipsConfig {
     #[new]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         redis_url: String,
         ship162_channel: String,
-        history_expire: u16,
+        history_control_channel: String,
+        state_vector_expire: u16,
         stream_interval_secs: f64,
+        history_table_name: String,
+        history_buffer_size: usize,
+        history_flush_interval_secs: u64,
+        history_optimize_interval_secs: u64,
+        history_optimize_target_file_size: u64,
+        history_vacuum_interval_secs: u64,
+        history_vacuum_retention_period_secs: Option<u64>,
     ) -> Self {
         Self {
             redis_url,
             ship162_channel,
-            history_expire,
+            history_control_channel,
+            state_vector_expire,
             stream_interval_secs,
+            history_table_name,
+            history_buffer_size,
+            history_flush_interval_secs,
+            history_optimize_interval_secs,
+            history_optimize_target_file_size,
+            history_vacuum_interval_secs,
+            history_vacuum_retention_period_secs,
         }
     }
 }
@@ -83,7 +109,7 @@ async fn start_ship162_subscriber(
         match serde_json::from_str::<TimedMessage>(&payload) {
             Ok(ship162_msg) => {
                 let mut state = state_vectors.lock().await;
-                state.add(&ship162_msg);
+                state.add(&ship162_msg).await;
             }
             Err(e) => {
                 error!(
@@ -95,7 +121,6 @@ async fn start_ship162_subscriber(
     }
     Ok(())
 }
-
 async fn _run_service(config: ShipsConfig) -> Result<()> {
     let bbox_state = Arc::new(Mutex::new(BoundingBoxState::new()));
     let bbox_subscriber_state = Arc::clone(&bbox_state);
@@ -108,7 +133,37 @@ async fn _run_service(config: ShipsConfig) -> Result<()> {
         }
     });
 
-    let state_vectors = Arc::new(Mutex::new(ShipStateVectors::new(config.history_expire)));
+    let state_vectors = Arc::new(Mutex::new(ShipStateVectors::new(
+        config.state_vector_expire,
+        None,
+    )));
+
+    let history_setup_state_vectors = Arc::clone(&state_vectors);
+    let history_config_clone = config.clone();
+    tokio::spawn(async move {
+        let history_config = HistoryProducerConfig {
+            table_name: history_config_clone.history_table_name.clone(),
+            buffer_size: history_config_clone.history_buffer_size,
+            flush_interval_secs: history_config_clone.history_flush_interval_secs,
+            optimize_interval_secs: history_config_clone.history_optimize_interval_secs,
+            optimize_target_file_size: history_config_clone.history_optimize_target_file_size,
+            vacuum_interval_secs: history_config_clone.history_vacuum_interval_secs,
+            vacuum_retention_period_secs: history_config_clone.history_vacuum_retention_period_secs,
+        };
+
+        if let Ok(Some(buffer)) = start_producer_service_components::<ShipHistoryFrame>(
+            history_config_clone.redis_url.clone(),
+            history_config,
+            history_config_clone.history_control_channel.clone(),
+        )
+        .await
+        {
+            let mut state = history_setup_state_vectors.lock().await;
+            state.set_history_buffer(buffer);
+            info!("history service for ship162 connected and buffer is set.");
+        }
+    });
+
     let ship162_subscriber_state = Arc::clone(&state_vectors);
 
     let redis_url_clone2 = config.redis_url.clone();
@@ -141,14 +196,14 @@ async fn _run_service(config: ShipsConfig) -> Result<()> {
         _ = tokio::signal::ctrl_c() => {
             info!("shutting down");
         },
-        _ = bbox_subscriber_handle => {
-            error!("BoundingBox subscriber task exited unexpectedly");
+        res = bbox_subscriber_handle => {
+            error!("BoundingBox subscriber task exited unexpectedly: {:?}", res);
         }
-        _ = ship162_subscriber_handle => {
-            error!("ship162 subscriber task exited unexpectedly");
+        res = ship162_subscriber_handle => {
+            error!("ship162 subscriber task exited unexpectedly: {:?}", res);
         }
-        _ = streaming_handle => {
-            error!("Streaming task exited unexpectedly");
+        res = streaming_handle => {
+            error!("Streaming task exited unexpectedly: {:?}", res);
         }
     }
 

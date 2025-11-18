@@ -3,6 +3,7 @@ import type { TangramApi, Entity } from "@open-aviation/tangram/api";
 import ShipLayer from "./ShipLayer.vue";
 import ShipCountWidget from "./ShipCountWidget.vue";
 import ShipInfoWidget from "./ShipInfoWidget.vue";
+import ShipTrailLayer from "./ShipTrailLayer.vue";
 
 interface RawShip {
   mmsi: string;
@@ -13,6 +14,7 @@ export function install(api: TangramApi) {
   api.ui.registerWidget("ship162-count-widget", "TopBar", ShipCountWidget);
   api.ui.registerWidget("ship162-info-widget", "SideBar", ShipInfoWidget);
   api.ui.registerWidget("ship162-ship-layer", "MapOverlay", ShipLayer);
+  api.ui.registerWidget("ship162-trail-layer", "MapOverlay", ShipTrailLayer);
   api.state.registerEntityType("ship162_ship");
 
   (async () => {
@@ -46,7 +48,6 @@ async function subscribeToShipData(api: TangramApi, connectionId: string) {
   const topic = `streaming-${connectionId}:new-ship162-data`;
   try {
     await api.realtime.subscribe<{ ship: RawShip[]; count: number }>(topic, payload => {
-      console.log(payload);
       const entities: Entity[] = payload.ship.map(ship => ({
         id: ship.mmsi.toString(),
         type: "ship162_ship",

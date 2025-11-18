@@ -161,7 +161,7 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           working-directory: packages/tangram_jet1090
-          args: --release --out ../../dist ${{ matrix.features || '' }} --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
           before-script-linux: |
             if command -v apk &> /dev/null; then
               apk add --no-cache openssl-dev pkgconfig
