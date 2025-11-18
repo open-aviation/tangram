@@ -2,10 +2,11 @@
 redis_url = "redis://localhost:6379"
 plugins = [
     # "tangram_example",
-    "tangram_jet1090",
     "tangram_system",
     "tangram_airports",
+    "tangram_jet1090",
     "tangram_ship162",
+    "tangram_history",
     # "tangram_weather"
 ]
 
@@ -21,4 +22,4 @@ jwt_expiration_secs = 315360000
 
 [plugins.tangram_jet1090]
 jet1090_channel = "jet1090"
-history_expire = 20
+state_vector_expire = 20

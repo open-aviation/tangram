@@ -214,10 +214,25 @@ corepack enable pnpm
 3. Install Python dependencies
 
     ```sh
-    uv sync --all-packages --all-groups
+    uv sync --all-packages --all-groups --all-extras
     ```
 
-This installs the core application and all plugins in editable mode into a virtual environment, along with useful developer utilities. This may take a minute or two as Rust compiles the core.
+This installs the core application and all plugins in editable mode into a virtual environment, along with useful developer utilities.
+
+Note that `uv sync` invokes the `maturin` build backend, which in turn passes `--release` to the Rust compiler.
+This can cause builds to be very slow. **For the `tangram_history` plugin, it can take up to 10 minutes.**
+
+To significantly cut down compile times at the cost of much larger binary size, you may want to use `uv sync --config-setting 'build-args=--profile=dev'` instead:
+
+<!-- rg --files -uu packages | rg "so$" | xargs stat -c "%s %n" -->
+
+|                        | release (default) | `profile=dev` |
+| ---------------------- | ----------------- | ------------- |
+| compile time (clean)   | 11m44s            | 1m51s         |
+| `tangram` size         | 5.19M             | 116M          |
+| `tangram_jet1090` size | 5.68M             | 128M          |
+| `tangram_ship162` size | 3.80M             | 91M           |
+| `tangram_history` size | 117M              | 949M          |
 
 ### Running in Development Mode
 

@@ -64,7 +64,7 @@ if (!tangramApi) {
 const shipEntities = computed(
   () => tangramApi.state.getEntitiesByType<ShipState>("ship162_ship").value
 );
-const activeEntityId = computed(() => tangramApi.state.activeEntityId?.value);
+const activeEntity = computed(() => tangramApi.state.activeEntity.value);
 const layerDisposable: Ref<Disposable | null> = ref(null);
 const zoom = computed(() => tangramApi.map.zoom.value);
 
@@ -176,8 +176,8 @@ const getShipIcon = (state: ShipState, isSelected: boolean): string => {
 };
 
 watch(
-  [shipEntities, activeEntityId, () => tangramApi.map.isReady.value, zoom],
-  ([entities, activeId, isMapReady, currentZoom]) => {
+  [shipEntities, activeEntity, () => tangramApi.map.isReady.value, zoom],
+  ([entities, currentActiveEntity, isMapReady, currentZoom]) => {
     if (!entities || !isMapReady) return;
 
     if (layerDisposable.value) {
@@ -192,7 +192,7 @@ watch(
       pickable: true,
       billboard: false,
       getIcon: d => ({
-        url: getShipIcon(d.state, d.id === activeId),
+        url: getShipIcon(d.state, d.id === currentActiveEntity?.id),
         width: 24,
         height: 24,
         anchorY: 12
@@ -206,7 +206,7 @@ watch(
       },
       onClick: ({ object }) => {
         if (object) {
-          tangramApi.state.setActiveEntity(object.id);
+          tangramApi.state.setActiveEntity(object);
         }
       },
       onHover: info => {
@@ -219,7 +219,7 @@ watch(
         }
       },
       updateTriggers: {
-        getIcon: [activeId]
+        getIcon: [currentActiveEntity?.id]
       }
     });
 

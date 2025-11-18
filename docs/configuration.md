@@ -39,7 +39,7 @@ jwt_secret = "a-better-secret-than-this"
 # following the pattern `[plugins.<plugin_package_name>]`.
 # The structure of this table is defined by the plugin itself.
 jet1090_channel = "jet1090"
-history_expire = 20
+state_vector_expire = 20
 ```
 
 1. See [`tangram.config.CoreConfig`][].

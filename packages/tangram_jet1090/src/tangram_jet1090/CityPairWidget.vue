@@ -53,7 +53,7 @@ const fetchRouteData = async (callsign: string) => {
   state.error = null;
 
   try {
-    const response = await fetch(`/route/${callsign.trim()}`);
+    const response = await fetch(`/jet1090/route/${callsign.trim()}`);
     if (!response.ok) {
       throw new Error(`API request failed with status ${response.status}`);
     }
