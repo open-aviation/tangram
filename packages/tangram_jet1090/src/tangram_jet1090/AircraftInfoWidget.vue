@@ -465,9 +465,11 @@ onBeforeUnmount(stopPolling);
 #metadata {
   margin-bottom: 10px;
 }
+
 #registration {
   font-size: 10pt;
 }
+
 #icao24 {
   font-family: "Inconsolata", monospace;
   float: right;
@@ -478,18 +480,20 @@ onBeforeUnmount(stopPolling);
   padding: 2px 5px;
   font-size: 10pt;
 }
+
 #icao24::before {
   content: "0x";
   color: #79706e;
   font-size: 95%;
 }
+
 #typecode {
   border: 1px solid #4c78a8;
   background-color: #4c78a8;
   color: white;
   border-radius: 5px;
   padding: 2px 5px;
-  font-family: "Roboto Condensed", sans-serif;
+  font-family: "Inconsolata", sans-serif;
   font-size: 10pt;
   float: right;
 }
@@ -502,22 +506,25 @@ onBeforeUnmount(stopPolling);
   display: flex;
   flex-direction: column;
 }
+
 #plot-select {
   margin-bottom: 10px;
   font-family: "Roboto Condensed", sans-serif;
   font-size: 10pt;
 }
+
 .chart-container .chart {
   width: 100%;
   flex: 1;
   height: 200px;
 }
+
 h5 {
   margin: 0.5rem 0 1rem 0;
   padding-top: 0.25rem;
   border-top: solid 1px #bab0ac;
   font-family: "Roboto Condensed", sans-serif;
   font-weight: 500;
-  font-size: 1.3rem;
+  font-size: 1.05rem;
 }
 </style>
