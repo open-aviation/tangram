@@ -5,49 +5,64 @@ on:
     branches:
       - main
   pull_request:
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
   check-podman-build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        include:
+          - runner: ubuntu-latest
+            eccodes_strategy: prebuilt
+          - runner: ubuntu-24.04-arm
+            eccodes_strategy: fromsource
     steps:
+      # despite best efforts the rust cache is huge so we try freeing up some space
+      - name: Maximize build space
+        uses: AdityaGarg8/remove-unwanted-software@v5
+        with:
+          remove-android: 'true'
+          remove-dotnet: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-large-packages: 'true'
+
       - name: Checkout repository
         uses: actions/checkout@v5
-
-      - name: Install just command runner
-        uses: extractions/setup-just@v3
-        with:
-          just-version: '1.14'  # Specify the version you need
 
       - name: Set up Podman
         run: |
           sudo apt-get update
           sudo apt-get install -y podman
           podman --version
+          buildah --version
 
-      - name: Cache Podman layers
+      # see: https://github.com/containers/podman/discussions/17868#discussioncomment-8001857
+      - name: Tar as root
+        run: |
+          sudo mv -fv /usr/bin/tar /usr/bin/tar.orig
+          echo -e '#!/bin/sh\n\nsudo /usr/bin/tar.orig "$@"' | sudo tee -a /usr/bin/tar
+          sudo chmod +x /usr/bin/tar
+
+      - name: Cache podman images
         uses: actions/cache@v4
         with:
-          path: /tmp/.podman-cache
-          key: ${{ runner.os }}-podman-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-podman-
+          path: |
+            ~/.local/share/containers
+            ~/.config/containers
+          key: ${{ runner.os }}-operator-image-${{ hashFiles('Containerfile') }}
 
-      - name: Create a .env file
+      - name: Build Tangram image
         run: |
-          cp .env.example .env
-
-      - name: Check tangram image creation
-        run: |
-          echo "Running create-tangram command to verify image build..."
-          just create-tangram
+          podman build . --tag tangram:latest --build-arg ECCODES_STRATEGY=${{ matrix.eccodes_strategy }}
 
       - name: Verify tangram image exists
         run: |
-          if podman image exists tangram:0.1; then
-            echo "✅ Tangram image tangram:0.1 successfully created"
+          if podman image exists tangram:latest; then
             podman image ls | grep tangram
           else
-            echo "❌ Error: Tangram image tangram:0.1 not found"
             exit 1
           fi

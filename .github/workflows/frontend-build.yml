@@ -1,0 +1,36 @@
+name: build frontend
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: install node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: build
+        run: pnpm build
+
+      - name: upload repo with built frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-with-frontend
+          path: |
+            .
+            !node_modules
+          retention-days: 1

@@ -38,3 +38,29 @@ If you want to share a plugin you have developed, please start by sharing a prev
 We do not want to be too strict about the coding standards, but we expect that you will follow the general style guides of the rest of the codebase. Ensure your contribution doesn't reformat existing code unnecessarily, as this can make it harder to review changes.
 
 Please take into account the `.editorconfig` file in the root of the repository, which defines the coding style for the project. You can find more information about EditorConfig [here](https://editorconfig.org/) and install plugins for your favourite editor.
+
+## Development Workflow
+
+The project is structured as a monorepo with `uv` managing the Python workspaces and `pnpm` managing the frontend workspaces.
+
+### Building for Distribution
+
+Each Python package (the core `tangram` and its plugins) can be built into a standard wheel for distribution. The frontend assets should first be built so downstream users won't have to install npm.
+
+```sh
+# from the repository root
+pnpm i
+pnpm build
+uv build --all-packages
+```
+
+### Continuous Integration
+
+The CI pipeline, defined in GitHub Actions, automates quality checks and builds. The primary steps are:
+
+1. **Building Wheel**: The build process above is automated for all versions from Python 3.10 to 3.13, on Linux, MacOS, Windows and processor architectures.
+2. **Testing**: Python tests are executed using `pytest` (scope is limited for now)
+3. **Container Build**: A podman image is built using the root `Containerfile`, serving as an integration test.
+
+!!! warning
+    The `tangram_weather` plugin depends on the `eccodes` library, which is problematic on non-`x86_64` systems. You can choose to build the `eccodes` library from source with the `ECCODES_STRATEGY` in the container build argument.

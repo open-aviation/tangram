@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tangram</title>
+    <link rel="stylesheet" href="/font-awesome.min.css" />
+    <!-- we externalise vue esm so plugins dont have to vendor their own -->
+    <!-- this results in a larger (initial) bundle size but is well worth it -->
+    <script type="importmap">
+      {
+        "imports": {
+          "vue": "/vue.esm-browser.prod.js",
+          "maplibre": "/maplibre-gl.js",
+          "@deck.gl/core": "/core.js",
+          "@deck.gl/layers": "/layers.js",
+          "@deck.gl/aggregation-layers": "/aggregation-layers.js",
+          "@deck.gl/geo-layers": "/geo-layers.js",
+          "@deck.gl/mesh-layers": "/mesh-layers.js",
+          "@deck.gl/json": "/json.js",
+          "@deck.gl/mapbox": "/mapbox.js",
+          "@deck.gl/widgets": "/widgets.js",
+          "lit-html": "/lit-html.js",
+          "rs1090-wasm": "/rs1090_wasm.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/tangram/main.ts"></script>
+  </body>
+</html>

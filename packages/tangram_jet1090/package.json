@@ -1,0 +1,17 @@
+{
+  "name": "@open-aviation/tangram-jet1090",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "src/tangram_jet1090/index.ts",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@open-aviation/tangram": "workspace:*",
+    "chart.js": "^4.5.1",
+    "dayjs": "^1.11.19",
+    "raphael": "^2.3.0",
+    "vue-chartjs": "^5.3.3"
+  }
+}
