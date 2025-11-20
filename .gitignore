@@ -1,3 +1,6 @@
+# Configuration file
+tangram.toml
+
 dist-frontend
 **/node_modules
 
