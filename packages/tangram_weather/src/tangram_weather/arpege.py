@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import tempfile
 from pathlib import Path
 from typing import Literal
@@ -19,6 +20,7 @@ DEFAULT_IP1_FEATURES = ['u', 'v', 't', 'r']
 # fmt:on
 
 tempdir = Path(tempfile.gettempdir())
+log = logging.getLogger(__name__)
 
 
 async def download_with_progress(
@@ -113,6 +115,7 @@ async def latest_data(
             )
 
     def _load_and_process_dataset() -> xr.Dataset:
+        log.info(f"Loading dataset from {tempdir / filename}")
         ds = xr.open_dataset(
             tempdir / filename,
             engine="cfgrib",
