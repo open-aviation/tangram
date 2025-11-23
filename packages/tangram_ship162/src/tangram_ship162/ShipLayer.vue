@@ -5,7 +5,13 @@
     :style="{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }"
   >
     <div class="tooltip-grid">
-      <div class="ship-name">{{ tooltip.object.state.ship_name || "N/A" }}</div>
+      <div class="ship-name">
+        {{ tooltip.object.state.mmsi_info?.flag }}
+        {{ tooltip.object.state.ship_name || "N/A" }}
+      </div>
+      <div></div>
+
+      <div class="ship-type">{{ tooltip.object.state.ship_type }}</div>
       <div class="mmsi">{{ tooltip.object.state.mmsi }}</div>
       <div v-if="tooltip.object.state.speed" class="speed">
         {{ tooltip.object.state.speed.toFixed(1) }} kts
@@ -26,12 +32,9 @@ import { IconLayer } from "@deck.gl/layers";
 import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram/api";
 
 export interface MmsiInfo {
-  mmsi_type: string;
-  country?: {
-    country: string;
-    flag: string;
-    "iso-3166-1": string;
-  };
+  country: string;
+  flag: string;
+  "iso-3166-1": string;
 }
 
 export interface ShipState {
