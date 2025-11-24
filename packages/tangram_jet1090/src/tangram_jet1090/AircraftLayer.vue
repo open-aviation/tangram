@@ -79,8 +79,8 @@ const createAircraftSvgDataURL = (typecode: string, isSelected: boolean): string
   const template = html`<svg
     version="1.1"
     shape-rendering="geometricPrecision"
-    width="32px"
-    height="32px"
+    width="64px"
+    height="64px"
     viewBox="-16 -16 32 32"
     xmlns="http://www.w3.org/2000/svg"
   >
@@ -114,9 +114,9 @@ watch(
           d.state.typecode,
           d.id === currentActiveEntity?.id
         ),
-        width: 32,
-        height: 32,
-        anchorY: 16
+        width: 64,
+        height: 64,
+        anchorY: 32
       }),
       sizeScale: 1,
       getPosition: d => [d.state.longitude, d.state.latitude],

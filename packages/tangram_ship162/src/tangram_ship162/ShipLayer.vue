@@ -30,6 +30,7 @@
 import { computed, inject, onUnmounted, ref, watch, reactive, type Ref } from "vue";
 import { IconLayer, PolygonLayer } from "@deck.gl/layers";
 import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram/api";
+import { oklchToDeckGLColor } from "@open-aviation/tangram/colour";
 
 export interface MmsiInfo {
   country: string;
@@ -79,30 +80,17 @@ const tooltip = reactive<{
 }>({ x: 0, y: 0, object: null });
 
 const colors = {
-  passenger: "oklch(65% 0.2 260)", // blue
-  cargo: "oklch(65% 0.15 140)", // green
-  tanker: "oklch(65% 0.2 40)", // red-orange
-  high_speed: "oklch(90% 0.25 90)", // yellow
-  pleasure: "oklch(65% 0.2 330)", // magenta
-  fishing: "oklch(70% 0.2 200)", // cyan
-  special: "oklch(75% 0.18 70)", // orange
-  aton: "oklch(90% 0.25 90)", // yellow
-  sar: "oklch(70% 0.25 50)", // orange
-  default: "oklch(60% 0 0)", // grey
-  selected: "oklch(70% 0.25 20)" // bright red
-};
-const deckgl_colors: Record<string, [number, number, number, number]> = {
-  [colors.passenger]: [100, 100, 200, 180],
-  [colors.cargo]: [100, 180, 100, 180],
-  [colors.tanker]: [220, 100, 80, 180],
-  [colors.high_speed]: [240, 220, 100, 180],
-  [colors.pleasure]: [200, 100, 200, 180],
-  [colors.fishing]: [100, 200, 200, 180],
-  [colors.special]: [230, 150, 80, 180],
-  [colors.aton]: [240, 220, 100, 180],
-  [colors.sar]: [230, 130, 60, 180],
-  [colors.selected]: [255, 80, 60, 220],
-  [colors.default]: [150, 150, 150, 180]
+  passenger: oklchToDeckGLColor(0.65, 0.2, 260, 180), // blue
+  cargo: oklchToDeckGLColor(0.65, 0.15, 140, 180), // green
+  tanker: oklchToDeckGLColor(0.65, 0.2, 40, 180), // red-orange
+  high_speed: oklchToDeckGLColor(0.9, 0.25, 90, 180), // yellow
+  pleasure: oklchToDeckGLColor(0.65, 0.2, 330, 180), // magenta
+  fishing: oklchToDeckGLColor(0.7, 0.2, 200, 180), // cyan
+  special: oklchToDeckGLColor(0.75, 0.18, 70, 180), // orange
+  aton: oklchToDeckGLColor(0.9, 0.25, 90, 180), // yellow
+  sar: oklchToDeckGLColor(0.7, 0.25, 50, 180), // orange
+  default: oklchToDeckGLColor(0.6, 0, 0, 180), // grey
+  selected: oklchToDeckGLColor(0.7, 0.25, 20, 220) // bright red
 };
 
 const isStationary = (state: ShipState): boolean => {
@@ -116,7 +104,9 @@ const isStationary = (state: ShipState): boolean => {
   return false;
 };
 
-const getIconColor = (state: ShipState | undefined): string => {
+const getIconColor = (
+  state: ShipState | undefined
+): [number, number, number, number] => {
   if (!state) return colors.default;
 
   switch (state.ship_type) {
@@ -168,10 +158,20 @@ const diamondSvg = (color: string) =>
 
 const iconCache = new Map<string, string>();
 
+const rgbToHex = (r: number, g: number, b: number) =>
+  "#" +
+  [r, g, b]
+    .map(x => {
+      const hex = x.toString(16);
+      return hex.length === 1 ? "0" + hex : hex;
+    })
+    .join("");
+
 const getShipIcon = (state: ShipState, isSelected: boolean): string => {
   const stationary = isStationary(state);
   const isAton = state.ship_type === "AIS AtoN";
-  const color = isSelected ? colors.selected : getIconColor(state);
+  const colorArray = isSelected ? colors.selected : getIconColor(state);
+  const color = rgbToHex(colorArray[0], colorArray[1], colorArray[2]);
   const cacheKey = `${color}-${stationary}-${isAton}`;
 
   if (iconCache.has(cacheKey)) {
@@ -329,7 +329,7 @@ watch(
               ? colors.selected
               : getIconColor(d.entity.state);
 
-          return deckgl_colors[color] || [150, 150, 150, 180];
+          return color;
         },
         getLineColor: d => {
           const color =
@@ -337,7 +337,7 @@ watch(
               ? colors.selected
               : getIconColor(d.entity.state);
 
-          return deckgl_colors[color] || [150, 150, 150, 180];
+          return color;
         },
         getLineWidth: 0.5,
         onClick: ({ object }) => {
