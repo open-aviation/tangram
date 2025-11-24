@@ -16,7 +16,7 @@ tangram_history = { path = "../../tangram_history/rust", default-features = fals
 anyhow = "1.0"
 futures = "0.3"
 redis = { version = "0.29", features = ["tokio-comp"] }
-rs162 = { git = "https://github.com/xoolive/ship162" }
+rs162 = { git = "https://github.com/xoolive/ship162", rev = "3d3eb30de72d112ebc78f7565d274bf3e4b5bf99" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
