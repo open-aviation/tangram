@@ -228,11 +228,11 @@ To significantly cut down compile times at the cost of much larger binary size, 
 
 |                        | release (default) | `profile=dev` |
 | ---------------------- | ----------------- | ------------- |
-| compile time (clean)   | 11m54s            | 1m42s         |
-| `tangram` size         | 5.17M             | 106M          |
-| `tangram_jet1090` size | 5.95M             | 122M          |
-| `tangram_ship162` size | 5.23M             | 118M          |
-| `tangram_history` size | 117M              | 937M          |
+| compile time (clean)   | 3m41s            | 1m42s         |
+| `tangram` size         | 6.57M             | 106M          |
+| `tangram_jet1090` size | 7.86M             | 122M          |
+| `tangram_ship162` size | 7.04M             | 118M          |
+| `tangram_history` size | 151M              | 937M          |
 
 ### Running in Development Mode
 

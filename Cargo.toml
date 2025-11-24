@@ -7,5 +7,11 @@ members = [
     "packages/tangram_ship162/rust",
 ]
 
+# on github actions, tangram_history (which effectively compiles datafusion)
+# with lto = 'fat' takes a huge amount of time and memory:
+# - SIGABRT on manylinux (i686) due to Rust-LLVM OOM
+# - SIGKILL on {many,musl}linux (armv7, aarch64)
+# we therefore pick a less aggressive lto, resulting in a ~3x shorter compile
+# time at the cost of increasing binary size by ~30%.
 [profile.release]
-lto = true
+lto = "thin"

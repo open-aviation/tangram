@@ -37,6 +37,10 @@ jobs:
           name: repo-with-frontend
           path: .
 
+      - run: rustup toolchain install stable --profile minimal
+
+      - uses: Swatinem/rust-cache@v2
+
       - name: install uv
         uses: astral-sh/setup-uv@v6
         with:
@@ -162,6 +166,7 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
           working-directory: packages/tangram_jet1090
           args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          sccache: true
           before-script-linux: |
             if command -v apk &> /dev/null; then
               apk add --no-cache openssl-dev pkgconfig
@@ -179,6 +184,7 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
           working-directory: packages/tangram_ship162
           args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          sccache: true
           before-script-linux: |
             if command -v apk &> /dev/null; then
               apk add --no-cache openssl-dev pkgconfig
@@ -196,6 +202,7 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
           working-directory: packages/tangram_history
           args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          sccache: true
           before-script-linux: |
             if command -v apk &> /dev/null; then
               apk add --no-cache openssl-dev pkgconfig
