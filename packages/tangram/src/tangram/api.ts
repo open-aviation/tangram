@@ -8,9 +8,8 @@ import {
   watch,
   type ShallowRef,
   type Ref,
-  type ComputedRef
 } from "vue";
-import type { Map, LngLatBounds, StyleSpecification } from "maplibre-gl";
+import type { Map as MaplibreMap, LngLatBounds, StyleSpecification } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { Socket, Channel } from "phoenix";
 
@@ -140,7 +139,7 @@ export class MapApi implements Disposable {
     this.tangramApi = tangramApi;
   }
 
-  readonly map = shallowRef<Map | null>(null);
+  readonly map = shallowRef<MaplibreMap | null>(null);
   private overlay = shallowRef<MapboxOverlay | null>(null);
   readonly layers = shallowRef<any[]>([]);
   readonly isReady = computed(() => !!this.map.value);
@@ -161,7 +160,7 @@ export class MapApi implements Disposable {
     (this.bounds as Ref).value = map.getBounds();
   };
 
-  initialize = (mapInstance: Map) => {
+  initialize = (mapInstance: MaplibreMap) => {
     this.map.value = mapInstance;
     this.overlay.value = new MapboxOverlay({
       interleaved: false,
@@ -204,7 +203,7 @@ export class MapApi implements Disposable {
     this.map.value = null;
   };
 
-  getMapInstance = (): Map => {
+  getMapInstance = (): MaplibreMap => {
     if (!this.map.value) {
       throw new Error("map not initialized");
     }
@@ -226,56 +225,53 @@ export class MapApi implements Disposable {
 // so the entities stored may not represent the full set of entities
 // we thus do not provide a "total entity count" in this api.
 export class StateApi {
-  readonly entities: ShallowRef<ReadonlyMap<EntityId, Entity>> = shallowRef(new Map());
-  // TODO: allow multi-selection
-  readonly activeEntity: Ref<Entity | null> = ref(null);
+  readonly entitiesByType: Map<string, ShallowRef<Map<EntityId, Entity>>> = new Map();
   readonly totalCounts: Ref<ReadonlyMap<string, number>> = ref(new Map());
 
-  private entityTypes = new Set<string>();
-  private entitiesByTypeCache: Map<string, ComputedRef<ReadonlyMap<EntityId, Entity>>> =
-    new Map();
+  private readonly _selection = shallowRef<{ id: string; type: string } | null>(null);
+
+  readonly activeEntity = computed(() => {
+    const sel = this._selection.value;
+    if (!sel) return null;
+    const bucket = this.entitiesByType.get(sel.type);
+    return bucket?.value.get(sel.id) || null;
+  });
 
   registerEntityType = (type: string): void => {
-    this.entityTypes.add(type);
+    if (!this.entitiesByType.has(type)) {
+      this.entitiesByType.set(type, shallowRef(new Map()));
+    }
   };
 
   getEntitiesByType = <T extends EntityState>(
     type: string
-  ): ComputedRef<ReadonlyMap<EntityId, Entity<T>>> => {
-    if (!this.entitiesByTypeCache.has(type)) {
-      const computedRef = computed(() => {
-        const filteredMap = new Map<EntityId, Entity<T>>();
-        for (const entity of this.entities.value.values()) {
-          if (entity.type === type) {
-            filteredMap.set(entity.id, entity as Entity<T>);
-          }
-        }
-        return filteredMap;
-      });
-      this.entitiesByTypeCache.set(type, computedRef);
+  ): Ref<ReadonlyMap<EntityId, Entity<T>>> => {
+    if (!this.entitiesByType.has(type)) {
+      this.entitiesByType.set(type, shallowRef(new Map()));
     }
-    return this.entitiesByTypeCache.get(type)!;
+    return this.entitiesByType.get(type) as Ref<ReadonlyMap<EntityId, Entity<T>>>;
   };
 
   replaceAllEntitiesByType = (type: string, newEntities: Entity[]): void => {
-    const newMap = new Map(this.entities.value);
-    for (const entity of this.entities.value.values()) {
-      if (entity.type === type) {
-        newMap.delete(entity.id);
-      }
+    let bucket = this.entitiesByType.get(type);
+    if (!bucket) {
+      bucket = shallowRef(new Map());
+      this.entitiesByType.set(type, bucket);
     }
+
+    const newMap = new Map<EntityId, Entity>();
     for (const entity of newEntities) {
       newMap.set(entity.id, entity);
     }
-    this.entities.value = newMap;
+    bucket.value = newMap;
   };
 
   setActiveEntity = (entity: Entity): void => {
-    this.activeEntity.value = entity;
+    this._selection.value = { id: entity.id, type: entity.type };
   };
 
   deselectActiveEntity = (): void => {
-    this.activeEntity.value = null;
+    this._selection.value = null;
   };
 
   setTotalCount = (type: string, count: number): void => {

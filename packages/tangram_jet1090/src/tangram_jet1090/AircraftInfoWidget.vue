@@ -13,7 +13,7 @@
     <CityPairWidget />
 
     <h5>Flight data</h5>
-    <div v-if="chartState.trajectoryData.length > 0" @click.stop>
+    <div v-if="selectedAircraft.trajectory.length > 0" @click.stop>
       <select
         id="plot-select"
         v-model="chartState.selectedItem"
@@ -38,9 +38,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, reactive, watch } from "vue";
-import type { TangramApi, Entity } from "@open-aviation/tangram/api";
+import { computed, inject, reactive, watch } from "vue";
+import type { TangramApi } from "@open-aviation/tangram/api";
 import { aircraft_information } from "rs1090-wasm";
+import { selectedAircraft } from "./store";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -62,11 +63,7 @@ import CityPairWidget from "./CityPairWidget.vue";
 
 const corsairPlugin = {
   id: "corsair",
-  defaults: {
-    width: 1,
-    color: "#FF4949",
-    dash: [3, 3]
-  },
+  defaults: { width: 1, color: "#FF4949", dash: [3, 3] },
   afterInit: chart => {
     chart.corsair = { x: 0, y: 0 };
   },
@@ -79,9 +76,8 @@ const corsairPlugin = {
   beforeDatasetsDraw: (chart, _args, opts) => {
     const { ctx } = chart;
     const { top, bottom, left, right } = chart.chartArea;
-    if (!chart.corsair) return;
-    const { x, y, draw } = chart.corsair;
-    if (!draw) return;
+    if (!chart.corsair || !chart.corsair.draw) return;
+    const { x, y } = chart.corsair;
     ctx.save();
     ctx.beginPath();
     ctx.lineWidth = opts.width;
@@ -137,9 +133,8 @@ const X_SCALE = {
 };
 
 const tangramApi = inject<TangramApi>("tangramApi");
-if (!tangramApi) {
-  throw new Error("assert: tangram api not provided");
-}
+if (!tangramApi) throw new Error("assert: tangram api not provided");
+
 const activeEntity = tangramApi.state.activeEntity;
 const aircraft = computed(() => activeEntity.value?.state as any);
 const flag = computed(() => {
@@ -151,40 +146,8 @@ const flag = computed(() => {
 const chartState = reactive({
   selectedItem: "altitude",
   chartData: {} as ChartData<"line">,
-  trajectoryData: [] as any[],
-  chartOptions: {} as ChartOptions<"line">,
-  pollInterval: null as number | null
+  chartOptions: {} as ChartOptions<"line">
 });
-
-const fetchChartData = async (entity: Entity) => {
-  try {
-    const response = await fetch(`/jet1090/data/${entity.id}`);
-    if (!response.ok) throw new Error("Failed to fetch trajectory");
-    const data = await response.json();
-    if (activeEntity.value?.id === entity.id) {
-      chartState.trajectoryData = data;
-      updateChart();
-    }
-  } catch (error) {
-    console.error("Error fetching chart data:", error);
-  }
-};
-
-const startPolling = () => {
-  stopPolling();
-  chartState.pollInterval = window.setInterval(() => {
-    if (activeEntity.value) {
-      fetchChartData(activeEntity.value);
-    }
-  }, 5000);
-};
-
-const stopPolling = () => {
-  if (chartState.pollInterval) {
-    clearInterval(chartState.pollInterval);
-    chartState.pollInterval = null;
-  }
-};
 
 const onSelectOption = (e: Event) => {
   chartState.selectedItem = (e.target as HTMLSelectElement).value;
@@ -210,10 +173,10 @@ const updateChart = () => {
   }
 };
 
+const getData = () => selectedAircraft.trajectory;
+
 const updateAltitudeChart = () => {
-  const data = chartState.trajectoryData.filter(
-    item => item.altitude || item.selected_altitude
-  );
+  const data = getData().filter(item => item.altitude || item.selected_altitude);
   chartState.chartData = {
     labels: data.map(item => dayjs.unix(item.timestamp).format("HH:mm")),
     datasets: [
@@ -254,7 +217,7 @@ const updateAltitudeChart = () => {
 };
 
 const updateSpeedChart = () => {
-  const data = chartState.trajectoryData.filter(
+  const data = getData().filter(
     item => item.groundspeed || item.IAS || item.TAS || item.Mach
   );
   chartState.chartData = {
@@ -331,7 +294,7 @@ const updateSpeedChart = () => {
 };
 
 const updateVerticalRateChart = () => {
-  const data = chartState.trajectoryData.filter(
+  const data = getData().filter(
     item => item.vrate_barometric || item.vrate_inertial || item.vertical_rate
   );
   chartState.chartData = {
@@ -382,9 +345,7 @@ const updateVerticalRateChart = () => {
 };
 
 const updateTrackChart = () => {
-  const data = chartState.trajectoryData.filter(
-    item => item.track || item.heading || item.roll
-  );
+  const data = getData().filter(item => item.track || item.heading || item.roll);
   chartState.chartData = {
     labels: data.map(item => dayjs.unix(item.timestamp).format("HH:mm")),
     datasets: [
@@ -445,20 +406,8 @@ const updateTrackChart = () => {
   };
 };
 
-watch(
-  () => activeEntity.value?.id,
-  newId => {
-    chartState.trajectoryData = [];
-    chartState.chartData = {};
-    if (newId && activeEntity.value) {
-      fetchChartData(activeEntity.value);
-    }
-  },
-  { immediate: true }
-);
-
-onMounted(startPolling);
-onBeforeUnmount(stopPolling);
+watch(() => selectedAircraft.trajectory.length, updateChart);
+watch(() => activeEntity.value?.id, updateChart);
 </script>
 
 <style scoped>
