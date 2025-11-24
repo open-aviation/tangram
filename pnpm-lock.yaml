@@ -59,6 +59,15 @@ importers:
       '@deck.gl/widgets':
         specifier: ^9.2.2
         version: 9.2.2(@deck.gl/core@9.2.2)(@luma.gl/core@9.2.4)
+      '@fontsource/b612':
+        specifier: ^5.0.0
+        version: 5.2.7
+      '@fontsource/inconsolata':
+        specifier: ^5.0.0
+        version: 5.2.8
+      '@fontsource/roboto-condensed':
+        specifier: ^5.0.0
+        version: 5.2.8
       font-awesome:
         specifier: ^4.7.0
         version: 4.7.0
@@ -416,6 +425,15 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@fontsource/b612@5.2.7':
+    resolution: {integrity: sha512-ALWds7TznSpGM2QUJVqMXLd6GT2LA7XviIbek8YR3+/xoAAjYl6ed0Mh71vFoM8eZv0BSu25D7WMEJw/iwVWlQ==}
+
+  '@fontsource/inconsolata@5.2.8':
+    resolution: {integrity: sha512-lIZW+WOZYpUH91g9r6rYYhfTmptF3YPPM54ZOs8IYVeeL4SeiAu4tfj7mdr8llYEq31DLYgi6JtGIJa192gB0Q==}
+
+  '@fontsource/roboto-condensed@5.2.8':
+    resolution: {integrity: sha512-M2OxXXGJQeif+LhxHjWiCEX3BHIYeZf64CcUTeh9AQFGp7DXo2UAXZiZUUOalVdOiuUtQSIi2CDHLDWFiyoECQ==}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -2053,6 +2071,12 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@fontsource/b612@5.2.7': {}
+
+  '@fontsource/inconsolata@5.2.8': {}
+
+  '@fontsource/roboto-condensed@5.2.8': {}
 
   '@humanfs/core@0.19.1': {}
 
