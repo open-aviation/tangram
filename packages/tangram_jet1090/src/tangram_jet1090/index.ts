@@ -4,6 +4,7 @@ import AircraftLayer from "./AircraftLayer.vue";
 import AircraftCountWidget from "./AircraftCountWidget.vue";
 import AircraftInfoWidget from "./AircraftInfoWidget.vue";
 import AircraftTrailLayer from "./AircraftTrailLayer.vue";
+import RouteLayer from "./RouteLayer.vue";
 import SensorsLayer from "./SensorsLayer.vue";
 import init, { run } from "rs1090-wasm";
 import { selectedAircraft } from "./store";
@@ -24,6 +25,7 @@ export function install(api: TangramApi) {
   api.ui.registerWidget("jet1090-aircraft-layer", "MapOverlay", AircraftLayer);
   api.ui.registerWidget("jet1090-info-widget", "SideBar", AircraftInfoWidget);
   api.ui.registerWidget("jet1090-trail-layer", "MapOverlay", AircraftTrailLayer);
+  api.ui.registerWidget("jet1090-route-layer", "MapOverlay", RouteLayer);
   api.ui.registerWidget("jet1090-sensors-layer", "MapOverlay", SensorsLayer);
 
   api.state.registerEntityType("jet1090_aircraft");
@@ -46,6 +48,8 @@ export function install(api: TangramApi) {
           selectedAircraft.trajectory = [];
           selectedAircraft.loading = true;
           selectedAircraft.error = null;
+          selectedAircraft.route.origin = null;
+          selectedAircraft.route.destination = null;
 
           try {
             const response = await fetch(`/jet1090/data/${newEntity.id}`);
@@ -67,6 +71,8 @@ export function install(api: TangramApi) {
       } else {
         selectedAircraft.icao24 = null;
         selectedAircraft.trajectory = [];
+        selectedAircraft.route.origin = null;
+        selectedAircraft.route.destination = null;
       }
     }
   );

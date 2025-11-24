@@ -24,6 +24,7 @@
       "@deck.gl/core": ["./packages/tangram/node_modules/@deck.gl/core"],
       "@deck.gl/layers": ["./packages/tangram/node_modules/@deck.gl/layers"],
       "@deck.gl/mapbox": ["./packages/tangram/node_modules/@deck.gl/mapbox"],
+      "@deck.gl/extensions": ["./packages/tangram/node_modules/@deck.gl/extensions"],
       "lit-html": ["./packages/tangram/node_modules/lit-html"],
       "rs1090-wasm": ["./packages/tangram/node_modules/rs1090-wasm"],
     }
