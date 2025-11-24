@@ -21,6 +21,7 @@
     "@deck.gl/json": "^9.2.2",
     "@deck.gl/mapbox": "^9.2.2",
     "@deck.gl/widgets": "^9.2.2",
+    "@deck.gl/extensions": "^9.2.2",
     "@fontsource/b612": "^5.0.0",
     "@fontsource/inconsolata": "^5.0.0",
     "@fontsource/roboto-condensed": "^5.0.0",

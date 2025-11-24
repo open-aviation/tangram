@@ -11,7 +11,8 @@ const DECKGL_PACKAGES = [
   "@deck.gl/mesh-layers",
   "@deck.gl/json",
   "@deck.gl/mapbox",
-  "@deck.gl/widgets"
+  "@deck.gl/widgets",
+  "@deck.gl/extensions"
 ];
 // when modifying, also update:
 // - ./index.html (importmap)

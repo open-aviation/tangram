@@ -1,12 +1,15 @@
 <template>
-  <div v-if="state.origin && state.destination" id="city_pair">
+  <div
+    v-if="selectedAircraft.route.origin && selectedAircraft.route.destination"
+    id="city_pair"
+  >
     <div class="airport">
-      <span class="icao">{{ state.origin }}</span>
-      <span class="city">{{ state.originName }}</span>
+      <span class="icao">{{ selectedAircraft.route.origin.icao }}</span>
+      <span class="city">{{ selectedAircraft.route.origin.city }}</span>
     </div>
     <div class="airport">
-      <span class="icao">{{ state.destination }}</span>
-      <span class="city">{{ state.destinationName }}</span>
+      <span class="icao">{{ selectedAircraft.route.destination.icao }}</span>
+      <span class="city">{{ selectedAircraft.route.destination.city }}</span>
     </div>
   </div>
   <div v-else-if="state.loading" class="loading">Loading route information...</div>
@@ -19,6 +22,7 @@
 import { inject, reactive, watch } from "vue";
 import type { TangramApi } from "@open-aviation/tangram/api";
 import { airport_information } from "rs1090-wasm";
+import { selectedAircraft } from "./store";
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
@@ -27,18 +31,12 @@ if (!tangramApi) {
 
 const state = reactive({
   loading: false,
-  error: null as string | null,
-  origin: null as string | null,
-  destination: null as string | null,
-  originName: null as string | null,
-  destinationName: null as string | null
+  error: null as string | null
 });
 
 const resetData = () => {
-  state.origin = null;
-  state.destination = null;
-  state.originName = null;
-  state.destinationName = null;
+  selectedAircraft.route.origin = null;
+  selectedAircraft.route.destination = null;
   state.error = null;
   state.loading = false;
 };
@@ -70,16 +68,48 @@ const fetchRouteData = async (callsign: string) => {
       return;
     }
 
-    const [origin, destination] = route.airport_codes.split("-");
-    state.origin = origin;
-    state.destination = destination;
+    const [originCode, destinationCode] = route.airport_codes.split("-");
 
-    const originInfo = airport_information(origin);
-    state.originName = originInfo.length > 0 ? originInfo[0].city : origin;
+    const originResults = airport_information(originCode);
+    const destResults = airport_information(destinationCode);
 
-    const destinationInfo = airport_information(destination);
-    state.destinationName =
-      destinationInfo.length > 0 ? destinationInfo[0].city : destination;
+    if (originResults.length > 0) {
+      const o = originResults[0];
+      selectedAircraft.route.origin = {
+        lat: o.lat,
+        lon: o.lon,
+        name: o.name,
+        city: o.city,
+        icao: o.icao
+      };
+    } else {
+      selectedAircraft.route.origin = {
+        lat: null,
+        lon: null,
+        name: originCode,
+        city: originCode,
+        icao: originCode
+      };
+    }
+
+    if (destResults.length > 0) {
+      const d = destResults[0];
+      selectedAircraft.route.destination = {
+        lat: d.lat,
+        lon: d.lon,
+        name: d.name,
+        city: d.city,
+        icao: d.icao
+      };
+    } else {
+      selectedAircraft.route.destination = {
+        lat: null,
+        lon: null,
+        name: destinationCode,
+        city: destinationCode,
+        icao: destinationCode
+      };
+    }
   } catch (err: any) {
     state.error = `Error: ${err.message}`;
   } finally {
@@ -88,14 +118,16 @@ const fetchRouteData = async (callsign: string) => {
 };
 
 watch(
-  () => tangramApi.state.activeEntity?.id,
+  () => tangramApi.state.activeEntity?.value?.id,
   newId => {
     resetData();
     if (newId) {
-      const activeEntity = tangramApi.state.activeEntity;
-      const callsign = (activeEntity?.state as any)?.callsign;
-      if (callsign) {
-        fetchRouteData(callsign);
+      const activeEntity = tangramApi.state.activeEntity.value;
+      if (activeEntity?.type === "jet1090_aircraft") {
+        const callsign = (activeEntity?.state as any)?.callsign;
+        if (callsign) {
+          fetchRouteData(callsign);
+        }
       }
     }
   },
@@ -133,5 +165,6 @@ watch(
   text-align: center;
   padding: 10px;
   color: #79706e;
+  font-size: 0.9em;
 }
 </style>
