@@ -16,11 +16,13 @@ install:
 c-redis:
   {{container_runtime}} run -d --rm -p 6379:6379 --name redis redis:latest
 
-c-jet1090:
+jet1090_sources := '"ws://feedme.mode-s.org:9876/40128@EHRD"'
+
+c-jet1090 sources=jet1090_sources:
   {{container_runtime}} run -d --rm --name jet1090 \
     --network=host \
     ghcr.io/xoolive/jet1090:latest \
-    jet1090 --serve-port 8080 --history-expire 5 --redis-url "redis://127.0.0.1:6379" "ws://feedme.mode-s.org:9876/40128@EHRD"
+    jet1090 --serve-port 8080 --history-expire 5 --redis-url "redis://127.0.0.1:6379" {{sources}}
 
 # before running this, clone the repo and `cargo install --path crates/ship162`
 ship162:
