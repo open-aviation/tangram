@@ -41,6 +41,8 @@ pyo3-stub-gen = { version = "0.16", optional = true }
 [[bin]]
 name = "stub_gen_planes"
 path = "src/bin/stub_gen.rs"
+required-features = ["stubgen"]
 
 [features]
-pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:pyo3-stub-gen", "tangram_history/pyo3"]
+pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "tangram_history/pyo3"]
+stubgen = ["pyo3", "dep:pyo3-stub-gen"]

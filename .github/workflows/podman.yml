@@ -47,13 +47,15 @@ jobs:
           echo -e '#!/bin/sh\n\nsudo /usr/bin/tar.orig "$@"' | sudo tee -a /usr/bin/tar
           sudo chmod +x /usr/bin/tar
 
-      - name: Cache podman images
+      - name: cache container layers
         uses: actions/cache@v4
         with:
           path: |
             ~/.local/share/containers
             ~/.config/containers
-          key: ${{ runner.os }}-operator-image-${{ hashFiles('Containerfile') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-podman-${{ hashFiles('Containerfile', 'package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-podman-
 
       - name: Build Tangram image
         run: |

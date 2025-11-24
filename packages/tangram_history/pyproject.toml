@@ -19,7 +19,7 @@ tangram = { workspace = true }
 [tool.maturin]
 python-source = "src"
 module-name = "tangram_history._history"
-features = ["pyo3"]
+features = ["pyo3", "server"]
 
 [tool.uv]
 cache-keys = [

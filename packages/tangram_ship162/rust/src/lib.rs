@@ -6,8 +6,9 @@ use pyo3::{
     exceptions::{PyOSError, PyRuntimeError},
     prelude::*,
 };
-#[cfg(feature = "pyo3")]
+#[cfg(feature = "stubgen")]
 use pyo3_stub_gen::derive::*;
+
 use std::sync::Arc;
 use tangram_core::{
     bbox::BoundingBoxState,
@@ -23,7 +24,7 @@ use futures::StreamExt;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[cfg(feature = "pyo3")]
-#[gen_stub_pyfunction]
+#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
 fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
     tracing_subscriber::registry()
@@ -33,7 +34,7 @@ fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
         .map_err(|e| PyOSError::new_err(e.to_string()))
 }
 
-#[cfg_attr(feature = "pyo3", gen_stub_pyclass)]
+#[cfg_attr(feature = "stubgen", gen_stub_pyclass)]
 #[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
 #[derive(Debug, Clone)]
 pub struct ShipsConfig {
@@ -52,7 +53,7 @@ pub struct ShipsConfig {
 }
 
 #[cfg(feature = "pyo3")]
-#[gen_stub_pymethods]
+#[cfg_attr(feature = "stubgen", gen_stub_pymethods)]
 #[pymethods]
 impl ShipsConfig {
     #[new]
@@ -211,7 +212,7 @@ async fn _run_service(config: ShipsConfig) -> Result<()> {
 }
 
 #[cfg(feature = "pyo3")]
-#[gen_stub_pyfunction]
+#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
 fn run_ships(py: Python<'_>, config: ShipsConfig) -> PyResult<Bound<'_, PyAny>> {
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
@@ -230,7 +231,7 @@ fn _ships(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-#[cfg(feature = "pyo3")]
+#[cfg(feature = "stubgen")]
 pub fn stub_info() -> pyo3_stub_gen::Result<pyo3_stub_gen::StubInfo> {
     let manifest_dir: &::std::path::Path = env!("CARGO_MANIFEST_DIR").as_ref();
     let pyproject_path = manifest_dir.parent().unwrap().join("pyproject.toml");

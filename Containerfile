@@ -67,6 +67,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     # tangram > channel > httpparse
     build-essential \
+    # tangram_ship162 > ship162
+    pkg-config libssl-dev \
     && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
         sh -s -- -y \
         --default-toolchain $RUST_VERSION \
