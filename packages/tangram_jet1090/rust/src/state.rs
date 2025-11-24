@@ -42,6 +42,7 @@ impl Aircraft {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// BDS40 message format
 pub struct BDS40Message {
+    #[serde(alias = "selected_mcp")]
     pub selected_altitude: Option<u16>,
     #[serde(flatten)]
     pub extra: HashMap<String, serde_json::Value>,
@@ -53,15 +54,18 @@ pub struct BDS50Message {
     pub roll: Option<f64>,
     pub track: Option<f64>,
     pub groundspeed: Option<f64>,
+    #[serde(alias = "TAS")]
     pub tas: Option<u16>,
     #[serde(flatten)]
     pub extra: HashMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// BDS50 message format
+/// BDS60 message format
 pub struct BDS60Message {
+    #[serde(alias = "IAS")]
     pub ias: Option<u16>,
+    #[serde(alias = "Mach")]
     pub mach: Option<f64>,
     pub heading: Option<f64>,
     pub vrate_barometric: Option<i16>,
@@ -178,11 +182,23 @@ pub struct Jet1090HistoryFrame {
 
 impl From<&Jet1090Message> for Jet1090HistoryFrame {
     fn from(msg: &Jet1090Message) -> Self {
+        let bds = msg.bds.clone().or_else(|| {
+            if msg.bds60.is_some() {
+                Some("60".to_string())
+            } else if msg.bds50.is_some() {
+                Some("50".to_string())
+            } else if msg.bds40.is_some() {
+                Some("40".to_string())
+            } else {
+                None
+            }
+        });
+
         Self {
             icao24: msg.icao24.clone(),
             timestamp: (msg.timestamp * 1_000_000.0) as i64,
             df: msg.df.parse().unwrap_or(0),
-            bds: msg.bds.clone(),
+            bds,
             callsign: msg.callsign.clone(),
             altitude: msg.altitude.map(|v| v as i32),
             latitude: msg.latitude,
