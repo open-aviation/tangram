@@ -35,7 +35,7 @@ watch(
       })
       .then(sensors => {
         const sensorData: Sensor[] = Object.values(sensors).map((sensor: any) => ({
-          position: [sensor.reference.longitude, sensor.reference.latitude],
+          position: [sensor?.reference?.longitude, sensor?.reference?.latitude],
           name: sensor.name,
           aircraft_count: sensor.aircraft_count
         }));
