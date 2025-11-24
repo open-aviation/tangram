@@ -1,10 +1,10 @@
 # History Plugin
 
-the `tangram_history` plugin provides a centralized, durable persistence layer for tangram. it ingests high-frequency, append-only time-series data from producer plugins (like `tangram_jet1090`) and stores it efficiently in delta lake tables.
+The `tangram_history` plugin provides a centralized, durable persistence layer for tangram. It ingests high-frequency, append-only time-series data from producer plugins (like [`tangram_jet1090`](./jet1090.md) or [`tangram_ship162`](./ship162.md)) and stores it efficiently in [Delta Lake tables](https://delta.io/blog/delta-lake-vs-parquet-comparison/).
 
 - buffers incoming records in memory and flushes them periodically as larger, optimized parquet files.
-- uses delta lake for transactional writes, schema enforcement, and compatibility with query engines (datafusion, polars, duckdb...).
-- makes no assumptions about data content. producers register their own schemas and data retention policies.
+- uses Delta Lake for transactional writes, schema enforcement, and compatibility with query engines (datafusion, polars, duckdb...).
+- makes no assumptions about data content: producers register their own schemas and data retention policies.
 
 ```mermaid
 sequenceDiagram
@@ -29,11 +29,11 @@ sequenceDiagram
     C->>D: read delta table directly
 ```
 
-## protocol
+## Protocol
 
-### control channel (`history:control`)
+### Control channel (`history:control`)
 
-Used for managing tables. producers must register a table and its schema before sending data.
+Used for managing tables. Producers must register a table and its schema before sending data.
 
 - message: `register_table`
 - payload fields:
@@ -45,14 +45,14 @@ Used for managing tables. producers must register a table and its schema before 
     - `vacuum_interval_secs`: how often to run `vacuum`.
     - `vacuum_retention_period_secs`: retention for `vacuum`.
 
-### ingest stream (`history:ingest:<table_name>`)
+### Ingest stream (`history:ingest:<table_name>`)
 
-a fire-and-forget redis stream for producers to send data.
+A fire-and-forget redis stream for producers to send data.
 
 - command: `XADD`
 - payload: a key-value pair `data` and a base64-encoded arrow ipc **recordbatch** in stream format.
 
-## configuration
+## Configuration
 
 The history service itself has minimal configuration. All per-table settings are provided by the producer plugins that use it.
 

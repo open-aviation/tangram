@@ -19,7 +19,7 @@ sequenceDiagram
     S->>R: PUBLISH ship162 (raw message)
     P->>R: SUBSCRIBE ship162
     Note over P: Process message, update state vector
-    p->>r: XADD history:ingest:ship162, *, ...
+    P->>R: XADD history:ingest:ship162, *, ...
 
     loop every second
         Note over P: Filter ships by client's bbox
