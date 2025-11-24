@@ -10,7 +10,8 @@
   "exports": {
     "./vite-plugin": "./src/tangram/vite-plugin-tangram.mjs",
     "./api": "./src/tangram/api.ts",
-    "./types": "./src/tangram/types.d.ts"
+    "./types": "./src/tangram/types.d.ts",
+    "./colour": "./src/tangram/colour.ts"
   },
   "dependencies": {
     "@deck.gl/core": "^9.2.2",
