@@ -15,7 +15,7 @@ use std::{
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
-use tangram_core::stream::{Positioned, StateCollection, Tracked};
+use tangram_core::stream::{Identifiable, Positioned, StateCollection, Tracked};
 use tangram_history::client::{HistoryBuffer, HistoryFrame};
 
 #[cfg_attr(feature = "stubgen", gen_stub_pyclass)]
@@ -344,6 +344,12 @@ impl Positioned for StateVector {
     }
     fn longitude(&self) -> Option<f64> {
         self.longitude
+    }
+}
+
+impl Identifiable for StateVector {
+    fn id(&self) -> String {
+        self.icao24.clone()
     }
 }
 

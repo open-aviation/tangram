@@ -23,11 +23,14 @@ pub struct BoundingBoxMessage {
     pub south_west_lat: f64,
     #[serde(rename = "southWestLng")]
     pub south_west_lng: f64,
+    #[serde(rename = "selectedEntityId")]
+    pub selected_entity_id: Option<String>,
 }
 
 #[derive(Default)]
 pub struct BoundingBoxState {
     pub bboxes: HashMap<String, BoundingBox>,
+    pub selections: HashMap<String, String>,
     pub clients: HashSet<String>,
 }
 
@@ -35,6 +38,7 @@ impl BoundingBoxState {
     pub fn new() -> Self {
         Self {
             bboxes: HashMap::new(),
+            selections: HashMap::new(),
             clients: HashSet::new(),
         }
     }
@@ -51,6 +55,17 @@ impl BoundingBoxState {
         );
     }
 
+    pub fn set_selected(&mut self, connection_id: &str, entity_id: Option<String>) {
+        match entity_id {
+            Some(id) => {
+                self.selections.insert(connection_id.to_string(), id);
+            }
+            None => {
+                self.selections.remove(connection_id);
+            }
+        }
+    }
+
     pub fn has_bbox(&self, connection_id: &str) -> bool {
         self.bboxes.contains_key(connection_id)
     }
@@ -59,8 +74,14 @@ impl BoundingBoxState {
         self.bboxes.get(connection_id)
     }
 
-    pub fn remove_bbox(&mut self, connection_id: &str) {
+    pub fn get_selected(&self, connection_id: &str) -> Option<&String> {
+        self.selections.get(connection_id)
+    }
+
+    pub fn remove_client(&mut self, connection_id: &str) {
         self.bboxes.remove(connection_id);
+        self.selections.remove(connection_id);
+        self.clients.remove(connection_id);
     }
 }
 

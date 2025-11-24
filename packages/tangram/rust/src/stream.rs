@@ -12,6 +12,10 @@ use tracing::{debug, error, info};
 
 use crate::bbox::{is_within_bbox, BoundingBox, BoundingBoxMessage, BoundingBoxState};
 
+pub trait Identifiable {
+    fn id(&self) -> String;
+}
+
 pub trait Positioned {
     fn latitude(&self) -> Option<f64>;
     fn longitude(&self) -> Option<f64>;
@@ -22,7 +26,7 @@ pub trait Tracked {
 }
 
 pub trait StateCollection {
-    type Item: Positioned + Tracked + Clone + Serialize + Send;
+    type Item: Positioned + Tracked + Identifiable + Clone + Serialize + Send;
     fn get_all(&self) -> Vec<Self::Item>;
     fn state_vector_expire_secs(&self) -> u64;
 }
@@ -74,8 +78,7 @@ pub async fn start_redis_subscriber(
         } else if channel == "from:system:leave-streaming" {
             if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&payload) {
                 let mut state = state.lock().await;
-                state.clients.remove(&client_msg.connection_id);
-                state.remove_bbox(&client_msg.connection_id);
+                state.remove_client(&client_msg.connection_id);
                 info!(
                     "- client leaves: {}, {:?}",
                     client_msg.connection_id, state.clients
@@ -93,6 +96,7 @@ pub async fn start_redis_subscriber(
                         south_west_lng: bbox_msg.south_west_lng,
                     },
                 );
+                state.set_selected(&bbox_msg.connection_id, bbox_msg.selected_entity_id.clone());
             }
         }
     }
@@ -151,9 +155,16 @@ where
             let filtered_data = {
                 let state = bbox_state.lock().await;
                 if state.has_bbox(client_id) {
+                    let selected_id = state.get_selected(client_id).cloned();
                     all_items
                         .iter()
-                        .filter(|a| is_within_bbox(*a, &state, client_id))
+                        .filter(|a| {
+                            is_within_bbox(*a, &state, client_id)
+                                || selected_id
+                                    .as_ref()
+                                    .map(|id| id == &a.id())
+                                    .unwrap_or(false)
+                        })
                         .cloned()
                         .collect::<Vec<_>>()
                 } else {

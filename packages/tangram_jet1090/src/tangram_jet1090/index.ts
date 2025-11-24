@@ -71,22 +71,25 @@ export function install(api: TangramApi) {
     }
   );
 
-  watch(
-    api.map.bounds,
-    newBounds => {
-      const connId = api.realtime.getConnectionId();
-      if (!connId) return;
-      const payload = {
-        connectionId: connId,
-        northEastLat: newBounds.getNorthEast().lat,
-        northEastLng: newBounds.getNorthEast().lng,
-        southWestLat: newBounds.getSouthWest().lat,
-        southWestLng: newBounds.getSouthWest().lng
-      };
-      api.realtime.publish("system:bound-box", payload);
-    },
-    { deep: true }
-  );
+  const updateView = () => {
+    const connId = api.realtime.getConnectionId();
+    if (!connId) return;
+    const bounds = api.map.bounds.value;
+    if (!bounds) return;
+
+    const payload = {
+      connectionId: connId,
+      northEastLat: bounds.getNorthEast().lat,
+      northEastLng: bounds.getNorthEast().lng,
+      southWestLat: bounds.getSouthWest().lat,
+      southWestLng: bounds.getSouthWest().lng,
+      selectedEntityId: selectedAircraft.icao24
+    };
+    api.realtime.publish("system:bound-box", payload);
+  };
+
+  watch(api.map.bounds, updateView, { deep: true });
+  watch(() => selectedAircraft.icao24, updateView);
 }
 
 async function subscribeToAircraftData(api: TangramApi, connectionId: string) {
