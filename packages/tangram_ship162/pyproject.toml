@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "tangram_ship162"
 version = "0.1.0"
-dependencies = ["tangram>=0.2.0"]
+dependencies = ["tangram_core>=0.2.0"]
 authors = [
     { name = "Abraham Cheung", email = "abraham@ylcheung.com" },
 ]
@@ -14,11 +14,11 @@ license = "MIT"
 [project.optional-dependencies]
 history = ["polars[deltalake]"]
 
-[project.entry-points."tangram.plugins"]
+[project.entry-points."tangram_core.plugins"]
 tangram_ship162 = "tangram_ship162:plugin"
 
 [tool.uv.sources]
-tangram = { workspace = true }
+tangram_core = { workspace = true }
 
 [tool.maturin]
 python-source = "src"

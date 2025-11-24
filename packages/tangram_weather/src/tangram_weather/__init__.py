@@ -4,7 +4,7 @@ import logging
 
 import numpy as np
 import pandas as pd
-import tangram
+import tangram_core
 from fastapi import APIRouter
 from fastapi.responses import ORJSONResponse
 from PIL import Image
@@ -27,7 +27,7 @@ async def get_weather() -> dict[str, str]:
 
 @router.get("/wind")
 async def wind(
-    isobaric: int, backend_state: tangram.InjectBackendState
+    isobaric: int, backend_state: tangram_core.InjectBackendState
 ) -> ORJSONResponse:
     logger.info("fetching wind data for %s", isobaric)
 
@@ -76,4 +76,4 @@ async def wind(
     return ORJSONResponse(content=response_content)
 
 
-plugin = tangram.Plugin(frontend_path="dist-frontend", routers=[router])
+plugin = tangram_core.Plugin(frontend_path="dist-frontend", routers=[router])

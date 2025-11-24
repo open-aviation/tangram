@@ -7,7 +7,7 @@ name = "tangram_weather"
 version = "0.2.0"
 readme = "readme.md"
 dependencies = [
-    "tangram>=0.2.0",
+    "tangram_core>=0.2.0",
     "xarray>=2025.6.1",
     "cfgrib>=0.9.15.0",
     "tqdm>=4.67.1",
@@ -20,11 +20,11 @@ authors = [
     { name = "Xavier Olive", email = "git@xoolive.org" }
 ]
 
-[project.entry-points."tangram.plugins"]
+[project.entry-points."tangram_core.plugins"]
 tangram_weather = "tangram_weather:plugin"
 
 [tool.uv.sources]
-tangram = { workspace = true }
+tangram_core = { workspace = true }
 
 [tool.hatch.build.targets.sdist]
 ignore-vcs = true

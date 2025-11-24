@@ -17,14 +17,14 @@ The `tangram_weather` plugin displays a wind field on the map at a user-specifie
 The `tangram_weather` plugin is a self-contained, installable Python package. Its `pyproject.toml` registers it as a `tangram` plugin via an entry point:
 
 ```toml
-[project.entry-points."tangram.plugins"]
+[project.entry-points."tangram_core.plugins"]
 tangram_weather = "tangram_weather:plugin"
 ```
 
-The plugin's `src/tangram_weather/__init__.py` file defines a FastAPI `APIRouter` and registers it with the core `tangram` application.
+The plugin's `src/tangram_weather/__init__.py` file defines a FastAPI `APIRouter` and registers it with the `tangram_core` application.
 
 ```python
-import tangram
+import tangram_core
 from fastapi import APIRouter
 # ...
 
@@ -34,7 +34,7 @@ router = APIRouter(...)
 async def wind(isobaric: int = 300) -> ORJSONResponse:
     # ... implementation ...
 
-plugin = tangram.Plugin(routers=[router])
+plugin = tangram_core.Plugin(routers=[router])
 ```
 
 The plugin, associated with the `/weather` router will provide an API endpoint to fetch the wind field data for a specific isobar.

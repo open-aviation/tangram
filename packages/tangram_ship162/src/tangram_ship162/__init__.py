@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-import tangram
+import tangram_core
 from fastapi import APIRouter, HTTPException
 from pydantic import TypeAdapter
 
@@ -22,7 +22,7 @@ router = APIRouter(
 
 @router.get("/data/{mmsi}")
 async def get_trajectory_data(
-    mmsi: int, backend_state: tangram.InjectBackendState
+    mmsi: int, backend_state: tangram_core.InjectBackendState
 ) -> list[dict[str, Any]]:
     """Get the full trajectory for a given ship MMSI."""
     if not _HISTORY_AVAILABLE:
@@ -59,7 +59,7 @@ async def get_trajectory_data(
         )
 
 
-plugin = tangram.Plugin(frontend_path="dist-frontend", routers=[router])
+plugin = tangram_core.Plugin(frontend_path="dist-frontend", routers=[router])
 
 
 @dataclass(frozen=True)
@@ -79,7 +79,7 @@ class ShipsConfig:
 
 
 @plugin.register_service()
-async def run_ships(backend_state: tangram.BackendState) -> None:
+async def run_ships(backend_state: tangram_core.BackendState) -> None:
     from . import _ships
 
     plugin_config = backend_state.config.plugins.get("tangram_ship162", {})

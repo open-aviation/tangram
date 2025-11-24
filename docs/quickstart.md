@@ -81,7 +81,7 @@ The `tangram_system` plugin adds a widget to the UI that displays server metrics
 === "uv"
 
     ```sh
-    uv tool install --with tangram_system tangram
+    uv tool install --with tangram_system tangram_core
     ```
 
 === "pip"
@@ -132,7 +132,7 @@ Just like before, install the package and add it to your `tangram.toml`.
 === "uv"
 
     ```sh
-    uv tool install --with tangram_system --with tangram_jet1090 tangram
+    uv tool install --with tangram_system --with tangram_jet1090 tangram_core
     ```
 
 === "pip"

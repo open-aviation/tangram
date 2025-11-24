@@ -2,7 +2,7 @@
 import { computed, inject, onUnmounted, ref, watch, type Ref } from "vue";
 import { PathLayer } from "@deck.gl/layers";
 import { PathStyleExtension } from "@deck.gl/extensions";
-import type { TangramApi, Disposable } from "@open-aviation/tangram/api";
+import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
 import { selectedAircraft } from "./store";
 
 const tangramApi = inject<TangramApi>("tangramApi");

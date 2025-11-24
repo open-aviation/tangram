@@ -17,7 +17,7 @@ const DECKGL_PACKAGES = [
 // when modifying, also update:
 // - ./index.html (importmap)
 // - ./vite.lib-esm.config.ts
-// - ./src/tangram/vite-plugin-tangram.mjs
+// - ./src/tangram_core/vite-plugin-tangram.mjs
 // - ../../tsconfig.json paths
 
 export default defineConfig({
@@ -87,12 +87,12 @@ export default defineConfig({
      * │   ├── index.html
      * │   └── ...
      * └── src
-     *     └── tangram
+     *     └── tangram_core
      * but for some reason maturin doesn't copy it,
      * so we output to the src dir for now.
      */
     sourcemap: true,
-    outDir: path.resolve(__dirname, "./src/tangram/dist-frontend"),
+    outDir: path.resolve(__dirname, "./src/tangram_core/dist-frontend"),
     emptyOutDir: false,
     rollupOptions: {
       input: path.resolve(__dirname, "index.html"),

@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { ref, watch, inject, onUnmounted, onMounted } from "vue";
-import type { TangramApi, Disposable } from "@open-aviation/tangram/api";
+import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
 import { ParticleLayer, ImageType } from "weatherlayers-gl";
 
 const tangramApi = inject<TangramApi>("tangramApi");

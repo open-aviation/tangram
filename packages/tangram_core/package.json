@@ -1,17 +1,17 @@
 {
-  "name": "@open-aviation/tangram",
+  "name": "@open-aviation/tangram-core",
   "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "vite build --config vite.lib-esm.config.ts && vite build"
   },
-  "types": "./src/tangram/types.d.ts",
+  "types": "./src/tangram_core/types.d.ts",
   "exports": {
-    "./vite-plugin": "./src/tangram/vite-plugin-tangram.mjs",
-    "./api": "./src/tangram/api.ts",
-    "./types": "./src/tangram/types.d.ts",
-    "./colour": "./src/tangram/colour.ts"
+    "./vite-plugin": "./src/tangram_core/vite-plugin-tangram.mjs",
+    "./api": "./src/tangram_core/api.ts",
+    "./types": "./src/tangram_core/types.d.ts",
+    "./colour": "./src/tangram_core/colour.ts"
   },
   "dependencies": {
     "@deck.gl/core": "^9.2.2",

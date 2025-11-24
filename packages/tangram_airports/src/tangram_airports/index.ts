@@ -1,4 +1,4 @@
-import type { TangramApi } from "@open-aviation/tangram/api";
+import type { TangramApi } from "@open-aviation/tangram-core/api";
 import AirportSearchWidget from "./AirportSearchWidget.vue";
 
 export function install(api: TangramApi) {

@@ -8,7 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@open-aviation/tangram": "workspace:*",
+    "@open-aviation/tangram-core": "workspace:*",
     "chart.js": "^4.5.1",
     "dayjs": "^1.11.19",
     "raphael": "^2.3.0",

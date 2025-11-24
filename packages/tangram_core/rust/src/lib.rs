@@ -263,7 +263,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 #[cfg(feature = "stubgen")]
 // not using define_stub_info_gatherer! macro, we need to
-// go up one level from `packages/tangram/rust` to `package/tangram`
+// go up one level from `packages/tangram_core/rust` to `packages/tangram_core`
 pub fn stub_info() -> pyo3_stub_gen::Result<pyo3_stub_gen::StubInfo> {
     let manifest_dir: &::std::path::Path = env!("CARGO_MANIFEST_DIR").as_ref();
     let pyproject_path = manifest_dir.parent().unwrap().join("pyproject.toml");

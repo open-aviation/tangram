@@ -19,14 +19,14 @@
     // HACK: for some reason specifying `peerDepedencies` in each package
     // doesn't work so we just override it for now
     "paths": {
-      "vue": ["./packages/tangram/node_modules/vue"],
-      "maplibre": ["./packages/tangram/node_modules/maplibre"],
-      "@deck.gl/core": ["./packages/tangram/node_modules/@deck.gl/core"],
-      "@deck.gl/layers": ["./packages/tangram/node_modules/@deck.gl/layers"],
-      "@deck.gl/mapbox": ["./packages/tangram/node_modules/@deck.gl/mapbox"],
-      "@deck.gl/extensions": ["./packages/tangram/node_modules/@deck.gl/extensions"],
-      "lit-html": ["./packages/tangram/node_modules/lit-html"],
-      "rs1090-wasm": ["./packages/tangram/node_modules/rs1090-wasm"],
+      "vue": ["./packages/tangram_core/node_modules/vue"],
+      "maplibre": ["./packages/tangram_core/node_modules/maplibre"],
+      "@deck.gl/core": ["./packages/tangram_core/node_modules/@deck.gl/core"],
+      "@deck.gl/layers": ["./packages/tangram_core/node_modules/@deck.gl/layers"],
+      "@deck.gl/mapbox": ["./packages/tangram_core/node_modules/@deck.gl/mapbox"],
+      "@deck.gl/extensions": ["./packages/tangram_core/node_modules/@deck.gl/extensions"],
+      "lit-html": ["./packages/tangram_core/node_modules/lit-html"],
+      "rs1090-wasm": ["./packages/tangram_core/node_modules/rs1090-wasm"],
     }
   },
   "include": ["packages/**/*.ts", "packages/**/*.d.ts", "packages/**/*.vue"]

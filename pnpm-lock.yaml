@@ -33,7 +33,13 @@ importers:
         specifier: ^7.2.2
         version: 7.2.2(@types/node@20.19.10)(jiti@2.6.1)
 
-  packages/tangram:
+  packages/tangram_airports:
+    dependencies:
+      '@open-aviation/tangram-core':
+        specifier: workspace:*
+        version: link:../tangram_core
+
+  packages/tangram_core:
     dependencies:
       '@deck.gl/aggregation-layers':
         specifier: ^9.2.2
@@ -100,23 +106,17 @@ importers:
         specifier: ^3.1.4
         version: 3.1.4(vite@7.2.2(@types/node@20.19.10)(jiti@2.6.1))
 
-  packages/tangram_airports:
-    dependencies:
-      '@open-aviation/tangram':
-        specifier: workspace:*
-        version: link:../tangram
-
   packages/tangram_example:
     dependencies:
-      '@open-aviation/tangram':
+      '@open-aviation/tangram-core':
         specifier: workspace:*
-        version: link:../tangram
+        version: link:../tangram_core
 
   packages/tangram_jet1090:
     dependencies:
-      '@open-aviation/tangram':
+      '@open-aviation/tangram-core':
         specifier: workspace:*
-        version: link:../tangram
+        version: link:../tangram_core
       chart.js:
         specifier: ^4.5.1
         version: 4.5.1
@@ -132,21 +132,21 @@ importers:
 
   packages/tangram_ship162:
     dependencies:
-      '@open-aviation/tangram':
+      '@open-aviation/tangram-core':
         specifier: workspace:*
-        version: link:../tangram
+        version: link:../tangram_core
 
   packages/tangram_system:
     dependencies:
-      '@open-aviation/tangram':
+      '@open-aviation/tangram-core':
         specifier: workspace:*
-        version: link:../tangram
+        version: link:../tangram_core
 
   packages/tangram_weather:
     dependencies:
-      '@open-aviation/tangram':
+      '@open-aviation/tangram-core':
         specifier: workspace:*
-        version: link:../tangram
+        version: link:../tangram_core
       weatherlayers-gl:
         specifier: ^2025.7.0
         version: 2025.8.0(@deck.gl/core@9.2.2)(@deck.gl/extensions@9.2.2(@deck.gl/core@9.2.2)(@luma.gl/core@9.2.4)(@luma.gl/engine@9.2.4(@luma.gl/core@9.2.4)(@luma.gl/shadertools@9.2.4(@luma.gl/core@9.2.4))))(@deck.gl/layers@9.2.2(@deck.gl/core@9.2.2)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.4)(@luma.gl/engine@9.2.4(@luma.gl/core@9.2.4)(@luma.gl/shadertools@9.2.4(@luma.gl/core@9.2.4))))(@luma.gl/core@9.2.4)(@luma.gl/engine@9.2.4(@luma.gl/core@9.2.4)(@luma.gl/shadertools@9.2.4(@luma.gl/core@9.2.4)))

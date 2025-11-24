@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import platformdirs
-import tangram
+import tangram_core
 from pydantic import TypeAdapter
 
 log = logging.getLogger(__name__)
-plugin = tangram.Plugin()
+plugin = tangram_core.Plugin()
 
 
 @dataclass(frozen=True)
@@ -20,7 +20,7 @@ class HistoryConfig:
 
 
 @plugin.register_service()
-async def run_history(backend_state: tangram.BackendState) -> None:
+async def run_history(backend_state: tangram_core.BackendState) -> None:
     from . import _history
 
     plugin_config = backend_state.config.plugins.get("tangram_history", {})

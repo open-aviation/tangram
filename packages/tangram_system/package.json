@@ -8,6 +8,6 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@open-aviation/tangram": "workspace:*"
+    "@open-aviation/tangram-core": "workspace:*"
   }
 }

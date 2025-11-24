@@ -11,14 +11,14 @@ authors = [
 name = "tangram_example"
 version = "0.2.0"
 readme = "readme.md"
-dependencies = ["tangram>=0.2.0"]
+dependencies = ["tangram_core>=0.2.0"]
 classifiers = ["Private :: Do Not Upload"]
 
-[project.entry-points."tangram.plugins"]
+[project.entry-points."tangram_core.plugins"]
 tangram_example = "tangram_example:plugin"
 
 [tool.uv.sources]
-tangram = { workspace = true }
+tangram_core = { workspace = true }
 
 [tool.hatch.build.targets.sdist]
 ignore-vcs = true

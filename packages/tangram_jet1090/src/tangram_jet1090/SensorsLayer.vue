@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { inject, onUnmounted, ref, watch, reactive, type Ref } from "vue";
 import { ScatterplotLayer } from "@deck.gl/layers";
-import type { TangramApi, Disposable } from "@open-aviation/tangram/api";
+import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
 import type { PickingInfo } from "@deck.gl/core";
 
 interface Sensor {

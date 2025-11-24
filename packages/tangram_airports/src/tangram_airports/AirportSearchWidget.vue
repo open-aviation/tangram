@@ -21,7 +21,7 @@
 
 <script setup lang="ts">
 import { ref, inject } from "vue";
-import type { TangramApi } from "@open-aviation/tangram/api";
+import type { TangramApi } from "@open-aviation/tangram-core/api";
 import { airport_information } from "rs1090-wasm";
 
 interface Airport {

@@ -6,7 +6,7 @@ from typing import NoReturn
 
 import psutil
 import redis.asyncio as redis
-import tangram
+import tangram_core
 
 log = logging.getLogger(__name__)
 
@@ -57,9 +57,9 @@ async def server_events(redis_client: redis.Redis) -> NoReturn:
         await asyncio.sleep(1)
 
 
-plugin = tangram.Plugin(frontend_path="dist-frontend")
+plugin = tangram_core.Plugin(frontend_path="dist-frontend")
 
 
 @plugin.register_service()
-async def run_system(backend_state: tangram.BackendState) -> None:
+async def run_system(backend_state: tangram_core.BackendState) -> None:
     await server_events(backend_state.redis_client)

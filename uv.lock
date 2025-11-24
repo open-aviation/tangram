@@ -9,8 +9,8 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "tangram",
     "tangram-airports",
+    "tangram-core",
     "tangram-example",
     "tangram-history",
     "tangram-jet1090",
@@ -2290,9 +2290,20 @@ wheels = [
 ]
 
 [[package]]
-name = "tangram"
+name = "tangram-airports"
 version = "0.2.0"
-source = { editable = "packages/tangram" }
+source = { editable = "packages/tangram_airports" }
+dependencies = [
+    { name = "tangram-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tangram-core", editable = "packages/tangram_core" }]
+
+[[package]]
+name = "tangram-core"
+version = "0.2.0"
+source = { editable = "packages/tangram_core" }
 dependencies = [
     { name = "fastapi" },
     { name = "httpx", extra = ["http2"] },
@@ -2315,26 +2326,15 @@ requires-dist = [
 ]
 
 [[package]]
-name = "tangram-airports"
-version = "0.2.0"
-source = { editable = "packages/tangram_airports" }
-dependencies = [
-    { name = "tangram" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "tangram", editable = "packages/tangram" }]
-
-[[package]]
 name = "tangram-example"
 version = "0.2.0"
 source = { editable = "packages/tangram_example" }
 dependencies = [
-    { name = "tangram" },
+    { name = "tangram-core" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "tangram", editable = "packages/tangram" }]
+requires-dist = [{ name = "tangram-core", editable = "packages/tangram_core" }]
 
 [[package]]
 name = "tangram-history"
@@ -2342,13 +2342,13 @@ version = "0.1.0"
 source = { editable = "packages/tangram_history" }
 dependencies = [
     { name = "platformdirs" },
-    { name = "tangram" },
+    { name = "tangram-core" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "platformdirs" },
-    { name = "tangram", editable = "packages/tangram" },
+    { name = "tangram-core", editable = "packages/tangram_core" },
 ]
 
 [[package]]
@@ -2357,7 +2357,7 @@ version = "0.2.0"
 source = { editable = "packages/tangram_jet1090" }
 dependencies = [
     { name = "platformdirs" },
-    { name = "tangram" },
+    { name = "tangram-core" },
 ]
 
 [package.optional-dependencies]
@@ -2369,7 +2369,7 @@ history = [
 requires-dist = [
     { name = "platformdirs" },
     { name = "polars", extras = ["deltalake"], marker = "extra == 'history'" },
-    { name = "tangram", editable = "packages/tangram" },
+    { name = "tangram-core", editable = "packages/tangram_core" },
 ]
 provides-extras = ["history"]
 
@@ -2378,7 +2378,7 @@ name = "tangram-ship162"
 version = "0.1.0"
 source = { editable = "packages/tangram_ship162" }
 dependencies = [
-    { name = "tangram" },
+    { name = "tangram-core" },
 ]
 
 [package.optional-dependencies]
@@ -2389,7 +2389,7 @@ history = [
 [package.metadata]
 requires-dist = [
     { name = "polars", extras = ["deltalake"], marker = "extra == 'history'" },
-    { name = "tangram", editable = "packages/tangram" },
+    { name = "tangram-core", editable = "packages/tangram_core" },
 ]
 provides-extras = ["history"]
 
@@ -2399,13 +2399,13 @@ version = "0.2.0"
 source = { editable = "packages/tangram_system" }
 dependencies = [
     { name = "psutil" },
-    { name = "tangram" },
+    { name = "tangram-core" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "psutil" },
-    { name = "tangram", editable = "packages/tangram" },
+    { name = "tangram-core", editable = "packages/tangram_core" },
 ]
 
 [[package]]
@@ -2419,7 +2419,7 @@ dependencies = [
     { name = "orjson" },
     { name = "pandas" },
     { name = "pillow" },
-    { name = "tangram" },
+    { name = "tangram-core" },
     { name = "tqdm" },
     { name = "xarray", version = "2025.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "xarray", version = "2025.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -2432,7 +2432,7 @@ requires-dist = [
     { name = "orjson", specifier = ">=3.10.18" },
     { name = "pandas" },
     { name = "pillow", specifier = ">=10" },
-    { name = "tangram", editable = "packages/tangram" },
+    { name = "tangram-core", editable = "packages/tangram_core" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "xarray", specifier = ">=2025.6.1" },
 ]

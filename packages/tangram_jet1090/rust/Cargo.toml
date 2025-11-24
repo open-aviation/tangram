@@ -11,7 +11,7 @@ name = "_planes"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-tangram_core = { path = "../../tangram/rust" }
+tangram_core = { path = "../../tangram_core/rust" }
 tangram_history = { path = "../../tangram_history/rust", default-features = false, features = ["client"] }
 anyhow = "1.0"
 futures = "0.3"

@@ -1,4 +1,4 @@
-import type { TangramApi } from "@open-aviation/tangram/api";
+import type { TangramApi } from "@open-aviation/tangram-core/api";
 import SystemWidget from "./SystemWidget.vue";
 
 export function install(api: TangramApi) {
