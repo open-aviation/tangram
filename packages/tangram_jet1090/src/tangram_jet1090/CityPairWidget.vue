@@ -20,7 +20,7 @@
 
 <script setup lang="ts">
 import { inject, reactive, watch } from "vue";
-import type { TangramApi } from "@open-aviation/tangram/api";
+import type { TangramApi } from "@open-aviation/tangram-core/api";
 import { airport_information } from "rs1090-wasm";
 import { selectedAircraft } from "./store";
 

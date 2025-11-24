@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 import platformdirs
-import tangram
+import tangram_core
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter
@@ -36,7 +36,7 @@ router = APIRouter(
 
 @router.get("/data/{icao24}")
 async def get_trajectory_data(
-    icao24: str, backend_state: tangram.InjectBackendState
+    icao24: str, backend_state: tangram_core.InjectBackendState
 ) -> list[dict[str, Any]]:
     """Get the full trajectory for a given ICAO24 address."""
     if not _HISTORY_AVAILABLE:
@@ -74,7 +74,7 @@ async def get_trajectory_data(
 
 @router.get("/route/{callsign}")
 async def get_route_data(
-    callsign: str, backend_state: tangram.InjectBackendState
+    callsign: str, backend_state: tangram_core.InjectBackendState
 ) -> JSONResponse:
     url = "https://flightroutes.opensky-network.org/api/routeset"
     payload = {"planes": [{"callsign": callsign}]}
@@ -91,7 +91,7 @@ async def get_route_data(
 
 @router.get("/sensors")
 async def get_sensors_data(
-    backend_state: tangram.InjectBackendState,
+    backend_state: tangram_core.InjectBackendState,
 ) -> JSONResponse:
     plugin_config = backend_state.config.plugins.get("tangram_jet1090", {})
     config = TypeAdapter(PlanesConfig).validate_python(plugin_config)
@@ -105,7 +105,7 @@ async def get_sensors_data(
         return JSONResponse(content={"error": str(e)}, status_code=502)
 
 
-plugin = tangram.Plugin(frontend_path="dist-frontend", routers=[router])
+plugin = tangram_core.Plugin(frontend_path="dist-frontend", routers=[router])
 
 
 @dataclass(frozen=True)
@@ -185,7 +185,7 @@ async def get_aircraft_db(
 
 
 @plugin.register_service()
-async def run_planes(backend_state: tangram.BackendState) -> None:
+async def run_planes(backend_state: tangram_core.BackendState) -> None:
     from . import _planes
 
     plugin_config = backend_state.config.plugins.get("tangram_jet1090", {})

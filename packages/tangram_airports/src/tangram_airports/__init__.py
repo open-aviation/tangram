@@ -1,5 +1,5 @@
-import tangram
+import tangram_core
 
-plugin = tangram.Plugin(
+plugin = tangram_core.Plugin(
     frontend_path="dist-frontend",
 )

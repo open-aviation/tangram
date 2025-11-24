@@ -42,6 +42,6 @@ jet1090_channel = "jet1090"
 state_vector_expire = 20
 ```
 
-1. See [`tangram.config.CoreConfig`][].
-2. See [`tangram.config.ServerConfig`][]
-3. See [`tangram.config.ChannelConfig`][]
+1. See [`tangram_core.config.CoreConfig`][].
+2. See [`tangram_core.config.ServerConfig`][]
+3. See [`tangram_core.config.ChannelConfig`][]

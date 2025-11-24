@@ -13,7 +13,7 @@
 
 <script setup lang="ts">
 import { reactive, computed, inject, onMounted, onUnmounted } from "vue";
-import type { TangramApi, Disposable } from "@open-aviation/tangram/api";
+import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {

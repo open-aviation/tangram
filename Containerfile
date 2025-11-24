@@ -11,7 +11,7 @@ ARG ECCODES_STRATEGY=prebuilt
 # NOTE: unfortunately the `COPY --exclude` syntax requires podman>=5.3 and is only available in
 # ubuntu 25.04, so we just list them out explicitly (for now)
 FROM scratch AS frontend-package-jsons
-COPY packages/tangram/package.json /packages/tangram/
+COPY packages/tangram_core/package.json /packages/tangram_core/
 COPY packages/tangram_example/package.json /packages/tangram_example/
 COPY packages/tangram_jet1090/package.json /packages/tangram_jet1090/
 COPY packages/tangram_system/package.json /packages/tangram_system/

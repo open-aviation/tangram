@@ -136,7 +136,9 @@ def create_app(
 
     # TODO: we might want to host the frontend separately from the backend
     if (
-        frontend_path := resolve_frontend(path="dist-frontend", dist_name="tangram")
+        frontend_path := resolve_frontend(
+            path="dist-frontend", dist_name="tangram_core"
+        )
     ) is None:
         raise ValueError(
             "error: frontend was not found, did you run `pnpm i && pnpm run build`?"

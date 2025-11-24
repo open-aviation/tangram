@@ -55,7 +55,7 @@ export default defineConfig({
     "process.env.NODE_ENV": JSON.stringify("production")
   },
   build: {
-    outDir: path.resolve(__dirname, "./src/tangram/dist-frontend"),
+    outDir: path.resolve(__dirname, "./src/tangram_core/dist-frontend"),
     rollupOptions: {
       input: Object.fromEntries(
         DECKGL_PACKAGES.map(pkg => [

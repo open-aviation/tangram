@@ -6,17 +6,17 @@ build-backend = "hatchling.build"
 name = "tangram_system"
 version = "0.2.0"
 readme = "readme.md"
-dependencies = ["tangram>=0.2.0", "psutil"]
+dependencies = ["tangram_core>=0.2.0", "psutil"]
 authors = [
     { name = "Xavier Olive", email = "git@xoolive.org" },
     { name = "Junzi Sun", email = "git@junzis.com" }
 ]
 
-[project.entry-points."tangram.plugins"]
+[project.entry-points."tangram_core.plugins"]
 tangram_system = "tangram_system:plugin"
 
 [tool.uv.sources]
-tangram = { workspace = true }
+tangram_core = { workspace = true }
 
 [tool.hatch.build.targets.sdist]
 ignore-vcs = true

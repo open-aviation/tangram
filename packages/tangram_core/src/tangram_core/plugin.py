@@ -49,7 +49,7 @@ class Plugin:
 
 
 def scan_plugins() -> importlib.metadata.EntryPoints:
-    return importlib.metadata.entry_points(group="tangram.plugins")
+    return importlib.metadata.entry_points(group="tangram_core.plugins")
 
 
 def load_plugin(

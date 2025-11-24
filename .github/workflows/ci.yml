@@ -53,7 +53,7 @@ jobs:
       - name: run tests
         env:
           TANGRAM_CONFIG_PATH: tangram.example.toml
-        run: uv run pytest packages/tangram/tests/
+        run: uv run pytest packages/tangram_core/tests/
         
       - name: install tangram (all plugins)
         run:

@@ -19,7 +19,7 @@
 <script setup lang="ts">
 import { computed, inject, onUnmounted, ref, watch, reactive, type Ref } from "vue";
 import { IconLayer } from "@deck.gl/layers";
-import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram/api";
+import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core/api";
 import Raphael from "raphael";
 import { html, svg, render } from "lit-html";
 import { get_image_object } from "./PlanePath";

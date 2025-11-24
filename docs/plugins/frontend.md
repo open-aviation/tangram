@@ -21,7 +21,7 @@ The `main` file specified in your `package.json` must export an `install` functi
 
 <!-- TODO(abrah): eliminate some of these when we use mkdocstrings -->
 ```typescript title="src/index.ts"
-import type { TangramApi } from "@open-aviation/tangram/types";
+import type { TangramApi } from "@open-aviation/tangram-core/api";
 import MyWidget from "./MyWidget.vue";
 
 export function install(api: TangramApi) {
@@ -43,7 +43,7 @@ To simplify the build process, `tangram` provides a shared Vite plugin. This han
 
 ```typescript title="vite.config.ts"
 import { defineConfig } from "vite";
-import { tangramPlugin } from "@open-aviation/tangram/vite-plugin";
+import { tangramPlugin } from "@open-aviation/tangram-core/vite-plugin";
 
 export default defineConfig({
   plugins: [tangramPlugin()],

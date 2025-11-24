@@ -1,5 +1,5 @@
 import { watch } from "vue";
-import type { TangramApi, Entity } from "@open-aviation/tangram/api";
+import type { TangramApi, Entity } from "@open-aviation/tangram-core/api";
 import ShipLayer from "./ShipLayer.vue";
 import ShipCountWidget from "./ShipCountWidget.vue";
 import ShipInfoWidget from "./ShipInfoWidget.vue";

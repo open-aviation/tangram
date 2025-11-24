@@ -4,7 +4,7 @@ This guide covers the key concepts for building a backend plugin.
 
 ## Plugin Anatomy
 
-A `tangram` plugin is a standard Python package that exposes its functionality through two key mechanisms: an entry point and a [`Plugin`][tangram.Plugin] object.
+A `tangram` plugin is a standard Python package that exposes its functionality through two key mechanisms: an entry point and a [`Plugin`][tangram_core.Plugin] object.
 
 Assuming you have the following project structure:
 
@@ -18,36 +18,36 @@ my-tangram-plugin/
 
 ### 1. The `pyproject.toml` Entry Point
 
-Your `pyproject.toml` must declare an entry point under the `tangram.plugins` group. This makes your package discoverable by the core application.
+Your `pyproject.toml` must declare an entry point under the `tangram_core.plugins` group. This makes your package discoverable by the core application.
 
 ```toml title="pyproject.toml" hl_lines="6 7"
 [project]
 name = "my-tangram-plugin"
 version = "0.1.0"
-dependencies = ["tangram>=0.2.0"]
+dependencies = ["tangram_core>=0.2.0"]
 
-[project.entry-points."tangram.plugins"]
+[project.entry-points."tangram_core.plugins"]
 my_plugin = "my_plugin:plugin"
 ```
 
 ### 2. The `Plugin` Object
 
-The entry point must point to an instance of the `tangram.Plugin` class. This object is the central hub for registering your plugin's components.
+The entry point must point to an instance of the `tangram_core.Plugin` class. This object is the central hub for registering your plugin's components.
 
 ```py title="src/my_plugin/__init__.py"
-import tangram
+import tangram_core
 
-plugin = tangram.Plugin(
+plugin = tangram_core.Plugin(
     # ... component registrations go here ...
 )
 ```
 
 ## Adding API Endpoints
 
-To add REST API endpoints, define a standard FastAPI [`APIRouter`][fastapi.APIRouter] and pass a list of routers to the [`Plugin`][tangram.Plugin] constructor. `tangram` will automatically mount them into the main application.
+To add REST API endpoints, define a standard FastAPI [`APIRouter`][fastapi.APIRouter] and pass a list of routers to the [`Plugin`][tangram_core.Plugin] constructor. `tangram` will automatically mount them into the main application.
 
 ```py title="src/my_plugin/__init__.py" hl_lines="11"
-import tangram
+import tangram_core
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/my-plugin")
@@ -56,25 +56,25 @@ router = APIRouter(prefix="/my-plugin")
 async def my_endpoint():
     return {"message": "Hello from my custom plugin!"}
 
-plugin = tangram.Plugin(
+plugin = tangram_core.Plugin(
     routers=[router]
 )
 ```
 
 ## Creating Background Services
 
-To run persistent background tasks, use the [`@plugin.register_service` decorator][tangram.Plugin.register_service]. The decorated function will be started as a background task when `tangram serve` runs.
+To run persistent background tasks, use the [`@plugin.register_service` decorator][tangram_core.Plugin.register_service]. The decorated function will be started as a background task when `tangram serve` runs.
 
-The service function receives a [`tangram.BackendState`][] object, which provides access to core components like the Redis client.
+The service function receives a [`tangram_core.BackendState`][] object, which provides access to core components like the Redis client.
 
 ```py title="src/my_plugin/__init__.py" hl_lines="6"
 import asyncio
-import tangram
+import tangram_core
 
-plugin = tangram.Plugin()
+plugin = tangram_core.Plugin()
 
 @plugin.register_service()
-async def run_periodic_task(backend_state: tangram.BackendState):
+async def run_periodic_task(backend_state: tangram_core.BackendState):
     """A background service that publishes a message every 10 seconds."""
     redis_client = backend_state.redis_client
     while True:
@@ -120,7 +120,7 @@ graph TB
 
 ### Publishing Messages
 
-You can publish messages from any backend service using the Redis client available in [`tangram.BackendState`][].
+You can publish messages from any backend service using the Redis client available in [`tangram_core.BackendState`][].
 
 === "Python"
 
@@ -140,15 +140,15 @@ You can publish messages from any backend service using the Redis client availab
 
 ### Subscribing to Messages
 
-To handle incoming messages, `tangram` provides a [`Subscriber`][tangram.redis.Subscriber] base class. This is the recommended pattern for creating robust, long-running listeners within a service.
+To handle incoming messages, `tangram` provides a [`Subscriber`][tangram_core.redis.Subscriber] base class. This is the recommended pattern for creating robust, long-running listeners within a service.
 
 ```py title="src/my_plugin/__init__.py"
 import asyncio
 from dataclasses import dataclass
-import tangram
-from tangram.redis import Subscriber
+import tangram_core
+from tangram_core.redis import Subscriber
 
-plugin = tangram.Plugin()
+plugin = tangram_core.Plugin()
 
 @dataclass
 class CommandSubscriberState:
@@ -163,7 +163,7 @@ class CommandSubscriber(Subscriber[CommandSubscriberState]):
         print(f"Command #{state.command_count} received on `{event}`: {payload}")
 
 @plugin.register_service()
-async def run_command_listener(backend_state: tangram.BackendState) -> None:
+async def run_command_listener(backend_state: tangram_core.BackendState) -> None:
     """This service listens for commands from the frontend."""
     subscriber = CommandSubscriber(
         name="CommandListener",

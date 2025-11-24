@@ -59,7 +59,7 @@ graph LR
 
 | **Component**             | **Provided By**                                   | **Description**                                                |
 | ------------------------- | ------------------------------------------------- | -------------------------------------------------------------- |
-| `tangram` (Core)          | `tangram` package                                 | REST API server, CLI, and frontend shell.                      |
+| `tangram` (Core)          | `tangram_core` package                            | REST API server, CLI, and frontend shell.                      |
 | [`channel`](./channel.md) | (Bundled with `tangram`)                          | WebSocket bridge between the frontend and Redis pub/sub.       |
 | `jet1090` integration     | [`tangram_jet1090` plugin](../plugins/jet1090.md) | Decodes Mode S/ADS-B messages and provides data streams.       |
 | State Vectors & History   | [`tangram_jet1090` plugin](../plugins/jet1090.md) | Maintains real-time state and stores historical aircraft data. |
@@ -68,7 +68,7 @@ graph LR
 
 ## Backend Plugin System
 
-The backend discovers plugins using Python's standard **[entry point mechanism](https://packaging.python.org/en/latest/specifications/entry-points/)**. When you `pip install tangram_jet1090`, it registers itself under the `tangram.plugins` group in its `pyproject.toml`. The core `tangram` application queries these groups at startup to find and load all available plugins, allowing them to add their own [API routes](../plugins/backend.md#adding-api-endpoints) and [background tasks](../plugins/backend.md#creating-background-services).
+The backend discovers plugins using Python's standard **[entry point mechanism](https://packaging.python.org/en/latest/specifications/entry-points/)**. When you `pip install tangram_jet1090`, it registers itself under the `tangram_core.plugins` group in its `pyproject.toml`. The core `tangram` application queries these groups at startup to find and load all available plugins, allowing them to add their own [API routes](../plugins/backend.md#adding-api-endpoints) and [background tasks](../plugins/backend.md#creating-background-services).
 
 For a detailed guide on creating your own backend extensions, see the [Backend Plugin Guide](../plugins/backend.md).
 

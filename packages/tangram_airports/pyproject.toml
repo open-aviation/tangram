@@ -5,16 +5,16 @@ build-backend = "hatchling.build"
 [project]
 name = "tangram_airports"
 version = "0.2.0"
-dependencies = ["tangram>=0.2.0"]
+dependencies = ["tangram_core>=0.2.0"]
 authors = [
     { name = "Xavier Olive", email = "git@xoolive.org" },
 ]
 
-[project.entry-points."tangram.plugins"]
+[project.entry-points."tangram_core.plugins"]
 tangram_airports = "tangram_airports:plugin"
 
 [tool.uv.sources]
-tangram = { workspace = true }
+tangram_core = { workspace = true }
 
 [tool.hatch.build.targets.sdist]
 ignore-vcs = true

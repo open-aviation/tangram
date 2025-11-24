@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { computed, inject } from "vue";
-import type { TangramApi } from "@open-aviation/tangram/api";
+import type { TangramApi } from "@open-aviation/tangram-core/api";
 import type { ShipState } from "./ShipLayer.vue";
 
 const tangramApi = inject<TangramApi>("tangramApi");

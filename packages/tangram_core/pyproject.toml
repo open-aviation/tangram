@@ -3,7 +3,7 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "tangram"
+name = "tangram_core"
 version = "0.2.0"
 description = "A framework for real-time analysis of ADS-B and Mode S surveillance data"
 authors = [
@@ -26,11 +26,11 @@ dependencies = [
 ]
 
 [project.scripts]
-tangram = "tangram.__main__:app"
+tangram = "tangram_core.__main__:app"
 
 [tool.maturin]
-python-source = "src"            # needed for stubgen to output path correctly.
-module-name = "tangram._core"
+python-source = "src"              # needed for stubgen to output path correctly.
+module-name = "tangram_core._core"
 features = ["pyo3", "channel"]
 
 [tool.uv]
