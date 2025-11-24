@@ -110,7 +110,10 @@ watch(
       pickable: true,
       billboard: false,
       getIcon: d => ({
-        url: createAircraftSvgDataURL(d.state.typecode, d.id === currentActiveEntity?.id),
+        url: createAircraftSvgDataURL(
+          d.state.typecode,
+          d.id === currentActiveEntity?.id
+        ),
         width: 32,
         height: 32,
         anchorY: 16

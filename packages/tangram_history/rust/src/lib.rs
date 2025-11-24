@@ -7,10 +7,10 @@ mod service;
 #[cfg(feature = "server")]
 use service::{start_ingest_service, IngestConfig};
 
-#[cfg(feature = "pyo3")]
-use pyo3::{exceptions::PyOSError, prelude::*};
 #[cfg(all(feature = "pyo3", feature = "server"))]
 use pyo3::exceptions::PyRuntimeError;
+#[cfg(feature = "pyo3")]
+use pyo3::{exceptions::PyOSError, prelude::*};
 
 #[cfg(feature = "stubgen")]
 use pyo3_stub_gen::derive::*;
