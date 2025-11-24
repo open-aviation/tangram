@@ -69,6 +69,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     # tangram_ship162 > ship162
     pkg-config libssl-dev \
+    # tangram_ship162 > ship162 (sources/mqtt) > paho-mqtt
+    cmake \
     && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
         sh -s -- -y \
         --default-toolchain $RUST_VERSION \
