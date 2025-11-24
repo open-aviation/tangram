@@ -167,17 +167,12 @@ pub struct Jet1090HistoryFrame {
     pub vertical_rate: Option<i16>,
     pub ias: Option<i16>,
     pub tas: Option<i16>,
+    pub mach: Option<f64>,
+    pub roll: Option<f64>,
+    pub heading: Option<f64>,
+    pub vrate_barometric: Option<i16>,
+    pub vrate_inertial: Option<i16>,
     pub nacp: Option<i8>,
-    pub bds40_selected_altitude: Option<i32>,
-    pub bds50_roll: Option<f64>,
-    pub bds50_track: Option<f64>,
-    pub bds50_groundspeed: Option<f64>,
-    pub bds50_tas: Option<i16>,
-    pub bds60_ias: Option<i16>,
-    pub bds60_mach: Option<f64>,
-    pub bds60_heading: Option<f64>,
-    pub bds60_vrate_barometric: Option<i16>,
-    pub bds60_vrate_inertial: Option<i16>,
     pub squawk: Option<i16>,
 }
 
@@ -192,26 +187,29 @@ impl From<&Jet1090Message> for Jet1090HistoryFrame {
             altitude: msg.altitude.map(|v| v as i32),
             latitude: msg.latitude,
             longitude: msg.longitude,
-            track: msg.track,
-            selected_altitude: msg.selected_altitude.map(|v| v as i32),
-            groundspeed: msg.groundspeed,
-            vertical_rate: msg.vertical_rate,
-            ias: msg.ias.map(|v| v as i16),
-            tas: msg.tas.map(|v| v as i16),
-            nacp: msg.nacp.map(|v| v as i8),
-            bds40_selected_altitude: msg
+            track: msg.track.or(msg.bds50.as_ref().and_then(|b| b.track)),
+            selected_altitude: msg.selected_altitude.map(|v| v as i32).or(msg
                 .bds40
                 .as_ref()
-                .and_then(|b| b.selected_altitude.map(|v| v as i32)),
-            bds50_roll: msg.bds50.as_ref().and_then(|b| b.roll),
-            bds50_track: msg.bds50.as_ref().and_then(|b| b.track),
-            bds50_groundspeed: msg.bds50.as_ref().and_then(|b| b.groundspeed),
-            bds50_tas: msg.bds50.as_ref().and_then(|b| b.tas.map(|v| v as i16)),
-            bds60_ias: msg.bds60.as_ref().and_then(|b| b.ias.map(|v| v as i16)),
-            bds60_mach: msg.bds60.as_ref().and_then(|b| b.mach),
-            bds60_heading: msg.bds60.as_ref().and_then(|b| b.heading),
-            bds60_vrate_barometric: msg.bds60.as_ref().and_then(|b| b.vrate_barometric),
-            bds60_vrate_inertial: msg.bds60.as_ref().and_then(|b| b.vrate_inertial),
+                .and_then(|b| b.selected_altitude.map(|v| v as i32))),
+            groundspeed: msg
+                .groundspeed
+                .or(msg.bds50.as_ref().and_then(|b| b.groundspeed)),
+            vertical_rate: msg.vertical_rate,
+            ias: msg
+                .ias
+                .map(|v| v as i16)
+                .or(msg.bds60.as_ref().and_then(|b| b.ias.map(|v| v as i16))),
+            tas: msg
+                .tas
+                .map(|v| v as i16)
+                .or(msg.bds50.as_ref().and_then(|b| b.tas.map(|v| v as i16))),
+            mach: msg.bds60.as_ref().and_then(|b| b.mach),
+            roll: msg.bds50.as_ref().and_then(|b| b.roll),
+            heading: msg.bds60.as_ref().and_then(|b| b.heading),
+            vrate_barometric: msg.bds60.as_ref().and_then(|b| b.vrate_barometric),
+            vrate_inertial: msg.bds60.as_ref().and_then(|b| b.vrate_inertial),
+            nacp: msg.nacp.map(|v| v as i8),
             squawk: msg.squawk.as_ref().and_then(|s| s.parse().ok()),
         }
     }
@@ -263,17 +261,12 @@ impl Jet1090HistoryFrame {
             Field::new("vertical_rate", ArrowDataType::Int16, true),
             Field::new("ias", ArrowDataType::Int16, true),
             Field::new("tas", ArrowDataType::Int16, true),
+            Field::new("mach", ArrowDataType::Float64, true),
+            Field::new("roll", ArrowDataType::Float64, true),
+            Field::new("heading", ArrowDataType::Float64, true),
+            Field::new("vrate_barometric", ArrowDataType::Int16, true),
+            Field::new("vrate_inertial", ArrowDataType::Int16, true),
             Field::new("nacp", ArrowDataType::Int8, true),
-            Field::new("bds40_selected_altitude", ArrowDataType::Int32, true),
-            Field::new("bds50_roll", ArrowDataType::Float64, true),
-            Field::new("bds50_track", ArrowDataType::Float64, true),
-            Field::new("bds50_groundspeed", ArrowDataType::Float64, true),
-            Field::new("bds50_tas", ArrowDataType::Int16, true),
-            Field::new("bds60_ias", ArrowDataType::Int16, true),
-            Field::new("bds60_mach", ArrowDataType::Float64, true),
-            Field::new("bds60_heading", ArrowDataType::Float64, true),
-            Field::new("bds60_vrate_barometric", ArrowDataType::Int16, true),
-            Field::new("bds60_vrate_inertial", ArrowDataType::Int16, true),
             Field::new("squawk", ArrowDataType::Int16, true),
         ]
     }
@@ -309,29 +302,16 @@ impl Jet1090HistoryFrame {
             )),
             Arc::new(Int16Array::from_iter(frames.iter().map(|f| f.ias))),
             Arc::new(Int16Array::from_iter(frames.iter().map(|f| f.tas))),
+            Arc::new(Float64Array::from_iter(frames.iter().map(|f| f.mach))),
+            Arc::new(Float64Array::from_iter(frames.iter().map(|f| f.roll))),
+            Arc::new(Float64Array::from_iter(frames.iter().map(|f| f.heading))),
+            Arc::new(Int16Array::from_iter(
+                frames.iter().map(|f| f.vrate_barometric),
+            )),
+            Arc::new(Int16Array::from_iter(
+                frames.iter().map(|f| f.vrate_inertial),
+            )),
             Arc::new(Int8Array::from_iter(frames.iter().map(|f| f.nacp))),
-            Arc::new(Int32Array::from_iter(
-                frames.iter().map(|f| f.bds40_selected_altitude),
-            )),
-            Arc::new(Float64Array::from_iter(frames.iter().map(|f| f.bds50_roll))),
-            Arc::new(Float64Array::from_iter(
-                frames.iter().map(|f| f.bds50_track),
-            )),
-            Arc::new(Float64Array::from_iter(
-                frames.iter().map(|f| f.bds50_groundspeed),
-            )),
-            Arc::new(Int16Array::from_iter(frames.iter().map(|f| f.bds50_tas))),
-            Arc::new(Int16Array::from_iter(frames.iter().map(|f| f.bds60_ias))),
-            Arc::new(Float64Array::from_iter(frames.iter().map(|f| f.bds60_mach))),
-            Arc::new(Float64Array::from_iter(
-                frames.iter().map(|f| f.bds60_heading),
-            )),
-            Arc::new(Int16Array::from_iter(
-                frames.iter().map(|f| f.bds60_vrate_barometric),
-            )),
-            Arc::new(Int16Array::from_iter(
-                frames.iter().map(|f| f.bds60_vrate_inertial),
-            )),
             Arc::new(Int16Array::from_iter(frames.iter().map(|f| f.squawk))),
         ];
         Ok(RecordBatch::try_new(schema, columns)?)
