@@ -8,17 +8,18 @@ mod service;
 use service::{start_ingest_service, IngestConfig};
 
 #[cfg(feature = "pyo3")]
-use pyo3::{
-    exceptions::{PyOSError, PyRuntimeError},
-    prelude::*,
-};
-#[cfg(feature = "pyo3")]
+use pyo3::{exceptions::PyOSError, prelude::*};
+#[cfg(all(feature = "pyo3", feature = "server"))]
+use pyo3::exceptions::PyRuntimeError;
+
+#[cfg(feature = "stubgen")]
 use pyo3_stub_gen::derive::*;
+
 #[cfg(feature = "pyo3")]
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[cfg(feature = "pyo3")]
-#[gen_stub_pyfunction]
+#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
 fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
     tracing_subscriber::registry()
@@ -28,8 +29,9 @@ fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
         .map_err(|e| PyOSError::new_err(e.to_string()))
 }
 
+#[cfg(feature = "server")]
 #[cfg(feature = "pyo3")]
-#[gen_stub_pyclass]
+#[cfg_attr(feature = "stubgen", gen_stub_pyclass)]
 #[pyclass(get_all, set_all)]
 #[derive(Debug, Clone)]
 pub struct HistoryConfig {
@@ -40,8 +42,9 @@ pub struct HistoryConfig {
     pub redis_read_block_ms: usize,
 }
 
+#[cfg(feature = "server")]
 #[cfg(feature = "pyo3")]
-#[gen_stub_pymethods]
+#[cfg_attr(feature = "stubgen", gen_stub_pymethods)]
 #[pymethods]
 impl HistoryConfig {
     #[new]
@@ -94,8 +97,9 @@ async fn _run_service(config: IngestConfig) -> anyhow::Result<()> {
     start_ingest_service(config).await
 }
 
+#[cfg(feature = "server")]
 #[cfg(feature = "pyo3")]
-#[gen_stub_pyfunction]
+#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
 fn run_history(py: Python<'_>, config: HistoryConfig) -> PyResult<Bound<'_, PyAny>> {
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
@@ -115,14 +119,16 @@ fn run_history(py: Python<'_>, config: HistoryConfig) -> PyResult<Bound<'_, PyAn
 #[cfg(feature = "pyo3")]
 #[pymodule]
 fn _history(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(run_history, m)?)?;
     m.add_function(wrap_pyfunction!(init_tracing_stderr, m)?)?;
     #[cfg(feature = "server")]
-    m.add_class::<HistoryConfig>()?;
+    {
+        m.add_function(wrap_pyfunction!(run_history, m)?)?;
+        m.add_class::<HistoryConfig>()?;
+    }
     Ok(())
 }
 
-#[cfg(feature = "pyo3")]
+#[cfg(feature = "stubgen")]
 pub fn stub_info() -> pyo3_stub_gen::Result<pyo3_stub_gen::StubInfo> {
     let manifest_dir: &::std::path::Path = env!("CARGO_MANIFEST_DIR").as_ref();
     let pyproject_path = manifest_dir.parent().unwrap().join("pyproject.toml");

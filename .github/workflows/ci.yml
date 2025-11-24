@@ -188,6 +188,23 @@ jobs:
               apt-get update && apt-get install -y libssl-dev pkg-config
             fi
 
+      - name: build tangram_history wheels
+        if: always()
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          working-directory: packages/tangram_history
+          args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          before-script-linux: |
+            if command -v apk &> /dev/null; then
+              apk add --no-cache openssl-dev pkgconfig
+            elif command -v yum &> /dev/null; then
+              yum install -y openssl-devel pkgconfig
+            elif command -v apt-get &> /dev/null; then
+              apt-get update && apt-get install -y libssl-dev pkg-config
+            fi
+
       - run: ${{ (matrix.os == 'windows' && 'dir') || 'ls -lh' }} dist/
 
       - name: upload wheel

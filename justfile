@@ -43,10 +43,10 @@ c-run:
     tangram serve --config /app/tangram.toml
 
 stubgen:
-  cargo run --package tangram_core --bin stub_gen_core --features pyo3 || true
-  cargo run --package jet1090_planes --bin stub_gen_planes --features pyo3 || true
-  cargo run --package ship162_ships --bin stub_gen_ships --features pyo3 || true
-  cargo run --package tangram_history --bin stub_gen_history --features pyo3 || true
+  cargo run --package tangram_core --bin stub_gen_core --features pyo3,stubgen || true
+  cargo run --package jet1090_planes --bin stub_gen_planes --features pyo3,stubgen || true
+  cargo run --package ship162_ships --bin stub_gen_ships --features pyo3,stubgen || true
+  cargo run --package tangram_history --bin stub_gen_history --features pyo3,stubgen || true
 
 # fix code quality (eslint, ruff, clippy) and formatting (prettier, ruff, rustfmt)
 fmt:

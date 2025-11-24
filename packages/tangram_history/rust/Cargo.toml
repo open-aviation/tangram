@@ -39,9 +39,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = tr
 [[bin]]
 name = "stub_gen_history"
 path = "src/bin/stub_gen.rs"
-required-features = ["pyo3"]
+required-features = ["stubgen"]
 
 [features]
 client = ["dep:arrow-array", "dep:arrow-schema", "dep:arrow-ipc"]
 server = ["client", "dep:dashmap", "dep:url", "dep:chrono", "dep:deltalake"]
-pyo3 = ["server", "dep:pyo3", "dep:pyo3-async-runtimes", "dep:pyo3-stub-gen", "dep:tracing-subscriber"]
+pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:tracing-subscriber"]
+stubgen = ["pyo3", "server", "dep:pyo3-stub-gen"]

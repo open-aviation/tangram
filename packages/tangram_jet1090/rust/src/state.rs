@@ -6,7 +6,7 @@ use arrow_array::{
 use arrow_schema::{DataType as ArrowDataType, Field, Schema as ArrowSchema, TimeUnit};
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
-#[cfg(feature = "pyo3")]
+#[cfg(feature = "stubgen")]
 use pyo3_stub_gen::derive::*;
 use rs1090::data::patterns::aircraft_information;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ use std::{
 use tangram_core::stream::{Positioned, StateCollection, Tracked};
 use tangram_history::client::{HistoryBuffer, HistoryFrame};
 
-#[cfg_attr(feature = "pyo3", gen_stub_pyclass)]
+#[cfg_attr(feature = "stubgen", gen_stub_pyclass)]
 #[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Aircraft {
@@ -27,7 +27,7 @@ pub struct Aircraft {
 }
 
 #[cfg(feature = "pyo3")]
-#[gen_stub_pymethods]
+#[cfg_attr(feature = "stubgen", gen_stub_pymethods)]
 #[pymethods]
 impl Aircraft {
     #[new]
