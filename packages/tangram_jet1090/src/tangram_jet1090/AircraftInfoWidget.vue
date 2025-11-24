@@ -218,7 +218,7 @@ const updateAltitudeChart = () => {
 
 const updateSpeedChart = () => {
   const data = getData().filter(
-    item => item.groundspeed || item.IAS || item.TAS || item.Mach
+    item => item.groundspeed || item.ias || item.tas || item.mach
   );
   chartState.chartData = {
     labels: data.map(item => dayjs.unix(item.timestamp).format("HH:mm")),
@@ -235,7 +235,7 @@ const updateSpeedChart = () => {
       },
       {
         label: "IAS",
-        data: data.map(item => item.IAS),
+        data: data.map(item => item.ias),
         borderColor: "#f58518",
         spanGaps: true,
         borderWidth: 2,
@@ -245,7 +245,7 @@ const updateSpeedChart = () => {
       },
       {
         label: "TAS",
-        data: data.map(item => item.TAS),
+        data: data.map(item => item.tas),
         borderColor: "#54a24b",
         spanGaps: true,
         borderWidth: 2,
@@ -255,7 +255,7 @@ const updateSpeedChart = () => {
       },
       {
         label: "Mach",
-        data: data.map(item => item.Mach),
+        data: data.map(item => item.mach),
         borderColor: "#b79a20",
         spanGaps: true,
         borderWidth: 2,
