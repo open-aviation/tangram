@@ -7,7 +7,7 @@ import {
   shallowRef,
   watch,
   type ShallowRef,
-  type Ref,
+  type Ref
 } from "vue";
 import type { Map as MaplibreMap, LngLatBounds, StyleSpecification } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";

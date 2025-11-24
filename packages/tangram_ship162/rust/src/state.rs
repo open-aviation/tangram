@@ -8,7 +8,7 @@ use rs162::prelude::{Message, MmsiInfo, NavigationStatus, ShipType, StaticDataRe
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tangram_core::stream::{Positioned, StateCollection, Tracked};
+use tangram_core::stream::{Identifiable, Positioned, StateCollection, Tracked};
 use tangram_history::client::{HistoryBuffer, HistoryFrame};
 use tracing::info;
 
@@ -392,6 +392,12 @@ impl Positioned for ShipStateVector {
     }
     fn longitude(&self) -> Option<f64> {
         self.longitude
+    }
+}
+
+impl Identifiable for ShipStateVector {
+    fn id(&self) -> String {
+        self.mmsi.to_string()
     }
 }
 
