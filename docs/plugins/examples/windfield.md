@@ -64,7 +64,7 @@ The code is self-explanatory, but the following points are worth noting:
     There is an issue with the packaging of the `ecCodes` library that is used by `xarray` to read GRIB files. The specific version of the `ecCodes` library for Linux/arm64 is not yet available at the time of writing this documentation.
 
     **You are most likely to be impacted by this issue if you run this plugin on Apple Silicon Mac computers.**
-    In that case, you may want to run `just create-tangram-aarch64` to create a new Docker image with the latest version of the `ecCodes` library. The `just tangram` command will then use this image to run the application.
+    In that case, you may want to run `just c-build eccodes_strategy='fromsource'` to create a new Docker image with the latest version of the `ecCodes` library. The `just c-run` command will then use this image to run the application.
 
 ### 2. Frontend: The `WindFieldLayer`
 

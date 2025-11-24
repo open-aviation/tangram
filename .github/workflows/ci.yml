@@ -101,8 +101,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # aircraft db in `jet1090_planes` uses reqwest, causing build failures
-        # see: https://github.com/PyO3/maturin-action/discussions/162#discussioncomment-7978369
         include:
           - os: linux
             manylinux: manylinux_2_28

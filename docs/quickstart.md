@@ -57,7 +57,7 @@ jwt_expiration_secs = 315360000
 Install [podman](https://podman.io/docs/installation) or [docker](https://docs.docker.com/engine/install/) and run:
 
 ```shell
-podman run -d --rm -p 6379:6379 --name redis redis:latest
+podman run -d --rm -p 6379:6379 --name redis redis:8-alpine
 ```
 
 To start tangram, run:
@@ -121,6 +121,7 @@ podman run -d --rm --name jet1090 \
 ghcr.io/xoolive/jet1090:latest \
 jet1090 --redis-url "redis://127.0.0.1:6379" "ws://feedme.mode-s.org:9876/40128@EHRD"
 ```
+
 !!! tip
     The `jet1090` container is a dependency of the *plugin*, not the `tangram` core. You can run it on any machine as long as it can connect to your Redis instance.
 
@@ -173,8 +174,6 @@ graph LR
 This guide is for setting up a development environment for the `tangram` core and builtin plugins.
 To extend `tangram`, start with the [**Backend Plugin Guide**](./plugins/backend.md) instead. This is the definitive resource for creating your own installable plugins with custom APIs and services.
 
-### Prerequisites
-
 Ensure you have the following installed:
 
 - git
@@ -191,9 +190,9 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 curl -fsSL https://fnm.vercel.app/install | bash
 fnm install --latest
+npm install -g corepack
 corepack enable pnpm
 ```
-<!-- TODO clarify what how exactly is the frontend installed - does it support HMR? -->
 
 ### Environment Setup
 
@@ -228,7 +227,7 @@ To significantly cut down compile times at the cost of much larger binary size, 
 
 |                        | release (default) | `profile=dev` |
 | ---------------------- | ----------------- | ------------- |
-| compile time (clean)   | 3m41s            | 1m42s         |
+| compile time (clean)   | 3m41s             | 1m42s         |
 | `tangram` size         | 6.57M             | 106M          |
 | `tangram_jet1090` size | 7.86M             | 122M          |
 | `tangram_ship162` size | 7.04M             | 118M          |

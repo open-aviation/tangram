@@ -19,7 +19,7 @@ The system is designed to be modular, so each component can be tested independen
 
 [![build](https://github.com/open-aviation/tangram/actions/workflows/podman.yml/badge.svg)](https://github.com/open-aviation/tangram/actions/workflows/podman.yml)
 
-Integration tests is currently limited to the construction of the container image, with the `just create-tangram` command.
+Integration tests is currently limited to the construction of the container image, with the `just c-build` command.
 
 ## Cite this work
 

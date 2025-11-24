@@ -67,7 +67,13 @@ Next, ensure the generated `dist-frontend` directory is included in your Python 
 
 === "maturin"
 
-    <!-- TODO: check this -->
+    Configuring `vite` to output to a subdirectory of your python source (e.g. `src/my_plugin/dist-frontend`) ensures `maturin` includes it automatically.
+
+```typescript title="vite.config.ts"
+build: {
+    outDir: path.resolve(__dirname, "./src/my_plugin/dist-frontend"),
+}
+```
 
 Finally, install your Python package and enable it in your `tangram.toml`:
 
@@ -97,3 +103,4 @@ sequenceDiagram
     Note over B, P: Browser executes plugin code
     P->>B: install(tangramApi)
     Note over B: Plugin registers its widgets
+```
