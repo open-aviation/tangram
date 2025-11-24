@@ -48,7 +48,7 @@ jobs:
       
       - name: install tangram (no plugins)
         run:
-          uv sync --all-groups --package tangram
+          uv sync --all-groups --package tangram_core
       
       - name: run tests
         env:
@@ -153,7 +153,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
-          working-directory: packages/tangram
+          working-directory: packages/tangram_core
           args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
 
       - name: build tangram_jet1090 wheels
