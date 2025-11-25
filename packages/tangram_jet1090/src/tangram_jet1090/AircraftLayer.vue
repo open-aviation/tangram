@@ -44,7 +44,8 @@ const aircraftEntities = computed(
   () => tangramApi.state.getEntitiesByType<AircraftState>("jet1090_aircraft").value
 );
 const activeEntity = computed(() => tangramApi.state.activeEntity.value);
-const layerDisposable: Ref<Disposable | null> = ref(null);
+const baseLayerDisposable: Ref<Disposable | null> = ref(null);
+const selectedLayerDisposable: Ref<Disposable | null> = ref(null);
 
 const tooltip = reactive<{
   x: number;
@@ -95,62 +96,88 @@ const createAircraftSvgDataURL = (typecode: string, isSelected: boolean): string
   return dataUrl;
 };
 
+const commonLayerProps = {
+  pickable: true,
+  billboard: false,
+  sizeScale: 1,
+  getSize: 32,
+  onClick: (info: any) => {
+    if (info.object) {
+      tangramApi.state.setActiveEntity(info.object);
+    }
+  },
+  onHover: (info: any) => {
+    if (info.object) {
+      tooltip.object = info.object;
+      tooltip.x = info.x;
+      tooltip.y = info.y;
+    } else {
+      tooltip.object = null;
+    }
+  }
+};
+
 watch(
   [aircraftEntities, activeEntity, () => tangramApi.map.isReady.value],
   ([entities, currentActiveEntity, isMapReady]) => {
     if (!entities || !isMapReady) return;
 
-    if (layerDisposable.value) {
-      layerDisposable.value.dispose();
-    }
+    const allAircraft = Array.from(entities.values());
+    const selectedId = currentActiveEntity?.id;
 
-    const aircraftLayer = new IconLayer<Entity<AircraftState>>({
-      id: "aircraft-layer",
-      data: Array.from(entities.values()),
-      pickable: true,
-      billboard: false,
+    // split data to prevent global atlas invalidation
+    const baseData = selectedId
+      ? allAircraft.filter(d => d.id !== selectedId)
+      : allAircraft;
+    const selectedData = selectedId ? allAircraft.filter(d => d.id === selectedId) : [];
+
+    const baseLayer = new IconLayer<Entity<AircraftState>>({
+      ...commonLayerProps,
+      id: "aircraft-layer-base",
+      data: baseData,
       getIcon: d => ({
-        url: createAircraftSvgDataURL(
-          d.state.typecode,
-          d.id === currentActiveEntity?.id
-        ),
+        url: createAircraftSvgDataURL(d.state.typecode, false),
         width: 64,
         height: 64,
         anchorY: 32
       }),
-      sizeScale: 1,
       getPosition: d => [d.state.longitude, d.state.latitude],
-      getSize: 32,
       getAngle: d => {
-        const iconProps = get_image_object(d.state.typecode);
+        const iconProps = get_image_object(d.state.typecode) as any;
         return -d.state.track + iconProps.rotcorr;
-      },
-      onClick: ({ object }) => {
-        if (object) {
-          tangramApi.state.setActiveEntity(object);
-        }
-      },
-      onHover: info => {
-        if (info.object) {
-          tooltip.object = info.object;
-          tooltip.x = info.x;
-          tooltip.y = info.y;
-        } else {
-          tooltip.object = null;
-        }
-      },
-      updateTriggers: {
-        getIcon: [currentActiveEntity?.id]
+      }
+      // no updateTriggers needed, icon depends only on typecode which is stable.
+    });
+
+    const selectedLayer = new IconLayer<Entity<AircraftState>>({
+      ...commonLayerProps,
+      id: "aircraft-layer-selected",
+      data: selectedData,
+      getIcon: d => ({
+        url: createAircraftSvgDataURL(d.state.typecode, true),
+        width: 64,
+        height: 64,
+        anchorY: 32
+      }),
+      getPosition: d => [d.state.longitude, d.state.latitude],
+      getAngle: d => {
+        const iconProps = get_image_object(d.state.typecode) as any;
+        return -d.state.track + iconProps.rotcorr;
       }
     });
 
-    layerDisposable.value = tangramApi.map.addLayer(aircraftLayer);
+    const d1 = tangramApi.map.setLayer(baseLayer);
+    if (!baseLayerDisposable.value) baseLayerDisposable.value = d1;
+
+    const d2 = tangramApi.map.setLayer(selectedLayer);
+    if (!selectedLayerDisposable.value) selectedLayerDisposable.value = d2;
   },
   { immediate: true }
 );
 
 onUnmounted(() => {
-  layerDisposable.value?.dispose();
+  baseLayerDisposable.value?.dispose();
+  selectedLayerDisposable.value?.dispose();
 });
 </script>
 
