@@ -7,7 +7,7 @@ import AircraftTrailLayer from "./AircraftTrailLayer.vue";
 import RouteLayer from "./RouteLayer.vue";
 import SensorsLayer from "./SensorsLayer.vue";
 import init, { run } from "rs1090-wasm";
-import { selectedAircraft } from "./store";
+import { selectedAircraft, pluginConfig } from "./store";
 
 interface RawAircraft {
   icao24: string;
@@ -29,6 +29,13 @@ export function install(api: TangramApi) {
   api.ui.registerWidget("jet1090-sensors-layer", "MapOverlay", SensorsLayer);
 
   api.state.registerEntityType("jet1090_aircraft");
+
+  fetch("/jet1090/config")
+    .then(r => r.json())
+    .then(c => {
+      pluginConfig.showRouteLines = c.show_route_lines;
+    })
+    .catch(e => console.error("failed to fetch jet1090 config", e));
 
   (async () => {
     try {
