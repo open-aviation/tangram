@@ -42,7 +42,7 @@ watch(
 
         const sensorsLayer = new ScatterplotLayer<Sensor>({
           id: "sensors-layer",
-          data: sensorData,
+          data: sensorData.filter(sensor => sensor.aircraft_count > 0),
           pickable: true,
           stroked: true,
           filled: true,
