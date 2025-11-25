@@ -18,3 +18,7 @@ export const selectedAircraft = reactive({
     destination: null as AirportInfo | null
   }
 });
+
+export const pluginConfig = reactive({
+  showRouteLines: true
+});

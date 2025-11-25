@@ -105,6 +105,15 @@ async def get_sensors_data(
         return JSONResponse(content={"error": str(e)}, status_code=502)
 
 
+@router.get("/config")
+async def get_config(
+    backend_state: tangram_core.InjectBackendState,
+) -> JSONResponse:
+    plugin_config = backend_state.config.plugins.get("tangram_jet1090", {})
+    config = TypeAdapter(PlanesConfig).validate_python(plugin_config)
+    return JSONResponse(content={"show_route_lines": config.show_route_lines})
+
+
 plugin = tangram_core.Plugin(frontend_path="dist-frontend", routers=[router])
 
 
@@ -121,6 +130,7 @@ class PlanesConfig:
     jet1090_url: str = "http://localhost:8080"
     path_cache: Path = Path(platformdirs.user_cache_dir("tangram_jet1090"))
     log_level: str = "INFO"
+    show_route_lines: bool = True
     # flush is primarily time-based. this buffer is a backpressure mechanism.
     history_buffer_size: int = 100_000
     history_flush_interval_secs: int = 5
