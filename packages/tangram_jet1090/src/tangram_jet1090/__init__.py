@@ -95,14 +95,18 @@ async def get_sensors_data(
 ) -> JSONResponse:
     plugin_config = backend_state.config.plugins.get("tangram_jet1090", {})
     config = TypeAdapter(PlanesConfig).validate_python(plugin_config)
-    url = f"{config.jet1090_url}/sensors"
+    # Keeping "localhost" in the URL can lead to issues on systems where localhost
+    # does not resolve to 127.0.0.1 first but rather to ::1 (IPv6).
+    # Therefore, we replace it explicitly.
+    url = f"{config.jet1090_url}/sensors".replace("localhost", "127.0.0.1")
+
     try:
-        response = await backend_state.http_client.get(url)
+        response = await backend_state.http_client.get(url, timeout=10.0)
         response.raise_for_status()
         return JSONResponse(content=response.json())
     except Exception as e:
         log.error(f"Failed to fetch sensors data from {url}: {e}")
-        return JSONResponse(content={"error": str(e)}, status_code=502)
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @router.get("/config")
