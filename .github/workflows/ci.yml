@@ -148,13 +148,14 @@ jobs:
           path: .
 
       # manylinux_2_28 is almalinux
-      - name: build tangram wheels
+      - name: build tangram_core wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           working-directory: packages/tangram_core
           args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          sccache: true
 
       - name: build tangram_jet1090 wheels
         if: always()

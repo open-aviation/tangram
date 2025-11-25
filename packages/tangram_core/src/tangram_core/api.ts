@@ -218,6 +218,22 @@ export class MapApi implements Disposable {
       }
     };
   }
+
+  setLayer(layer: any): Disposable {
+    const index = this.layers.value.findIndex(l => l.id === layer.id);
+    if (index >= 0) {
+      const newLayers = [...this.layers.value];
+      newLayers[index] = layer;
+      this.layers.value = newLayers;
+    } else {
+      this.layers.value = [...this.layers.value, layer];
+    }
+    return {
+      dispose: () => {
+        this.layers.value = this.layers.value.filter(l => l.id !== layer.id);
+      }
+    };
+  }
 }
 
 // TODO: in the future, entities may simply mean rows in a arrow table (e.g. from a parquet file)

@@ -350,7 +350,13 @@ watch(
         }
       });
 
-      hullLayerDisposable.value = tangramApi.map.addLayer(hullLayer);
+      const hullDisposable = tangramApi.map.setLayer(hullLayer);
+      if (!hullLayerDisposable.value) {
+        hullLayerDisposable.value = hullDisposable;
+      }
+    } else if (hullLayerDisposable.value) {
+      hullLayerDisposable.value.dispose();
+      hullLayerDisposable.value = null;
     }
 
     // Icon layer (always visible, but smaller when hulls are shown)
@@ -392,7 +398,10 @@ watch(
       }
     });
 
-    layerDisposable.value = tangramApi.map.addLayer(shipLayer);
+    const disposable = tangramApi.map.setLayer(shipLayer);
+    if (!layerDisposable.value) {
+      layerDisposable.value = disposable;
+    }
   },
   { immediate: true }
 );
