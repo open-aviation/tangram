@@ -108,7 +108,7 @@ def make_cache_route_handler(
     Dynamically handles URL parameters found in both serve_route and origin.
 
     Args:
-        entry: Cache entry configuration with origin, local_path, serve_route, media_type
+        entry: Cache entry configuration
         state: Backend state with http_client for fetching remote resources
 
     Returns:

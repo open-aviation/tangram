@@ -14,7 +14,13 @@ install:
 # TODO: migrate to podman networks
 
 c-redis:
-  {{container_runtime}} run -d --rm -p 6379:6379 --name redis redis:latest
+  #!/usr/bin/env bash
+  if podman container exists redis; then
+    echo "container redis exists"
+    exit 0
+  fi
+
+  {{container_runtime}} run -d --rm -p 6379:6379 --name redis docker.io/library/redis:latest
 
 jet1090_sources := '"ws://feedme.mode-s.org:9876/40128@EHRD"'
 
