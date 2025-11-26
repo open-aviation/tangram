@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 
 @dataclass
@@ -24,14 +24,29 @@ class ChannelConfig:
     id_length: int = 8
 
 
-@dataclass  # TODO: resolve the path to the style.json
-class StyleConfig:
-    path: str
+@dataclass
+class UrlConfig:
+    url: str
+    type: str = "vector"
+
+
+@dataclass
+class SourceSpecification:
+    carto: UrlConfig | None = None
+    protomaps: UrlConfig | None = None
+
+
+@dataclass
+class StyleSpecification:
+    sources: SourceSpecification | None = None
+    glyphs: str = "https://cdn.protomaps.com/fonts/pbf/{fontstack}/{range}.pbf"
+    layers: list[Any] | None = None
+    version: Literal[8] = 8
 
 
 @dataclass
 class MapConfig:
-    style: str | StyleConfig = (
+    style: str | StyleSpecification = (
         "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
     )
     attribution: str = (
@@ -44,6 +59,7 @@ class MapConfig:
     zoom: int = 4
     pitch: float = 0
     bearing: float = 0
+    lang: str = "en"
 
 
 @dataclass
@@ -54,12 +70,30 @@ class CoreConfig:
 
 
 @dataclass
+class CacheEntry:
+    # origin url (if None, just serve the local file)
+    origin: str | None = None
+    # local path to cache the file
+    local_path: Path | None = None
+    # how to serve the file
+    serve_route: str = ""
+    # media type for the served file
+    media_type: str = "application/octet-stream"
+
+
+@dataclass
+class CacheConfig:
+    entries: list[CacheEntry] = field(default_factory=list)
+
+
+@dataclass
 class Config:
     core: CoreConfig = field(default_factory=CoreConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
     channel: ChannelConfig = field(default_factory=ChannelConfig)
     map: MapConfig = field(default_factory=MapConfig)
     plugins: dict[str, Any] = field(default_factory=dict)
+    cache: CacheConfig = field(default_factory=CacheConfig)
 
     @classmethod
     def from_file(cls, config_path: Path) -> Config:

@@ -32,6 +32,7 @@ export interface MapConfig {
   zoom: number;
   pitch: number;
   bearing: number;
+  lang: string;
 }
 
 export interface TangramConfig {
