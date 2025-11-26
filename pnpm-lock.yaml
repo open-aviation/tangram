@@ -77,6 +77,9 @@ importers:
       '@fontsource/roboto-condensed':
         specifier: ^5.0.0
         version: 5.2.8
+      '@protomaps/basemaps':
+        specifier: ^5.7.0
+        version: 5.7.0
       font-awesome:
         specifier: ^4.7.0
         version: 4.7.0
@@ -89,6 +92,9 @@ importers:
       phoenix:
         specifier: ^1.7.11
         version: 1.8.1
+      pmtiles:
+        specifier: ^4.3.0
+        version: 4.3.0
       rs1090-wasm:
         specifier: ^0.4.14
         version: 0.4.14
@@ -112,6 +118,18 @@ importers:
         specifier: workspace:*
         version: link:../tangram_core
 
+  packages/tangram_field15:
+    dependencies:
+      '@deck.gl/extensions':
+        specifier: ^9.2.2
+        version: 9.2.2(@deck.gl/core@9.2.2)(@luma.gl/core@9.2.4)(@luma.gl/engine@9.2.4(@luma.gl/core@9.2.4)(@luma.gl/shadertools@9.2.4(@luma.gl/core@9.2.4)))
+      '@open-aviation/tangram-core':
+        specifier: workspace:*
+        version: link:../tangram_core
+      dayjs:
+        specifier: ^1.11.19
+        version: 1.11.19
+
   packages/tangram_jet1090:
     dependencies:
       '@open-aviation/tangram-core':
@@ -131,6 +149,12 @@ importers:
         version: 5.3.3(chart.js@4.5.1)(vue@3.5.24(typescript@5.9.3))
 
   packages/tangram_ship162:
+    dependencies:
+      '@open-aviation/tangram-core':
+        specifier: workspace:*
+        version: link:../tangram_core
+
+  packages/tangram_sigmet:
     dependencies:
       '@open-aviation/tangram-core':
         specifier: workspace:*
@@ -674,6 +698,10 @@ packages:
 
   '@probe.gl/stats@4.1.0':
     resolution: {integrity: sha512-EI413MkWKBDVNIfLdqbeNSJTs7ToBz/KVGkwi3D+dQrSIkRI2IYbWGAU3xX+D6+CI4ls8ehxMhNpUVMaZggDvQ==}
+
+  '@protomaps/basemaps@5.7.0':
+    resolution: {integrity: sha512-vIInnzVSxHuOcvj1BFGkCjlFxG/9a1GV23t98kGEVcPUM7aEqTnf6loUHTRJYX5eCz+WCO16N0aibr1SLg830Q==}
+    hasBin: true
 
   '@rolldown/pluginutils@1.0.0-beta.29':
     resolution: {integrity: sha512-NIJgOsMjbxAXvoGq/X0gD7VPMQ8j9g0BiDaNjVNVjvl+iKXxL3Jre0v31RmBYeLEmkbj2s02v8vFTbUXi5XS2Q==}
@@ -1235,6 +1263,9 @@ packages:
   fflate@0.7.4:
     resolution: {integrity: sha512-5u2V/CDW15QM1XbbgS+0DfPxVB+jUKhWEKuuFuHncbk3tEEqzmoXL+2KyOFuKGqOnmdIy0/davWF1CkuwtibCw==}
 
+  fflate@0.8.2:
+    resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
+
   file-entry-cache@8.0.0:
     resolution: {integrity: sha512-XXTUwCvisa5oacNGRP9SfNtYBNAMi+RPwBFmblZEF7N7swHYQS6/Zfk7SRwx4D5j3CH211YNRco1DEMNVfZCnQ==}
     engines: {node: '>=16.0.0'}
@@ -1533,6 +1564,9 @@ packages:
   picomatch@4.0.3:
     resolution: {integrity: sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==}
     engines: {node: '>=12'}
+
+  pmtiles@4.3.0:
+    resolution: {integrity: sha512-wnzQeSiYT/MyO63o7AVxwt7+uKqU0QUy2lHrivM7GvecNy0m1A4voVyGey7bujnEW5Hn+ZzLdvHPoFaqrOzbPA==}
 
   postcss-selector-parser@6.1.2:
     resolution: {integrity: sha512-Q8qQfPiZ+THO/3ZrOrO0cJJKfpYCagtMUkXbnEfmgUjwXg6z/WBeOyS9APBBPCTSiDV+s4SwQGu8yFsiMRIudg==}
@@ -2414,6 +2448,8 @@ snapshots:
 
   '@probe.gl/stats@4.1.0': {}
 
+  '@protomaps/basemaps@5.7.0': {}
+
   '@rolldown/pluginutils@1.0.0-beta.29': {}
 
   '@rollup/rollup-android-arm-eabi@4.53.2':
@@ -3016,6 +3052,8 @@ snapshots:
 
   fflate@0.7.4: {}
 
+  fflate@0.8.2: {}
+
   file-entry-cache@8.0.0:
     dependencies:
       flat-cache: 4.0.1
@@ -3283,6 +3321,10 @@ snapshots:
   picomatch@2.3.1: {}
 
   picomatch@4.0.3: {}
+
+  pmtiles@4.3.0:
+    dependencies:
+      fflate: 0.8.2
 
   postcss-selector-parser@6.1.2:
     dependencies:
