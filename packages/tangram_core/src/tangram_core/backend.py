@@ -4,6 +4,7 @@ import asyncio
 import importlib.resources
 import json
 import logging
+import re
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -11,16 +12,26 @@ from functools import partial
 from importlib.metadata import Distribution, PackageNotFoundError
 from importlib.resources.abc import Traversable
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, AsyncGenerator, Iterable, TypeAlias
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    AsyncGenerator,
+    Awaitable,
+    Callable,
+    Iterable,
+    TypeAlias,
+)
 
 import httpx
 import redis.asyncio as redis
 import uvicorn
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from platformdirs import user_cache_dir
 
-from .config import Config, FrontendChannelConfig, FrontendConfig
+from .config import CacheEntry, Config, FrontendChannelConfig, FrontendConfig
 from .plugin import load_plugin, scan_plugins
 
 if TYPE_CHECKING:
@@ -89,6 +100,75 @@ async def lifespan(
         yield
 
 
+def make_cache_route_handler(
+    entry: CacheEntry, state: BackendState
+) -> Callable[..., Awaitable[FileResponse]]:
+    """
+    Factory function that creates a route handler for caching and serving files.
+    Dynamically handles URL parameters found in both serve_route and origin.
+
+    Args:
+        entry: Cache entry configuration with origin, local_path, serve_route, media_type
+        state: Backend state with http_client for fetching remote resources
+
+    Returns:
+        Async function that handles the route with dynamic parameters
+    """
+    from inspect import Parameter, Signature
+
+    # Extract parameter names from the serve_route (e.g., {fontstack}, {range})
+    param_pattern = re.compile(r"\{(\w+)\}")
+    params = param_pattern.findall(entry.serve_route)
+
+    async def cache_route_handler(**kwargs: str) -> FileResponse:
+        local_path = entry.local_path
+        if local_path is None:
+            local_path = Path(user_cache_dir("tangram_core"))
+            if not local_path.exists():
+                local_path.mkdir(parents=True)
+        else:
+            local_path = local_path.expanduser()
+
+        # Build the local file path by replacing parameters
+        local_file = local_path
+        for param in params:
+            if param in kwargs:
+                local_file = local_file / kwargs[param]
+
+        logger.info(f"Serving cached file from {local_file}")
+
+        if not local_file.exists():
+            assert entry.origin is not None
+            # Build the remote URL by replacing parameters
+            remote_url = entry.origin
+            for param, value in kwargs.items():
+                remote_url = remote_url.replace(f"{{{param}}}", value)
+
+            logger.info(f"Downloading from {remote_url} to {local_file}")
+            c = await state.http_client.get(remote_url)
+            c.raise_for_status()
+            local_file.parent.mkdir(parents=True, exist_ok=True)
+            local_file.write_bytes(c.content)
+
+        return FileResponse(path=local_file, media_type=entry.media_type)
+
+    # Create explicit parameters for the function signature
+    sig_params = [
+        Parameter(
+            name=param,
+            kind=Parameter.POSITIONAL_OR_KEYWORD,
+            annotation=str,
+        )
+        for param in params
+    ]
+    cache_route_handler.__signature__ = Signature(  # type: ignore
+        parameters=sig_params,
+        return_annotation=FileResponse,
+    )
+
+    return cache_route_handler
+
+
 def create_app(
     backend_state: BackendState,
     loaded_plugins: Iterable[tuple[DistName, Plugin]],
@@ -134,7 +214,25 @@ def create_app(
     async def get_manifest() -> JSONResponse:
         return JSONResponse(content={"plugins": frontend_plugins})
 
-    # TODO: we might want to host the frontend separately from the backend
+    # Cache mechanism - MUST be registered BEFORE the catch-all frontend mount
+    for cache_entry in backend_state.config.cache.entries:
+        logger.info(
+            f"caching {cache_entry.origin} to {cache_entry.local_path} "
+            f"and serving at {cache_entry.serve_route}"
+        )
+        route_handler = make_cache_route_handler(cache_entry, backend_state)
+
+        logger.info(
+            f"Registering route: GET {cache_entry.serve_route} with dynamic params"
+        )
+        app.add_api_route(
+            cache_entry.serve_route,
+            route_handler,
+            methods=["GET"],
+            name=f"cache-{cache_entry.serve_route.replace('/', '_')}",
+        )
+
+    # Frontend mount - this is a catch-all and must come LAST
     if (
         frontend_path := resolve_frontend(
             path="dist-frontend", dist_name="tangram_core"
@@ -144,6 +242,7 @@ def create_app(
             "error: frontend was not found, did you run `pnpm i && pnpm run build`?"
         )
     app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="core")
+
     return app
 
 

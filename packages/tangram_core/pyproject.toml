@@ -21,8 +21,9 @@ dependencies = [
     "redis>=5.2.0",
     "httpx[http2]>=0.27.2",
     "pydantic>=2.6.1",
-    "typer",                          # provides rich
+    "typer", # provides rich
     "tomli; python_version < '3.11'",
+    "platformdirs>=4.5.0",
 ]
 
 [project.scripts]

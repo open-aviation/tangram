@@ -63,6 +63,8 @@ import { onMounted, onUnmounted, getCurrentInstance, ref, watch } from "vue";
 import maplibregl from "maplibre-gl";
 import { TangramApi } from "./api";
 import { loadPlugins } from "./plugin";
+import { layers, namedFlavor } from "@protomaps/basemaps";
+import * as pmtiles from "pmtiles";
 
 type ApiState = "loading" | "ready" | "error";
 
@@ -106,6 +108,52 @@ watch(
 watch(mapContainer, newEl => {
   if (newEl && tangramApi.value && !mapInstance) {
     const mapConfig = tangramApi.value.config.map;
+
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+
+    if (typeof mapConfig.style === "object") {
+      // If the style is an object, we need to ensure it has the correct structure
+      // First we need to remove all None/null values from the style object
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const removeNulls = (obj: any): any => {
+        if (Array.isArray(obj)) {
+          return obj.map(removeNulls);
+        }
+        if (typeof obj === "string") {
+          // This is a special case if we don't want to hardcode the root URL
+          // of the application in the style JSON, we can use #ROOT# as a placeholder
+          if (obj.includes("#ROOT#")) {
+            const rootUrl =
+              window.location.origin +
+              window.location.pathname.replace(/\/[^\/]*$/, "/");
+            return obj.replace(/#ROOT#/g, rootUrl);
+          }
+          return obj;
+        }
+        if (obj !== null && typeof obj === "object") {
+          return Object.entries(obj).reduce((acc, [key, value]) => {
+            if (value !== null && value !== undefined) {
+              acc[key] = removeNulls(value);
+            }
+            return acc;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          }, {} as any);
+        }
+        return obj;
+      };
+
+      const styleObject = removeNulls(mapConfig.style);
+
+      if (!styleObject.layers) {
+        styleObject.layers = layers("protomaps", namedFlavor("light"), {
+          lang: mapConfig.lang
+        });
+      }
+      mapConfig.style = styleObject;
+    }
+
+    // @ts-expect-error TS2589: Type instantiation is excessively deep and possibly infinite
     mapInstance = new maplibregl.Map({
       container: newEl,
       style: mapConfig.style,
@@ -114,7 +162,8 @@ watch(mapContainer, newEl => {
       pitch: mapConfig.pitch,
       bearing: mapConfig.bearing,
       attributionControl: false
-    }); // TODO: attribution
+    });
+
     tangramApi.value.map.initialize(mapInstance);
   }
 });
