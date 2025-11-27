@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://mode-s.org/tangram/plugins/backend/">
+        <link rel="canonical" href="https://mode-s.org/tangram/api/system/">
       
       
-        <link rel="prev" href="../">
+        <link rel="prev" href="../weather/">
       
       
-        <link rel="next" href="../frontend/">
+        <link rel="next" href="../../contribute/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Backend - tangram</title>
+        <title>System - tangram</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#plugin-anatomy" class="md-skip">
+        <a href="#system" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Backend
+              System
             
           </span>
         </div>
@@ -456,8 +456,6 @@
       
   
   
-    
-  
   
   
     
@@ -484,15 +482,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../plugins/" class="md-nav__link ">
               
   
   
@@ -516,7 +514,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -533,35 +531,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Backend
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../plugins/backend/" class="md-nav__link">
         
   
   
@@ -577,146 +550,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#plugin-anatomy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Plugin Anatomy
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Plugin Anatomy">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-the-pyprojecttoml-entry-point" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. The pyproject.toml Entry Point
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-the-plugin-object" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. The Plugin Object
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#adding-api-endpoints" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Adding API Endpoints
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#creating-background-services" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Creating Background Services
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#inter-component-communication-with-redis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Inter-Component Communication with Redis
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Inter-Component Communication with Redis">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#communicating-with-the-frontend-via-websockets" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Communicating with the Frontend via WebSockets
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#publishing-messages" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Publishing Messages
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#subscribing-to-messages" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Subscribing to Messages
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#using-your-plugin" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using Your Plugin
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -729,7 +562,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/" class="md-nav__link">
+      <a href="../../plugins/frontend/" class="md-nav__link">
         
   
   
@@ -820,7 +653,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../system/" class="md-nav__link">
+      <a href="../../plugins/system/" class="md-nav__link">
         
   
   
@@ -848,7 +681,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../jet1090/" class="md-nav__link">
+      <a href="../../plugins/jet1090/" class="md-nav__link">
         
   
   
@@ -876,7 +709,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ship162/" class="md-nav__link">
+      <a href="../../plugins/ship162/" class="md-nav__link">
         
   
   
@@ -904,7 +737,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../history/" class="md-nav__link">
+      <a href="../../plugins/history/" class="md-nav__link">
         
   
   
@@ -932,7 +765,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../weather/" class="md-nav__link">
+      <a href="../../plugins/weather/" class="md-nav__link">
         
   
   
@@ -960,7 +793,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../airports/" class="md-nav__link">
+      <a href="../../plugins/airports/" class="md-nav__link">
         
   
   
@@ -1053,7 +886,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/citypair/" class="md-nav__link">
+      <a href="../../plugins/examples/citypair/" class="md-nav__link">
         
   
   
@@ -1081,7 +914,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/sensors/" class="md-nav__link">
+      <a href="../../plugins/examples/sensors/" class="md-nav__link">
         
   
   
@@ -1109,7 +942,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/windfield/" class="md-nav__link">
+      <a href="../../plugins/examples/windfield/" class="md-nav__link">
         
   
   
@@ -1149,8 +982,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -1171,11 +1006,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
@@ -1196,7 +1031,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1214,7 +1049,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/core/" class="md-nav__link">
+      <a href="../core/" class="md-nav__link">
         
   
   
@@ -1242,7 +1077,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/jet1090/" class="md-nav__link">
+      <a href="../jet1090/" class="md-nav__link">
         
   
   
@@ -1270,7 +1105,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/weather/" class="md-nav__link">
+      <a href="../weather/" class="md-nav__link">
         
   
   
@@ -1295,10 +1130,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../api/system/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1314,6 +1176,131 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tangram_system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;tangram_system
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" tangram_system">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;log
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;plugin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.uptime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;uptime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.info_utc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;info_utc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.cpu_load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;cpu_load
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.ram_usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;ram_usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.server_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;server_events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.run_system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;run_system
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1370,6 +1357,8 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -1378,22 +1367,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#plugin-anatomy" class="md-nav__link">
+  <a href="#tangram_system" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Plugin Anatomy
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;tangram_system
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Plugin Anatomy">
+    <nav class="md-nav" aria-label=" tangram_system">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-the-pyprojecttoml-entry-point" class="md-nav__link">
+  <a href="#tangram_system.log" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. The pyproject.toml Entry Point
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;log
       
     </span>
   </a>
@@ -1401,10 +1390,76 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-the-plugin-object" class="md-nav__link">
+  <a href="#tangram_system.plugin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. The Plugin Object
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;plugin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.uptime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;uptime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.info_utc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;info_utc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.cpu_load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;cpu_load
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.ram_usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;ram_usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.server_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;server_events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_system.run_system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;run_system
       
     </span>
   </a>
@@ -1413,89 +1468,6 @@
         
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#adding-api-endpoints" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Adding API Endpoints
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#creating-background-services" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Creating Background Services
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#inter-component-communication-with-redis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Inter-Component Communication with Redis
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Inter-Component Communication with Redis">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#communicating-with-the-frontend-via-websockets" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Communicating with the Frontend via WebSockets
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#publishing-messages" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Publishing Messages
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#subscribing-to-messages" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Subscribing to Messages
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#using-your-plugin" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using Your Plugin
-      
-    </span>
-  </a>
   
 </li>
       
@@ -1519,177 +1491,314 @@
   
 
 
-  <h1>Backend</h1>
+<h1 id="system">System<a class="headerlink" href="#system" title="Permanent link">&para;</a></h1>
 
-<p>Backend plugins are the standard way to add new server-side capabilities to <code>tangram</code>. They are self-contained Python packages that <code>tangram</code> discovers and loads at runtime, allowing for clean separation from the core framework.</p>
-<p>This guide covers the key concepts for building a backend plugin.</p>
-<h2 id="plugin-anatomy">Plugin Anatomy<a class="headerlink" href="#plugin-anatomy" title="Permanent link">&para;</a></h2>
-<p>A <code>tangram</code> plugin is a standard Python package that exposes its functionality through two key mechanisms: an entry point and a <a class="autorefs autorefs-internal" title="            Plugin
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="tangram_system" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">tangram_system</span>
+
+
+<a href="#tangram_system" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="tangram_system.log" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">log</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#tangram_system.log" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">log</span> <span class="o">=</span> <span class="n"><a class="autorefs autorefs-external" title="logging.getLogger" href="https://docs.python.org/3/library/logging.html#logging.getLogger">getLogger</a></span><span class="p">(</span><span class="n"><span title="__name__">__name__</span></span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="tangram_system.plugin" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">plugin</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#tangram_system.plugin" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">plugin</span> <span class="o">=</span> <span class="n"><a class="autorefs autorefs-internal" title="            Plugin
 
 
   
       dataclass
-  " href="../../api/core/#tangram_core.Plugin"><code>Plugin</code></a> object.</p>
-<p>Assuming you have the following project structure:</p>
-<div class="language-text highlight"><pre><span></span><code>my-tangram-plugin/
-├── pyproject.toml
-└── src/
-    └── my_plugin/
-        └── __init__.py
+   (tangram_core.Plugin)" href="../core/#tangram_core.Plugin">Plugin</a></span><span class="p">(</span><span class="n"><span title="tangram_core.Plugin(frontend_path)">frontend_path</span></span><span class="o">=</span><span class="s1">&#39;dist-frontend&#39;</span><span class="p">)</span>
 </code></pre></div>
-<h3 id="1-the-pyprojecttoml-entry-point">1. The <code>pyproject.toml</code> Entry Point<a class="headerlink" href="#1-the-pyprojecttoml-entry-point" title="Permanent link">&para;</a></h3>
-<p>Your <code>pyproject.toml</code> must declare an entry point under the <code>tangram_core.plugins</code> group. This makes your package discoverable by the core application.</p>
-<div class="language-toml highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[project]</span>
-<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my-tangram-plugin&quot;</span>
-<span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.1.0&quot;</span>
-<span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tangram_core&gt;=0.2.0&quot;</span><span class="p">]</span>
 
-<span class="hll"><span class="k">[project.entry-points.</span><span class="s2">&quot;tangram_core.plugins&quot;</span><span class="k">]</span>
-</span><span class="hll"><span class="n">my_plugin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_plugin:plugin&quot;</span>
-</span></code></pre></div>
-<h3 id="2-the-plugin-object">2. The <code>Plugin</code> Object<a class="headerlink" href="#2-the-plugin-object" title="Permanent link">&para;</a></h3>
-<p>The entry point must point to an instance of the <code>tangram_core.Plugin</code> class. This object is the central hub for registering your plugin's components.</p>
-<div class="language-py highlight"><span class="filename">src/my_plugin/__init__.py</span><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">tangram_core</span>
+    <div class="doc doc-contents ">
 
-<span class="n">plugin</span> <span class="o">=</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">Plugin</span><span class="p">(</span>
-    <span class="c1"># ... component registrations go here ...</span>
-<span class="p">)</span>
-</code></pre></div>
-<h2 id="adding-api-endpoints">Adding API Endpoints<a class="headerlink" href="#adding-api-endpoints" title="Permanent link">&para;</a></h2>
-<p>To add REST API endpoints, define a standard FastAPI <a class="autorefs autorefs-external" href="https://fastapi.tiangolo.com/reference/apirouter/#fastapi.APIRouter"><code>APIRouter</code></a> and pass a list of routers to the <a class="autorefs autorefs-internal" title="            Plugin
+    </div>
 
-
-  
-      dataclass
-  " href="../../api/core/#tangram_core.Plugin"><code>Plugin</code></a> constructor. <code>tangram</code> will automatically mount them into the main application.</p>
-<div class="language-py highlight"><span class="filename">src/my_plugin/__init__.py</span><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">tangram_core</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">APIRouter</span>
-
-<span class="n">router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;/my-plugin&quot;</span><span class="p">)</span>
-
-<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">my_endpoint</span><span class="p">():</span>
-    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Hello from my custom plugin!&quot;</span><span class="p">}</span>
-
-<span class="n">plugin</span> <span class="o">=</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">Plugin</span><span class="p">(</span>
-<span class="hll">    <span class="n">routers</span><span class="o">=</span><span class="p">[</span><span class="n">router</span><span class="p">]</span>
-</span><span class="p">)</span>
-</code></pre></div>
-<h2 id="creating-background-services">Creating Background Services<a class="headerlink" href="#creating-background-services" title="Permanent link">&para;</a></h2>
-<p>To run persistent background tasks, use the <a class="autorefs autorefs-internal" title="            register_service" href="../../api/core/#tangram_core.Plugin.register_service"><code>@plugin.register_service</code> decorator</a>. The decorated function will be started as a background task when <code>tangram serve</code> runs.</p>
-<p>The service function receives a <a class="autorefs autorefs-internal" title="            BackendState
-
-
-  
-      dataclass
-  " href="../../api/core/#tangram_core.BackendState"><code>tangram_core.BackendState</code></a> object, which provides access to core components like the Redis client.</p>
-<div class="language-py highlight"><span class="filename">src/my_plugin/__init__.py</span><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">tangram_core</span>
-
-<span class="n">plugin</span> <span class="o">=</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">Plugin</span><span class="p">()</span>
-
-<span class="hll"><span class="nd">@plugin</span><span class="o">.</span><span class="n">register_service</span><span class="p">()</span>
-</span><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_periodic_task</span><span class="p">(</span><span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">BackendState</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A background service that publishes a message every 10 seconds.&quot;&quot;&quot;</span>
-    <span class="n">redis_client</span> <span class="o">=</span> <span class="n">backend_state</span><span class="o">.</span><span class="n">redis_client</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;my-plugin:status&quot;</span><span class="p">,</span> <span class="s2">&quot;alive&quot;</span><span class="p">)</span>
-        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
-</code></pre></div>
-<h2 id="inter-component-communication-with-redis">Inter-Component Communication with Redis<a class="headerlink" href="#inter-component-communication-with-redis" title="Permanent link">&para;</a></h2>
-<p>Redis pub/sub is the backbone for real-time communication between all <code>tangram</code> components, including backend services, the frontend, and performance-critical Rust modules.</p>
-<h3 id="communicating-with-the-frontend-via-websockets">Communicating with the Frontend via WebSockets<a class="headerlink" href="#communicating-with-the-frontend-via-websockets" title="Permanent link">&para;</a></h3>
-<p>The <code>channel</code> service acts as a transparent bridge between Redis and frontend WebSockets. A simple convention is used for routing messages:</p>
-<pre class="mermaid"><code>graph TB
-    subgraph Frontend
-        direction TB
-        FC[Client]
-    end
-
-    subgraph Backend
-        direction TB
-        BP[Plugin]
-    end
-
-    WS[WebSocket Channel]
-    R[Redis Pub/Sub]
-
-    FC -- "push('event', payload)" --&gt; WS
-    WS -- "PUBLISH from:channel:event" --&gt; R
-    R -- "LISTEN from:*" --&gt; BP
-
-    BP -- "PUBLISH to:channel:event" --&gt; R
-    R -- "LISTEN to:*" --&gt; WS
-    WS -- "on('event', payload)" --&gt; FC</code></pre>
-<ul>
-<li><strong>Backend to Frontend</strong>: To send a message to the frontend, publish it to a Redis channel prefixed with <code>to:&lt;channel_name&gt;:&lt;event_name&gt;</code>. The <code>channel</code> service relays this to the browser.</li>
-<li><strong>Frontend to Backend</strong>: When the frontend sends a message, the <code>channel</code> service relays it to a Redis channel prefixed with <code>from:&lt;channel_name&gt;:&lt;event_name&gt;</code>.</li>
-</ul>
-<h3 id="publishing-messages">Publishing Messages<a class="headerlink" href="#publishing-messages" title="Permanent link">&para;</a></h3>
-<p>You can publish messages from any backend service using the Redis client available in <a class="autorefs autorefs-internal" title="            BackendState
-
-
-  
-      dataclass
-  " href="../../api/core/#tangram_core.BackendState"><code>tangram_core.BackendState</code></a>.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="python" name="__tabbed_1" type="radio" /><input id="rust" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="python">Python</label><label for="rust">Rust</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-py highlight"><pre><span></span><code><span class="c1"># from within a service function</span>
-<span class="n">redis_client</span> <span class="o">=</span> <span class="n">backend_state</span><span class="o">.</span><span class="n">redis_client</span>
-<span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update&quot;</span><span class="p">,</span> <span class="s2">&quot;Hello from plugin&quot;</span><span class="p">)</span>
-</code></pre></div>
 </div>
-<div class="tabbed-block">
-<div class="language-rs highlight"><pre><span></span><code><span class="kd">let</span><span class="w"> </span><span class="n">redis_client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">redis</span><span class="p">::</span><span class="n">Client</span><span class="p">::</span><span class="n">open</span><span class="p">(</span><span class="s">&quot;redis://localhost:6379&quot;</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()</span><span class="o">?</span><span class="p">;</span>
-<span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">con</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">redis_client</span><span class="p">.</span><span class="n">get_multiplexed_async_connection</span><span class="p">().</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
-<span class="n">con</span><span class="p">.</span><span class="n">publish</span><span class="p">(</span><span class="s">&quot;to:system:update&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Hello from plugin&quot;</span><span class="p">).</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="tangram_system.uptime" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">uptime</span>
+
+
+<a href="#tangram_system.uptime" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">uptime</span><span class="p">(</span><span class="n">counter</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">]</span>
 </code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">uptime</span><span class="p">(</span><span class="n">counter</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;el&quot;</span><span class="p">:</span> <span class="s2">&quot;uptime&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">counter</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
 </div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="tangram_system.info_utc" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">info_utc</span>
+
+
+<a href="#tangram_system.info_utc" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">info_utc</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span> <span class="o">|</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">info_utc</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;el&quot;</span><span class="p">:</span> <span class="s2">&quot;info_utc&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">1000</span> <span class="o">*</span> <span class="nb">int</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()),</span>
+    <span class="p">}</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
 </div>
-</div>
-<h3 id="subscribing-to-messages">Subscribing to Messages<a class="headerlink" href="#subscribing-to-messages" title="Permanent link">&para;</a></h3>
-<p>To handle incoming messages, <code>tangram</code> provides a <a class="autorefs autorefs-internal" title="            Subscriber" href="../../api/core/#tangram_core.redis.Subscriber"><code>Subscriber</code></a> base class. This is the recommended pattern for creating robust, long-running listeners within a service.</p>
-<div class="language-py highlight"><span class="filename">src/my_plugin/__init__.py</span><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">tangram_core</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">tangram_core.redis</span><span class="w"> </span><span class="kn">import</span> <span class="n">Subscriber</span>
 
-<span class="n">plugin</span> <span class="o">=</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">Plugin</span><span class="p">()</span>
+<div class="doc doc-object doc-function">
 
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">CommandSubscriberState</span><span class="p">:</span>
-    <span class="n">command_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
 
-<span class="k">class</span><span class="w"> </span><span class="nc">CommandSubscriber</span><span class="p">(</span><span class="n">Subscriber</span><span class="p">[</span><span class="n">CommandSubscriberState</span><span class="p">]):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A subscriber that listens for commands on a Redis channel.&quot;&quot;&quot;</span>
-    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">message_handler</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">CommandSubscriberState</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">state</span><span class="o">.</span><span class="n">command_count</span> <span class="o">+=</span> <span class="mi">1</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Command #</span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">command_count</span><span class="si">}</span><span class="s2"> received on `</span><span class="si">{</span><span class="n">event</span><span class="si">}</span><span class="s2">`: </span><span class="si">{</span><span class="n">payload</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<h3 id="tangram_system.cpu_load" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">cpu_load</span>
 
-<span class="nd">@plugin</span><span class="o">.</span><span class="n">register_service</span><span class="p">()</span>
-<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_command_listener</span><span class="p">(</span><span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">BackendState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;This service listens for commands from the frontend.&quot;&quot;&quot;</span>
-    <span class="n">subscriber</span> <span class="o">=</span> <span class="n">CommandSubscriber</span><span class="p">(</span>
-        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;CommandListener&quot;</span><span class="p">,</span>
-        <span class="n">redis_url</span><span class="o">=</span><span class="n">backend_state</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">redis_url</span><span class="p">,</span>
-        <span class="n">channels</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;from:system:my-plugin-command&quot;</span><span class="p">],</span>
-        <span class="n">initial_state</span><span class="o">=</span><span class="n">CommandSubscriberState</span><span class="p">(),</span>
-    <span class="p">)</span>
-    <span class="k">await</span> <span class="n">subscriber</span><span class="o">.</span><span class="n">subscribe</span><span class="p">()</span>
+
+<a href="#tangram_system.cpu_load" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">cpu_load</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cpu_load</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Future</span><span class="p">()</span>  <span class="c1"># run forever</span>
-    <span class="k">finally</span><span class="p">:</span>
-        <span class="k">await</span> <span class="n">subscriber</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+        <span class="n">load1</span><span class="p">,</span> <span class="n">_load5</span><span class="p">,</span> <span class="n">_load15</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">getloadavg</span><span class="p">()</span>
+        <span class="n">cpu_count</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(</span><span class="n">logical</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">1</span>
+        <span class="n">load_percent</span> <span class="o">=</span> <span class="p">(</span><span class="n">load1</span> <span class="o">/</span> <span class="n">cpu_count</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;el&quot;</span><span class="p">:</span> <span class="s2">&quot;cpu_load&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">load_percent</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">%&quot;</span><span class="p">}</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;el&quot;</span><span class="p">:</span> <span class="s2">&quot;cpu_load&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;Unavailable&quot;</span><span class="p">}</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="tangram_system.ram_usage" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">ram_usage</span>
+
+
+<a href="#tangram_system.ram_usage" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">ram_usage</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">]</span>
 </code></pre></div>
-<h2 id="using-your-plugin">Using Your Plugin<a class="headerlink" href="#using-your-plugin" title="Permanent link">&para;</a></h2>
-<p>Install your package in the same environment as <code>tangram</code> and enable it in your <code>tangram.toml</code>:</p>
-<div class="language-toml highlight"><pre><span></span><code><span class="k">[core]</span>
-<span class="n">plugins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;my_tangram_plugin&quot;</span><span class="p">]</span>
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">ram_usage</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">mem</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;el&quot;</span><span class="p">:</span> <span class="s2">&quot;ram_usage&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mem</span><span class="o">.</span><span class="n">percent</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">%&quot;</span><span class="p">}</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;el&quot;</span><span class="p">:</span> <span class="s2">&quot;ram_usage&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;Unavailable&quot;</span><span class="p">}</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="tangram_system.server_events" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">server_events</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#tangram_system.server_events" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">server_events</span><span class="p">(</span><span class="n">redis_client</span><span class="p">:</span> <span class="n"><span title="redis.asyncio.Redis">Redis</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="typing.NoReturn" href="https://docs.python.org/3/library/typing.html#typing.NoReturn">NoReturn</a></span>
 </code></pre></div>
-<p>Run <code>tangram serve</code>. The core application will load your plugin, making its API endpoints available and starting its background services. The full API documentation, including your new endpoint, is available at <a href="http://localhost:2346/docs">http://localhost:2346/docs</a>.</p>
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">server_events</span><span class="p">(</span><span class="n">redis_client</span><span class="p">:</span> <span class="n">redis</span><span class="o">.</span><span class="n">Redis</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NoReturn</span><span class="p">:</span>
+    <span class="n">counter</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;serving system events...&quot;</span><span class="p">)</span>
+
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">uptime</span><span class="p">(</span><span class="n">counter</span><span class="p">)))</span>
+        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">info_utc</span><span class="p">()))</span>
+        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">cpu_load</span><span class="p">()))</span>
+        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">ram_usage</span><span class="p">()))</span>
+        <span class="n">counter</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="tangram_system.run_system" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">run_system</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#tangram_system.run_system" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">run_system</span><span class="p">(</span><span class="n">backend_state</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            BackendState
+
+
+  
+      dataclass
+   (tangram_core.BackendState)" href="../core/#tangram_core.BackendState">BackendState</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@plugin</span><span class="o">.</span><span class="n">register_service</span><span class="p">()</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_system</span><span class="p">(</span><span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">BackendState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">await</span> <span class="n">server_events</span><span class="p">(</span><span class="n">backend_state</span><span class="o">.</span><span class="n">redis_client</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
 
 
 
@@ -1725,7 +1834,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: Plugins">
+          <a href="../weather/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Weather">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1735,20 +1844,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Plugins
+                Weather
               </div>
             </div>
           </a>
         
         
           
-          <a href="../frontend/" class="md-footer__link md-footer__link--next" aria-label="Next: Frontend">
+          <a href="../../contribute/" class="md-footer__link md-footer__link--next" aria-label="Next: Contribute">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Frontend
+                Contribute
               </div>
             </div>
             <div class="md-footer__button md-icon">
