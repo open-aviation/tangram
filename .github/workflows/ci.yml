@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - '*'
+      - "*"
   # keeping wheel building for pull requests on for now.
   pull_request:
   workflow_dispatch:
@@ -45,23 +45,20 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      
+
       - name: install tangram (no plugins)
-        run:
-          uv sync --all-groups --package tangram_core
-      
+        run: uv sync --all-groups --package tangram_core
+
       - name: run tests
         env:
           TANGRAM_CONFIG_PATH: tangram.example.toml
         run: uv run pytest packages/tangram_core/tests/
-        
+
       - name: install tangram (all plugins)
-        run:
-          uv sync --all-groups --all-packages
+        run: uv sync --all-groups --all-packages
 
       - name: list plugins
         run: uv run tangram list-plugins --all
-
 
   # TODO: what about sdist?
 
@@ -83,6 +80,7 @@ jobs:
       - name: build wheels
         run: |
           mkdir -p wheels
+          uv build --package tangram_airports
           uv build --package tangram_system
           uv build --package tangram_weather
 
