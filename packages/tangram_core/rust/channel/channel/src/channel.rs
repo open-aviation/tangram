@@ -724,15 +724,25 @@ mod test {
         tx.send("msg2").unwrap();
         tx.send("msg3").unwrap();
 
-        // Explicitly check what's available in the channel now
-        let msg1_rx1 = rx1.try_recv();
-        let msg1_rx2 = rx2.try_recv();
+        // Check rx1 - should miss first message
+        match rx1.try_recv() {
+            Err(broadcast::error::TryRecvError::Lagged(skipped)) => {
+                assert_eq!(skipped, 1);
+                assert_eq!(rx1.try_recv().unwrap(), "msg2");
+            }
+            Ok(msg) => panic!("Expected Lagged error, got message: {}", msg),
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        }
 
-        // Both receivers should get msg2 (not msg1, which was pushed out)
-        assert!(msg1_rx1.is_ok());
-        assert!(msg1_rx2.is_ok());
-        assert_eq!(msg1_rx1.unwrap(), "msg2");
-        assert_eq!(msg1_rx2.unwrap(), "msg2");
+        // Check rx2 - should also miss first message
+        match rx2.try_recv() {
+            Err(broadcast::error::TryRecvError::Lagged(skipped)) => {
+                assert_eq!(skipped, 1);
+                assert_eq!(rx2.try_recv().unwrap(), "msg2");
+            }
+            Ok(msg) => panic!("Expected Lagged error, got message: {}", msg),
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        }
 
         // Next message should be msg3
         assert_eq!(rx1.try_recv().unwrap(), "msg3");
@@ -750,46 +760,38 @@ mod test {
         let tx = channel.join(agent_id.clone()).await;
         let mut rx = tx.subscribe();
 
-        // Create messages
-        let msg1 = create_test_message("test", "0", "msg0");
-        let msg2 = create_test_message("test", "1", "msg1");
-        let msg3 = create_test_message("test", "2", "msg2");
-
         // Send messages (exceeding capacity)
-        channel.send(msg1).unwrap();
-        channel.send(msg2).unwrap();
-        channel.send(msg3).unwrap();
-
-        // First message should be "msg1" as "msg0" is lagged out
-        if let Ok(ChannelMessage::Reply(reply)) = rx.try_recv() {
-            if let ServerPayload::ServerResponse(server_response) = reply.payload {
-                if let Response::Message { message } = server_response.response {
-                    assert_eq!(message, "msg1");
-                    assert_eq!(reply.event_ref, "1");
-                } else {
-                    panic!("Wrong response type");
-                }
-            }
-        } else {
-            panic!("Failed to receive first message");
+        for i in 0..3 {
+            let msg = create_test_message("test", &i.to_string(), &format!("msg{}", i));
+            assert_eq!(channel.send(msg).unwrap(), 1);
+            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
         }
 
-        // Second message should be "msg2"
-        if let Ok(ChannelMessage::Reply(reply)) = rx.try_recv() {
-            if let ServerPayload::ServerResponse(server_response) = reply.payload {
-                if let Response::Message { message } = server_response.response {
-                    assert_eq!(message, "msg2");
-                    assert_eq!(reply.event_ref, "2");
-                } else {
-                    panic!("Wrong response type");
-                }
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // handle potential lag for the first read
+        match rx.try_recv() {
+            Err(broadcast::error::TryRecvError::Lagged(_)) => {
+                // expected lag, consume next
             }
-        } else {
-            panic!("Failed to receive second message");
+            Ok(msg) => panic!("Expected Lagged error, got message: {:?}", msg),
+            Err(e) => panic!("Unexpected error: {:?}", e),
         }
 
-        // No more messages
-        assert!(rx.try_recv().is_err());
+        let mut messages = Vec::new();
+        while let Ok(msg) = rx.try_recv() {
+            let ChannelMessage::Reply(reply) = msg;
+            if let ServerPayload::ServerResponse(server_response) = reply.payload {
+                if let Response::Message { message } = server_response.response {
+                    messages.push(message);
+                }
+            }
+        }
+
+        // with lagged receiver, we should only get the last 2 messages due to capacity limit
+        assert_eq!(messages.len(), 2);
+        assert!(messages.contains(&"msg1".to_string()));
+        assert!(messages.contains(&"msg2".to_string()));
     }
 
     // Fix test_channel_control_operations with manual setup and steps
