@@ -20,7 +20,7 @@ tracing = "0.1"
 
 # channel (optional)
 axum = { version = "0.8", features = ["ws"], optional = true }
-channel = { git = "https://github.com/emctoo/channel.git", tag = "v0.2.8", optional = true }
+channel = { git = "https://github.com/open-aviation/channel.git", rev = "6642361b38f9607385031ff91cd38abd107eef8c", optional = true }
 tower-http = { version = "0.6", features = ["fs", "trace", "cors"], optional = true }
 thiserror = { version = "2.0", optional = true }
 

@@ -23,21 +23,21 @@
     "@deck.gl/mapbox": "^9.2.2",
     "@deck.gl/mesh-layers": "^9.2.2",
     "@deck.gl/widgets": "^9.2.2",
-    "@fontsource/b612": "^5.0.0",
-    "@fontsource/inconsolata": "^5.0.0",
-    "@fontsource/roboto-condensed": "^5.0.0",
+    "@fontsource/b612": "^5.2.7",
+    "@fontsource/inconsolata": "^5.2.8",
+    "@fontsource/roboto-condensed": "^5.2.8",
     "@protomaps/basemaps": "^5.7.0",
     "font-awesome": "^4.7.0",
     "lit-html": "^3.3.1",
     "maplibre-gl": "^5.13.0",
-    "phoenix": "^1.7.11",
+    "phoenix": "^1.8.2",
     "pmtiles": "^4.3.0",
     "rs1090-wasm": "^0.4.14",
-    "vue": "^3.5.24"
+    "vue": "^3.5.25"
   },
   "devDependencies": {
     "@types/phoenix": "^1.6.6",
-    "@vitejs/plugin-vue": "^6.0.1",
+    "@vitejs/plugin-vue": "^6.0.2",
     "vite-plugin-static-copy": "^3.1.4"
   }
 }
