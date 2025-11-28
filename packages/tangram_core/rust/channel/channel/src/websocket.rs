@@ -77,7 +77,7 @@ impl fmt::Display for ServerMessage {
 
         let response_str = "...";
         let payload_display = match self.payload {
-            ServerPayload::ServerResponse(ref resp) => format!("<ServerResponse status={}, response={}>", resp.status, response_str),
+            ServerPayload::ServerResponse(ref resp) => format!("<Payload status={}, response={}>", resp.status, response_str),
             ServerPayload::ServerJsonValue(ref value) => format!("<ServerJsonResponse {}>", value),
         };
         write!(f, "Message join_ref={}, ref={}, topic={}, event={}, {}", join_ref, self.event_ref, self.topic, self.event, payload_display)
@@ -701,7 +701,9 @@ mod tests {
         let state = Arc::new(State {
             ctl: Mutex::new(channel_control),
             redis_client,
+            id_length: 8,
             jwt_secret: "secret".into(),
+            jwt_expiration_secs: 3600,
         });
 
         // Setup channels
