@@ -683,6 +683,7 @@ mod tests {
         #[serde(rename = "userToken")]
         user_token: Option<String>,
 
+        #[allow(dead_code)]
         #[serde(rename = "vsn")]
         version: Option<String>,
     }

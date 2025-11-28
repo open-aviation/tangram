@@ -1,6 +1,6 @@
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rand::distr::Alphanumeric;
-use rand::{Rng, rng};
+use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 
 pub fn random_string(length: usize) -> String {

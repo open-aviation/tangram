@@ -96,7 +96,7 @@ struct Options {
     #[arg(long, env, default_value = None)]
     redis_url: Option<String>,
 
-    #[arg(long, env,default_value = "8")]
+    #[arg(long, env, default_value = "8")]
     id_length: u8,
 
     #[arg(long, env, default_value = None)]
@@ -175,7 +175,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ctl: Mutex::new(channel_control),
         redis_client,
         id_length: options.id_length,
-        jwt_secret, // Get from command line, environment variable, or generate a random one
+        jwt_secret,                                       // Get from command line, environment variable, or generate a random one
         jwt_expiration_secs: options.jwt_expiration_secs, // default: 3 days
     });
 

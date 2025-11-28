@@ -133,8 +133,8 @@ impl Channel {
 
     /// broadcast messages to the channel
     /// it returns the number of agents who received the message
-    pub fn send(&self, data: ChannelMessage) -> Result<usize, SendError<ChannelMessage>> {
-        self.tx.send(data)
+    pub fn send(&self, data: ChannelMessage) -> Result<usize, Box<SendError<ChannelMessage>>> {
+        self.tx.send(data).map_err(Box::new)
     }
 
     pub fn empty(&self) -> bool {
