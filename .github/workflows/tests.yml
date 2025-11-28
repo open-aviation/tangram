@@ -32,11 +32,15 @@ jobs:
     - name: rust cache
       uses: swatinem/rust-cache@v2
 
-    - name: check formatting
-      run: cargo fmt --all -- --check
-
     - name: run tests
       run: cargo test
-      if: always()
       env:
         REDIS_URL: redis://localhost:6379
+
+    - name: check formatting
+      if: always()
+      run: cargo fmt --all -- --check
+      
+    - name: check clippy
+      if: always()
+      run: cargo clippy -- -D warnings
