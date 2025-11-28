@@ -1,0 +1,42 @@
+name: tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8.0-M03-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: install rust
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: rust cache
+      uses: swatinem/rust-cache@v2
+
+    - name: check formatting
+      run: cargo fmt --all -- --check
+
+    - name: run tests
+      run: cargo test
+      if: always()
+      env:
+        REDIS_URL: redis://localhost:6379
