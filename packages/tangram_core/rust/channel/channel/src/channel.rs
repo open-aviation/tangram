@@ -546,13 +546,18 @@ struct ChannelEventFromRedis {
 impl ChannelEventFromRedis {
     /// parse the format to:channel_name:event_name
     fn parse(redis_channel: &str) -> Result<Self, &'static str> {
-        let components: Vec<&str> = redis_channel.split(':').collect();
-        match components.as_slice() {
-            [_, channel, event] => Ok(Self {
-                channel: channel.to_string(),
-                event: event.to_string(),
-            }),
-            _ => Err("invalid channel format"),
+        if !redis_channel.starts_with("to:") {
+            return Err("invalid channel format");
+        }
+        let content = &redis_channel[3..];
+        match content.rfind(':') {
+            Some(idx) => {
+                Ok(Self {
+                    channel: content[..idx].to_string(),
+                    event: content[idx + 1..].to_string(),
+                })
+            },
+            None => Err("invalid channel format"),
         }
     }
 }
