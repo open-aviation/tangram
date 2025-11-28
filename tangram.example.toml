@@ -1,12 +1,14 @@
 [core]
 redis_url = "redis://localhost:6379"
 plugins = [
-    # "tangram_example",
+    # -- Core functionalities --
+    "tangram_jet1090",
+    "tangram_history",
+    # -- Extra functionalities --
     "tangram_system",
     "tangram_airports",
-    "tangram_jet1090",
-    "tangram_ship162",
-    "tangram_history",
+    # "tangram_ship162",
+    # "tangram_example",
     # "tangram_weather"
 ]
 

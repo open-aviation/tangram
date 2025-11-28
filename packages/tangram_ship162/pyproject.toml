@@ -4,12 +4,12 @@ build-backend = "maturin"
 
 [project]
 name = "tangram_ship162"
-version = "0.1.0"
-dependencies = ["tangram_core>=0.2.0"]
+version = "0.2.0"
+dependencies = ["tangram_core"]
 authors = [
     { name = "Abraham Cheung", email = "abraham@ylcheung.com" },
 ]
-license = "MIT"
+license = "AGPL-3.0"
 
 [project.optional-dependencies]
 history = ["polars[deltalake]"]

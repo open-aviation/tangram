@@ -1,7 +1,14 @@
 [package]
 name = "tangram_core"
-version = "0.1.0"
-edition = "2021"
+description = "A framework for real-time analysis of ADS-B and Mode S surveillance data"
+readme = "../readme.md"
+authors = ["Abraham Cheung <abraham@ylcheung.com>"]
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
 
 [lib]
 name = "tangram_core"
@@ -38,10 +45,5 @@ required-features = ["stubgen"]
 [features]
 default = []
 channel = ["dep:axum", "dep:channel", "dep:tower-http", "dep:thiserror"]
-pyo3 = [
-    "dep:pyo3",
-    "dep:pyo3-async-runtimes",
-    "dep:tracing-subscriber",
-    "channel",
-]
+pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:tracing-subscriber", "channel"]
 stubgen = ["pyo3", "dep:pyo3-stub-gen"]

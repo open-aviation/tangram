@@ -1,10 +1,13 @@
 [package]
-name = "ship162_ships"
-version = "0.1.0"
-edition = "2021"
-license = "MIT"
-description = "Tangram ship162 plugin"
-repository = "https://github.com/open-aviation/tangram"
+name = "tangram_ship162"
+description = "tangram ship162 plugin"
+readme = "../readme.md"
+authors = ["Abraham Cheung <abraham@ylcheung.com>"]
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [lib]
 name = "_ships"
@@ -29,10 +32,7 @@ arrow-array = "56.2.0"
 arrow-schema = "56.2.0"
 
 pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
-pyo3-async-runtimes = { version = "0.27", features = [
-    "attributes",
-    "tokio-runtime",
-], optional = true }
+pyo3-async-runtimes = { version = "0.27", features = ["attributes", "tokio-runtime"], optional = true }
 # NOTE: v0.17 introduced support for overloading but that caused an odd post-compile
 # runtime issue, do not upgrade yet.
 pyo3-stub-gen = { version = "0.16", optional = true }

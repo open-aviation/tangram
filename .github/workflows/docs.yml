@@ -34,7 +34,7 @@ jobs:
         run: |
           uv sync --group docs && uv run mkdocs build
 
-      - name: Deploy pages to www.mode-s.org/jet1090
+      - name: Deploy pages to www.mode-s.org/tangram
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

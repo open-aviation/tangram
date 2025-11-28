@@ -5,7 +5,8 @@ build-backend = "maturin"
 [project]
 name = "tangram_jet1090"
 version = "0.2.0"
-dependencies = ["tangram_core>=0.2.0", "platformdirs"]
+license = "AGPL-3.0"
+dependencies = ["tangram_core", "platformdirs"]
 authors = [
     { name = "Xavier Olive", email = "git@xoolive.org" },
     { name = "Junzi Sun", email = "git@junzis.com" },

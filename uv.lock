@@ -2364,7 +2364,7 @@ requires-dist = [{ name = "tangram-core", editable = "packages/tangram_core" }]
 
 [[package]]
 name = "tangram-history"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/tangram_history" }
 dependencies = [
     { name = "platformdirs" },
@@ -2401,7 +2401,7 @@ provides-extras = ["history"]
 
 [[package]]
 name = "tangram-ship162"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/tangram_ship162" }
 dependencies = [
     { name = "tangram-core" },

@@ -4,8 +4,10 @@ build-backend = "maturin"
 
 [project]
 name = "tangram_history"
-version = "0.1.0"
-dependencies = ["tangram_core>=0.2.0", "platformdirs"]
+version = "0.2.0"
+license = "AGPL-3.0"
+readme = "readme.md"
+dependencies = ["tangram_core", "platformdirs"]
 authors = [
     { name = "Abraham Cheung", email = "abraham@ylcheung.com" },
 ]

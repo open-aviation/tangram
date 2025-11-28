@@ -1,7 +1,13 @@
 [package]
 name = "tangram_history"
-version = "0.1.0"
-edition = "2021"
+description = "tangram plugin to store and query historical data"
+readme = "../readme.md"
+authors = ["Abraham Cheung <abraham@ylcheung.com>"]
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [lib]
 name = "tangram_history"

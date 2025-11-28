@@ -8,16 +8,16 @@ The system consists of a JavaScript frontend and a Python backend built with Fas
 
 ## Documentation
 
-[![docs](https://github.com/open-aviation/tangram_core/actions/workflows/docs.yml/badge.svg)](https://github.com/open-aviation/tangram_core/actions/workflows/docs.yml)
+[![docs](https://github.com/open-aviation/tangram/actions/workflows/docs.yml/badge.svg)](https://github.com/open-aviation/tangram/actions/workflows/docs.yml)
 
-Documentation is available at <https://mode-s.org/tangram_core/>
+Documentation is available at <https://mode-s.org/tangram/>
 
 ## Tests
 
 Unit tests are limited to what invidual components can provide, including [jet1090](https://github.com/xoolive/rs1090/actions).\
 The system is designed to be modular, so each component can be tested independently.
 
-[![build](https://github.com/open-aviation/tangram_core/actions/workflows/podman.yml/badge.svg)](https://github.com/open-aviation/tangram_core/actions/workflows/podman.yml)
+[![build](https://github.com/open-aviation/tangram/actions/workflows/podman.yml/badge.svg)](https://github.com/open-aviation/tangram/actions/workflows/podman.yml)
 
 Integration tests is currently limited to the construction of the container image, with the `just c-build` command.
 
@@ -52,4 +52,6 @@ In 2020, @junzis and @xoolive published a paper [Detecting and Measuring Turbule
 
 Based on this method, @MichelKhalaf started developing this tool as part of his training with @xoolive in 2021, which was completed in Summer 2022. After that, the project was then lightly maintained by @xoolive and @junzis, while we have been applying for funding to continue this tool.
 
-And in 2023, we received funding from NWO to continue the development of this tool. With this funding, @emctoo from [Shinetech](https://www.shinetechsoftware.com) was hired to work alongside us on this open-source project.
+Then in 2023, we received funding from NWO to continue the development of this tool. With this funding, @emctoo from [Shinetech](https://www.shinetechsoftware.com) was hired to work alongside us on this open-source project and helped to improve the codebase and documentation, making it more accessible, improving the design with a component-based architecture. (version 0.1)
+
+After reviewing the existing project for the JOSS submission, @abc8747 kindly contributed and helped to improve the software engineering practices so that all components can be packaged as simple-to-install Python packages. (version 0.2)

@@ -7,6 +7,15 @@ members = [
     "packages/tangram_ship162/rust",
 ]
 
+[workspace.package]
+license = "AGPL-3.0"
+edition = "2021"
+readme = "readme.md"
+version = "0.2.0"
+repository = "https://github.com/open-aviation/tangram"
+homepage = "https://mode-s.org/tangram/"
+documentation = "https://mode-s.org/tangram/"
+
 # on github actions, tangram_history (which effectively compiles datafusion)
 # with lto = 'fat' takes a huge amount of time and memory:
 # - SIGABRT on manylinux (i686) due to Rust-LLVM OOM
