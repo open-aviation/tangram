@@ -491,8 +491,7 @@ async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>
         .await
         .unwrap();
     if agent_count == 0 && !is_special_channel(&channel_name) {
-        warn!("LEAVE / channel {} is empty, cleaning up ...", channel_name);
-        state.ctl.lock().await.channel_rm(channel_name.clone()).await; // Empty channel will be cleaned up
+        state.ctl.lock().await.channel_remove_if_empty(channel_name.clone()).await;
     }
     ok_reply(conn_id, join_ref, event_ref, &channel_name, state.clone()).await;
 
@@ -1274,23 +1273,23 @@ mod tests {
 
     async fn expect_msg_content(
         rx: &mut futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>,
-        content: &str
+        content: &str,
     ) {
         let timeout = std::time::Duration::from_secs(2);
         let start = std::time::Instant::now();
-        
+
         loop {
             if start.elapsed() > timeout {
                 panic!("Timeout waiting for message containing '{}'", content);
             }
-            
+
             match tokio::time::timeout(std::time::Duration::from_millis(100), rx.next()).await {
                 Ok(Some(Ok(msg))) => {
                     let s = msg.to_string();
                     if s.contains(content) {
                         return;
                     }
-                },
+                }
                 _ => continue,
             }
         }
@@ -1301,19 +1300,24 @@ mod tests {
     #[tokio::test]
     async fn test_redis_listener_survival_on_zero_subscribers() {
         let (addr, state, channel_name) = setup_test_server().await;
-        
+
         let (mut tx_a, mut rx_a) = connect_client(&addr).await;
         let token_a = gen_token(&state, &channel_name, "user_a").await;
-        tx_a.send(Message::text(format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, channel_name, token_a))).await.unwrap();
-        
+        tx_a.send(Message::text(format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, channel_name, token_a)))
+            .await
+            .unwrap();
+
         // consume messages until join is confirmed (ignore presence noise)
         expect_msg_content(&mut rx_a, "phx_reply").await;
 
         // connect B, client A should get it
         let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
         let redis_topic = format!("to:{}:test_event", channel_name);
-        redis_conn.publish::<_, _, ()>(&redis_topic, r#"{"type":"message","message":"one"}"#).await.unwrap();
-        
+        redis_conn
+            .publish::<_, _, ()>(&redis_topic, r#"{"type":"message","message":"one"}"#)
+            .await
+            .unwrap();
+
         expect_msg_content(&mut rx_a, "one").await;
 
         // disconnect A -> 0 subscribers -> triggers potential suicide
@@ -1321,17 +1325,25 @@ mod tests {
         drop(rx_a);
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-        redis_conn.publish::<_, _, ()>(&redis_topic, r#"{"type":"message","message":"void"}"#).await.unwrap();
+        redis_conn
+            .publish::<_, _, ()>(&redis_topic, r#"{"type":"message","message":"void"}"#)
+            .await
+            .unwrap();
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         // connect B
         let (mut tx_b, mut rx_b) = connect_client(&addr).await;
         let token_b = gen_token(&state, &channel_name, "user_b").await;
-        tx_b.send(Message::text(format!(r#"["2","ref2","{}","phx_join",{{"token":"{}"}}]"#, channel_name, token_b))).await.unwrap();
+        tx_b.send(Message::text(format!(r#"["2","ref2","{}","phx_join",{{"token":"{}"}}]"#, channel_name, token_b)))
+            .await
+            .unwrap();
         expect_msg_content(&mut rx_b, "phx_reply").await;
 
         // publish message, B should get it
-        redis_conn.publish::<_, _, ()>(&redis_topic, r#"{"type":"message","message":"two"}"#).await.unwrap();
+        redis_conn
+            .publish::<_, _, ()>(&redis_topic, r#"{"type":"message","message":"two"}"#)
+            .await
+            .unwrap();
         expect_msg_content(&mut rx_b, "two").await;
     }
 
@@ -1340,18 +1352,20 @@ mod tests {
     async fn test_nested_topics_and_raw_json() {
         let (addr, state, _) = setup_test_server().await;
         let nested_channel = "weather:wind";
-        
+
         let (mut tx, mut rx) = connect_client(&addr).await;
         let token = gen_token(&state, nested_channel, "user_nested").await;
-        
-        tx.send(Message::text(format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, nested_channel, token))).await.unwrap();
+
+        tx.send(Message::text(format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, nested_channel, token)))
+            .await
+            .unwrap();
         expect_msg_content(&mut rx, "phx_reply").await;
 
         let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
-        
+
         let raw_topic = "to:weather:wind:update";
         let raw_payload = r#"{"temperature": 25.5, "unit": "C"}"#;
-        
+
         redis_conn.publish::<_, _, ()>(raw_topic, raw_payload).await.unwrap();
 
         // find the specific update event, ignoring presence events
@@ -1362,7 +1376,7 @@ mod tests {
         while start.elapsed() < timeout {
             if let Ok(Some(Ok(msg))) = tokio::time::timeout(std::time::Duration::from_millis(100), rx.next()).await {
                 let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
-                
+
                 // check if this is the message we want: [join_ref, ref, topic, event, payload]
                 if resp.get(3).and_then(|v| v.as_str()) == Some("update") {
                     assert_eq!(resp[2], "weather:wind", "Topic parsed incorrectly");
@@ -1373,5 +1387,38 @@ mod tests {
             }
         }
         assert!(found, "Did not receive 'update' event with correct payload");
+    }
+
+    // Verify that channels are removed from memory after the last connection drops
+    #[tokio::test]
+    async fn test_ghost_channel_cleanup() {
+        let (addr, state, _) = setup_test_server().await;
+        let ghost_channel = format!("temp_{}", nanoid::nanoid!(4));
+
+        let (mut tx, rx) = connect_client(&addr).await;
+        let token = gen_token(&state, &ghost_channel, "ghost_user").await;
+        tx.send(Message::text(format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, ghost_channel, token)))
+            .await
+            .unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        {
+            let ctl = state.ctl.lock().await;
+            let channels = ctl.channels.lock().await;
+            assert!(channels.contains_key(&ghost_channel), "Channel should exist");
+        }
+
+        // abrupt disconnect (drop socket)
+        drop(tx);
+        drop(rx);
+
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+        {
+            let ctl = state.ctl.lock().await;
+            let channels = ctl.channels.lock().await;
+            assert!(!channels.contains_key(&ghost_channel), "Ghost channel leaked after disconnect");
+        }
     }
 }

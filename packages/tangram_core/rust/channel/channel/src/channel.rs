@@ -1,5 +1,4 @@
 use futures::StreamExt;
-use itertools::Itertools;
 use redis::{AsyncCommands, RedisResult};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -53,6 +52,7 @@ pub struct ChannelControl {
     redis_client: Arc<redis::Client>,
     pub agents: Mutex<HashMap<String, Agent>>,                           // agent_id -> JoinHandle
     agent_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // agent_id -> Sender, TODO: replace with `agents`
+    conn_agents: Mutex<HashMap<String, Vec<String>>>,                    // conn_id -> Vec<agent_id>
     conn_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>,  // conn_id -> Sender
 }
 
@@ -161,6 +161,7 @@ impl ChannelControl {
             agent_tx: Mutex::new(HashMap::new()),
             agents: Mutex::new(HashMap::new()),
             conn_tx: Mutex::new(HashMap::new()),
+            conn_agents: Mutex::new(HashMap::new()),
         }
     }
 
@@ -194,81 +195,127 @@ impl ChannelControl {
             .map_err(|_| ChannelError::MessageSendError)
     }
 
-    async fn conn_cleanup_presense_leave(&self, conn_id: String, channel_name: String) {
-        let grouped_agents = self
-            .agents
-            .lock()
-            .await
-            .iter()
-            .filter(|(_, agent)| agent.id.starts_with(&conn_id))
-            .into_group_map_by(|(_, agent)| &agent.external_id)
-            .into_iter()
-            .map(|(external_id, group)| {
-                (external_id.clone(), {
-                    json!({
-                        "metas": group.into_iter()
-                            .map(|(id, _)| json!({ "phx_ref": id }))
-                            .collect::<Vec<_>>()
-                    })
-                })
-            })
-            .collect::<HashMap<_, _>>();
-        info!("CONN_CLEANUP / grouped_agents {:?}", grouped_agents);
-        if grouped_agents.is_empty() {
-            info!("CONN_CLEANUP / no agents to leave");
-            return;
-        }
+    pub async fn channel_remove_if_empty(&self, channel_name: String) -> bool {
+        let mut channels = self.channels.lock().await;
 
-        let diff = json!({"joins": {}, "leaves": grouped_agents});
+        if let Some(channel) = channels.get(&channel_name) {
+            if !channel.empty() {
+                return false;
+            }
 
-        let redis_conn_result = self.redis_client.clone().get_multiplexed_async_connection().await;
-        if redis_conn_result.is_err() {
-            error!("CONN_CLEANUP / fail to get redis connection");
-            return;
+            for agent_id in channel.agents().await.iter() {
+                if let Entry::Occupied(agent_task) = self.agents.lock().await.entry(agent_id.into()) {
+                    agent_task.get().relay_task.abort();
+                    agent_task.remove();
+                }
+            }
+            if let Some(task) = &channel.redis_listen_task {
+                task.abort();
+            }
+
+            channels.remove(&channel_name);
+
+            let channel_names = channels.keys().cloned().collect::<Vec<String>>();
+            let meta = json!({"channel": channel_name, "channels": channel_names});
+            self.pub_meta_event("channel".into(), "remove".into(), meta).await;
+
+            info!("CH_RM / safely removed empty channel {}", channel_name);
+            return true;
         }
-        let mut redis_conn = redis_conn_result.unwrap();
-        let redis_topic = format!("to:{}:presence_diff", channel_name);
-        let message = serde_json::to_string(&diff).unwrap();
-        let publish_result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
-        if let Err(e) = publish_result {
-            error!("CONN_CLEANUP / fail to publish to redis: {}", e)
-        } else {
-            info!("CONN_CLEANUP / sent");
-        }
+        false
     }
 
     // Clean up all resources related to conn: conn, channel, agent
     // agent_id: {conn_id}:{channel}:{join_ref}
     pub async fn conn_cleanup(&self, conn_id: String) {
-        let mut agent_tx = self.agent_tx.lock().await;
-        debug!("CONN / cleanup agent_tx, conn_id: {}, {} {:?}", conn_id, agent_tx.len(), agent_tx.keys().collect::<Vec<&String>>());
-        agent_tx.retain(|k, _| !k.starts_with(&conn_id));
-        debug!("CONN / agent_tx cleared, conn_id: {}, {} {:?}", conn_id, agent_tx.len(), agent_tx.keys().collect::<Vec<&String>>());
+        let agents_to_remove = {
+            let mut ca = self.conn_agents.lock().await;
+            ca.remove(&conn_id).unwrap_or_default()
+        };
 
-        self.conn_tx.lock().await.remove_entry(&conn_id);
-        debug!("CONN / conn_tx cleared, {}", conn_id);
-
-        for (name, channel) in self.channels.lock().await.iter() {
-            self.conn_cleanup_presense_leave(conn_id.clone(), name.clone()).await;
-
-            let mut agents = channel.agents.lock().await;
-            debug!("CH / {}, agents {} {:?}", name, agents.len(), agents);
-            agents.retain(|agent| !agent.starts_with(&conn_id));
-            // channel may be empty, need to clear inside
-            debug!("CH / {}, removed agents of conn {}, agents {} {:?}", name, conn_id, agents.len(), agents);
-
-            let meta = json!({"agent": serde_json::Value::Null, "channel": name, "agents": *agents});
-            self.pub_meta_event("channel".into(), "leave".into(), meta).await;
+        if agents_to_remove.is_empty() {
+            self.conn_tx.lock().await.remove(&conn_id);
+            return;
         }
 
-        self.agents.lock().await.retain(|k, agent| {
-            if k.starts_with(&conn_id) {
-                agent.relay_task.abort();
-                info!("CONN / {} relay task aborts.", agent.id);
+        info!("CONN / cleanup, conn_id: {}, agents: {}", conn_id, agents_to_remove.len());
+
+        struct AgentInfo {
+            id: String,
+            channel: String,
+            external_id: String,
+        }
+        let mut agent_infos = Vec::new();
+
+        {
+            let mut agents_map = self.agents.lock().await;
+            for agent_id in &agents_to_remove {
+                if let Some(agent) = agents_map.remove(agent_id) {
+                    agent.relay_task.abort();
+                    agent_infos.push(AgentInfo {
+                        id: agent.id,
+                        channel: agent.channel,
+                        external_id: agent.external_id,
+                    });
+                }
             }
-            info!("CONN / {} to be removed", agent.id);
-            !k.starts_with(&conn_id)
-        });
+        }
+
+        {
+            let mut agent_tx_map = self.agent_tx.lock().await;
+            for agent_id in &agents_to_remove {
+                agent_tx_map.remove(agent_id);
+            }
+        }
+        self.conn_tx.lock().await.remove(&conn_id);
+
+        let mut by_channel: HashMap<String, Vec<&AgentInfo>> = HashMap::new();
+        for info in &agent_infos {
+            by_channel.entry(info.channel.clone()).or_default().push(info);
+        }
+
+        // for presence updates
+        let redis_conn_result = self.redis_client.get_multiplexed_async_connection().await;
+        let mut redis_conn = redis_conn_result.ok();
+
+        for (channel_name, infos) in by_channel {
+            // - presence diff (leaves)
+            // - remove agents from channel struct
+            // - cleanup ghost channel
+            let mut leaves: HashMap<String, serde_json::Value> = HashMap::new();
+            for info in infos.iter() {
+                let metas = leaves.entry(info.external_id.clone()).or_insert_with(|| json!({"metas": []}));
+                if let Some(arr) = metas.get_mut("metas").and_then(|m| m.as_array_mut()) {
+                    arr.push(json!({"phx_ref": info.id}));
+                }
+            }
+
+            if let Some(ref mut conn) = redis_conn {
+                let diff = json!({"joins": {}, "leaves": leaves});
+                let redis_topic = format!("to:{}:presence_diff", channel_name);
+                let _ = conn.publish::<_, _, ()>(redis_topic, diff.to_string()).await;
+            }
+
+            let maybe_empty = {
+                let channels = self.channels.lock().await;
+                if let Some(channel) = channels.get(&channel_name) {
+                    let mut ca = channel.agents.lock().await;
+                    for info in &infos {
+                        if let Some(pos) = ca.iter().position(|x| *x == info.id) {
+                            ca.swap_remove(pos);
+                            channel.count.fetch_sub(1, Ordering::SeqCst);
+                        }
+                    }
+                    ca.is_empty()
+                } else {
+                    false
+                }
+            };
+
+            if maybe_empty && !crate::websocket::is_special_channel(&channel_name) {
+                self.channel_remove_if_empty(channel_name).await;
+            }
+        }
     }
 
     pub async fn channel_add(&self, channel_name: String, capacity: Option<usize>) {
@@ -276,8 +323,6 @@ impl ChannelControl {
         channels
             .entry(channel_name.clone())
             .or_insert_with(|| Channel::new(channel_name.clone(), capacity));
-        // None if key does not exist, or value replace and old value retured
-        // let inserted = channels.insert(channel_name.clone(), Channel::new(channel_name.clone(), capacity));
         debug!("CH / channel {} added", channel_name);
     }
 
@@ -386,6 +431,16 @@ impl ChannelControl {
         let meta = json!({"agent": agent_id.clone(), "channel": channel_name, "agents": *channel.agents.lock().await});
         self.pub_meta_event("channel".into(), "join".into(), meta).await;
 
+        let parts: Vec<&str> = agent_id.split(':').collect();
+        if let Some(conn_id) = parts.first() {
+            self.conn_agents
+                .lock()
+                .await
+                .entry(conn_id.to_string())
+                .or_default()
+                .push(agent_id.clone());
+        }
+
         Ok(channel_tx)
     }
 
@@ -405,6 +460,16 @@ impl ChannelControl {
 
         let meta = json!({"agent": agent_id.clone(), "channel": channel_name.clone(), "agents": *channel.agents.lock().await});
         self.pub_meta_event("channel".into(), "leave".into(), meta).await;
+
+        let parts: Vec<&str> = agent_id.split(':').collect();
+        if let Some(conn_id) = parts.first() {
+            let mut ca = self.conn_agents.lock().await;
+            if let Some(agents) = ca.get_mut(*conn_id) {
+                if let Some(pos) = agents.iter().position(|x| *x == agent_id) {
+                    agents.swap_remove(pos);
+                }
+            }
+        }
 
         Ok(channel.count.load(Ordering::SeqCst) as usize)
     }
@@ -612,7 +677,7 @@ pub async fn listen_to_redis(
         };
 
         // Do not suicide if sending fails (no active subscribers)
-        if let Err(_) = tx.send(ChannelMessage::Reply(reply_message)) {
+        if tx.send(ChannelMessage::Reply(reply_message)).is_err() {
             debug!("LISTENER / no subscribers for {}", channel_name);
         }
     }
