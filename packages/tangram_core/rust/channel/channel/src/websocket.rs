@@ -172,21 +172,26 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
         let mut redis_conn = ws_rx_state.redis_client.get_multiplexed_async_connection().await.unwrap();
 
         // Read all messages from websocket rx, process or dispatch to each channel
-        loop {
-            let ws_msg_opt = ws_rx.next().await;
-            if ws_msg_opt.is_none() {
-                error!("AXUM / WS_RX / ws rx receiving failure");
-                break;
+        while let Some(msg_result) = ws_rx.next().await {
+            match msg_result {
+                Ok(msg) => match msg {
+                    axum::extract::ws::Message::Text(text) => {
+                        if let Err(e) = handle_message(ws_rx_state.clone(), ws_rx_user_token.clone(), &ws_rx_conn_id, &text, &mut redis_conn).await {
+                            error!("AXUM / WS_RX / handle_message error: {:?}", e);
+                        }
+                    }
+                    axum::extract::ws::Message::Close(_) => {
+                        debug!("AXUM / WS_RX / close frame received");
+                        break;
+                    }
+                    // TODO: handle ping/pong/binary (e.g. arrow recordbatches)
+                    _ => {}
+                },
+                Err(e) => {
+                    error!("AXUM / WS_RX / rx error: {:?}", e);
+                    break;
+                }
             }
-            let msg_result = ws_msg_opt.unwrap();
-            if msg_result.is_err() {
-                error!("AXUM / WS_RX / rx error: {:?}", msg_result.err());
-                break;
-            }
-            let msg = msg_result.unwrap();
-            handle_message(ws_rx_state.clone(), ws_rx_user_token.clone(), &ws_rx_conn_id, msg.to_text().unwrap(), &mut redis_conn)
-                .await
-                .unwrap();
         }
     });
 
@@ -252,10 +257,14 @@ pub async fn warp_on_connected(ws: WebSocket, state: Arc<State>) {
                 break;
             }
             let msg = msg_result.unwrap();
-            let text = msg.to_str().unwrap();
-            handle_message(state_clone.clone(), None, &conn_id_clone, text, &mut redis_conn)
-                .await
-                .unwrap();
+            if msg.is_text() {
+                let text = msg.to_str().unwrap();
+                handle_message(state_clone.clone(), None, &conn_id_clone, text, &mut redis_conn)
+                    .await
+                    .unwrap();
+            } else if msg.is_close() {
+                break;
+            }
         }
     });
 
@@ -280,7 +289,7 @@ async fn handle_message(
 ) -> RedisResult<()> {
     let rm_result = serde_json::from_str::<RequestMessage>(text);
     if rm_result.is_err() {
-        error!("WS_RX / conn: {}, error: {:?}", &conn_id, rm_result.err());
+        error!("WS_RX / conn: {}, error: {:?} text: {}", &conn_id, rm_result.err(), text);
         // Clean up all agents for conn_id
         // state.ctl.lock().await.agent_rm(conn_id).await;
         return Ok(());
