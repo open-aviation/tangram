@@ -1271,4 +1271,107 @@ mod tests {
         // Invalid type for number elements
         assert!(serde_json::from_str::<RequestMessage>(r#"[123, "ref1", "room123", "phx_join", {"token": "secret"}]"#).is_err());
     }
+
+    async fn expect_msg_content(
+        rx: &mut futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>,
+        content: &str
+    ) {
+        let timeout = std::time::Duration::from_secs(2);
+        let start = std::time::Instant::now();
+        
+        loop {
+            if start.elapsed() > timeout {
+                panic!("Timeout waiting for message containing '{}'", content);
+            }
+            
+            match tokio::time::timeout(std::time::Duration::from_millis(100), rx.next()).await {
+                Ok(Some(Ok(msg))) => {
+                    let s = msg.to_string();
+                    if s.contains(content) {
+                        return;
+                    }
+                },
+                _ => continue,
+            }
+        }
+    }
+
+    // Verify that the Redis listener thread survives when all subscribers disconnect
+    // and correctly relay messages when a new subscriber joins later.
+    #[tokio::test]
+    async fn test_redis_listener_survival_on_zero_subscribers() {
+        let (addr, state, channel_name) = setup_test_server().await;
+        
+        let (mut tx_a, mut rx_a) = connect_client(&addr).await;
+        let token_a = gen_token(&state, &channel_name, "user_a").await;
+        tx_a.send(Message::text(format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, channel_name, token_a))).await.unwrap();
+        
+        // consume messages until join is confirmed (ignore presence noise)
+        expect_msg_content(&mut rx_a, "phx_reply").await;
+
+        // connect B, client A should get it
+        let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
+        let redis_topic = format!("to:{}:test_event", channel_name);
+        redis_conn.publish::<_, _, ()>(&redis_topic, r#"{"type":"message","message":"one"}"#).await.unwrap();
+        
+        expect_msg_content(&mut rx_a, "one").await;
+
+        // disconnect A -> 0 subscribers -> triggers potential suicide
+        drop(tx_a);
+        drop(rx_a);
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        redis_conn.publish::<_, _, ()>(&redis_topic, r#"{"type":"message","message":"void"}"#).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // connect B
+        let (mut tx_b, mut rx_b) = connect_client(&addr).await;
+        let token_b = gen_token(&state, &channel_name, "user_b").await;
+        tx_b.send(Message::text(format!(r#"["2","ref2","{}","phx_join",{{"token":"{}"}}]"#, channel_name, token_b))).await.unwrap();
+        expect_msg_content(&mut rx_b, "phx_reply").await;
+
+        // publish message, B should get it
+        redis_conn.publish::<_, _, ()>(&redis_topic, r#"{"type":"message","message":"two"}"#).await.unwrap();
+        expect_msg_content(&mut rx_b, "two").await;
+    }
+
+    // Verify that we can handle nested topics (e.g. weather:wind) and raw JSON payloads (no 'type' field)
+    #[tokio::test]
+    async fn test_nested_topics_and_raw_json() {
+        let (addr, state, _) = setup_test_server().await;
+        let nested_channel = "weather:wind";
+        
+        let (mut tx, mut rx) = connect_client(&addr).await;
+        let token = gen_token(&state, nested_channel, "user_nested").await;
+        
+        tx.send(Message::text(format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, nested_channel, token))).await.unwrap();
+        expect_msg_content(&mut rx, "phx_reply").await;
+
+        let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
+        
+        let raw_topic = "to:weather:wind:update";
+        let raw_payload = r#"{"temperature": 25.5, "unit": "C"}"#;
+        
+        redis_conn.publish::<_, _, ()>(raw_topic, raw_payload).await.unwrap();
+
+        // find the specific update event, ignoring presence events
+        let timeout = std::time::Duration::from_secs(2);
+        let start = std::time::Instant::now();
+        let mut found = false;
+
+        while start.elapsed() < timeout {
+            if let Ok(Some(Ok(msg))) = tokio::time::timeout(std::time::Duration::from_millis(100), rx.next()).await {
+                let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
+                
+                // check if this is the message we want: [join_ref, ref, topic, event, payload]
+                if resp.get(3).and_then(|v| v.as_str()) == Some("update") {
+                    assert_eq!(resp[2], "weather:wind", "Topic parsed incorrectly");
+                    assert_eq!(resp[4]["temperature"], 25.5, "Raw JSON payload corrupted");
+                    found = true;
+                    break;
+                }
+            }
+        }
+        assert!(found, "Did not receive 'update' event with correct payload");
+    }
 }

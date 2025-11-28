@@ -551,12 +551,10 @@ impl ChannelEventFromRedis {
         }
         let content = &redis_channel[3..];
         match content.rfind(':') {
-            Some(idx) => {
-                Ok(Self {
-                    channel: content[..idx].to_string(),
-                    event: content[idx + 1..].to_string(),
-                })
-            },
+            Some(idx) => Ok(Self {
+                channel: content[..idx].to_string(),
+                event: content[idx + 1..].to_string(),
+            }),
             None => Err("invalid channel format"),
         }
     }
@@ -570,111 +568,60 @@ pub async fn listen_to_redis(
     let mut redis_pubsub = redis_client.get_async_pubsub().await?;
     redis_pubsub.psubscribe(redis_topic.clone()).await?;
     let mut redis_pubsub_stream = redis_pubsub.on_message();
-    // let mut counter = 0; // TODO: counter has issues, it's meaningless here
-
-    // Use Arc<AtomicU64> to safely share the counter
     let counter = Arc::new(AtomicU64::new(0));
-    info!("LISTENER / subscribed to redis, channel: {}", redis_topic);
-
-    // Clone a reference to the counter for the stats thread
-    // let counter_for_stats = counter.clone();
-
-    // Start stats task
-    // let stat_channel_name = channel_name.clone();
-
-    // once channel to notify the stats thread to stop
-    // let exit_stat = Arc::new(AtomicBool::new(false));
-    // let stat_should_exit = exit_stat.clone();
-
-    // let stat_handler = tokio::spawn(async move {
-    //     let mut interval = time::interval(Duration::from_secs(1));
-    //     let mut last_count = 0u64;
-    //
-    //     loop {
-    //         if stat_should_exit.load(Ordering::Relaxed) {
-    //             info!("LISTENER / stats thread exit");
-    //             break;
-    //         }
-    //
-    //         interval.tick().await;
-    //         let current_count = counter_for_stats.load(Ordering::Relaxed);
-    //         let delta = current_count.saturating_sub(last_count);
-    //         if delta > 10 {
-    //             info!("LISTENER / {} Stats - Total messages: {}, Messages/sec: {}", stat_channel_name, current_count, delta);
-    //         }
-    //         last_count = current_count;
-    //     }
-    // });
 
     info!("LISTENER / subscribed to redis, channel: {}", redis_topic);
+
     loop {
-        let optional_message = redis_pubsub_stream.next().await;
-        if optional_message.is_none() {
-            error!("LISTENER / from redis: none");
-            continue;
-        }
+        let Some(stream_message) = redis_pubsub_stream.next().await else {
+            error!("LISTENER / stream ended");
+            break;
+        };
 
-        let stream_message = optional_message.unwrap();
         let ev = match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
             Ok(ev) => ev,
             Err(err) => {
-                warn!("LISTENER / invalid redis channel format: {}", err);
+                warn!("LISTENER / parse error: {} ({})", err, stream_message.get_channel_name());
                 continue;
             }
         };
 
-        let payload: String = stream_message.get_payload()?;
-        // debug!("LISTENER / from redis, {}, payload: `{}`", stream_message.get_channel_name(), payload.clone());
+        let payload: String = match stream_message.get_payload() {
+            Ok(p) => p,
+            Err(e) => {
+                error!("LISTENER / payload error: {}", e);
+                continue;
+            }
+        };
 
-        let response_from_redis_result = serde_json::from_str::<serde_json::Value>(&payload);
-        if response_from_redis_result.is_err() {
-            warn!("LISTENER / fail to deserialize from Redis, {}, payload: `{}`", response_from_redis_result.err().unwrap(), payload);
-            continue;
-        }
-        // let response_from_redis = response_from_redis_result.unwrap();
-        // let resp: Response = response_from_redis.into();
-        // debug!("LISTENER / parsed from redis, response: {:?}", &resp);
+        // NOTE: Accept any JSON payload, don't enforce internal strict types
+        let value = match serde_json::from_str::<serde_json::Value>(&payload) {
+            Ok(v) => v,
+            Err(e) => {
+                warn!("LISTENER / json error: {} in {}", e, payload);
+                continue;
+            }
+        };
 
-        let value = response_from_redis_result.unwrap();
-        // debug!("LISTENER / parsed from redis, value: {:?}", &value);
-
-        // Check if this channel exists
         let reply_message = ServerMessage {
             join_ref: None,
-            event_ref: counter.load(Ordering::Relaxed).to_string(),
-            topic: ev.channel.to_string(),
-            event: ev.event.to_string(),
+            event_ref: counter.fetch_add(1, Ordering::Relaxed).to_string(),
+            topic: ev.channel,
+            event: ev.event,
             payload: ServerPayload::ServerJsonValue(value),
         };
-        match tx.send(ChannelMessage::Reply(reply_message.clone())) {
-            Ok(_count) => {
-                // debug!("LISTENER / published, channel: {}, event: {}, receiver count {}", ev.channel, ev.event, count);
-            }
-            Err(e) => {
-                // Only possible when there are no agents
 
-                // publish even when channel has no agent, actually can be ignored
-                if ev.channel == "system" || ev.channel == "admin" {
-                    continue;
-                }
-                // If channel is already closed, also don't need to publish
-                error!("LISTENER / fail to publish, dest: {}:{}, err: {}", &ev.channel, &ev.event, e);
-                break; // Choose to exit current thread, but note that if a new agent joins, this thread needs to be restarted
-            }
+        // Do not suicide if sending fails (no active subscribers)
+        if let Err(_) = tx.send(ChannelMessage::Reply(reply_message)) {
+            debug!("LISTENER / no subscribers for {}", channel_name);
         }
-
-        // Atomically increment the counter
-        counter.fetch_add(1, Ordering::Relaxed);
-        // debug!("LISTENER / publish message from redis, counter: {}", counter);
     }
-
-    // exit_stat.store(true, Ordering::Relaxed);
-    // stat_handler.await.unwrap();
 
     let ctl = state.ctl.lock().await;
     let mut channels = ctl.channels.lock().await;
-    let channel: &mut Channel = channels.get_mut(&channel_name).unwrap();
-    channel.redis_listen_task = None;
+    if let Some(channel) = channels.get_mut(&channel_name) {
+        channel.redis_listen_task = None;
+    }
 
     Ok(())
 }
