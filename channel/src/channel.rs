@@ -123,8 +123,8 @@ impl Channel {
     pub async fn leave(&self, agent_id: String) {
         let mut agents = self.agents.lock().await;
         if let Some(pos) = agents.iter().position(|x| *x == agent_id) {
-            // - 找到 index
-            // - 删除 index 位置的，用最后一个顶替这个位置
+            // - find index
+            // - remove the item at index, use the last one to replace this position
             let agent = agents.swap_remove(pos);
             self.count.fetch_sub(1, Ordering::SeqCst);
             info!("C / {}, total: {:?}, agent removed {}", self.name, self.count, agent);
@@ -141,7 +141,7 @@ impl Channel {
         self.count.load(Ordering::SeqCst) == 0
     }
 
-    pub async fn agents(&self) -> tokio::sync::MutexGuard<Vec<String>> {
+    pub async fn agents(&self) -> tokio::sync::MutexGuard<'_, Vec<String>> {
         self.agents.lock().await
     }
 }
@@ -237,7 +237,7 @@ impl ChannelControl {
         }
     }
 
-    // 清理所有和conn 有关的: conn, channel, agent
+    // Clean up all resources related to conn: conn, channel, agent
     // agent_id: {conn_id}:{channel}:{join_ref}
     pub async fn conn_cleanup(&self, conn_id: String) {
         let mut agent_tx = self.agent_tx.lock().await;
@@ -254,7 +254,7 @@ impl ChannelControl {
             let mut agents = channel.agents.lock().await;
             debug!("CH / {}, agents {} {:?}", name, agents.len(), agents);
             agents.retain(|agent| !agent.starts_with(&conn_id));
-            // channel 可能空了，需要清空里面
+            // channel may be empty, need to clear inside
             debug!("CH / {}, removed agents of conn {}, agents {} {:?}", name, conn_id, agents.len(), agents);
 
             let meta = json!({"agent": serde_json::Value::Null, "channel": name, "agents": *agents});
@@ -310,8 +310,8 @@ impl ChannelControl {
         info!("ADMIN_PUB / event published to redis");
     }
 
-    // 删除一个 channel
-    // channel 上所有的资源: channel, agents, agent_tx, relay_task, redis_listen_task, conn_tx
+    // Delete a channel
+    // All resources on the channel: channel, agents, agent_tx, relay_task, redis_listen_task, conn_tx
     pub async fn channel_rm(&self, channel_name: String) {
         let mut channels = self.channels.lock().await;
         match channels.entry(channel_name.clone()) {
@@ -358,7 +358,7 @@ impl ChannelControl {
         let mut channel_rx = channel_tx.subscribe();
         let agent_tx = self.agent_tx.lock().await.get(&agent_id).ok_or(ChannelError::AgentNotInitiated)?.clone();
 
-        // 订阅 channel 并将消息转发给 agent
+        // Subscribe to channel and forward messages to agent
         let relay_task = tokio::spawn(async move {
             while let Ok(channel_message) = channel_rx.recv().await {
                 match &channel_message {
@@ -446,7 +446,7 @@ impl ChannelControl {
             .subscribe())
     }
 
-    /// Add channel agent to the channel ctl, 就是添加 agent tx
+    /// Add channel agent to the channel ctl, just add agent tx
     /// `capacity` is the maximum number of messages that can be stored in the channel. The default value is 100.
     /// This will create a broadcast channel: ChannelAgent will write to and websocket_tx_task will subscribe to and read from
     pub async fn agent_add(&self, agent_id: String, capacity: Option<usize>) {
@@ -486,7 +486,7 @@ impl ChannelControl {
             }
             Entry::Vacant(_) => {}
         }
-        // Channel agents 中的也需要删除
+        // Also need to remove from Channel agents
         for channel in self.channels.lock().await.values() {
             channel.leave(agent_id.clone()).await;
         }
@@ -503,9 +503,9 @@ impl ChannelControl {
     }
 }
 
-/// 从 Redis 反序列化的, 之后转发到 websocket
-/// 序列化的时候需要和 Response 保持一致
-/// 会增加一个 type 字段，分别是 null, join, Heartbeat, datetime, message
+/// Deserialized from Redis, then forwarded to websocket
+/// Serialization needs to be consistent with Response
+/// Will add a type field, which can be null, join, Heartbeat, datetime, message
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(tag = "type")]
 pub enum ResponseFromRedis {
@@ -525,9 +525,9 @@ pub enum ResponseFromRedis {
     Message { message: String },
 }
 
-impl Into<Response> for ResponseFromRedis {
-    fn into(self) -> Response {
-        match self {
+impl From<ResponseFromRedis> for Response {
+    fn from(val: ResponseFromRedis) -> Self {
+        match val {
             ResponseFromRedis::Empty {} => Response::Empty {},
             ResponseFromRedis::Join { id } => Response::Join { id },
             ResponseFromRedis::Heartbeat {} => Response::Heartbeat {},
@@ -557,7 +557,7 @@ impl ChannelEventFromRedis {
     }
 }
 
-/// 从redis 监听消息, per channel 的任务
+/// Listen to messages from redis, per channel task
 pub async fn listen_to_redis(
     state: Arc<State>, tx: broadcast::Sender<ChannelMessage>, redis_client: redis::Client, channel_name: String,
 ) -> RedisResult<()> {
@@ -565,16 +565,16 @@ pub async fn listen_to_redis(
     let mut redis_pubsub = redis_client.get_async_pubsub().await?;
     redis_pubsub.psubscribe(redis_topic.clone()).await?;
     let mut redis_pubsub_stream = redis_pubsub.on_message();
-    // let mut counter = 0; // TODO: counter 有问题, 在这里完全没有意义
+    // let mut counter = 0; // TODO: counter has issues, it's meaningless here
 
-    // 使用 Arc<AtomicU64> 来安全地共享计数器
+    // Use Arc<AtomicU64> to safely share the counter
     let counter = Arc::new(AtomicU64::new(0));
     info!("LISTENER / subscribed to redis, channel: {}", redis_topic);
 
-    // 克隆一个计数器的引用用于统计线程
+    // Clone a reference to the counter for the stats thread
     // let counter_for_stats = counter.clone();
 
-    // 启动统计任务
+    // Start stats task
     // let stat_channel_name = channel_name.clone();
 
     // once channel to notify the stats thread to stop
@@ -633,7 +633,7 @@ pub async fn listen_to_redis(
         let value = response_from_redis_result.unwrap();
         // debug!("LISTENER / parsed from redis, value: {:?}", &value);
 
-        // 检查是否有这个 channel
+        // Check if this channel exists
         let reply_message = ServerMessage {
             join_ref: None,
             event_ref: counter.load(Ordering::Relaxed).to_string(),
@@ -646,19 +646,19 @@ pub async fn listen_to_redis(
                 // debug!("LISTENER / published, channel: {}, event: {}, receiver count {}", ev.channel, ev.event, count);
             }
             Err(e) => {
-                // 只可能在没有 agent 的时候发生
+                // Only possible when there are no agents
 
-                // channel 没有 agent 时候也会 publish, 其实可以不用处理
+                // publish even when channel has no agent, actually can be ignored
                 if ev.channel == "system" || ev.channel == "admin" {
                     continue;
                 }
-                // 如果 channel 已经close 了，也不需要publish
+                // If channel is already closed, also don't need to publish
                 error!("LISTENER / fail to publish, dest: {}:{}, err: {}", &ev.channel, &ev.event, e);
-                break; // 选择退出当前线程，但是需要注意的是如果有新的agent 加入，需要重启这个线程
+                break; // Choose to exit current thread, but note that if a new agent joins, this thread needs to be restarted
             }
         }
 
-        // 原子操作增加计数器
+        // Atomically increment the counter
         counter.fetch_add(1, Ordering::Relaxed);
         // debug!("LISTENER / publish message from redis, counter: {}", counter);
     }
@@ -1166,7 +1166,7 @@ mod test {
         assert_eq!(result.unwrap(), 3, "Should have 3 receivers");
     }
 
-    // ctl 可以 clone 么?
+    // ctl can be cloned?
     // Test concurrent channel operations
     // #[tokio::test]
     // async fn test_concurrent_channel_ops() {
@@ -1274,7 +1274,7 @@ mod test {
         assert!(result.is_err());
     }
 
-    // ctl 可以 clone 么?
+    // ctl can be cloned?
     // Test simultaneous broadcasting
     // #[tokio::test]
     // async fn test_concurrent_broadcasting() {
@@ -1374,7 +1374,7 @@ mod test {
     //     assert!(result.is_err());
     // }
 
-    // ctl 可以 clone 么?
+    // ctl can be cloned?
     // Test simultaneous broadcasting
     // #[tokio::test]
     // async fn test_concurrent_broadcasting() {

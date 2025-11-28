@@ -146,7 +146,7 @@ async fn keepalive(state: Arc<State>) -> RedisResult<()> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // dotenv::dotenv().ok(); // load .env if possible
 
-    // 设置 tracing 使用 EnvFilter
+    // Set tracing to use EnvFilter
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     tracing_subscriber::fmt()
         .with_env_filter(env_filter)
@@ -165,7 +165,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let jwt_secret = options.jwt_secret.unwrap_or_else(|| {
         let random_secret = random_string(8);
-        warn!("no secret proviced, generated: {}", random_secret);
+        warn!("no secret provided, generated: {}", random_secret);
         random_secret
     });
 
@@ -175,7 +175,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ctl: Mutex::new(channel_control),
         redis_client,
         id_length: options.id_length,
-        jwt_secret, // 从命令行、环境变量中获取，或者生成一个随机的
+        jwt_secret, // Get from command line, environment variable, or generate a random one
         jwt_expiration_secs: options.jwt_expiration_secs, // default: 3 days
     });
 
