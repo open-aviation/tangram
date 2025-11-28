@@ -104,7 +104,7 @@ fn random_string(length: usize) -> String {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok(); // load .env if possible
 
-    // 设置 tracing 使用 EnvFilter
+    // Set tracing to use EnvFilter
     // RUST_LOG=redis_subscriber=debug,redis=info,tokio=warn
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
