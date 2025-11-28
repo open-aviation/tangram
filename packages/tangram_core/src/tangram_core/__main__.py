@@ -1,9 +1,11 @@
 import asyncio
 import logging
+import os
 from importlib.abc import Traversable
 from pathlib import Path
 from typing import Annotated
 
+import platformdirs
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -17,9 +19,27 @@ logger = logging.getLogger(__name__)
 stderr = Console(stderr=True)
 
 
+def default_config_file() -> Path:
+    if (xdg_config := os.environ.get("XDG_CONFIG_HOME")) is not None:
+        config_dir = Path(xdg_config) / "tangram"
+    else:
+        config_dir = Path(platformdirs.user_config_dir(appname="tangram"))
+    if not config_dir.exists():
+        config_dir.mkdir(parents=True, exist_ok=True)
+
+    return Path(config_dir) / "tangram.toml"
+
+
 @app.command()
 def serve(
-    config: Annotated[Path, typer.Option(help="Path to the tangram.toml config file.")],
+    config: Annotated[
+        Path,
+        typer.Option(
+            help="Path to the tangram.toml config file.",
+            envvar="TANGRAM_CONFIG",
+            default_factory=default_config_file,
+        ),
+    ],
 ) -> None:
     """Serves the core tangram frontend and backend services."""
     if not config.is_file():
