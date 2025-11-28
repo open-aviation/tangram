@@ -323,10 +323,15 @@ export class RealtimeApi {
 
   private async fetchToken(channel: string): Promise<{ id: string; token: string }> {
     const tokenUrl = `${this.channelConfig.url}/token`;
+    const body: Record<string, string> = { channel };
+    if (this.connectionId) {
+      body.id = this.connectionId;
+    }
+
     const resp = await fetch(tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channel })
+      body: JSON.stringify(body)
     });
     if (!resp.ok) {
       throw new Error(`failed to fetch token: ${resp.statusText}`);
@@ -337,27 +342,32 @@ export class RealtimeApi {
   private connect(): Promise<void> {
     if (!this.connectionPromise) {
       this.connectionPromise = (async () => {
-        if (this.socket?.isConnected()) return;
+        try {
+          if (this.socket?.isConnected()) return;
 
-        const { id, token: userToken } = await this.fetchToken("system");
-        this.connectionId = id;
+          const { id, token: userToken } = await this.fetchToken("system");
+          this.connectionId = id;
 
-        // NOTE: phoenix appends `/websocket` automatically, do not add it here.
-        const socketUrl = this.channelConfig.url.replace(/^http/, "ws");
-        this.socket = new Socket(socketUrl, { params: { userToken } });
+          // NOTE: phoenix appends `/websocket` automatically, do not add it here.
+          const socketUrl = this.channelConfig.url.replace(/^http/, "ws");
+          this.socket = new Socket(socketUrl, { params: { userToken } });
 
-        await new Promise<void>((resolve, reject) => {
-          this.socket!.connect();
-          this.socket!.onOpen(() => {
-            console.log("ws connected");
-            resolve();
+          await new Promise<void>((resolve, reject) => {
+            this.socket!.connect();
+            this.socket!.onOpen(() => {
+              console.log("ws connected");
+              resolve();
+            });
+            this.socket!.onError(e => {
+              console.error("ws connection error:", e);
+              this.connectionPromise = null;
+              reject(e);
+            });
           });
-          this.socket!.onError(e => {
-            console.error("ws connection error:", e);
-            this.connectionPromise = null;
-            reject(e);
-          });
-        });
+        } catch (e) {
+          this.connectionPromise = null;
+          throw e;
+        }
       })();
     }
     return this.connectionPromise!;

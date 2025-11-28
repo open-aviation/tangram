@@ -87,6 +87,11 @@ pub async fn start_redis_subscriber(
         } else if channel == "from:system:bound-box" {
             if let Ok(bbox_msg) = serde_json::from_str::<BoundingBoxMessage>(&payload) {
                 let mut state = state.lock().await;
+                // self-healing: if we receive a bbox update, the client is definitely active
+                if !state.clients.contains(&bbox_msg.connection_id) {
+                    state.clients.insert(bbox_msg.connection_id.clone());
+                }
+
                 state.set_bbox(
                     &bbox_msg.connection_id,
                     BoundingBox {
