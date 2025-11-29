@@ -72,7 +72,7 @@ Open your browser and navigate to <http://localhost:2346> to access the web inte
 
 The core `tangram` application provides the shell. All features are added by installing and enabling plugins.
 
-### *Example 1: add system monitoring*
+### _Example 1: add system monitoring_
 
 The `tangram_system` plugin adds a widget to the UI that displays server metrics like CPU and memory usage. It is a pure-Python package with no external services.
 
@@ -106,7 +106,7 @@ plugins = ["tangram_system"]
 
 Stop the running `tangram serve` process (<kbd>Ctrl</kbd> + <kbd>C</kbd>) and start it again. The web interface will now include the system monitoring widget.
 
-### *Example 2: add live aircraft data*
+### _Example 2: add live aircraft data_
 
 To display live flight data, you need the `tangram_jet1090` plugin. This plugin is more advanced, as it requires an external data source.
 
@@ -114,16 +114,32 @@ To display live flight data, you need the `tangram_jet1090` plugin. This plugin 
 
 The plugin needs a running `jet1090` instance to receive Mode S/ADS-B data. The easiest way to run one is with a container.
 
-```shell
-# connects to a public feed.
-podman run -d --rm --name jet1090 \
---network=host \
-ghcr.io/xoolive/jet1090:latest \
-jet1090 --redis-url "redis://127.0.0.1:6379" "ws://feedme.mode-s.org:9876/40128@EHRD"
-```
+=== "Install pre-built binaries"
+
+    Follow instructions on the [jet1090 documentation](https://mode-s.org/jet1090/install/#install-prebuilt-binaries) to install `jet1090` on your system (Shell script, Powershell or Homebrew).
+
+    Then run it with:
+
+    ```shell
+    # connects to a public feed.
+    jet1090 --redis-url redis://127.0.0.1:6379 ws://feedme.mode-s.org:9876/40128@EHRD
+    ```
+
+=== "Podman/Docker"
+
+    ```shell
+    # connects to a public feed.
+    podman run -d --rm --name jet1090 \
+    --network=host \
+    ghcr.io/xoolive/jet1090:latest \
+    jet1090 --redis-url redis://127.0.0.1:6379 ws://feedme.mode-s.org:9876/40128@EHRD
+    ```
+
+Use your own receiver feed URL if you have one. See [jet1090 documentation](https://mode-s.org/jet1090/sources/)
 
 !!! tip
-    The `jet1090` container is a dependency of the *plugin*, not the `tangram` core. You can run it on any machine as long as it can connect to your Redis instance.
+
+    The `jet1090` container is a dependency of the _plugin_, not the `tangram` core. You can run it on any machine as long as it can connect to your Redis instance.
 
 #### 2. Install and enable the plugin
 
@@ -198,23 +214,23 @@ corepack enable pnpm
 
 1. Clone the repository:
 
-    ```sh
-    git clone https://github.com/open-aviation/tangram.git
-    cd tangram
-    ```
+   ```sh
+   git clone https://github.com/open-aviation/tangram.git
+   cd tangram
+   ```
 
 2. Build the frontend
 
-    ```sh
-    pnpm i
-    pnpm build
-    ```
+   ```sh
+   pnpm i
+   pnpm build
+   ```
 
 3. Install Python dependencies
 
-    ```sh
-    uv sync --all-packages --all-groups --all-extras
-    ```
+   ```sh
+   uv sync --all-packages --all-groups --all-extras
+   ```
 
 This installs the core application and all plugins in editable mode into a virtual environment, along with useful developer utilities.
 
@@ -239,13 +255,14 @@ To significantly cut down compile times at the cost of much larger binary size, 
 
 2. Start the `tangram` server. This runs the FastAPI application, the `channel` service, and all enabled backend plugins.
 
-    ```sh
-    uv run tangram serve --config tangram.example.toml
-    ```
+   ```sh
+   uv run tangram serve --config tangram.example.toml
+   ```
 
 The application will be available at `http://localhost:2346`.
 
 !!! note "Frontend Development"
+
     Hot Module Replacement (HMR) for frontend plugins is not yet supported. To see changes to frontend components, you must re-run `pnpm build` and restart the `tangram serve` process.
     If you made changes to Rust code, you may need to re-run `uv` with the `--force-reinstall` or `--reinstall-package` flag.
 
