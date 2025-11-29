@@ -1783,19 +1783,33 @@ pip<span class="w"> </span>install<span class="w"> </span>tangram_system
 <p>To display live flight data, you need the <code>tangram_jet1090</code> plugin. This plugin is more advanced, as it requires an external data source.</p>
 <h4 id="1-run-the-jet1090-service">1. Run the <code>jet1090</code> service<a class="headerlink" href="#1-run-the-jet1090-service" title="Permanent link">&para;</a></h4>
 <p>The plugin needs a running <code>jet1090</code> instance to receive Mode S/ADS-B data. The easiest way to run one is with a container.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="install-pre-built-binaries" name="__tabbed_3" type="radio" /><input id="podmandocker" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="install-pre-built-binaries">Install pre-built binaries</label><label for="podmandocker">Podman/Docker</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>Follow instructions on the <a href="https://mode-s.org/jet1090/install/#install-prebuilt-binaries">jet1090 documentation</a> to install <code>jet1090</code> on your system (Shell script, Powershell or Homebrew).</p>
+<p>Then run it with:</p>
+<div class="language-shell highlight"><pre><span></span><code><span class="c1"># connects to a public feed.</span>
+jet1090<span class="w"> </span>--redis-url<span class="w"> </span>redis://127.0.0.1:6379<span class="w"> </span>ws://feedme.mode-s.org:9876/40128@EHRD
+</code></pre></div>
+</div>
+<div class="tabbed-block">
 <div class="language-shell highlight"><pre><span></span><code><span class="c1"># connects to a public feed.</span>
 podman<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--rm<span class="w"> </span>--name<span class="w"> </span>jet1090<span class="w"> </span><span class="se">\</span>
 --network<span class="o">=</span>host<span class="w"> </span><span class="se">\</span>
 ghcr.io/xoolive/jet1090:latest<span class="w"> </span><span class="se">\</span>
-jet1090<span class="w"> </span>--redis-url<span class="w"> </span><span class="s2">&quot;redis://127.0.0.1:6379&quot;</span><span class="w"> </span><span class="s2">&quot;ws://feedme.mode-s.org:9876/40128@EHRD&quot;</span>
+jet1090<span class="w"> </span>--redis-url<span class="w"> </span>redis://127.0.0.1:6379<span class="w"> </span>ws://feedme.mode-s.org:9876/40128@EHRD
 </code></pre></div>
+</div>
+</div>
+</div>
+<p>Use your own receiver feed URL if you have one. See <a href="https://mode-s.org/jet1090/sources/">jet1090 documentation</a></p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>The <code>jet1090</code> container is a dependency of the <em>plugin</em>, not the <code>tangram</code> core. You can run it on any machine as long as it can connect to your Redis instance.</p>
 </div>
 <h4 id="2-install-and-enable-the-plugin">2. Install and enable the plugin<a class="headerlink" href="#2-install-and-enable-the-plugin" title="Permanent link">&para;</a></h4>
 <p>Just like before, install the package and add it to your <code>tangram.toml</code>.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="uv_2" name="__tabbed_3" type="radio" /><input id="pip_2" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="uv_2">uv</label><label for="pip_2">pip</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:2"><input checked="checked" id="uv_2" name="__tabbed_4" type="radio" /><input id="pip_2" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="uv_2">uv</label><label for="pip_2">pip</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-sh highlight"><pre><span></span><code>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>--with<span class="w"> </span>tangram_system<span class="w"> </span>--with<span class="w"> </span>tangram_jet1090<span class="w"> </span>tangram_core
@@ -1850,24 +1864,22 @@ corepack<span class="w"> </span><span class="nb">enable</span><span class="w"> <
 </code></pre></div>
 <h3 id="environment-setup">Environment Setup<a class="headerlink" href="#environment-setup" title="Permanent link">&para;</a></h3>
 <ol>
-<li>
-<p>Clone the repository:</p>
+<li>Clone the repository:</li>
+</ol>
 <div class="language-sh highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/open-aviation/tangram.git
 <span class="nb">cd</span><span class="w"> </span>tangram
 </code></pre></div>
-</li>
-<li>
-<p>Build the frontend</p>
+<ol>
+<li>Build the frontend</li>
+</ol>
 <div class="language-sh highlight"><pre><span></span><code>pnpm<span class="w"> </span>i
 pnpm<span class="w"> </span>build
 </code></pre></div>
-</li>
-<li>
-<p>Install Python dependencies</p>
+<ol>
+<li>Install Python dependencies</li>
+</ol>
 <div class="language-sh highlight"><pre><span></span><code>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages<span class="w"> </span>--all-groups<span class="w"> </span>--all-extras
 </code></pre></div>
-</li>
-</ol>
 <p>This installs the core application and all plugins in editable mode into a virtual environment, along with useful developer utilities.</p>
 <p>Note that <code>uv sync</code> invokes the <code>maturin</code> build backend, which in turn passes <code>--release</code> to the Rust compiler.
 This can cause builds to be very slow. <strong>For the <code>tangram_history</code> plugin, it can take up to 10 minutes.</strong></p>
@@ -1917,10 +1929,10 @@ This can cause builds to be very slow. <strong>For the <code>tangram_history</co
 </li>
 <li>
 <p>Start the <code>tangram</code> server. This runs the FastAPI application, the <code>channel</code> service, and all enabled backend plugins.</p>
-<div class="language-sh highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>tangram<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>tangram.example.toml
-</code></pre></div>
 </li>
 </ol>
+<div class="language-sh highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>tangram<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>tangram.example.toml
+</code></pre></div>
 <p>The application will be available at <code>http://localhost:2346</code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Frontend Development</p>
