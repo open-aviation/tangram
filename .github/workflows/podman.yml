@@ -31,7 +31,7 @@ jobs:
           remove-large-packages: 'true'
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Podman
         run: |
