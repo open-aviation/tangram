@@ -32,7 +32,7 @@ jobs:
           --health-retries 5
     steps:
       - name: download repo with built frontend
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: repo-with-frontend
           path: .
@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: download repo with built frontend
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: repo-with-frontend
           path: .
@@ -140,7 +140,7 @@ jobs:
     runs-on: ${{ (matrix.os == 'linux' && 'ubuntu') || matrix.os }}-latest
     steps:
       - name: download repo with built frontend
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: repo-with-frontend
           path: .
