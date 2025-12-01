@@ -27,7 +27,7 @@ jobs:
         run: pnpm build
 
       - name: upload repo with built frontend
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: repo-with-frontend
           path: |
