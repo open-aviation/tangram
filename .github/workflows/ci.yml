@@ -42,7 +42,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -74,7 +74,7 @@ jobs:
           path: .
 
       - name: install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
 
       # hardcoding for now
       - name: build wheels
