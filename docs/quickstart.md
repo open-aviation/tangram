@@ -219,51 +219,69 @@ corepack enable pnpm
    cd tangram
    ```
 
-2. Build the frontend
+2. Build the frontend:
 
    ```sh
    pnpm i
    pnpm build
    ```
 
-3. Install Python dependencies
+   This will create `node_modules` and `dist-frontend` within each package, for example:
 
-   ```sh
-   uv sync --all-packages --all-groups --all-extras
+   ```command
+   $ tree packages
+   packages
+   ├── tangram_airports
+   │   ├── dist-frontend
+   │   │   ├── index.css
+   │   │   ├── index.js
+   │   │   ├── index.js.map
+   │   │   └── plugin.json
+   │   ├── node_modules
+   │   │   └── @open-aviation
+   │   │       └── tangram-core -> ../../../tangram_core
+   ...
    ```
 
-This installs the core application and all plugins in editable mode into a virtual environment, along with useful developer utilities.
-
-Note that `uv sync` invokes the `maturin` build backend, which in turn passes `--release` to the Rust compiler.
-This can cause builds to be very slow. **For the `tangram_history` plugin, it can take up to 10 minutes.**
-
-To significantly cut down compile times at the cost of much larger binary size, you may want to use `uv sync --config-setting 'build-args=--profile=dev'` instead:
-
-<!-- rg --files -uu packages | rg "so$" | xargs stat -c "%s %n" -->
-
-|                        | release (default) | `profile=dev` |
-| ---------------------- | ----------------- | ------------- |
-| compile time (clean)   | 3m41s             | 1m42s         |
-| `tangram` size         | 6.57M             | 106M          |
-| `tangram_jet1090` size | 7.86M             | 122M          |
-| `tangram_ship162` size | 7.04M             | 118M          |
-| `tangram_history` size | 151M              | 937M          |
+3. Ensure Redis (and any other services like `jet1090`) are running, as described in the user guide above.
 
 ### Running in Development Mode
 
-1. Ensure Redis (and any other services like `jet1090`) are running, as described in the user guide above.
+To install the core application and all plugins in **editable mode**, along with useful developer utilities:
 
-2. Start the `tangram` server. This runs the FastAPI application, the `channel` service, and all enabled backend plugins.
+```sh
+uv sync --all-packages --all-groups --all-extras
+```
 
-   ```sh
-   uv run tangram serve --config tangram.example.toml
-   ```
+This will create a virtual environment at `.venv/`. For Rust-based packages, the `maturin` build backend will create shared objects under each package:
+
+```command
+$ rg --files -u packages | rg "so$" | xargs stat -c "%s %n"
+7857160 packages/tangram_jet1090/src/tangram_jet1090/_planes.cpython-313-x86_64-linux-gnu.so
+6503144 packages/tangram_core/src/tangram_core/_core.cpython-313-x86_64-linux-gnu.so
+7049616 packages/tangram_ship162/src/tangram_ship162/_ships.cpython-313-x86_64-linux-gnu.so
+151122456 packages/tangram_history/src/tangram_history/_history.cpython-313-x86_64-linux-gnu.so
+```
+
+!!! tip
+
+    By default, `uv sync` builds the Rust code in release mode, which can take up to 4 minutes.
+
+    You may want to use `uv sync --config-setting 'build-args=--profile=dev'` instead to significantly speed up recompilation, at the cost of much larger binary sizes and worse performance.
+
+To start the `tangram` server, run:
+
+```sh
+uv run tangram serve --config tangram.example.toml
+```
+
+This runs the FastAPI application, the `channel` service, and all enabled backend plugins.
 
 The application will be available at `http://localhost:2346`.
 
 !!! note "Frontend Development"
 
-    Hot Module Replacement (HMR) for frontend plugins is not yet supported. To see changes to frontend components, you must re-run `pnpm build` and restart the `tangram serve` process.
+    Hot Module Replacement (HMR) for frontend plugins is not supported. To see changes to frontend components, you must re-run `pnpm build` and restart the `tangram serve` process.
     If you made changes to Rust code, you may need to re-run `uv` with the `--force-reinstall` or `--reinstall-package` flag.
 
 To build the documentation:
@@ -276,4 +294,37 @@ To format all Rust, Python and JS code:
 
 ```sh
 just fmt
+```
+
+### Running in Release Mode
+
+Make sure the frontend is built, and run:
+
+```sh
+uv build --all-packages
+```
+
+You should see:
+
+```command
+$ ls -sh1 dist/
+total 54M
+ 12K tangram_airports-0.2.0-py2.py3-none-any.whl
+8.0K tangram_airports-0.2.0.tar.gz
+2.5M tangram_core-0.2.0-cp313-cp313-linux_x86_64.whl
+ 64K tangram_core-0.2.0.tar.gz
+...
+```
+
+To verify things work, create a virtual environment separate from the usual `.venv` and install it:
+
+```sh
+uv venv .venv_whl
+uv pip install --python .venv_whl dist/tangram*.whl
+```
+
+To start the `tangram` server, run:
+
+```sh
+uv run --python .venv_whl tangram serve --config tangram.example.toml
 ```

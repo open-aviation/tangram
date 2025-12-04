@@ -2,20 +2,25 @@
 # `export DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 CONTAINER_RUNTIME=docker`
 container_runtime := env("CONTAINER_RUNTIME", "podman")
 
-# TODO: git cleaning and running this again fails because uv cache doesn't understand cdylib is gone
-# TODO(abr): hot reload js frontend
+# Install the project in development mode.
 install:
+  # NOTE: git cleaning and running this again fails because uv cache doesn't understand the .so is gone
+  # see: https://github.com/astral-sh/uv/issues/11390#issuecomment-3436401449
   pnpm i
   pnpm build
-  uv sync --all-groups --all-packages
+  uv sync --all-groups --all-extras --all-packages
+
+#
+# External dependencies
+#
 
 # NOTE: the following `c-` commands are for temporary testing with hardcoded ports.
-# a future version of tangram will manage them properly.
-# TODO: migrate to podman networks
+# a future version of tangram will use podman networks properly.
 
+# Launch redis in a container.
 c-redis:
   #!/usr/bin/env bash
-  if podman container exists redis; then
+  if {{container_runtime}} container exists redis; then
     echo "container redis exists"
     exit 0
   fi
@@ -24,39 +29,51 @@ c-redis:
 
 jet1090_sources := '"ws://feedme.mode-s.org:9876/40128@EHRD"'
 
+# Launch `jet1090` for the `tangram_jet1090` plugin in a container.
 c-jet1090 sources=jet1090_sources:
   {{container_runtime}} run -d --rm --name jet1090 \
     --network=host \
     ghcr.io/xoolive/jet1090:latest \
     jet1090 --serve-port 8080 --history-expire 5 --redis-url "redis://127.0.0.1:6379" {{sources}}
 
-# before running this, clone the repo and `cargo install --path crates/ship162`
+# Launch `ship162` for the `tangram_ship162` plugin locally.
+# Make sure you have cloned https://github.com/xoolive/ship162 and ran `cargo install --path crates/ship162`
 ship162:
   ship162 --redis-url "redis://127.0.0.1:6379" tcp://153.44.253.27:5631
 
-# build tangram with your container runtime.
-# on non x86_64 architectures, set eccodes_strategy to `fromsource`.
+#
+# Build tangram in podman (experimental)
+#
+
+# Build tangram with all plugins in a container.
+# For non x86_64 architectures, set eccodes_strategy to `fromsource`.
 c-build eccodes_strategy='prebuilt':
   {{container_runtime}} build . \
     --build-arg ECCODES_STRATEGY={{eccodes_strategy}} \
     --tag tangram:latest \
     -f Containerfile
 
-c-run:
+# Run tangram with all plugins in a container.
+c-run path_config='./tangram.example.toml':
   {{container_runtime}} run -d --rm --name tangram \
     -p 2346:2346 \
-    -v ./tangram.example.toml:/app/tangram.toml \
+    -v {{path_config}}:/app/tangram.toml \
     --network=host \
     localhost/tangram:latest \
     tangram serve --config /app/tangram.toml
 
+#
+# Misc development utilities
+#
+
+# Regenerate `.pyi` stub files from Rust code.
 stubgen:
   cargo run --package tangram_core --bin stub_gen_core --features pyo3,stubgen || true
   cargo run --package jet1090_planes --bin stub_gen_planes --features pyo3,stubgen || true
   cargo run --package ship162_ships --bin stub_gen_ships --features pyo3,stubgen || true
   cargo run --package tangram_history --bin stub_gen_history --features pyo3,stubgen || true
 
-# fix code quality (eslint, ruff, clippy) and formatting (prettier, ruff, rustfmt)
+# Fix code quality (eslint, ruff, clippy) and formatting (prettier, ruff, rustfmt).
 fmt:
   uv run ruff check packages --fix || true
   uv run ruff format packages || true

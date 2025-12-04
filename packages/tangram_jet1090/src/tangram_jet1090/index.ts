@@ -6,7 +6,6 @@ import AircraftInfoWidget from "./AircraftInfoWidget.vue";
 import AircraftTrailLayer from "./AircraftTrailLayer.vue";
 import RouteLayer from "./RouteLayer.vue";
 import SensorsLayer from "./SensorsLayer.vue";
-import init, { run } from "rs1090-wasm";
 import { selectedAircraft, pluginConfig } from "./store";
 
 interface RawAircraft {
@@ -16,11 +15,6 @@ interface RawAircraft {
 }
 
 export function install(api: TangramApi) {
-  // initialising webassembly manually because esm build isn't supported well
-  (async () => {
-    await init("/rs1090_wasm_bg.wasm");
-    run();
-  })();
   api.ui.registerWidget("jet1090-count-widget", "TopBar", AircraftCountWidget);
   api.ui.registerWidget("jet1090-aircraft-layer", "MapOverlay", AircraftLayer);
   api.ui.registerWidget("jet1090-info-widget", "SideBar", AircraftInfoWidget);
