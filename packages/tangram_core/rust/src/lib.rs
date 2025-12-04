@@ -1,20 +1,20 @@
+pub mod bbox;
 #[cfg(feature = "channel")]
 pub mod channel;
-pub mod bbox;
 pub mod stream;
 
+#[cfg(feature = "channel")]
+use crate::channel::{
+    utils::{generate_jwt, random_string},
+    websocket::{axum_on_connected, launch_channel_redis_listen_task, State},
+    ChannelControl,
+};
 #[cfg(feature = "channel")]
 use axum::{
     extract::{Query, State as AxumState, WebSocketUpgrade},
     response::IntoResponse,
     routing::get,
     Json, Router,
-};
-#[cfg(feature = "channel")]
-use crate::channel::{
-    ChannelControl,
-    utils::{generate_jwt, random_string},
-    websocket::{axum_on_connected, launch_channel_redis_listen_task, State},
 };
 #[cfg(feature = "pyo3")]
 use pyo3::{
