@@ -1291,6 +1291,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#testing-channel-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Channel Core
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#continuous-integration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1408,6 +1419,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#testing-channel-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Channel Core
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#continuous-integration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1481,6 +1503,11 @@
 pnpm<span class="w"> </span>i
 pnpm<span class="w"> </span>build
 uv<span class="w"> </span>build<span class="w"> </span>--all-packages
+</code></pre></div>
+<h3 id="testing-channel-core">Testing Channel Core<a class="headerlink" href="#testing-channel-core" title="Permanent link">&para;</a></h3>
+<p>The core WebSocket logic is written in Rust. To run these tests, you need a local Redis instance:</p>
+<div class="language-bash highlight"><pre><span></span><code><span class="c1"># in packages/tangram_core/rust</span>
+cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--features<span class="w"> </span>channel
 </code></pre></div>
 <h3 id="continuous-integration">Continuous Integration<a class="headerlink" href="#continuous-integration" title="Permanent link">&para;</a></h3>
 <p>The CI pipeline, defined in GitHub Actions, automates quality checks and builds. The primary steps are:</p>
