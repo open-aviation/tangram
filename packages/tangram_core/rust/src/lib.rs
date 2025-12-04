@@ -1,3 +1,5 @@
+#[cfg(feature = "channel")]
+pub mod channel;
 pub mod bbox;
 pub mod stream;
 
@@ -9,8 +11,8 @@ use axum::{
     Json, Router,
 };
 #[cfg(feature = "channel")]
-use channel::{
-    channel::ChannelControl,
+use crate::channel::{
+    ChannelControl,
     utils::{generate_jwt, random_string},
     websocket::{axum_on_connected, launch_channel_redis_listen_task, State},
 };
