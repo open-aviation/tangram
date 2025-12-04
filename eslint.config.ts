@@ -11,7 +11,7 @@ export default defineConfigWithVueTs(
     name: "app/files-to-lint",
     files: ["**/*.{ts,mts,js,mjs,vue}"]
   },
-  globalIgnores(["**/dist/**", "**/dist-frontend/**", ".venv"]),
+  globalIgnores(["**/dist/**", "**/dist-frontend/**", "**/__*.vue", ".venv"]),
   pluginVue.configs["flat/recommended"],
   vueTsConfigs.recommended,
   skipFormatting  // use prettier for code formatting, eslint for code quality

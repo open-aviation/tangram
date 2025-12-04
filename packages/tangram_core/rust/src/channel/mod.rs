@@ -23,7 +23,7 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 
-use websocket::{Response, ServerMessage, ServerPayload, State, is_special_channel};
+use websocket::{is_special_channel, Response, ServerMessage, ServerPayload, State};
 
 #[derive(Clone, Debug, Serialize)]
 pub enum ChannelMessage {
@@ -53,7 +53,7 @@ pub struct Channel {
 pub struct ChannelControl {
     pub channels: Mutex<HashMap<String, Channel>>, // channel name -> Channel
     redis_client: Arc<redis::Client>,
-    pub agents: Mutex<HashMap<String, Agent>>,                           // agent_id -> JoinHandle
+    pub agents: Mutex<HashMap<String, Agent>>, // agent_id -> JoinHandle
     agent_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>, // agent_id -> Sender, TODO: replace with `agents`
     conn_agents: Mutex<HashMap<String, Vec<String>>>,                    // conn_id -> Vec<agent_id>
     conn_tx: Mutex<HashMap<String, broadcast::Sender<ChannelMessage>>>,  // conn_id -> Sender
@@ -69,7 +69,11 @@ pub struct Agent {
 
 impl Display for Agent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<Agent: id={} external_id={} channel={}, task={:?}>", self.id, self.external_id, self.channel, self.relay_task)
+        write!(
+            f,
+            "<Agent: id={} external_id={} channel={}, task={:?}>",
+            self.id, self.external_id, self.channel, self.relay_task
+        )
     }
 }
 
@@ -88,9 +92,14 @@ impl fmt::Display for ChannelError {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ChannelError::ChannelNotFound => write!(formatter, "<ChannelNotFound>"),
-            ChannelError::ChannelEmpty => write!(formatter, "<ChannelEmpty: channel has not agents>"),
+            ChannelError::ChannelEmpty => {
+                write!(formatter, "<ChannelEmpty: channel has not agents>")
+            }
             ChannelError::AgentNotInitiated => write!(formatter, "<AgentNotInitiated>"),
-            ChannelError::MessageSendError => write!(formatter, "<MessageSendError: failed to send a message to the channel>"),
+            ChannelError::MessageSendError => write!(
+                formatter,
+                "<MessageSendError: failed to send a message to the channel>"
+            ),
             ChannelError::BadToken => write!(formatter, "<InvalidPayload: invalid payload format>"),
         }
     }
@@ -116,9 +125,15 @@ impl Channel {
         if !agents.contains(&agent_id) {
             agents.push(agent_id.clone());
             self.count.fetch_add(1, Ordering::SeqCst);
-            info!("C / {}, total: {:?}, agent added {}", self.name, self.count, agent_id);
+            info!(
+                "C / {}, total: {:?}, agent added {}",
+                self.name, self.count, agent_id
+            );
         } else {
-            info!("C / {}, total: {:?}, agent {} exists", self.name, self.count, agent_id);
+            info!(
+                "C / {}, total: {:?}, agent {} exists",
+                self.name, self.count, agent_id
+            );
         }
         self.tx.clone()
     }
@@ -130,7 +145,10 @@ impl Channel {
             // - remove the item at index, use the last one to replace this position
             let agent = agents.swap_remove(pos);
             self.count.fetch_sub(1, Ordering::SeqCst);
-            info!("C / {}, total: {:?}, agent removed {}", self.name, self.count, agent);
+            info!(
+                "C / {}, total: {:?}, agent removed {}",
+                self.name, self.count, agent
+            );
         }
     }
 
@@ -180,15 +198,25 @@ impl ChannelControl {
         }
     }
 
-    pub async fn conn_rx(&self, conn_id: String) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
+    pub async fn conn_rx(
+        &self,
+        conn_id: String,
+    ) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
         Ok(self.conn_tx.lock().await.get(&conn_id).unwrap().subscribe())
     }
 
-    pub async fn conn_tx(&self, conn_id: String) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
+    pub async fn conn_tx(
+        &self,
+        conn_id: String,
+    ) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
         Ok(self.conn_tx.lock().await.get(&conn_id).unwrap().clone())
     }
 
-    pub async fn conn_send(&self, conn_id: String, message: ChannelMessage) -> Result<usize, ChannelError> {
+    pub async fn conn_send(
+        &self,
+        conn_id: String,
+        message: ChannelMessage,
+    ) -> Result<usize, ChannelError> {
         self.conn_tx
             .lock()
             .await
@@ -207,7 +235,8 @@ impl ChannelControl {
             }
 
             for agent_id in channel.agents().await.iter() {
-                if let Entry::Occupied(agent_task) = self.agents.lock().await.entry(agent_id.into()) {
+                if let Entry::Occupied(agent_task) = self.agents.lock().await.entry(agent_id.into())
+                {
                     agent_task.get().relay_task.abort();
                     agent_task.remove();
                 }
@@ -220,7 +249,8 @@ impl ChannelControl {
 
             let channel_names = channels.keys().cloned().collect::<Vec<String>>();
             let meta = json!({"channel": channel_name, "channels": channel_names});
-            self.pub_meta_event("channel".into(), "remove".into(), meta).await;
+            self.pub_meta_event("channel".into(), "remove".into(), meta)
+                .await;
 
             info!("CH_RM / safely removed empty channel {}", channel_name);
             return true;
@@ -241,7 +271,11 @@ impl ChannelControl {
             return;
         }
 
-        info!("CONN / cleanup, conn_id: {}, agents: {}", conn_id, agents_to_remove.len());
+        info!(
+            "CONN / cleanup, conn_id: {}, agents: {}",
+            conn_id,
+            agents_to_remove.len()
+        );
 
         struct AgentInfo {
             id: String,
@@ -274,7 +308,10 @@ impl ChannelControl {
 
         let mut by_channel: HashMap<String, Vec<&AgentInfo>> = HashMap::new();
         for info in &agent_infos {
-            by_channel.entry(info.channel.clone()).or_default().push(info);
+            by_channel
+                .entry(info.channel.clone())
+                .or_default()
+                .push(info);
         }
 
         // for presence updates
@@ -287,7 +324,9 @@ impl ChannelControl {
             // - cleanup ghost channel
             let mut leaves: HashMap<String, serde_json::Value> = HashMap::new();
             for info in infos.iter() {
-                let metas = leaves.entry(info.external_id.clone()).or_insert_with(|| json!({"metas": []}));
+                let metas = leaves
+                    .entry(info.external_id.clone())
+                    .or_insert_with(|| json!({"metas": []}));
                 if let Some(arr) = metas.get_mut("metas").and_then(|m| m.as_array_mut()) {
                     arr.push(json!({"phx_ref": info.id}));
                 }
@@ -296,7 +335,9 @@ impl ChannelControl {
             if let Some(ref mut conn) = redis_conn {
                 let diff = json!({"joins": {}, "leaves": leaves});
                 let redis_topic = format!("to:{}:presence_diff", channel_name);
-                let _ = conn.publish::<_, _, ()>(redis_topic, diff.to_string()).await;
+                let _ = conn
+                    .publish::<_, _, ()>(redis_topic, diff.to_string())
+                    .await;
             }
 
             let maybe_empty = {
@@ -329,27 +370,39 @@ impl ChannelControl {
         debug!("CH / channel {} added", channel_name);
     }
 
-    pub async fn channel_add_redis_listen_task(&self, channel_name: String, redis_listen_task: JoinHandle<RedisResult<()>>) {
+    pub async fn channel_add_redis_listen_task(
+        &self,
+        channel_name: String,
+        redis_listen_task: JoinHandle<RedisResult<()>>,
+    ) {
         let mut channels = self.channels.lock().await;
         let channel = channels.get_mut(&channel_name).unwrap();
         channel.redis_listen_task = Some(redis_listen_task);
         info!("CH / added redis listen task to channel {}", channel_name);
 
         let meta = json!({"channel": channel_name});
-        self.pub_meta_event("channel".into(), "add-redis-listener".into(), meta).await;
+        self.pub_meta_event("channel".into(), "add-redis-listener".into(), meta)
+            .await;
     }
 
     pub async fn pub_meta_event(&self, topic: String, event: String, meta: serde_json::Value) {
         let redis_topic = format!("to:admin:{}.{}", topic, event);
 
-        let redis_conn_result = self.redis_client.clone().get_multiplexed_async_connection().await;
+        let redis_conn_result = self
+            .redis_client
+            .clone()
+            .get_multiplexed_async_connection()
+            .await;
         if redis_conn_result.is_err() {
             error!("ADMIN_PUB / fail to get redis connection");
             return;
         }
 
         let message = serde_json::to_string(&meta).unwrap();
-        let result: RedisResult<String> = redis_conn_result.unwrap().publish(redis_topic, message.clone()).await;
+        let result: RedisResult<String> = redis_conn_result
+            .unwrap()
+            .publish(redis_topic, message.clone())
+            .await;
         if result.is_err() {
             error!("ADMIN_PUB / fail to publish to redis");
             return;
@@ -367,9 +420,14 @@ impl ChannelControl {
             Entry::Occupied(entry) => {
                 let channel = entry.get();
                 for agent_id in channel.agents().await.iter() {
-                    if let Entry::Occupied(agent_task) = self.agents.lock().await.entry(agent_id.into()) {
+                    if let Entry::Occupied(agent_task) =
+                        self.agents.lock().await.entry(agent_id.into())
+                    {
                         agent_task.get().relay_task.abort();
-                        info!("CH_RM / channel {}, agent {}, relay_task aborted", channel_name, agent_id);
+                        info!(
+                            "CH_RM / channel {}, agent {}, relay_task aborted",
+                            channel_name, agent_id
+                        );
                         agent_task.remove();
                     }
                 }
@@ -385,9 +443,15 @@ impl ChannelControl {
         let channel_names = channels.keys().cloned().collect::<Vec<String>>();
 
         let meta = json!({"channel": channel_name, "channels": channel_names});
-        self.pub_meta_event("channel".into(), "remove".into(), meta).await;
+        self.pub_meta_event("channel".into(), "remove".into(), meta)
+            .await;
 
-        info!("CH_RM / {} cleared, channels: {} {:?}", channel_name, channel_names.len(), channel_names);
+        info!(
+            "CH_RM / {} cleared, channels: {} {:?}",
+            channel_name,
+            channel_names.len(),
+            channel_names
+        );
     }
 
     pub async fn channel_exists(&self, channel_name: &str) -> bool {
@@ -396,15 +460,26 @@ impl ChannelControl {
     }
     /// join agent to a channel
     pub async fn channel_join(
-        &self, channel_name: &str, agent_id: String, external_id: String,
+        &self,
+        channel_name: &str,
+        agent_id: String,
+        external_id: String,
     ) -> Result<broadcast::Sender<ChannelMessage>, ChannelError> {
         let channels = self.channels.lock().await;
 
         // join
-        let channel = channels.get(channel_name).ok_or(ChannelError::ChannelNotFound)?;
+        let channel = channels
+            .get(channel_name)
+            .ok_or(ChannelError::ChannelNotFound)?;
         let channel_tx = channel.join(agent_id.clone()).await;
         let mut channel_rx = channel_tx.subscribe();
-        let agent_tx = self.agent_tx.lock().await.get(&agent_id).ok_or(ChannelError::AgentNotInitiated)?.clone();
+        let agent_tx = self
+            .agent_tx
+            .lock()
+            .await
+            .get(&agent_id)
+            .ok_or(ChannelError::AgentNotInitiated)?
+            .clone();
 
         // Subscribe to channel and forward messages to agent
         let relay_task = tokio::spawn(async move {
@@ -432,7 +507,8 @@ impl ChannelControl {
         }
 
         let meta = json!({"agent": agent_id.clone(), "channel": channel_name, "agents": *channel.agents.lock().await});
-        self.pub_meta_event("channel".into(), "join".into(), meta).await;
+        self.pub_meta_event("channel".into(), "join".into(), meta)
+            .await;
 
         let parts: Vec<&str> = agent_id.split(':').collect();
         if let Some(conn_id) = parts.first() {
@@ -447,10 +523,16 @@ impl ChannelControl {
         Ok(channel_tx)
     }
 
-    pub async fn channel_leave(&self, channel_name: String, agent_id: String) -> Result<usize, ChannelError> {
+    pub async fn channel_leave(
+        &self,
+        channel_name: String,
+        agent_id: String,
+    ) -> Result<usize, ChannelError> {
         info!("CH / leave {} from {} ...", agent_id, channel_name);
         let channels = self.channels.lock().await;
-        let channel = channels.get(&channel_name).ok_or(ChannelError::ChannelNotFound)?;
+        let channel = channels
+            .get(&channel_name)
+            .ok_or(ChannelError::ChannelNotFound)?;
         channel.leave(agent_id.clone()).await;
         match self.agents.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(entry) => {
@@ -462,7 +544,8 @@ impl ChannelControl {
         }
 
         let meta = json!({"agent": agent_id.clone(), "channel": channel_name.clone(), "agents": *channel.agents.lock().await});
-        self.pub_meta_event("channel".into(), "leave".into(), meta).await;
+        self.pub_meta_event("channel".into(), "leave".into(), meta)
+            .await;
 
         let parts: Vec<&str> = agent_id.split(':').collect();
         if let Some(conn_id) = parts.first() {
@@ -477,7 +560,12 @@ impl ChannelControl {
         Ok(channel.count.load(Ordering::SeqCst) as usize)
     }
 
-    pub async fn channel_broadcast_json(&self, channel_name: &str, event_name: &str, value: serde_json::Value) -> Result<usize, ChannelError> {
+    pub async fn channel_broadcast_json(
+        &self,
+        channel_name: &str,
+        event_name: &str,
+        value: serde_json::Value,
+    ) -> Result<usize, ChannelError> {
         let message = ServerMessage {
             join_ref: None,
             event_ref: "0".into(),
@@ -485,26 +573,39 @@ impl ChannelControl {
             event: event_name.to_string(),
             payload: ServerPayload::ServerJsonValue(value),
         };
-        self.channel_broadcast(channel_name.to_string(), ChannelMessage::Reply(message)).await
+        self.channel_broadcast(channel_name.to_string(), ChannelMessage::Reply(message))
+            .await
     }
 
     /// broadcast message to the channel
     /// it returns the number of agents who received the message
-    pub async fn channel_broadcast(&self, channel_name: String, message: ChannelMessage) -> Result<usize, ChannelError> {
+    pub async fn channel_broadcast(
+        &self,
+        channel_name: String,
+        message: ChannelMessage,
+    ) -> Result<usize, ChannelError> {
         let channels = self.channels.lock().await;
-        let channel = channels.get(&channel_name).ok_or(ChannelError::ChannelNotFound)?;
+        let channel = channels
+            .get(&channel_name)
+            .ok_or(ChannelError::ChannelNotFound)?;
         if channel.agents.lock().await.is_empty() {
             // warn!("CH / no agents, no broadcasting");
             return Err(ChannelError::ChannelEmpty);
         }
 
         channel.send(message).map_err(|e| {
-            error!("CH / broadcasting error, channel: {}, {:?}", channel_name, e);
+            error!(
+                "CH / broadcasting error, channel: {}, {:?}",
+                channel_name, e
+            );
             ChannelError::MessageSendError
         })
     }
 
-    pub async fn agent_rx(&self, agent_id: String) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
+    pub async fn agent_rx(
+        &self,
+        agent_id: String,
+    ) -> Result<broadcast::Receiver<ChannelMessage>, ChannelError> {
         Ok(self
             .agent_tx
             .lock()
@@ -599,7 +700,9 @@ impl From<ResponseFromRedis> for Response {
             ResponseFromRedis::Empty {} => Response::Empty {},
             ResponseFromRedis::Join { id } => Response::Join { id },
             ResponseFromRedis::Heartbeat {} => Response::Heartbeat {},
-            ResponseFromRedis::Datetime { datetime, counter } => Response::Datetime { datetime, counter },
+            ResponseFromRedis::Datetime { datetime, counter } => {
+                Response::Datetime { datetime, counter }
+            }
             ResponseFromRedis::Message { message } => Response::Message { message },
         }
     }
@@ -630,7 +733,10 @@ impl ChannelEventFromRedis {
 
 /// Listen to messages from redis, per channel task
 pub async fn listen_to_redis(
-    state: Arc<State>, tx: broadcast::Sender<ChannelMessage>, redis_client: redis::Client, channel_name: String,
+    state: Arc<State>,
+    tx: broadcast::Sender<ChannelMessage>,
+    redis_client: redis::Client,
+    channel_name: String,
 ) -> RedisResult<()> {
     let redis_topic = format!("to:{}:*", channel_name);
     let mut redis_pubsub = redis_client.get_async_pubsub().await?;
@@ -649,7 +755,11 @@ pub async fn listen_to_redis(
         let ev = match ChannelEventFromRedis::parse(stream_message.get_channel_name()) {
             Ok(ev) => ev,
             Err(err) => {
-                warn!("LISTENER / parse error: {} ({})", err, stream_message.get_channel_name());
+                warn!(
+                    "LISTENER / parse error: {} ({})",
+                    err,
+                    stream_message.get_channel_name()
+                );
                 continue;
             }
         };
@@ -714,9 +824,9 @@ mod test {
 
     use tokio::sync::broadcast;
 
-    use crate::channel::{Channel, ChannelControl, ChannelError, ChannelMessage};
     use crate::channel::utils::random_string;
     use crate::channel::websocket::{Response, ServerMessage, ServerPayload, ServerResponse};
+    use crate::channel::{Channel, ChannelControl, ChannelError, ChannelMessage};
 
     fn create_test_message(topic: &str, reference: &str, message: &str) -> ChannelMessage {
         ChannelMessage::Reply(ServerMessage {
@@ -829,11 +939,17 @@ mod test {
         ctl.agent_add("user2".into(), None).await;
 
         // Join channels
-        let join1 = ctl.channel_join("room1", "user1".into(), random_string(8)).await;
+        let join1 = ctl
+            .channel_join("room1", "user1".into(), random_string(8))
+            .await;
         assert!(join1.is_ok());
-        let join2 = ctl.channel_join("room2", "user1".into(), random_string(8)).await;
+        let join2 = ctl
+            .channel_join("room2", "user1".into(), random_string(8))
+            .await;
         assert!(join2.is_ok());
-        let join3 = ctl.channel_join("room1", "user2".into(), random_string(8)).await;
+        let join3 = ctl
+            .channel_join("room1", "user2".into(), random_string(8))
+            .await;
         assert!(join3.is_ok());
 
         // Broadcast message to room1
@@ -868,7 +984,9 @@ mod test {
         ctl.agent_add(agent_id.clone(), None).await;
 
         // Join the channel
-        let join = ctl.channel_join("system", agent_id.clone(), random_string(8)).await;
+        let join = ctl
+            .channel_join("system", agent_id.clone(), random_string(8))
+            .await;
         assert!(join.is_ok());
 
         // Verify agent is in channel
@@ -1050,16 +1168,25 @@ mod test {
         let ctl = ChannelControl::default();
 
         // Test non-existent channel
-        let result = ctl.channel_join("nonexistent", "user1".into(), random_string(8)).await;
+        let result = ctl
+            .channel_join("nonexistent", "user1".into(), random_string(8))
+            .await;
         assert!(matches!(result.unwrap_err(), ChannelError::ChannelNotFound));
 
         // Test non-initiated agent
         ctl.channel_add("room1".into(), None).await;
-        let result = ctl.channel_join("room1", "user1".into(), random_string(8)).await;
-        assert!(matches!(result.unwrap_err(), ChannelError::AgentNotInitiated));
+        let result = ctl
+            .channel_join("room1", "user1".into(), random_string(8))
+            .await;
+        assert!(matches!(
+            result.unwrap_err(),
+            ChannelError::AgentNotInitiated
+        ));
 
         // Test leave non-existent channel
-        let result = ctl.channel_leave("nonexistent".into(), "user1".into()).await;
+        let result = ctl
+            .channel_leave("nonexistent".into(), "user1".into())
+            .await;
         assert!(matches!(result.unwrap_err(), ChannelError::ChannelNotFound));
     }
 
@@ -1076,7 +1203,9 @@ mod test {
         assert!(sub.is_ok());
 
         // Join channel and test broadcasting
-        ctl.channel_join("room1", "user1".into(), random_string(8)).await.unwrap();
+        ctl.channel_join("room1", "user1".into(), random_string(8))
+            .await
+            .unwrap();
         let msg = create_test_message("room1", "1", "test");
         let count = ctl.channel_broadcast("room1".into(), msg).await.unwrap();
         assert_eq!(count, 1);
@@ -1110,11 +1239,15 @@ mod test {
         ctl.agent_add(agent_id.clone(), None).await;
 
         // join channel
-        let result = ctl.channel_join("test", agent_id.clone(), random_string(8)).await;
+        let result = ctl
+            .channel_join("test", agent_id.clone(), random_string(8))
+            .await;
         assert!(result.is_ok(), "Should successfully join channel");
 
         // leave channel
-        let result = ctl.channel_leave("test".to_string(), agent_id.clone()).await;
+        let result = ctl
+            .channel_leave("test".to_string(), agent_id.clone())
+            .await;
         assert!(result.is_ok(), "Should successfully leave channel");
     }
 
@@ -1130,7 +1263,9 @@ mod test {
         ctl.agent_add(agent_id.clone(), None).await;
 
         // join channel
-        let result = ctl.channel_join("test", agent_id.clone(), random_string(8)).await;
+        let result = ctl
+            .channel_join("test", agent_id.clone(), random_string(8))
+            .await;
         assert!(result.is_ok(), "Should successfully join channel");
 
         // broadcast message
@@ -1152,7 +1287,9 @@ mod test {
         assert_eq!(result.unwrap(), 1, "Should have 1 receiver");
 
         // leave channel
-        let result = ctl.channel_leave("test".to_string(), agent_id.clone()).await;
+        let result = ctl
+            .channel_leave("test".to_string(), agent_id.clone())
+            .await;
         assert!(result.is_ok(), "Should successfully leave channel");
     }
 
@@ -1165,7 +1302,9 @@ mod test {
         let agent_ids = vec!["agent1", "agent2", "agent3"];
         for agent_id in &agent_ids {
             ctl.agent_add(agent_id.to_string(), None).await;
-            let result = ctl.channel_join("room1", agent_id.to_string(), random_string(8)).await;
+            let result = ctl
+                .channel_join("room1", agent_id.to_string(), random_string(8))
+                .await;
             assert!(result.is_ok(), "Agent should join successfully");
         }
 
@@ -1234,7 +1373,10 @@ mod test {
         ctl.channel_add("room1".into(), None).await;
         ctl.agent_add("agent1".into(), None).await;
 
-        let _ = ctl.channel_join("room1", "agent1".into(), random_string(8)).await.unwrap();
+        let _ = ctl
+            .channel_join("room1", "agent1".into(), random_string(8))
+            .await
+            .unwrap();
 
         let mut rx = ctl.agent_rx("agent1".into()).await.unwrap();
 
@@ -1258,11 +1400,15 @@ mod test {
         let ctl = ChannelControl::default();
 
         // Test joining non-existent channel
-        let result = ctl.channel_join("nonexistent", "agent1".into(), random_string(8)).await;
+        let result = ctl
+            .channel_join("nonexistent", "agent1".into(), random_string(8))
+            .await;
         assert!(result.is_err());
 
         // Test leaving non-existent channel
-        let result = ctl.channel_leave("nonexistent".into(), "agent1".into()).await;
+        let result = ctl
+            .channel_leave("nonexistent".into(), "agent1".into())
+            .await;
         assert!(result.is_err());
 
         // Test broadcasting to non-existent channel
@@ -1281,7 +1427,9 @@ mod test {
         for i in 0..5 {
             let agent_id = format!("agent{}", i);
             ctl.agent_add(agent_id.clone(), None).await;
-            let _ = ctl.channel_join("room1", agent_id.clone(), random_string(8)).await;
+            let _ = ctl
+                .channel_join("room1", agent_id.clone(), random_string(8))
+                .await;
         }
 
         // Remove channel
@@ -1443,7 +1591,10 @@ mod test {
                 },
             }),
         };
-        assert_eq!(message.to_string(), r#"Message join_ref=1, ref=ref1, topic=test, event=msg, <Payload status=ok, response=...>"#);
+        assert_eq!(
+            message.to_string(),
+            r#"Message join_ref=1, ref=ref1, topic=test, event=msg, <Payload status=ok, response=...>"#
+        );
 
         // Test datetime response
         let datetime = ServerMessage {
@@ -1459,7 +1610,10 @@ mod test {
                 },
             }),
         };
-        assert_eq!(datetime.to_string(), r#"Message join_ref=None, ref=ref2, topic=system, event=datetime, <Payload status=ok, response=...>"#);
+        assert_eq!(
+            datetime.to_string(),
+            r#"Message join_ref=None, ref=ref2, topic=system, event=datetime, <Payload status=ok, response=...>"#
+        );
 
         // Test empty response
         let empty = ServerMessage {
@@ -1472,6 +1626,9 @@ mod test {
                 response: Response::Empty {},
             }),
         };
-        assert_eq!(empty.to_string(), r#"Message join_ref=None, ref=ref3, topic=test, event=phx_reply, <Payload status=ok, response=...>"#);
+        assert_eq!(
+            empty.to_string(),
+            r#"Message join_ref=None, ref=ref3, topic=test, event=phx_reply, <Payload status=ok, response=...>"#
+        );
     }
 }

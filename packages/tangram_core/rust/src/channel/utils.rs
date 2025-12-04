@@ -4,7 +4,11 @@ use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 
 pub fn random_string(length: usize) -> String {
-    rng().sample_iter(&Alphanumeric).take(length).map(char::from).collect()
+    rng()
+        .sample_iter(&Alphanumeric)
+        .take(length)
+        .map(char::from)
+        .collect()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -14,7 +18,12 @@ pub struct Claims {
     pub exp: usize,
 }
 
-pub async fn generate_jwt(id: String, channel: String, jwt_secret: String, expiration_secs: i64) -> jsonwebtoken::errors::Result<String> {
+pub async fn generate_jwt(
+    id: String,
+    channel: String,
+    jwt_secret: String,
+    expiration_secs: i64,
+) -> jsonwebtoken::errors::Result<String> {
     let expiration = chrono::Utc::now()
         .checked_add_signed(chrono::Duration::seconds(expiration_secs))
         .expect("valid timestamp")
@@ -31,7 +40,10 @@ pub async fn generate_jwt(id: String, channel: String, jwt_secret: String, expir
     encode(&header, &claims, &key)
 }
 
-pub async fn decode_jwt(token: &str, jwt_secret: String) -> Result<Claims, jsonwebtoken::errors::Error> {
+pub async fn decode_jwt(
+    token: &str,
+    jwt_secret: String,
+) -> Result<Claims, jsonwebtoken::errors::Error> {
     let decoding_key = DecodingKey::from_secret(jwt_secret.as_bytes());
     let mut validation = Validation::new(Algorithm::HS256);
     validation.validate_exp = true;

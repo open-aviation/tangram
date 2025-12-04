@@ -1,5 +1,5 @@
-use super::{listen_to_redis, Channel, ChannelControl, ChannelError, ChannelMessage};
 use super::utils::decode_jwt;
+use super::{listen_to_redis, Channel, ChannelControl, ChannelError, ChannelMessage};
 use futures::SinkExt;
 use futures::StreamExt;
 use itertools::Itertools;
@@ -76,10 +76,17 @@ impl fmt::Display for ServerMessage {
 
         let response_str = "...";
         let payload_display = match self.payload {
-            ServerPayload::ServerResponse(ref resp) => format!("<Payload status={}, response={}>", resp.status, response_str),
+            ServerPayload::ServerResponse(ref resp) => format!(
+                "<Payload status={}, response={}>",
+                resp.status, response_str
+            ),
             ServerPayload::ServerJsonValue(ref value) => format!("<ServerJsonResponse {}>", value),
         };
-        write!(f, "Message join_ref={}, ref={}, topic={}, event={}, {}", join_ref, self.event_ref, self.topic, self.event, payload_display)
+        write!(
+            f,
+            "Message join_ref={}, ref={}, topic={}, event={}, {}",
+            join_ref, self.event_ref, self.topic, self.event, payload_display
+        )
     }
 }
 
@@ -123,7 +130,11 @@ pub struct State {
 
 impl State {}
 
-pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<State>, user_token: Option<String>) {
+pub async fn axum_on_connected(
+    ws: axum::extract::ws::WebSocket,
+    state: Arc<State>,
+    user_token: Option<String>,
+) {
     info!("params: {:?}", user_token);
 
     let conn_id = nanoid::nanoid!(8).to_string();
@@ -138,20 +149,34 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
     let mut ws_tx_task = tokio::spawn(async move {
         info!("AXUM / WS_TX / launch websocket tx task (conn rx => ws tx) ...");
 
-        let mut conn_rx = ws_tx_state.ctl.lock().await.conn_rx(ws_tx_conn_id.clone()).await.unwrap();
+        let mut conn_rx = ws_tx_state
+            .ctl
+            .lock()
+            .await
+            .conn_rx(ws_tx_conn_id.clone())
+            .await
+            .unwrap();
         loop {
             match conn_rx.recv().await {
                 Ok(channel_message) => {
                     let ChannelMessage::Reply(reply_message) = channel_message;
                     let text_result = serde_json::to_string(&reply_message);
                     if text_result.is_err() {
-                        error!("AXUM / WS_TX / fail to serialize reply message: {}", text_result.err().unwrap());
+                        error!(
+                            "AXUM / WS_TX / fail to serialize reply message: {}",
+                            text_result.err().unwrap()
+                        );
                         break;
                     }
                     let text = text_result.unwrap();
-                    let sending_result = ws_tx.send(axum::extract::ws::Message::Text(text.into())).await;
+                    let sending_result = ws_tx
+                        .send(axum::extract::ws::Message::Text(text.into()))
+                        .await;
                     if sending_result.is_err() {
-                        error!("AXUM / WS_TX / websocket tx sending failed: {}", sending_result.err().unwrap());
+                        error!(
+                            "AXUM / WS_TX / websocket tx sending failed: {}",
+                            sending_result.err().unwrap()
+                        );
                         break; // what happend? exit if the connection is lost
                     }
                 }
@@ -168,14 +193,26 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
     let ws_rx_user_token = user_token.clone();
     let mut ws_rx_task = tokio::spawn(async move {
         info!("AXUM / WS_RX / websocket rx handling (ws rx =>) ...");
-        let mut redis_conn = ws_rx_state.redis_client.get_multiplexed_async_connection().await.unwrap();
+        let mut redis_conn = ws_rx_state
+            .redis_client
+            .get_multiplexed_async_connection()
+            .await
+            .unwrap();
 
         // Read all messages from websocket rx, process or dispatch to each channel
         while let Some(msg_result) = ws_rx.next().await {
             match msg_result {
                 Ok(msg) => match msg {
                     axum::extract::ws::Message::Text(text) => {
-                        if let Err(e) = handle_message(ws_rx_state.clone(), ws_rx_user_token.clone(), &ws_rx_conn_id, &text, &mut redis_conn).await {
+                        if let Err(e) = handle_message(
+                            ws_rx_state.clone(),
+                            ws_rx_user_token.clone(),
+                            &ws_rx_conn_id,
+                            &text,
+                            &mut redis_conn,
+                        )
+                        .await
+                        {
                             error!("AXUM / WS_RX / handle_message error: {:?}", e);
                         }
                     }
@@ -216,11 +253,20 @@ pub async fn axum_on_connected(ws: axum::extract::ws::WebSocket, state: Arc<Stat
 }
 
 async fn handle_message(
-    state: Arc<State>, user_token: Option<String>, conn_id: &str, text: &str, redis_conn: &mut redis::aio::MultiplexedConnection,
+    state: Arc<State>,
+    user_token: Option<String>,
+    conn_id: &str,
+    text: &str,
+    redis_conn: &mut redis::aio::MultiplexedConnection,
 ) -> RedisResult<()> {
     let rm_result = serde_json::from_str::<RequestMessage>(text);
     if rm_result.is_err() {
-        error!("WS_RX / conn: {}, error: {:?} text: {}", &conn_id, rm_result.err(), text);
+        error!(
+            "WS_RX / conn: {}, error: {:?} text: {}",
+            &conn_id,
+            rm_result.err(),
+            text
+        );
         // Clean up all agents for conn_id
         // state.ctl.lock().await.agent_rm(conn_id).await;
         return Ok(());
@@ -253,7 +299,14 @@ async fn handle_message(
     }
 
     if event == "phx_leave" {
-        handle_leave(state.clone(), conn_id, join_ref.clone(), event_ref, channel_name.clone()).await;
+        handle_leave(
+            state.clone(),
+            conn_id,
+            join_ref.clone(),
+            event_ref,
+            channel_name.clone(),
+        )
+        .await;
         debug!("WS_RX / leave processed");
     }
 
@@ -266,8 +319,14 @@ async fn handle_message(
 }
 
 // iredis --url redis://localhost:6379 psubscribe 'from*'
-async fn publish_event(redis_conn: &mut redis::aio::MultiplexedConnection, redis_topic: String, message: String) {
-    let publish_result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
+async fn publish_event(
+    redis_conn: &mut redis::aio::MultiplexedConnection,
+    redis_topic: String,
+    message: String,
+) {
+    let publish_result: RedisResult<String> = redis_conn
+        .publish(redis_topic.clone(), message.clone())
+        .await;
     if let Err(e) = publish_result {
         error!("fail to publish to redis: {}", e)
     }
@@ -293,32 +352,59 @@ pub async fn add_channel(ctl: &Mutex<ChannelControl>, channel_name: String) {
     warn!("ADD_CH / {} added", channel_name);
 
     let channel_names = channels.keys().cloned().collect::<Vec<String>>();
-    info!("ADD_CH / {} created, channels: {} {:?}", channel_name, channel_names.len(), channel_names);
+    info!(
+        "ADD_CH / {} created, channels: {} {:?}",
+        channel_name,
+        channel_names.len(),
+        channel_names
+    );
 
     let meta = json!({
         "channel": channel_name,
         "channels": channels.keys().cloned().collect::<Vec<String>>(),
     });
-    ctl.pub_meta_event("channe".into(), "add".into(), meta).await;
+    ctl.pub_meta_event("channe".into(), "add".into(), meta)
+        .await;
 }
 
 /// launch a tokio thread to listen to redis topic
 /// For each channel, when the first agent connects, this thread is created, and when the last one leaves, it is destroyed
 /// phoenix, system, admin: these 3 are created directly and always exist
-pub async fn launch_channel_redis_listen_task(state: Arc<State>, ctl: &Mutex<ChannelControl>, channel_name: String, redis_client: redis::Client) {
+pub async fn launch_channel_redis_listen_task(
+    state: Arc<State>,
+    ctl: &Mutex<ChannelControl>,
+    channel_name: String,
+    redis_client: redis::Client,
+) {
     let ctl = ctl.lock().await;
     let mut channels = ctl.channels.lock().await;
     let channel: &mut Channel = channels.get_mut(&channel_name).unwrap();
     if channel.redis_listen_task.is_some() {
-        warn!("LAUNCH_REDIS_TASK / channel {} redis_listen_task already exists", channel_name);
+        warn!(
+            "LAUNCH_REDIS_TASK / channel {} redis_listen_task already exists",
+            channel_name
+        );
         return;
     }
-    channel.redis_listen_task = Some(tokio::spawn(listen_to_redis(state, channel.tx.clone(), redis_client, channel_name.clone())));
-    info!("LAUNCH_REDIS_TASK / channel {} redis_listen_task launched", channel_name);
+    channel.redis_listen_task = Some(tokio::spawn(listen_to_redis(
+        state,
+        channel.tx.clone(),
+        redis_client,
+        channel_name.clone(),
+    )));
+    info!(
+        "LAUNCH_REDIS_TASK / channel {} redis_listen_task launched",
+        channel_name
+    );
 }
 
 // Add agent tx, join channel, spawn agent/conn relay task, ack joining
-async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc<State>, conn_id: &str) -> Result<JoinHandle<()>, ChannelError> {
+async fn handle_join(
+    user_token: Option<String>,
+    rm: &RequestMessage,
+    state: Arc<State>,
+    conn_id: &str,
+) -> Result<JoinHandle<()>, ChannelError> {
     // First try to see if join payload contains token, then check user_token
     let token = match &rm.payload {
         RequestPayload::Join { token } => Ok(token.clone()),
@@ -342,20 +428,43 @@ async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc
         info!("ADD_CH / channel {} is special, ignored", channel_name);
     } else {
         add_channel(&state.ctl, channel_name.clone()).await;
-        launch_channel_redis_listen_task(state.clone(), &state.ctl, channel_name.clone(), state.redis_client.clone()).await;
+        launch_channel_redis_listen_task(
+            state.clone(),
+            &state.ctl,
+            channel_name.clone(),
+            state.redis_client.clone(),
+        )
+        .await;
     }
 
-    let agent_id = format!("{}:{}:{}", conn_id, channel_name.clone(), rm.join_ref.clone().unwrap());
+    let agent_id = format!(
+        "{}:{}:{}",
+        conn_id,
+        channel_name.clone(),
+        rm.join_ref.clone().unwrap()
+    );
     let join_ref = rm.join_ref.clone();
     let event_ref = rm.event_ref.clone();
 
-    info!("JOIN / agent joining ({} => {}) ...", agent_id, channel_name);
-    state.ctl.lock().await.agent_add(agent_id.to_string(), None).await; // Agent is not created here
+    info!(
+        "JOIN / agent joining ({} => {}) ...",
+        agent_id, channel_name
+    );
+    state
+        .ctl
+        .lock()
+        .await
+        .agent_add(agent_id.to_string(), None)
+        .await; // Agent is not created here
     match state
         .ctl
         .lock()
         .await
-        .channel_join(&channel_name.clone(), agent_id.to_string(), claims.id.clone())
+        .channel_join(
+            &channel_name.clone(),
+            agent_id.to_string(),
+            claims.id.clone(),
+        )
         .await
     {
         Ok(_) => {}
@@ -373,14 +482,33 @@ async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc
     let local_conn_id = conn_id.to_string();
     let local_agent_id = agent_id.clone();
     let relay_task = tokio::spawn(async move {
-        let mut agent_rx = relay_state.ctl.lock().await.agent_rx(local_agent_id.clone()).await.unwrap();
-        let conn_tx = relay_state.ctl.lock().await.conn_tx(local_conn_id.to_string()).await.unwrap();
+        let mut agent_rx = relay_state
+            .ctl
+            .lock()
+            .await
+            .agent_rx(local_agent_id.clone())
+            .await
+            .unwrap();
+        let conn_tx = relay_state
+            .ctl
+            .lock()
+            .await
+            .conn_tx(local_conn_id.to_string())
+            .await
+            .unwrap();
 
-        debug!("R / agent {} => conn {}", local_agent_id.clone(), local_conn_id.clone());
+        debug!(
+            "R / agent {} => conn {}",
+            local_agent_id.clone(),
+            local_conn_id.clone()
+        );
         loop {
             let message_opt = agent_rx.recv().await;
             if message_opt.is_err() {
-                error!("R / fail to get message from agent rx: {}", message_opt.err().unwrap());
+                error!(
+                    "R / fail to get message from agent rx: {}",
+                    message_opt.err().unwrap()
+                );
                 break;
             }
             let mut channel_message = message_opt.unwrap();
@@ -388,7 +516,12 @@ async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc
             reply.join_ref = local_join_ref.clone();
             let send_result = conn_tx.send(channel_message.clone()); // agent rx => conn tx => conn rx => ws tx
             if send_result.is_err() {
-                error!("R / agent {}, conn: {}, sending failure: {:?}, exit ...", &local_agent_id, &local_conn_id, send_result.err().unwrap());
+                error!(
+                    "R / agent {}, conn: {}, sending failure: {:?}, exit ...",
+                    &local_agent_id,
+                    &local_conn_id,
+                    send_result.err().unwrap()
+                );
                 break; // fails when there's no reciever, connection lost, stop forwarding
             }
             // debug!("R / agent {}, sent", &local_agent_id);
@@ -396,7 +529,14 @@ async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc
     });
 
     // phx_reply, confirm join event
-    ok_reply(conn_id, join_ref.clone(), &event_ref, &channel_name, state.clone()).await;
+    ok_reply(
+        conn_id,
+        join_ref.clone(),
+        &event_ref,
+        &channel_name,
+        state.clone(),
+    )
+    .await;
     info!("JOIN / acked");
 
     if channel_name == "admin" {
@@ -406,21 +546,46 @@ async fn handle_join(user_token: Option<String>, rm: &RequestMessage, state: Arc
         for (name, channel) in channels.iter() {
             // let channel = channels.get(&channel_name).unwrap();
             let meta = json!({"channel": name, "agents": *channel.agents.lock().await});
-            ctl.pub_meta_event("channel".into(), "list".into(), meta).await;
+            ctl.pub_meta_event("channel".into(), "list".into(), meta)
+                .await;
         }
     }
 
     // presence state, to current agent
-    presence_state(conn_id, join_ref.clone(), &event_ref, &channel_name, state.clone()).await;
+    presence_state(
+        conn_id,
+        join_ref.clone(),
+        &event_ref,
+        &channel_name,
+        state.clone(),
+    )
+    .await;
 
     // presence diff, broadcast
-    let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
-    presence_diff(&mut redis_conn, channel_name.clone(), agent_id.clone(), claims.id.clone(), PresenceAction::Join).await;
+    let mut redis_conn = state
+        .redis_client
+        .get_multiplexed_async_connection()
+        .await
+        .unwrap();
+    presence_diff(
+        &mut redis_conn,
+        channel_name.clone(),
+        agent_id.clone(),
+        claims.id.clone(),
+        PresenceAction::Join,
+    )
+    .await;
 
     Ok(relay_task)
 }
 
-async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: String) {
+async fn handle_leave(
+    state: Arc<State>,
+    conn_id: &str,
+    join_ref: Option<String>,
+    event_ref: &str,
+    channel_name: String,
+) {
     let agent_id = format!("{}:{}:{}", conn_id, channel_name, join_ref.clone().unwrap());
     let external_id_opt = state.ctl.lock().await.agent_rm(agent_id.clone()).await;
     let agent_count = state
@@ -431,7 +596,12 @@ async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>
         .await
         .unwrap();
     if agent_count == 0 && !is_special_channel(&channel_name) {
-        state.ctl.lock().await.channel_remove_if_empty(channel_name.clone()).await;
+        state
+            .ctl
+            .lock()
+            .await
+            .channel_remove_if_empty(channel_name.clone())
+            .await;
     }
     ok_reply(conn_id, join_ref, event_ref, &channel_name, state.clone()).await;
 
@@ -440,11 +610,28 @@ async fn handle_leave(state: Arc<State>, conn_id: &str, join_ref: Option<String>
         return;
     }
     info!("LEAVE / send presense_diff");
-    let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
-    presence_diff(&mut redis_conn, channel_name.clone(), agent_id.clone(), external_id_opt.unwrap(), PresenceAction::Leave).await;
+    let mut redis_conn = state
+        .redis_client
+        .get_multiplexed_async_connection()
+        .await
+        .unwrap();
+    presence_diff(
+        &mut redis_conn,
+        channel_name.clone(),
+        agent_id.clone(),
+        external_id_opt.unwrap(),
+        PresenceAction::Leave,
+    )
+    .await;
 }
 
-async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: &str, state: Arc<State>) {
+async fn ok_reply(
+    conn_id: &str,
+    join_ref: Option<String>,
+    event_ref: &str,
+    channel_name: &str,
+    state: Arc<State>,
+) {
     let response = match join_ref {
         None => Response::Empty {}, // heartbeat
         Some(ref join_ref) => Response::Join {
@@ -465,14 +652,23 @@ async fn ok_reply(conn_id: &str, join_ref: Option<String>, event_ref: &str, chan
         .ctl
         .lock()
         .await
-        .conn_send(conn_id.to_string(), ChannelMessage::Reply(join_reply_message))
+        .conn_send(
+            conn_id.to_string(),
+            ChannelMessage::Reply(join_reply_message),
+        )
         .await
         .unwrap();
     // let text = serde_json::to_string(&join_reply_message).unwrap();
     // debug!("sent to connection {}: {}", &conn_id, text);
 }
 
-async fn presence_state(conn_id: &str, join_ref: Option<String>, event_ref: &str, channel_name: &str, state: Arc<State>) {
+async fn presence_state(
+    conn_id: &str,
+    join_ref: Option<String>,
+    event_ref: &str,
+    channel_name: &str,
+    state: Arc<State>,
+) {
     let hashed_agents = state
         .ctl
         .lock()
@@ -517,14 +713,21 @@ pub enum PresenceAction {
     Leave,
 }
 
-pub async fn presence_diff_many(redis_conn: &mut MultiplexedConnection, channel_name: String, action: PresenceAction, items: serde_json::Value) {
+pub async fn presence_diff_many(
+    redis_conn: &mut MultiplexedConnection,
+    channel_name: String,
+    action: PresenceAction,
+    items: serde_json::Value,
+) {
     let diff = match action {
         PresenceAction::Join => json!({"joins": items, "leaves": {}}),
         PresenceAction::Leave => json!({"joins": {}, "leaves": items}),
     };
     let redis_topic = format!("to:{}:presence_diff", channel_name);
     let message = serde_json::to_string(&diff).unwrap();
-    let publish_result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
+    let publish_result: RedisResult<String> = redis_conn
+        .publish(redis_topic.clone(), message.clone())
+        .await;
     if let Err(e) = publish_result {
         error!("P_DIFF_MANY / fail to publish to redis: {}", e)
     } else {
@@ -534,7 +737,11 @@ pub async fn presence_diff_many(redis_conn: &mut MultiplexedConnection, channel_
 
 /// broadcast presence_diff over redis
 pub async fn presence_diff(
-    redis_conn: &mut MultiplexedConnection, channel_name: String, agent_id: String, external_id: String, action: PresenceAction,
+    redis_conn: &mut MultiplexedConnection,
+    channel_name: String,
+    agent_id: String,
+    external_id: String,
+    action: PresenceAction,
 ) {
     let items = json!({
         external_id.clone(): {
@@ -549,7 +756,9 @@ pub async fn presence_diff(
     };
     let redis_topic = format!("to:{}:presence_diff", channel_name);
     let message = serde_json::to_string(&diff).unwrap();
-    let publish_result: RedisResult<String> = redis_conn.publish(redis_topic.clone(), message.clone()).await;
+    let publish_result: RedisResult<String> = redis_conn
+        .publish(redis_topic.clone(), message.clone())
+        .await;
     if let Err(e) = publish_result {
         error!("P_DIFF / fail to publish to redis: {}", e)
     } else {
@@ -590,7 +799,10 @@ pub async fn datetime_handler(state: Arc<State>, channel_name: String) {
             Ok(_) => {} // debug!("datetime > {}", text),
             Err(ChannelError::ChannelEmpty) => {}
             Err(e) => {
-                error!("DT / fail to broadcast, channel: {}, event: {}, error: {}", channel_name, event, e);
+                error!(
+                    "DT / fail to broadcast, channel: {}, event: {}, error: {}",
+                    channel_name, event, e
+                );
             }
         }
 
@@ -628,7 +840,9 @@ mod tests {
     }
 
     async fn axum_websocket_handler(
-        ws: WebSocketUpgrade, Query(params): Query<WebSocketParams>, AxumState(state): AxumState<Arc<State>>,
+        ws: WebSocketUpgrade,
+        Query(params): Query<WebSocketParams>,
+        AxumState(state): AxumState<Arc<State>>,
     ) -> impl IntoResponse {
         let user_token = params.user_token.clone();
         ws.on_upgrade(move |socket| axum_on_connected(socket, state, user_token))
@@ -651,15 +865,32 @@ mod tests {
         let system_channel = format!("system_{}", rand_suffix);
 
         // Setup channels
-        state.ctl.lock().await.channel_add("phoenix".into(), None).await;
-        state.ctl.lock().await.channel_add(system_channel.clone(), None).await;
-        state.ctl.lock().await.channel_add("streaming".into(), None).await;
+        state
+            .ctl
+            .lock()
+            .await
+            .channel_add("phoenix".into(), None)
+            .await;
+        state
+            .ctl
+            .lock()
+            .await
+            .channel_add(system_channel.clone(), None)
+            .await;
+        state
+            .ctl
+            .lock()
+            .await
+            .channel_add("streaming".into(), None)
+            .await;
 
         // Spawn system task
         tokio::spawn(datetime_handler(state.clone(), system_channel.clone()));
 
         // Create Axum router with websocket handler
-        let app = Router::new().route("/websocket", get(axum_websocket_handler)).with_state(state.clone());
+        let app = Router::new()
+            .route("/websocket", get(axum_websocket_handler))
+            .with_state(state.clone());
 
         // Bind to a random available port
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -678,7 +909,10 @@ mod tests {
     async fn connect_client(
         addr: &str,
     ) -> (
-        futures::stream::SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tokio_tungstenite::tungstenite::Message>,
+        futures::stream::SplitSink<
+            WebSocketStream<MaybeTlsStream<TcpStream>>,
+            tokio_tungstenite::tungstenite::Message,
+        >,
         futures::stream::SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
     ) {
         let (ws_stream, _) = connect_async(addr).await.expect("Failed to connect");
@@ -686,9 +920,14 @@ mod tests {
     }
 
     async fn gen_token(state: &Arc<State>, channel: &str, id: &str) -> String {
-        generate_jwt(id.to_string(), channel.to_string(), state.jwt_secret.clone(), state.jwt_expiration_secs)
-            .await
-            .unwrap()
+        generate_jwt(
+            id.to_string(),
+            channel.to_string(),
+            state.jwt_secret.clone(),
+            state.jwt_expiration_secs,
+        )
+        .await
+        .unwrap()
     }
 
     #[tokio::test]
@@ -715,7 +954,10 @@ mod tests {
         let token = gen_token(&state, &sys_chan, "user1").await;
 
         // Join system channel
-        let join_msg = format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, sys_chan, token);
+        let join_msg = format!(
+            r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#,
+            sys_chan, token
+        );
         tx.send(Message::text(join_msg)).await.unwrap();
 
         // Wait for and verify join response (may need to skip other messages)
@@ -745,7 +987,10 @@ mod tests {
             }
         }
 
-        assert!(join_confirmed, "Never received join confirmation after reading multiple messages");
+        assert!(
+            join_confirmed,
+            "Never received join confirmation after reading multiple messages"
+        );
 
         // Check system channel has our agent
         {
@@ -784,7 +1029,10 @@ mod tests {
             }
         }
 
-        assert!(leave_confirmed, "Never received leave confirmation after reading multiple messages");
+        assert!(
+            leave_confirmed,
+            "Never received leave confirmation after reading multiple messages"
+        );
 
         // Verify channel state
         {
@@ -812,7 +1060,10 @@ mod tests {
         let token = gen_token(&state, &sys_chan, "user1").await;
 
         // Join system channel
-        let join_msg = format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, sys_chan, token);
+        let join_msg = format!(
+            r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#,
+            sys_chan, token
+        );
         tx.send(Message::text(join_msg)).await.unwrap();
 
         // Wait for join response
@@ -850,7 +1101,10 @@ mod tests {
                 0
             }
         };
-        assert_eq!(agent_count, 0, "Agent should be removed after connection close");
+        assert_eq!(
+            agent_count, 0,
+            "Agent should be removed after connection close"
+        );
     }
 
     // Add a new test for multiple clients that doesn't depend on specific agent IDs
@@ -866,11 +1120,17 @@ mod tests {
             let token = gen_token(&state, &sys_chan, &format!("user{}", i)).await;
 
             // Join system channel
-            let join_msg = format!(r#"["{}","ref{}","{}","phx_join",{{"token":"{}"}}]"#, i, i, sys_chan, token);
+            let join_msg = format!(
+                r#"["{}","ref{}","{}","phx_join",{{"token":"{}"}}]"#,
+                i, i, sys_chan, token
+            );
             tx.send(Message::text(join_msg)).await.unwrap();
 
             // Verify join response
-            if let Some(Ok(_)) = tokio::time::timeout(std::time::Duration::from_secs(2), rx.next()).await.unwrap() {}
+            if let Some(Ok(_)) = tokio::time::timeout(std::time::Duration::from_secs(2), rx.next())
+                .await
+                .unwrap()
+            {}
 
             clients.push((tx, rx));
         }
@@ -917,7 +1177,10 @@ mod tests {
         let token = gen_token(&state, &sys_chan, "user1").await;
 
         // Join system channel
-        let join_msg = format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, sys_chan, token);
+        let join_msg = format!(
+            r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#,
+            sys_chan, token
+        );
         tx.send(Message::text(join_msg)).await.unwrap();
 
         // Verify join response (filter out presence_state)
@@ -985,7 +1248,10 @@ mod tests {
             let token = gen_token(&state, &sys_chan, &format!("user{}", i)).await;
 
             // Join system channel
-            let join_msg = format!(r#"["{}","ref{}","{}","phx_join",{{"token":"{}"}}]"#, i, i, sys_chan, token);
+            let join_msg = format!(
+                r#"["{}","ref{}","{}","phx_join",{{"token":"{}"}}]"#,
+                i, i, sys_chan, token
+            );
             tx.send(Message::text(join_msg)).await.unwrap();
 
             // Verify join
@@ -1015,11 +1281,18 @@ mod tests {
         // Both clients join system channel
         for (tx, i) in [(&mut tx1, 1), (&mut tx2, 2)] {
             let token = gen_token(&state, &sys_chan, &format!("user{}", i)).await;
-            let join_msg = format!(r#"["{}","ref{}","{}","phx_join",{{"token":"{}"}}]"#, i, i, sys_chan, token);
+            let join_msg = format!(
+                r#"["{}","ref{}","{}","phx_join",{{"token":"{}"}}]"#,
+                i, i, sys_chan, token
+            );
             tx.send(Message::text(join_msg)).await.unwrap();
 
             // Wait for join response
-            if let Some(Ok(_)) = if i == 1 { rx1.next().await } else { rx2.next().await } {}
+            if let Some(Ok(_)) = if i == 1 {
+                rx1.next().await
+            } else {
+                rx2.next().await
+            } {}
         }
 
         // Broadcast message to system channel
@@ -1064,7 +1337,9 @@ mod tests {
         tx.send(Message::text("invalid json")).await.unwrap();
 
         // Send invalid message format
-        tx.send(Message::text(r#"["invalid","format"]"#)).await.unwrap();
+        tx.send(Message::text(r#"["invalid","format"]"#))
+            .await
+            .unwrap();
 
         // Send to non-existent channel
         let invalid_channel = r#"["1","ref1","nonexistent","phx_join",{"token":"test"}]"#;
@@ -1088,7 +1363,10 @@ mod tests {
 
         // Join system channel
         let token = gen_token(&state, &sys_chan, "user1").await;
-        let join_msg = format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, sys_chan, token);
+        let join_msg = format!(
+            r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#,
+            sys_chan, token
+        );
         tx.send(Message::text(join_msg)).await.unwrap();
 
         // Should receive initial join response
@@ -1128,7 +1406,8 @@ mod tests {
     #[test]
     fn test_ws_request_json_heartbeat() {
         // Test full message with join payload
-        let msg: RequestMessage = serde_json::from_str(r#"["1", "ref1", "room123", "heartbeat", {}]"#).unwrap();
+        let msg: RequestMessage =
+            serde_json::from_str(r#"["1", "ref1", "room123", "heartbeat", {}]"#).unwrap();
 
         assert_eq!(msg.join_ref, Some("1".to_string()));
         assert_eq!(msg.event_ref, "ref1");
@@ -1140,7 +1419,10 @@ mod tests {
     #[test]
     fn test_ws_request_json_join() {
         // Test full message with join payload
-        let msg: RequestMessage = serde_json::from_str(r#"["1", "ref1", "room123", "phx_join", {"token": "secret_token"}]"#).unwrap();
+        let msg: RequestMessage = serde_json::from_str(
+            r#"["1", "ref1", "room123", "phx_join", {"token": "secret_token"}]"#,
+        )
+        .unwrap();
 
         assert_eq!(msg.join_ref, Some("1".to_string()));
         assert_eq!(msg.event_ref, "ref1");
@@ -1177,7 +1459,8 @@ mod tests {
         let payload: RequestPayload = serde_json::from_value(json!({})).unwrap();
         assert_eq!(payload, RequestPayload::JsonValue(json!({})));
 
-        let payload: RequestPayload = serde_json::from_value(json!({"token": "another_token"})).unwrap();
+        let payload: RequestPayload =
+            serde_json::from_value(json!({"token": "another_token"})).unwrap();
         assert_eq!(
             payload,
             RequestPayload::Join {
@@ -1185,7 +1468,8 @@ mod tests {
             }
         );
 
-        let payload: RequestPayload = serde_json::from_value(json!({ "message": "test message" })).unwrap();
+        let payload: RequestPayload =
+            serde_json::from_value(json!({ "message": "test message" })).unwrap();
         assert_eq!(
             payload,
             RequestPayload::Message {
@@ -1198,21 +1482,46 @@ mod tests {
     fn test_ws_request_json_invalid() {
         // Invalid array length
         assert!(serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123"]"#).is_err());
-        assert!(serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123", "phx_join"]"#).is_err());
+        assert!(
+            serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123", "phx_join"]"#)
+                .is_err()
+        );
 
         // Invalid join payload (wrong format)
-        assert!(serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123", "phx_join", null]"#).is_ok());
-        assert!(serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123", "phx_join", 23]"#).is_ok());
-        assert!(serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123", "phx_join", 12.4]"#).is_ok());
-        assert!(serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123", "phx_join", "nulldirect_token"]"#).is_ok());
-        assert!(serde_json::from_str::<RequestMessage>(r#"["1", "ref1", "room123", "phx_join", [1, null, "foobar"]]"#).is_ok());
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"["1", "ref1", "room123", "phx_join", null]"#
+        )
+        .is_ok());
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"["1", "ref1", "room123", "phx_join", 23]"#
+        )
+        .is_ok());
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"["1", "ref1", "room123", "phx_join", 12.4]"#
+        )
+        .is_ok());
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"["1", "ref1", "room123", "phx_join", "nulldirect_token"]"#
+        )
+        .is_ok());
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"["1", "ref1", "room123", "phx_join", [1, null, "foobar"]]"#
+        )
+        .is_ok());
 
         // Invalid type for number elements
-        assert!(serde_json::from_str::<RequestMessage>(r#"[123, "ref1", "room123", "phx_join", {"token": "secret"}]"#).is_err());
+        assert!(serde_json::from_str::<RequestMessage>(
+            r#"[123, "ref1", "room123", "phx_join", {"token": "secret"}]"#
+        )
+        .is_err());
     }
 
     async fn expect_msg_content(
-        rx: &mut futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>,
+        rx: &mut futures::stream::SplitStream<
+            tokio_tungstenite::WebSocketStream<
+                tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+            >,
+        >,
         content: &str,
     ) {
         let timeout = std::time::Duration::from_secs(2);
@@ -1243,15 +1552,22 @@ mod tests {
 
         let (mut tx_a, mut rx_a) = connect_client(&addr).await;
         let token_a = gen_token(&state, &channel_name, "user_a").await;
-        tx_a.send(Message::text(format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, channel_name, token_a)))
-            .await
-            .unwrap();
+        tx_a.send(Message::text(format!(
+            r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#,
+            channel_name, token_a
+        )))
+        .await
+        .unwrap();
 
         // consume messages until join is confirmed (ignore presence noise)
         expect_msg_content(&mut rx_a, "phx_reply").await;
 
         // connect B, client A should get it
-        let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
+        let mut redis_conn = state
+            .redis_client
+            .get_multiplexed_async_connection()
+            .await
+            .unwrap();
         let redis_topic = format!("to:{}:test_event", channel_name);
         redis_conn
             .publish::<_, _, ()>(&redis_topic, r#"{"type":"message","message":"one"}"#)
@@ -1274,9 +1590,12 @@ mod tests {
         // connect B
         let (mut tx_b, mut rx_b) = connect_client(&addr).await;
         let token_b = gen_token(&state, &channel_name, "user_b").await;
-        tx_b.send(Message::text(format!(r#"["2","ref2","{}","phx_join",{{"token":"{}"}}]"#, channel_name, token_b)))
-            .await
-            .unwrap();
+        tx_b.send(Message::text(format!(
+            r#"["2","ref2","{}","phx_join",{{"token":"{}"}}]"#,
+            channel_name, token_b
+        )))
+        .await
+        .unwrap();
         expect_msg_content(&mut rx_b, "phx_reply").await;
 
         // publish message, B should get it
@@ -1296,17 +1615,27 @@ mod tests {
         let (mut tx, mut rx) = connect_client(&addr).await;
         let token = gen_token(&state, nested_channel, "user_nested").await;
 
-        tx.send(Message::text(format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, nested_channel, token)))
-            .await
-            .unwrap();
+        tx.send(Message::text(format!(
+            r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#,
+            nested_channel, token
+        )))
+        .await
+        .unwrap();
         expect_msg_content(&mut rx, "phx_reply").await;
 
-        let mut redis_conn = state.redis_client.get_multiplexed_async_connection().await.unwrap();
+        let mut redis_conn = state
+            .redis_client
+            .get_multiplexed_async_connection()
+            .await
+            .unwrap();
 
         let raw_topic = "to:weather:wind:update";
         let raw_payload = r#"{"temperature": 25.5, "unit": "C"}"#;
 
-        redis_conn.publish::<_, _, ()>(raw_topic, raw_payload).await.unwrap();
+        redis_conn
+            .publish::<_, _, ()>(raw_topic, raw_payload)
+            .await
+            .unwrap();
 
         // find the specific update event, ignoring presence events
         let timeout = std::time::Duration::from_secs(2);
@@ -1314,7 +1643,9 @@ mod tests {
         let mut found = false;
 
         while start.elapsed() < timeout {
-            if let Ok(Some(Ok(msg))) = tokio::time::timeout(std::time::Duration::from_millis(100), rx.next()).await {
+            if let Ok(Some(Ok(msg))) =
+                tokio::time::timeout(std::time::Duration::from_millis(100), rx.next()).await
+            {
                 let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
 
                 // check if this is the message we want: [join_ref, ref, topic, event, payload]
@@ -1337,16 +1668,22 @@ mod tests {
 
         let (mut tx, rx) = connect_client(&addr).await;
         let token = gen_token(&state, &ghost_channel, "ghost_user").await;
-        tx.send(Message::text(format!(r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#, ghost_channel, token)))
-            .await
-            .unwrap();
+        tx.send(Message::text(format!(
+            r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#,
+            ghost_channel, token
+        )))
+        .await
+        .unwrap();
 
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         {
             let ctl = state.ctl.lock().await;
             let channels = ctl.channels.lock().await;
-            assert!(channels.contains_key(&ghost_channel), "Channel should exist");
+            assert!(
+                channels.contains_key(&ghost_channel),
+                "Channel should exist"
+            );
         }
 
         // abrupt disconnect (drop socket)
@@ -1358,7 +1695,10 @@ mod tests {
         {
             let ctl = state.ctl.lock().await;
             let channels = ctl.channels.lock().await;
-            assert!(!channels.contains_key(&ghost_channel), "Ghost channel leaked after disconnect");
+            assert!(
+                !channels.contains_key(&ghost_channel),
+                "Ghost channel leaked after disconnect"
+            );
         }
     }
 }
