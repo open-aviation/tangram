@@ -54,6 +54,15 @@ pnpm build
 uv build --all-packages
 ```
 
+### Testing Channel Core
+
+The core WebSocket logic is written in Rust. To run these tests, you need a local Redis instance:
+
+```bash
+# in packages/tangram_core/rust
+cargo test --features channel
+```
+
 ### Continuous Integration
 
 The CI pipeline, defined in GitHub Actions, automates quality checks and builds. The primary steps are:

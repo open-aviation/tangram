@@ -1,0 +1,44 @@
+name: Channel Tests
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'packages/tangram_core/rust/**'
+  pull_request:
+    paths:
+      - 'packages/tangram_core/rust/**'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: packages/tangram_core/rust
+
+    - name: Run Channel Tests
+      working-directory: packages/tangram_core/rust
+      run: cargo test --features channel
+      env:
+        REDIS_URL: redis://localhost:6379

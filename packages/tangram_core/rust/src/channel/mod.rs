@@ -1,3 +1,6 @@
+pub mod utils;
+pub mod websocket;
+
 use futures::StreamExt;
 use redis::{AsyncCommands, RedisResult};
 use serde::{Deserialize, Serialize};
@@ -20,7 +23,7 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 
-use crate::websocket::{Response, ServerMessage, ServerPayload, State};
+use websocket::{Response, ServerMessage, ServerPayload, State, is_special_channel};
 
 #[derive(Clone, Debug, Serialize)]
 pub enum ChannelMessage {
@@ -312,7 +315,7 @@ impl ChannelControl {
                 }
             };
 
-            if maybe_empty && !crate::websocket::is_special_channel(&channel_name) {
+            if maybe_empty && !is_special_channel(&channel_name) {
                 self.channel_remove_if_empty(channel_name).await;
             }
         }
@@ -712,8 +715,8 @@ mod test {
     use tokio::sync::broadcast;
 
     use crate::channel::{Channel, ChannelControl, ChannelError, ChannelMessage};
-    use crate::utils::random_string;
-    use crate::websocket::{Response, ServerMessage, ServerPayload, ServerResponse};
+    use crate::channel::utils::random_string;
+    use crate::channel::websocket::{Response, ServerMessage, ServerPayload, ServerResponse};
 
     fn create_test_message(topic: &str, reference: &str, message: &str) -> ChannelMessage {
         ChannelMessage::Reply(ServerMessage {
