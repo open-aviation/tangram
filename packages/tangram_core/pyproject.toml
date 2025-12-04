@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "tangram_core"
 version = "0.2.0"
-description = "A framework for real-time analysis of ADS-B and Mode S surveillance data"
+description = "A framework for real-time air traffic management research"
 authors = [
     { name = "Xavier Olive", email = "git@xoolive.org" },
     { name = "Junzi Sun", email = "git@junzis.com" },
@@ -16,6 +16,22 @@ authors = [
 license = "AGPL-3.0"
 readme = "readme.md"
 requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: System :: Monitoring",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "fastapi>=0.115.4",
     "uvicorn>=0.32.0",

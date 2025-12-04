@@ -5,11 +5,27 @@ build-backend = "maturin"
 [project]
 name = "tangram_ship162"
 version = "0.2.0"
-dependencies = ["tangram_core"]
+description = "AIS maritime data integration plugin for tangram"
+license = "AGPL-3.0"
+readme = "readme.md"
+requires-python = ">=3.10"
 authors = [
     { name = "Abraham Cheung", email = "abraham@ylcheung.com" },
 ]
-license = "AGPL-3.0"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = ["tangram_core>=0.2.0"]
 
 [project.optional-dependencies]
 history = ["polars[deltalake]"]

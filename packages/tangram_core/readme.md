@@ -1,18 +1,27 @@
 # tangram_core
 
-`tangram_core` is the core of the tangram framework, designed to aggregate and process ADS-B and Mode S surveillance data for real-time analysis. It provides a flexible plugin architecture that allows users to implement custom components for their specific needs.
+`tangram_core` is the foundation of the [tangram](https://github.com/open-aviation/tangram) platform. It provides the essential scaffolding for custom geospatial visualisation tools.
 
-Documentation is available at <https://mode-s.org/tangram/>.
-Repository: <https://github.com/open-aviation/tangram>
+While often used for aviation data, `tangram_core` itself is domain-agnostic. It handles the infrastructure (displaying maps, managing state, handling connections) so plugins can focus on the domain logic (decoding ADS-B, processing maritime signals, simulating weather).
+
+- Documentation: <https://mode-s.org/tangram/>
+- Repository: <https://github.com/open-aviation/tangram>
 
 ## Components
 
-- Backend: A Python backend built with FastAPI. The backend also exposes a WebSocket interface for real-time data visualization and analysis (written in Rust)
+- Backend: A Python application (FastAPI) that manages the lifecycle of plugins and background services.
+- Channel: A high-performance Rust service that bridges Redis pub/sub with WebSockets for real-time frontend updates.
+- Frontend: A Vue.js + Deck.gl shell that dynamically loads widgets and layers from installed plugins.
 
-- Frontend: A JavaScript frontend built with TypeScript and Vue.js. The frontend connects to the backend via WebSocket to display real-time data and visualizations.
+## Usage
 
-The full package is published as a Python package named [`tangram_core`](https://pypi.org/project/tangram_core/): it contains a compiled Rust library together with the frontend assets.
+This package is rarely used alone. It is typically installed alongside plugins:
 
-- The Rust library is also available separately as a crate: [`tangram_core`](https://crates.io/crates/tangram_core), and can be used to build custom plugins with Rust.
-
-- The frontend library is also available separately as an npm package: [`@open-aviation/tangram-core`](https://www.npmjs.com/package/@open-aviation/tangram-core), and can be used to build custom frontend components.
+```bash
+# with uv
+uv tool install --with tangram-jet1090 --with tangram-system tangram-core
+# with pip
+pip install tangram-core tangram-jet1090 tangram-system
+# launch!
+tangram serve --config /path/to/your/tangram.toml
+```

@@ -1,25 +1,33 @@
 # tangram
 
-tangram is an open framework that aggregates and processes ADS-B and Mode S surveillance data for real-time analysis. It provides a flexible plugin architecture where users can easily implement custom analyzers for their specific needs.
+[![image](https://img.shields.io/pypi/v/tangram-core.svg)](https://pypi.python.org/pypi/tangram-core)
+[![image](https://img.shields.io/pypi/l/tangram-core.svg)](https://pypi.python.org/pypi/tangram-core)
+<!-- we dont have pypi classifiers yet for 0.2.0 yet -->
+<!-- [![image](https://img.shields.io/pypi/pyversions/tangram-core.svg)](https://pypi.python.org/pypi/tangram-core) -->
 
-The system consists of a JavaScript frontend and a Python backend built with FastAPI. The backend efficiently aggregates data from multiple receiver streams and exposes a WebSocket interface, enabling real-time data visualization and analysis in the browser-based frontend.
+**tangram** is a modular platform for real-time geospatial and air traffic management research. Built on a plugin-first architecture, it enables researchers to visualize and analyze moving entities, from aircraft to ships to weather patterns, in a unified web interface.
+
+The system combines a high-performance backend (Python & Rust) with a modern web frontend (Vue & Deck.gl) to handle massive datasets with low latency. While the official plugins focus on air traffic management, the core framework is generic and adaptable to any domain.
 
 ![preview](./docs/screenshot/tangram_screenshot_fr.png)
+
+## Highlights
+
+- **Plugin-first**: Everything from data decoding to UI widgets is a plugin. Customize your stack by installing only what you need.
+- **Real-time**: Built on Redis and WebSockets for instant streaming of state vectors and events.
+- **Performance**: Critical data paths are written in Rust. Historical data is managed efficiently using Apache Arrow and Delta Lake.
 
 ## Documentation
 
 [![docs](https://github.com/open-aviation/tangram/actions/workflows/docs.yml/badge.svg)](https://github.com/open-aviation/tangram/actions/workflows/docs.yml)
 
-Documentation is available at <https://mode-s.org/tangram/>
+Full documentation, including quickstart guides and API references, is available at <https://mode-s.org/tangram/>.
 
 ## Tests
 
-Unit tests are limited to what invidual components can provide, including [jet1090](https://github.com/xoolive/rs1090/actions).\
-The system is designed to be modular, so each component can be tested independently.
-
 [![build](https://github.com/open-aviation/tangram/actions/workflows/podman.yml/badge.svg)](https://github.com/open-aviation/tangram/actions/workflows/podman.yml)
 
-Integration tests is currently limited to the construction of the container image, with the `just c-build` command.
+The system is designed to be modular, so each component is tested independently. Integration testing is currently limited to the construction of the container image, via the container build process (`just c-build`).
 
 ## Cite this work
 
@@ -44,7 +52,7 @@ year = {2025}
 
 ## Funding
 
-This project is currently funded by the Dutch Research Council (NWO)'s Open Science Fund, **OSF23.1.051**: https://www.nwo.nl/en/projects/osf231051.
+This project is currently funded by the Dutch Research Council (NWO)'s Open Science Fund, **OSF23.1.051**: <https://www.nwo.nl/en/projects/osf231051>.
 
 ## History
 

@@ -5,7 +5,25 @@ build-backend = "hatchling.build"
 [project]
 name = "tangram_weather"
 version = "0.2.0"
+description = "Weather data integration plugin for tangram"
 readme = "readme.md"
+requires-python = ">=3.10"
+license = "AGPL-3.0"
+authors = [
+    { name = "Xavier Olive", email = "git@xoolive.org" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
 dependencies = [
     "tangram_core>=0.2.0",
     "xarray>=2025.6.1",
@@ -15,9 +33,6 @@ dependencies = [
     "pandas",
     "numpy>=2",
     "pillow>=10",
-]
-authors = [
-    { name = "Xavier Olive", email = "git@xoolive.org" }
 ]
 
 [project.entry-points."tangram_core.plugins"]

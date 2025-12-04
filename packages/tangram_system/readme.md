@@ -1,3 +1,21 @@
-# System plugin
+# tangram_system
 
-This plugin does not provide any API endpoints, but it is used to start an async task that will run in the background. This task is used to perform various system-related operations, such as checking the status of the system, performing maintenance tasks, etc.
+The `tangram_system` plugin provides system monitoring capabilities for the tangram framework.
+
+It includes a background service that broadcasts server metrics (CPU, RAM, Uptime) to connected frontend clients via the realtime channel.
+
+## About Tangram
+
+`tangram_system` is a plugin for `tangram`, an open framework for modular, real-time air traffic management research.
+
+- Documentation: <https://mode-s.org/tangram/>
+- Repository: <https://github.com/open-aviation/tangram>
+
+Installation:
+
+```sh
+# cli via uv
+uv tool install --with tangram-system tangram-core
+# with pip
+pip install tangram-core tangram-system
+```
