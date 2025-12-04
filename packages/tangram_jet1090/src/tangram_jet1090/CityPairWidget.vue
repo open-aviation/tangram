@@ -23,6 +23,7 @@ import { inject, reactive, watch } from "vue";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
 import { airport_information } from "rs1090-wasm";
 import { selectedAircraft } from "./store";
+import type { Jet1090Aircraft } from ".";
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
@@ -110,8 +111,8 @@ const fetchRouteData = async (callsign: string) => {
         icao: destinationCode
       };
     }
-  } catch (err: any) {
-    state.error = `Error: ${err.message}`;
+  } catch (err: unknown) {
+    state.error = `Error: ${(err as Error).message}`;
   } finally {
     state.loading = false;
   }
@@ -124,9 +125,9 @@ watch(
     if (newId) {
       const activeEntity = tangramApi.state.activeEntity.value;
       if (activeEntity?.type === "jet1090_aircraft") {
-        const callsign = (activeEntity?.state as any)?.callsign;
-        if (callsign) {
-          fetchRouteData(callsign);
+        const state = activeEntity.state as Jet1090Aircraft;
+        if (state.callsign) {
+          fetchRouteData(state.callsign);
         }
       }
     }

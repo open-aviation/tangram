@@ -9,5 +9,8 @@
   },
   "dependencies": {
     "@open-aviation/tangram-core": "workspace:*"
+  },
+  "devDependencies": {
+    "vue": "^3.5.25"
   }
 }

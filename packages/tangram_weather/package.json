@@ -10,5 +10,8 @@
   "dependencies": {
     "@open-aviation/tangram-core": "workspace:*",
     "weatherlayers-gl": "^2025.11.0"
+  },
+  "devDependencies": {
+    "vue": "^3.5.25"
   }
 }

@@ -8,10 +8,28 @@ import RouteLayer from "./RouteLayer.vue";
 import SensorsLayer from "./SensorsLayer.vue";
 import { selectedAircraft, pluginConfig } from "./store";
 
-interface RawAircraft {
+export interface Jet1090Aircraft {
   icao24: string;
   lastseen: number;
-  [key: string]: any;
+  callsign?: string;
+  registration?: string;
+  typecode?: string;
+  squawk?: number;
+  latitude?: number;
+  longitude?: number;
+  altitude?: number;
+  selected_altitude?: number;
+  groundspeed?: number;
+  vertical_rate?: number;
+  track?: number;
+  ias?: number;
+  tas?: number;
+  mach?: number;
+  roll?: number;
+  heading?: number;
+  nacp?: number;
+  count: number;
+  timestamp?: number; // synthetic, added by frontend
 }
 
 export function install(api: TangramApi) {
@@ -59,9 +77,9 @@ export function install(api: TangramApi) {
             if (selectedAircraft.icao24 === newEntity.id) {
               selectedAircraft.trajectory = [...data, ...selectedAircraft.trajectory];
             }
-          } catch (err: any) {
+          } catch (err: unknown) {
             if (selectedAircraft.icao24 === newEntity.id) {
-              selectedAircraft.error = err.message;
+              selectedAircraft.error = (err as Error).message;
             }
           } finally {
             if (selectedAircraft.icao24 === newEntity.id) {
@@ -102,7 +120,7 @@ export function install(api: TangramApi) {
 async function subscribeToAircraftData(api: TangramApi, connectionId: string) {
   const topic = `streaming-${connectionId}:new-jet1090-data`;
   try {
-    await api.realtime.subscribe<{ aircraft: RawAircraft[]; count: number }>(
+    await api.realtime.subscribe<{ aircraft: Jet1090Aircraft[]; count: number }>(
       topic,
       payload => {
         const entities: Entity[] = payload.aircraft.map(ac => ({
@@ -115,7 +133,7 @@ async function subscribeToAircraftData(api: TangramApi, connectionId: string) {
 
         if (selectedAircraft.icao24) {
           const entityMap =
-            api.state.getEntitiesByType<RawAircraft>("jet1090_aircraft").value;
+            api.state.getEntitiesByType<Jet1090Aircraft>("jet1090_aircraft").value;
           const entity = entityMap.get(selectedAircraft.icao24);
 
           if (
@@ -130,7 +148,7 @@ async function subscribeToAircraftData(api: TangramApi, connectionId: string) {
             // rust sends micros, history sends seconds -> normalising to seconds
             const timestamp = updated.lastseen / 1_000_000;
 
-            if (!last || Math.abs(last.timestamp - timestamp) > 0.5) {
+            if (!last || Math.abs((last.timestamp || 0) - timestamp) > 0.5) {
               selectedAircraft.trajectory.push({
                 ...updated,
                 timestamp: timestamp

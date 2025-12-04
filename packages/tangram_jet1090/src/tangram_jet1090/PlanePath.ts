@@ -13,7 +13,9 @@ export interface AcSymbol {
   sym: string;
 }
 
-const acImagePathsR: Record<string, IconProps> = {
+type IconEntry = IconProps | AcSymbol;
+
+const acImagePathsR: Record<string, IconEntry> = {
   // triangle
   $0: { x: 12, y: 12, scale: 1, rotcorr: 180, path: "M0,0 6,12 12,0z" },
   // small aircraft
@@ -727,7 +729,7 @@ let ac_symbol_map = [
  * to longer names (e.g., C550) and so the wrong icon
  * would be selected.
  */
-function sortPlaneSymbolList(a, b) {
+function sortPlaneSymbolList(a: { id: string }, b: { id: string }) {
   const al = a.id;
   const bl = b.id;
 
@@ -738,7 +740,7 @@ function sortPlaneSymbolList(a, b) {
 ac_symbol_map = ac_symbol_map.sort(sortPlaneSymbolList);
 
 // based on ac cat and type, returns according svg path
-export function get_image_object(ac_type) {
+export function get_image_object(ac_type: string | null): IconProps {
   let retval = {};
   Object.assign(retval, acImagePathsR["$A320"]);
   // Assign aircraft symbol based on ICAO type code */
@@ -748,11 +750,11 @@ export function get_image_object(ac_type) {
       if (ac_type.indexOf(ac_symbol.id) == 0) {
         retval = {};
         Object.assign(retval, acImagePathsR[ac_symbol.sym]); // copy symbol to new object
-        return retval;
+        return retval as IconProps;
       }
     }
   }
-  return retval;
+  return retval as IconProps;
 }
 // migrated from v0.1: why?????
 (function () {

@@ -40,6 +40,7 @@
 <script setup lang="ts">
 import { computed, inject, reactive, watch } from "vue";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
+import type { Jet1090Aircraft } from ".";
 import { aircraft_information } from "rs1090-wasm";
 import { selectedAircraft } from "./store";
 import {
@@ -136,7 +137,9 @@ const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) throw new Error("assert: tangram api not provided");
 
 const activeEntity = tangramApi.state.activeEntity;
-const aircraft = computed(() => activeEntity.value?.state as any);
+const aircraft = computed(
+  () => activeEntity.value?.state as unknown as Jet1090Aircraft
+);
 const flag = computed(() => {
   if (!aircraft.value) return "";
   const info = aircraft_information(aircraft.value.icao24, aircraft.value.registration);

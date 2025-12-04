@@ -32,9 +32,9 @@ onMounted(async () => {
   try {
     subscription = await tangramApi.realtime.subscribe(
       "system:update-node",
-      (payload: { el: string; value: any }) => {
-        if (payload.el === "uptime") state.uptime = payload.value;
-        if (payload.el === "info_utc") state.info_utc = payload.value;
+      (payload: { el: string; value: string | number }) => {
+        if (payload.el === "uptime") state.uptime = payload.value as string;
+        if (payload.el === "info_utc") state.info_utc = payload.value as number;
       }
     );
   } catch (e) {

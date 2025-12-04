@@ -4,6 +4,7 @@ import { PathLayer } from "@deck.gl/layers";
 import { PathStyleExtension } from "@deck.gl/extensions";
 import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
 import { selectedAircraft, pluginConfig } from "./store";
+import type { AircraftState } from "./AircraftLayer.vue";
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) throw new Error("assert: tangram api not provided");
@@ -90,7 +91,7 @@ const updateLayer = () => {
 
   const entity = activeEntity.value;
   if (entity?.type === "jet1090_aircraft" && selectedAircraft.icao24 === entity.id) {
-    const state = entity.state as any;
+    const state = entity.state as AircraftState;
     if (state.longitude == null || state.latitude == null) return;
 
     const currentPos = [state.longitude, state.latitude] as [number, number];
@@ -158,8 +159,8 @@ const updateLayer = () => {
         pickable: false,
         widthScale: 1,
         widthMinPixels: 2,
-        getPath: (d: any) => d.path,
-        getColor: (d: any) => d.color,
+        getPath: (d: { path: [number, number][] }) => d.path,
+        getColor: (d: { color: [number, number, number, number] }) => d.color,
         getWidth: 2,
         extensions: [new PathStyleExtension({ dash: true })],
         getDashArray: [10, 10],
@@ -175,8 +176,8 @@ const updateLayer = () => {
 
 watch(
   () => [
-    (activeEntity.value?.state as any)?.latitude,
-    (activeEntity.value?.state as any)?.longitude,
+    (activeEntity.value?.state as AircraftState | undefined)?.latitude,
+    (activeEntity.value?.state as AircraftState | undefined)?.longitude,
     pluginConfig.showRouteLines,
     selectedAircraft.route.origin,
     selectedAircraft.route.destination,

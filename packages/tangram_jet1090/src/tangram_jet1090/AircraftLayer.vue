@@ -19,21 +19,12 @@
 <script setup lang="ts">
 import { computed, inject, onUnmounted, ref, watch, reactive, type Ref } from "vue";
 import { IconLayer } from "@deck.gl/layers";
+import type { PickingInfo } from "@deck.gl/core";
 import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core/api";
 import Raphael from "raphael";
 import { html, svg, render } from "lit-html";
-import { get_image_object } from "./PlanePath";
-
-export interface AircraftState {
-  latitude: number;
-  longitude: number;
-  typecode: string;
-  callsign: string;
-  track: number;
-  icao24: string;
-  registration: string;
-  altitude: number;
-}
+import { get_image_object, type IconProps } from "./PlanePath";
+import type { Jet1090Aircraft } from ".";
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
@@ -41,7 +32,7 @@ if (!tangramApi) {
 }
 
 const aircraftEntities = computed(
-  () => tangramApi.state.getEntitiesByType<AircraftState>("jet1090_aircraft").value
+  () => tangramApi.state.getEntitiesByType<Jet1090Aircraft>("jet1090_aircraft").value
 );
 const activeEntity = computed(() => tangramApi.state.activeEntity.value);
 const baseLayerDisposable: Ref<Disposable | null> = ref(null);
@@ -50,7 +41,7 @@ const selectedLayerDisposable: Ref<Disposable | null> = ref(null);
 const tooltip = reactive<{
   x: number;
   y: number;
-  object: Entity<AircraftState> | null;
+  object: Entity<Jet1090Aircraft> | null;
 }>({ x: 0, y: 0, object: null });
 
 const iconCache = new Map<string, string>();
@@ -61,7 +52,7 @@ const createAircraftSvgDataURL = (typecode: string, isSelected: boolean): string
     return iconCache.get(cacheKey)!;
   }
 
-  const iconProps = get_image_object(typecode);
+  const iconProps = get_image_object(typecode) as IconProps;
   const bbox = Raphael.pathBBox(iconProps.path);
   const centerX = Math.floor(bbox.x + bbox.width / 2.0);
   const centerY = Math.floor(bbox.y + bbox.height / 2.0);
@@ -101,12 +92,12 @@ const commonLayerProps = {
   billboard: false,
   sizeScale: 1,
   getSize: 32,
-  onClick: (info: any) => {
+  onClick: (info: PickingInfo<Entity<Jet1090Aircraft>>) => {
     if (info.object) {
       tangramApi.state.setActiveEntity(info.object);
     }
   },
-  onHover: (info: any) => {
+  onHover: (info: PickingInfo<Entity<Jet1090Aircraft>>) => {
     if (info.object) {
       tooltip.object = info.object;
       tooltip.x = info.x;
@@ -131,38 +122,38 @@ watch(
       : allAircraft;
     const selectedData = selectedId ? allAircraft.filter(d => d.id === selectedId) : [];
 
-    const baseLayer = new IconLayer<Entity<AircraftState>>({
+    const baseLayer = new IconLayer<Entity<Jet1090Aircraft>>({
       ...commonLayerProps,
       id: "aircraft-layer-base",
       data: baseData,
       getIcon: d => ({
-        url: createAircraftSvgDataURL(d.state.typecode, false),
+        url: createAircraftSvgDataURL(d.state.typecode || "A320", false), // Fallback if typecode missing
         width: 64,
         height: 64,
         anchorY: 32
       }),
-      getPosition: d => [d.state.longitude, d.state.latitude],
-      getAngle: d => {
-        const iconProps = get_image_object(d.state.typecode) as any;
-        return -d.state.track + iconProps.rotcorr;
+      getPosition: d => [d.state.longitude!, d.state.latitude!], // Validated by upstream filter usually, but assert for TS
+      getAngle: (d: Entity<Jet1090Aircraft>) => {
+        const iconProps = get_image_object(d.state.typecode || null) as IconProps;
+        return -(d.state.track || 0) + iconProps.rotcorr;
       }
       // no updateTriggers needed, icon depends only on typecode which is stable.
     });
 
-    const selectedLayer = new IconLayer<Entity<AircraftState>>({
+    const selectedLayer = new IconLayer<Entity<Jet1090Aircraft>>({
       ...commonLayerProps,
       id: "aircraft-layer-selected",
       data: selectedData,
       getIcon: d => ({
-        url: createAircraftSvgDataURL(d.state.typecode, true),
+        url: createAircraftSvgDataURL(d.state.typecode || "A320", true),
         width: 64,
         height: 64,
         anchorY: 32
       }),
-      getPosition: d => [d.state.longitude, d.state.latitude],
-      getAngle: d => {
-        const iconProps = get_image_object(d.state.typecode) as any;
-        return -d.state.track + iconProps.rotcorr;
+      getPosition: d => [d.state.longitude!, d.state.latitude!],
+      getAngle: (d: Entity<Jet1090Aircraft>) => {
+        const iconProps = get_image_object(d.state.typecode || null) as IconProps;
+        return -(d.state.track || 0) + iconProps.rotcorr;
       }
     });
 

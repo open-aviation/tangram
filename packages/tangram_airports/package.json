@@ -9,5 +9,9 @@
   },
   "dependencies": {
     "@open-aviation/tangram-core": "workspace:*"
+  },
+  "devDependencies": {
+    "rs1090-wasm": "^0.4.14",
+    "vue": "^3.5.25"
   }
 }

@@ -11,6 +11,7 @@ import {
 } from "vue";
 import type { Map as MaplibreMap, LngLatBounds, StyleSpecification } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
+import type { Layer } from "@deck.gl/core";
 import { Socket, Channel } from "phoenix";
 
 class NotImplementedError extends Error {
@@ -80,7 +81,8 @@ export class TimeApi implements Disposable {
   pause(): void {
     throw new NotImplementedError();
   }
-  seek(time: Date): void {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  seek(_time: Date): void {
     throw new NotImplementedError();
   }
 }
@@ -142,7 +144,7 @@ export class MapApi implements Disposable {
 
   readonly map = shallowRef<MaplibreMap | null>(null);
   private overlay = shallowRef<MapboxOverlay | null>(null);
-  readonly layers = shallowRef<any[]>([]);
+  readonly layers = shallowRef<Layer[]>([]);
   readonly isReady = computed(() => !!this.map.value);
 
   readonly center = ref({ lng: 0, lat: 0 });
@@ -211,7 +213,7 @@ export class MapApi implements Disposable {
     return this.map.value;
   };
 
-  addLayer(layer: any): Disposable {
+  addLayer(layer: Layer): Disposable {
     this.layers.value = [...this.layers.value, layer];
     return {
       dispose: () => {
@@ -220,7 +222,7 @@ export class MapApi implements Disposable {
     };
   }
 
-  setLayer(layer: any): Disposable {
+  setLayer(layer: Layer): Disposable {
     const index = this.layers.value.findIndex(l => l.id === layer.id);
     if (index >= 0) {
       const newLayers = [...this.layers.value];

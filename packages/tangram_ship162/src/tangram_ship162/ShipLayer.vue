@@ -31,34 +31,7 @@ import { computed, inject, onUnmounted, ref, watch, reactive, type Ref } from "v
 import { IconLayer, PolygonLayer } from "@deck.gl/layers";
 import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core/api";
 import { oklchToDeckGLColor } from "@open-aviation/tangram-core/colour";
-
-export interface MmsiInfo {
-  country: string;
-  flag: string;
-  "iso-3166-1": string;
-}
-
-export interface ShipState {
-  latitude: number;
-  longitude: number;
-  ship_name: string;
-  course: number;
-  mmsi: string;
-  speed?: number;
-  destination?: string;
-  mmsi_info?: MmsiInfo;
-  ship_type?: string;
-  status?: string;
-  callsign?: string;
-  heading?: number;
-  imo?: number;
-  draught?: number;
-  to_bow?: number;
-  to_stern?: number;
-  to_port?: number;
-  to_starboard?: number;
-  turn?: number;
-}
+import type { Ship162Vessel } from ".";
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
@@ -66,7 +39,7 @@ if (!tangramApi) {
 }
 
 const shipEntities = computed(
-  () => tangramApi.state.getEntitiesByType<ShipState>("ship162_ship").value
+  () => tangramApi.state.getEntitiesByType<Ship162Vessel>("ship162_ship").value
 );
 const activeEntity = computed(() => tangramApi.state.activeEntity.value);
 const layerDisposable: Ref<Disposable | null> = ref(null);

@@ -38,6 +38,13 @@ importers:
       '@open-aviation/tangram-core':
         specifier: workspace:*
         version: link:../tangram_core
+    devDependencies:
+      rs1090-wasm:
+        specifier: ^0.4.14
+        version: 0.4.14
+      vue:
+        specifier: ^3.5.25
+        version: 3.5.25(typescript@5.9.3)
 
   packages/tangram_core:
     dependencies:
@@ -117,6 +124,10 @@ importers:
       '@open-aviation/tangram-core':
         specifier: workspace:*
         version: link:../tangram_core
+    devDependencies:
+      vue:
+        specifier: ^3.5.25
+        version: 3.5.25(typescript@5.9.3)
 
   packages/tangram_jet1090:
     dependencies:
@@ -135,18 +146,51 @@ importers:
       vue-chartjs:
         specifier: ^5.3.3
         version: 5.3.3(chart.js@4.5.1)(vue@3.5.25(typescript@5.9.3))
+    devDependencies:
+      '@deck.gl/core':
+        specifier: ^9.2.3
+        version: 9.2.3
+      '@deck.gl/extensions':
+        specifier: ^9.2.3
+        version: 9.2.3(@deck.gl/core@9.2.3)(@luma.gl/core@9.2.4)(@luma.gl/engine@9.2.4(@luma.gl/core@9.2.4)(@luma.gl/shadertools@9.2.4(@luma.gl/core@9.2.4)))
+      '@deck.gl/layers':
+        specifier: ^9.2.3
+        version: 9.2.3(@deck.gl/core@9.2.3)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.4)(@luma.gl/engine@9.2.4(@luma.gl/core@9.2.4)(@luma.gl/shadertools@9.2.4(@luma.gl/core@9.2.4)))
+      maplibre-gl:
+        specifier: ^5.14.0
+        version: 5.14.0
+      rs1090-wasm:
+        specifier: ^0.4.14
+        version: 0.4.14
+      vue:
+        specifier: ^3.5.25
+        version: 3.5.25(typescript@5.9.3)
 
   packages/tangram_ship162:
     dependencies:
       '@open-aviation/tangram-core':
         specifier: workspace:*
         version: link:../tangram_core
+    devDependencies:
+      '@deck.gl/core':
+        specifier: ^9.2.3
+        version: 9.2.3
+      '@deck.gl/layers':
+        specifier: ^9.2.3
+        version: 9.2.3(@deck.gl/core@9.2.3)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.4)(@luma.gl/engine@9.2.4(@luma.gl/core@9.2.4)(@luma.gl/shadertools@9.2.4(@luma.gl/core@9.2.4)))
+      vue:
+        specifier: ^3.5.25
+        version: 3.5.25(typescript@5.9.3)
 
   packages/tangram_system:
     dependencies:
       '@open-aviation/tangram-core':
         specifier: workspace:*
         version: link:../tangram_core
+    devDependencies:
+      vue:
+        specifier: ^3.5.25
+        version: 3.5.25(typescript@5.9.3)
 
   packages/tangram_weather:
     dependencies:
@@ -156,6 +200,10 @@ importers:
       weatherlayers-gl:
         specifier: ^2025.11.0
         version: 2025.11.0(@deck.gl/core@9.2.3)(@deck.gl/extensions@9.2.3(@deck.gl/core@9.2.3)(@luma.gl/core@9.2.4)(@luma.gl/engine@9.2.4(@luma.gl/core@9.2.4)(@luma.gl/shadertools@9.2.4(@luma.gl/core@9.2.4))))(@deck.gl/layers@9.2.3(@deck.gl/core@9.2.3)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.4)(@luma.gl/engine@9.2.4(@luma.gl/core@9.2.4)(@luma.gl/shadertools@9.2.4(@luma.gl/core@9.2.4))))(@luma.gl/core@9.2.4)(@luma.gl/engine@9.2.4(@luma.gl/core@9.2.4)(@luma.gl/shadertools@9.2.4(@luma.gl/core@9.2.4)))
+    devDependencies:
+      vue:
+        specifier: ^3.5.25
+        version: 3.5.25(typescript@5.9.3)
 
 packages:
 

@@ -10,6 +10,15 @@ interface Sensor {
   aircraft_count: number;
 }
 
+interface RawSensorResponse {
+  reference?: {
+    latitude: number;
+    longitude: number;
+  };
+  name: string;
+  aircraft_count: number;
+}
+
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
   throw new Error("assert: tangram api not provided");
@@ -34,11 +43,14 @@ watch(
         return response.json();
       })
       .then(sensors => {
-        const sensorData: Sensor[] = Object.values(sensors).map((sensor: any) => ({
-          position: [sensor?.reference?.longitude, sensor?.reference?.latitude],
-          name: sensor.name,
-          aircraft_count: sensor.aircraft_count
-        }));
+        const sensorData: Sensor[] = Object.values(sensors).map((sensor: unknown) => {
+          const s = sensor as RawSensorResponse;
+          return {
+            position: [s?.reference?.longitude || 0, s?.reference?.latitude || 0],
+            name: s.name,
+            aircraft_count: s.aircraft_count
+          };
+        });
 
         const sensorsLayer = new ScatterplotLayer<Sensor>({
           id: "sensors-layer",
