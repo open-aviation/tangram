@@ -5,12 +5,12 @@ import importlib.resources
 import json
 import logging
 import re
+import sys
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import partial
 from importlib.metadata import Distribution, PackageNotFoundError
-from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -22,6 +22,11 @@ from typing import (
     Iterable,
     TypeAlias,
 )
+
+if sys.version_info >= (3, 11):
+    from importlib.resources.abc import Traversable
+else:
+    from importlib.abc import Traversable
 
 import httpx
 import redis.asyncio as redis
