@@ -25,11 +25,11 @@ fn main() {
 
     if src.exists() {
         // Remove the destination directory if it exists
-        let _ = remove_dir_all(&dst);
+        let _ = remove_dir_all(dst);
         // Create the destination directory
-        let _ = create_dir_all(&dst);
+        let _ = create_dir_all(dst);
         // Copy files from src to dst
-        for entry in read_dir(&src).unwrap() {
+        for entry in read_dir(src).unwrap() {
             let entry = entry.unwrap();
             let dst_path = dst.join(entry.file_name());
             copy(entry.path(), &dst_path).unwrap();

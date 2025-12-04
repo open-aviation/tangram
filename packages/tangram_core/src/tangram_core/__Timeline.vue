@@ -1,3 +1,6 @@
+<!-- NOTE: This component is a relic of tangram v0.1 and is kept for reference.
+It is scheduled for removal in v0.4 when playback is properly implemented
+in the backend. -->
 <template>
   <div class="timeline-container" :style="styles">
     <div
@@ -11,16 +14,16 @@
         }"
       >
         <VueSlider
-          @change="onChangeTime"
           :min="dateArray[0].startOf('day').unix()"
           :max="dateArray[dateArray.length - 1].endOf('day').unix()"
-          :tooltipStyle="{ display: 'none' }"
-          :dotStyle="{ display: 'none' }"
-          :processStyle="{ background: '#0000bb50', borderRadius: '1px' }"
+          :tooltip-style="{ display: 'none' }"
+          :dot-style="{ display: 'none' }"
+          :process-style="{ background: '#0000bb50', borderRadius: '1px' }"
+          v-model="curTime"
           :height="8"
           :dot-size="8"
-          v-model="curTime"
           style="padding: 0"
+          @change="onChangeTime"
         />
       </div>
       <div
@@ -35,8 +38,8 @@
       </div>
       <div
         v-for="(item, index) in dateArray"
-        :style="{ width: 100 / dateArray.length + '%' }"
         :key="index"
+        :style="{ width: 100 / dateArray.length + '%' }"
         class="date-block"
       >
         <div style="width: 100%; display: flex">
@@ -145,7 +148,7 @@ export default {
       }
     },
     ticks() {
-      let arr = [];
+      const arr = [];
       for (let i = 0; i < this.unitNum; i++) {
         const time = 24 / this.unitNum;
         const timeTxt = i * time < 10 ? "0" + i * time : i * time;
