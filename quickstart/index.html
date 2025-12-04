@@ -562,6 +562,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#running-in-release-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running in Release Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1670,6 +1681,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#running-in-release-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running in Release Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1870,73 +1892,52 @@ corepack<span class="w"> </span><span class="nb">enable</span><span class="w"> <
 <span class="nb">cd</span><span class="w"> </span>tangram
 </code></pre></div>
 <ol>
-<li>Build the frontend</li>
+<li>Build the frontend:</li>
 </ol>
 <div class="language-sh highlight"><pre><span></span><code>pnpm<span class="w"> </span>i
 pnpm<span class="w"> </span>build
 </code></pre></div>
+<p>This will create <code>node_modules</code> and <code>dist-frontend</code> within each package, for example:</p>
+<div class="language-text highlight"><pre><span></span><code>$ tree packages
+packages
+├── tangram_airports
+│   ├── dist-frontend
+│   │   ├── index.css
+│   │   ├── index.js
+│   │   ├── index.js.map
+│   │   └── plugin.json
+│   ├── node_modules
+│   │   └── @open-aviation
+│   │       └── tangram-core -&gt; ../../../tangram_core
+...
+</code></pre></div>
 <ol>
-<li>Install Python dependencies</li>
+<li>Ensure Redis (and any other services like <code>jet1090</code>) are running, as described in the user guide above.</li>
 </ol>
+<h3 id="running-in-development-mode">Running in Development Mode<a class="headerlink" href="#running-in-development-mode" title="Permanent link">&para;</a></h3>
+<p>To install the core application and all plugins in <strong>editable mode</strong>, along with useful developer utilities:</p>
 <div class="language-sh highlight"><pre><span></span><code>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages<span class="w"> </span>--all-groups<span class="w"> </span>--all-extras
 </code></pre></div>
-<p>This installs the core application and all plugins in editable mode into a virtual environment, along with useful developer utilities.</p>
-<p>Note that <code>uv sync</code> invokes the <code>maturin</code> build backend, which in turn passes <code>--release</code> to the Rust compiler.
-This can cause builds to be very slow. <strong>For the <code>tangram_history</code> plugin, it can take up to 10 minutes.</strong></p>
-<p>To significantly cut down compile times at the cost of much larger binary size, you may want to use <code>uv sync --config-setting 'build-args=--profile=dev'</code> instead:</p>
-<!-- rg --files -uu packages | rg "so$" | xargs stat -c "%s %n" -->
-
-<table>
-<thead>
-<tr>
-<th></th>
-<th>release (default)</th>
-<th><code>profile=dev</code></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>compile time (clean)</td>
-<td>3m41s</td>
-<td>1m42s</td>
-</tr>
-<tr>
-<td><code>tangram</code> size</td>
-<td>6.57M</td>
-<td>106M</td>
-</tr>
-<tr>
-<td><code>tangram_jet1090</code> size</td>
-<td>7.86M</td>
-<td>122M</td>
-</tr>
-<tr>
-<td><code>tangram_ship162</code> size</td>
-<td>7.04M</td>
-<td>118M</td>
-</tr>
-<tr>
-<td><code>tangram_history</code> size</td>
-<td>151M</td>
-<td>937M</td>
-</tr>
-</tbody>
-</table>
-<h3 id="running-in-development-mode">Running in Development Mode<a class="headerlink" href="#running-in-development-mode" title="Permanent link">&para;</a></h3>
-<ol>
-<li>
-<p>Ensure Redis (and any other services like <code>jet1090</code>) are running, as described in the user guide above.</p>
-</li>
-<li>
-<p>Start the <code>tangram</code> server. This runs the FastAPI application, the <code>channel</code> service, and all enabled backend plugins.</p>
-</li>
-</ol>
+<p>This will create a virtual environment at <code>.venv/</code>. For Rust-based packages, the <code>maturin</code> build backend will create shared objects under each package:</p>
+<div class="language-text highlight"><pre><span></span><code>$ rg --files -u packages | rg &quot;so$&quot; | xargs stat -c &quot;%s %n&quot;
+7857160 packages/tangram_jet1090/src/tangram_jet1090/_planes.cpython-313-x86_64-linux-gnu.so
+6503144 packages/tangram_core/src/tangram_core/_core.cpython-313-x86_64-linux-gnu.so
+7049616 packages/tangram_ship162/src/tangram_ship162/_ships.cpython-313-x86_64-linux-gnu.so
+151122456 packages/tangram_history/src/tangram_history/_history.cpython-313-x86_64-linux-gnu.so
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>By default, <code>uv sync</code> builds the Rust code in release mode, which can take up to 4 minutes.</p>
+<p>You may want to use <code>uv sync --config-setting 'build-args=--profile=dev'</code> instead to significantly speed up recompilation, at the cost of much larger binary sizes and worse performance.</p>
+</div>
+<p>To start the <code>tangram</code> server, run:</p>
 <div class="language-sh highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>tangram<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>tangram.example.toml
 </code></pre></div>
+<p>This runs the FastAPI application, the <code>channel</code> service, and all enabled backend plugins.</p>
 <p>The application will be available at <code>http://localhost:2346</code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Frontend Development</p>
-<p>Hot Module Replacement (HMR) for frontend plugins is not yet supported. To see changes to frontend components, you must re-run <code>pnpm build</code> and restart the <code>tangram serve</code> process.
+<p>Hot Module Replacement (HMR) for frontend plugins is not supported. To see changes to frontend components, you must re-run <code>pnpm build</code> and restart the <code>tangram serve</code> process.
 If you made changes to Rust code, you may need to re-run <code>uv</code> with the <code>--force-reinstall</code> or <code>--reinstall-package</code> flag.</p>
 </div>
 <p>To build the documentation:</p>
@@ -1944,6 +1945,26 @@ If you made changes to Rust code, you may need to re-run <code>uv</code> with th
 </code></pre></div>
 <p>To format all Rust, Python and JS code:</p>
 <div class="language-sh highlight"><pre><span></span><code>just<span class="w"> </span>fmt
+</code></pre></div>
+<h3 id="running-in-release-mode">Running in Release Mode<a class="headerlink" href="#running-in-release-mode" title="Permanent link">&para;</a></h3>
+<p>Make sure the frontend is built, and run:</p>
+<div class="language-sh highlight"><pre><span></span><code>uv<span class="w"> </span>build<span class="w"> </span>--all-packages
+</code></pre></div>
+<p>You should see:</p>
+<div class="language-text highlight"><pre><span></span><code>$ ls -sh1 dist/
+total 54M
+ 12K tangram_airports-0.2.0-py2.py3-none-any.whl
+8.0K tangram_airports-0.2.0.tar.gz
+2.5M tangram_core-0.2.0-cp313-cp313-linux_x86_64.whl
+ 64K tangram_core-0.2.0.tar.gz
+...
+</code></pre></div>
+<p>To verify things work, create a virtual environment separate from the usual <code>.venv</code> and install it:</p>
+<div class="language-sh highlight"><pre><span></span><code>uv<span class="w"> </span>venv<span class="w"> </span>.venv_whl
+uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--python<span class="w"> </span>.venv_whl<span class="w"> </span>dist/tangram*.whl
+</code></pre></div>
+<p>To start the <code>tangram</code> server, run:</p>
+<div class="language-sh highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--python<span class="w"> </span>.venv_whl<span class="w"> </span>tangram<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>tangram.example.toml
 </code></pre></div>
 
 
