@@ -5,7 +5,7 @@
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/open-aviation/tangram.git",
+    "url": "git+https://github.com/open-aviation/tangram.git",
     "directory": "packages/tangram_core"
   },
   "scripts": {
@@ -20,8 +20,7 @@
     "src/tangram_core/*.css"
   ],
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "types": "./src/tangram_core/types.d.ts",
   "exports": {
