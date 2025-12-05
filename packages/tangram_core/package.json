@@ -1,10 +1,27 @@
 {
   "name": "@open-aviation/tangram-core",
   "version": "0.2.0",
-  "private": true,
   "type": "module",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/open-aviation/tangram.git",
+    "directory": "packages/tangram_core"
+  },
   "scripts": {
-    "build": "vite build --config vite.lib-esm.config.ts && vite build"
+    "build": "vite build --config vite.lib-esm.config.ts && vite build",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "src/tangram_core/*.ts",
+    "src/tangram_core/*.d.ts",
+    "src/tangram_core/*.mjs",
+    "src/tangram_core/*.vue",
+    "src/tangram_core/*.css"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "types": "./src/tangram_core/types.d.ts",
   "exports": {
