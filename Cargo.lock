@@ -4648,7 +4648,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tangram_core"
+name = "tangram_core_rs"
 version = "0.2.0"
 dependencies = [
  "anyhow",
@@ -4717,7 +4717,7 @@ dependencies = [
  "rs1090",
  "serde",
  "serde_json",
- "tangram_core",
+ "tangram_core_rs",
  "tangram_history",
  "tokio",
  "tokio-stream",
@@ -4741,7 +4741,7 @@ dependencies = [
  "rs162",
  "serde",
  "serde_json",
- "tangram_core",
+ "tangram_core_rs",
  "tangram_history",
  "tokio",
  "tokio-stream",

@@ -1,5 +1,5 @@
 [package]
-name = "tangram_core"
+name = "tangram_core_rs"
 description = "A framework for real-time analysis of ADS-B and Mode S surveillance data"
 readme = "readme.md"
 authors = ["Abraham Cheung <abraham@ylcheung.com>", "Xiaogang Huang"]
@@ -43,7 +43,7 @@ pyo3-stub-gen = { version = "0.16", optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 
 [dev-dependencies]
-tokio-tungstenite = "0.28"  # for unit tests in websocket.rs
+tokio-tungstenite = "0.28" # for unit tests in websocket.rs
 
 
 [[bin]]
@@ -54,15 +54,15 @@ required-features = ["stubgen"]
 [features]
 default = []
 channel = [
-    "dep:axum", 
-    "dep:tower-http", 
+    "dep:axum",
+    "dep:tower-http",
     "dep:thiserror",
     "dep:serde_tuple",
     "dep:nanoid",
     "dep:chrono",
     "dep:jsonwebtoken",
     "dep:rand",
-    "dep:itertools"
+    "dep:itertools",
 ]
 pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:tracing-subscriber", "channel"]
 stubgen = ["pyo3", "dep:pyo3-stub-gen"]
