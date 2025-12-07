@@ -189,6 +189,7 @@ const updateAltitudeChart = () => {
         borderColor: "#4c78a8",
         backgroundColor: "#9ecae9",
         borderWidth: 2,
+        order: 2,
         radius: 0,
         spanGaps: true,
         fill: { target: "origin" }
@@ -198,6 +199,7 @@ const updateAltitudeChart = () => {
         data: data.map(item => item.selected_altitude),
         borderColor: "#f58518",
         borderWidth: 3,
+        order: 1,
         spanGaps: true,
         pointRadius: 0.2
       }
