@@ -10,9 +10,11 @@ import asyncio
 import logging
 import logging.config
 import os
+import re
+import subprocess
 import sys
 from pathlib import Path
-from typing import Annotated, TypeAlias
+from typing import Annotated, Any, Generator, TypeAlias
 
 if sys.version_info >= (3, 11):
     from importlib.resources.abc import Traversable
@@ -25,6 +27,15 @@ from rich.console import Console
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 logger = logging.getLogger(__name__)
 stderr = Console(stderr=True)
+stdout = Console(stderr=False)
+
+
+def print_error(v: Any) -> None:
+    stdout.print(f"[bold red]error[/bold red]: {v}")
+
+
+def print_success(v: Any) -> None:
+    stdout.print(f"[bold green]success[/bold green]: {v}")
 
 
 def default_config_file() -> Path:
@@ -162,14 +173,168 @@ def init() -> None:
 #
 
 
-@app.command()
-def check_plugin(paths: list[Path]) -> None:
-    raise NotImplementedError
+def get_package_paths(
+    extra_paths: list[Path] | None, all_plugins: bool
+) -> Generator[tuple[str, Path], None, None]:
+    if all_plugins:
+        from .backend import get_distribution_path
+        from .plugin import scan_plugins
+
+        yield "core", get_distribution_path("tangram_core")
+
+        for ep in scan_plugins():
+            name = ep.dist.name if ep.dist else ep.name
+            yield name, get_distribution_path(name)
+    if extra_paths:
+        for path in extra_paths:
+            yield "(unknown name)", path
 
 
 @app.command()
-def set_plugin_version(version: str, paths: list[Path]) -> None:
-    raise NotImplementedError
+def check_plugin(
+    extra_paths: Annotated[
+        list[Path] | None,
+        typer.Argument(help="Extra paths to plugin directories.", exists=True),
+    ] = None,
+    all: bool = False,
+) -> None:
+    """Verifies that plugin `devDependencies` match those defined in the core."""
+    import json
+
+    from .backend import get_distribution_path
+
+    if extra_paths is None and not all:
+        all = True
+
+    core_path = get_distribution_path("tangram_core")
+
+    core_pkg_json = core_path / "package.json"
+    core_package_json = json.loads(core_pkg_json.read_text())
+    core_deps = core_package_json.get("dependencies", {}) | core_package_json.get(
+        "devDependencies", {}
+    )
+
+    has_error = False
+    for dist_name, path in get_package_paths(extra_paths, all):
+        pkg_json = path / "package.json"
+        if not pkg_json.exists():
+            continue  # not all plugins have frontends, so we just skip silently
+        stderr.print(f"checking '{dist_name}' at {path}")
+        plugin_deps = json.loads(pkg_json.read_text()).get("devDependencies", {})
+        for dep, version in plugin_deps.items():
+            if dep in core_deps and core_deps[dep] != version:
+                print_error(
+                    f"expected '{dep}@{core_deps[dep]}' but found '{dep}@{version}' "
+                    f"in {path.name}"
+                )
+                has_error = True
+
+    if has_error:
+        raise typer.Exit(1)
+    print_success("all plugin dependencies verified")
+
+
+RE_TOML = r'(^version\s*=\s*)"[^"]+"'
+RE_JSON = r'("version"\s*:\s*)"[^"]+"'
+
+
+def set_version_in_file(path: Path, regex: str, version: str) -> bool:
+    if not path.exists():
+        return False
+    content = path.read_text()
+    new_content = re.sub(
+        regex,
+        f'\\1"{version}"',
+        content,
+        flags=re.MULTILINE,
+    )
+    if content != new_content:
+        path.write_text(new_content)
+        return True
+    return False
+
+
+def run_command(cmd: list[str], cwd: Path) -> None:
+    try:
+        stderr.print(f"running '{' '.join(cmd)}' in {cwd}")
+        subprocess.run(
+            cmd, cwd=cwd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
+        )
+    except subprocess.CalledProcessError as e:
+        print_error(f"command failed in {cwd}: {' '.join(cmd)}\n{e.stderr.decode()}")
+
+
+@app.command()
+def set_plugin_version(
+    version: str,
+    extra_path: Annotated[
+        list[Path] | None,
+        typer.Argument(help="Paths to plugins to update.", exists=True),
+    ] = None,
+    all: bool = False,
+    update_lock: bool = True,
+) -> None:
+    """Updates version in pyproject.toml, package.json and Cargo.toml."""
+    # we allow bumping versions without bumping core.
+    cwd = Path.cwd()
+    is_in_workspace = (
+        cwd / "pnpm-workspace.yaml"
+    ).exists() or "[workspace.package]" in (cwd / "Cargo.toml").read_text()
+
+    if not extra_path and not all:
+        print_error(
+            "either --all must be specified or at least one extra path must be given"
+        )
+        raise typer.Exit(1)
+
+    update_root_uv_lock = False
+    for dist_name, path in get_package_paths(extra_path, all):
+        updated_py = False
+        updated_rs = False
+
+        pyproject_toml = path / "pyproject.toml"
+        if set_version_in_file(pyproject_toml, RE_TOML, version):
+            print_success(f"updated '{dist_name}' at {pyproject_toml}")
+            updated_py = True
+
+        pkg_json = path / "package.json"
+        if set_version_in_file(pkg_json, RE_JSON, version):
+            print_success(f"updated '{dist_name}' at {pkg_json}")
+
+        cargo_toml = path / "Cargo.toml"
+        if not cargo_toml.exists() and (path / "rust" / "Cargo.toml").exists():
+            cargo_toml = path / "rust" / "Cargo.toml"
+        if cargo_toml.exists():
+            content = cargo_toml.read_text()
+            if "version.workspace = true" not in content:
+                if set_version_in_file(cargo_toml, RE_TOML, version):
+                    print_success(f"updated '{dist_name}' at {cargo_toml}")
+                    updated_rs = True
+
+        if update_lock:
+            if is_in_workspace:  # defer
+                update_root_uv_lock = True
+                continue
+            if updated_py:
+                run_command(["uv", "lock"], path)
+            if updated_rs:
+                run_command(["cargo", "check"], cargo_toml.parent)
+
+    if is_in_workspace:
+        if update_root_uv_lock:
+            run_command(["uv", "lock"], cwd)
+
+        if not all:
+            return
+        updated_rs_ws = False
+        root_cargo = cwd / "Cargo.toml"
+        if root_cargo.exists():
+            if set_version_in_file(root_cargo, RE_TOML, version):
+                print_success(f"updated workspace '{root_cargo}'")
+                updated_rs_ws = True
+        if update_lock:
+            if updated_rs_ws:
+                run_command(["cargo", "check", "--workspace"], cwd)
 
 
 if __name__ == "__main__":

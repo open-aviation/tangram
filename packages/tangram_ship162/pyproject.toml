@@ -40,7 +40,7 @@ tangram_core = { workspace = true }
 python-source = "src"
 module-name = "tangram_ship162._ships"
 features = ["pyo3"]
-include = ["./dist-frontend"]
+include = ["./dist-frontend", "package.json"]
 
 [tool.uv]
 cache-keys = [

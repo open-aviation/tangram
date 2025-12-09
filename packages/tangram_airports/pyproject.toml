@@ -38,3 +38,4 @@ include = ["dist-frontend/*", "src/*"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "dist-frontend" = "tangram_airports/dist-frontend"
+"package.json" = "tangram_airports/package.json"

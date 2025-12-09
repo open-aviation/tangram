@@ -44,7 +44,7 @@ tangram_jet1090 = "tangram_jet1090:plugin"
 python-source = "src"
 module-name = "tangram_jet1090._planes"
 features = ["pyo3"]
-include = ["./dist-frontend"]
+include = ["./dist-frontend", "package.json"]
 
 [tool.uv]
 cache-keys = [

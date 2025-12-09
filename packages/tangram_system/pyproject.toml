@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 license = "AGPL-3.0"
 authors = [
     { name = "Xavier Olive", email = "git@xoolive.org" },
-    { name = "Junzi Sun", email = "git@junzis.com" }
+    { name = "Junzi Sun", email = "git@junzis.com" },
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -39,3 +39,4 @@ include = ["dist-frontend/*", "src/*"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "dist-frontend" = "tangram_system/dist-frontend"
+"package.json" = "tangram_weather/package.json"
