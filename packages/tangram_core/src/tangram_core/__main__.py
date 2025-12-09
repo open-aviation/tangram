@@ -99,38 +99,39 @@ def list_plugins(
 
     for entry_point in scan_plugins():
         plugin_name = entry_point.name
+        version = dist.version if (dist := entry_point.dist) is not None else "?"
+        plugin_str = f"{plugin_name}=={version}"
         load_this_plugin = load_all or (
             enabled_plugins is not None and plugin_name in enabled_plugins
         )
 
         if not load_this_plugin:
-            table.add_row(plugin_name, "available", "?", "?", "?")
+            table.add_row(plugin_str, "[cyan]available[/cyan]", "?", "?", "?")
             continue
 
-        if (p := load_plugin(entry_point)) is None:
+        if (plugin := load_plugin(entry_point)) is None:
             status_str = "[red]load failed[/red]"
-            table.add_row(plugin_name, status_str, "!", "!", "!")
+            table.add_row(plugin_str, status_str, "!", "!", "!")
             continue
-        name, plugin = p
         status = (
             "enabled"
             if enabled_plugins and plugin_name in enabled_plugins
             else "loaded"
         )
-        frontend_str = ""
-        if plugin_path := plugin.frontend_path:
-            if resolved_path := resolve_frontend(path=name, dist_name=plugin_name):
-                size_kb = get_path_size(resolved_path) / 1024
-                frontend_str = f"{size_kb:.1f} B"
-            else:
-                frontend_str = f"[yellow]({plugin_path} not found)[/yellow]"
+        if plugin.frontend_path is None:
+            frontend_str = ""
+        elif resolved_path := resolve_frontend(plugin):
+            size_kb = get_path_size(resolved_path) / 1024
+            frontend_str = f"{size_kb:.1f} B"
+        else:
+            frontend_str = f"[yellow]({plugin.frontend_path} not found)[/yellow]"
 
         status_str = f"[green]{status}[/green]"
         router_prefixes = [func.prefix for func in plugin.routers]
         service_names = [func.__name__ for _, func in plugin.services]
 
         table.add_row(
-            plugin_name,
+            plugin_str,
             status_str,
             frontend_str,
             "\n".join(router_prefixes),
@@ -152,8 +153,23 @@ def get_path_size(path: Path | Traversable) -> int:
 
 
 @app.command()
-def develop() -> None:
-    raise SystemExit
+def init() -> None:
+    raise NotImplementedError
+
+
+#
+# developer utilities
+#
+
+
+@app.command()
+def check_plugin(paths: list[Path]) -> None:
+    raise NotImplementedError
+
+
+@app.command()
+def set_plugin_version(version: str, paths: list[Path]) -> None:
+    raise NotImplementedError
 
 
 if __name__ == "__main__":

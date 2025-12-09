@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import sys
+import urllib.parse
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -25,9 +26,9 @@ from typing import (
 )
 
 if sys.version_info >= (3, 11):
-    from importlib.resources.abc import Traversable
+    pass
 else:
-    from importlib.abc import Traversable
+    pass
 
 import httpx
 import platformdirs
@@ -41,7 +42,7 @@ from .config import CacheEntry, Config, FrontendChannelConfig, FrontendConfig
 from .plugin import load_plugin, scan_plugins
 
 if TYPE_CHECKING:
-    from .plugin import DistName, Plugin
+    from .plugin import Plugin
 
 logger = logging.getLogger(__name__)
 
@@ -61,33 +62,51 @@ async def get_state(request: Request) -> BackendState:
 InjectBackendState: TypeAlias = Annotated[BackendState, Depends(get_state)]
 
 
-def resolve_frontend(*, path: str, dist_name: str) -> Path | Traversable | None:
-    # always try to parse from direct url first (this is robust for editable
-    # installs like `uv sync --all-packages`)
+def get_distribution_path(dist_name: str) -> Path:
+    """Get the local path of a distribution, handling both editable installs
+    (`direct_url.json`) and standard wheel installs.
+
+    See: https://packaging.python.org/en/latest/specifications/direct-url-data-structure/
+    """
+    # always try direct_url.json first (e.g. for the case of `uv sync --all-packages`)
     try:
         dist = Distribution.from_name(dist_name)
         if direct_url_content := dist.read_text("direct_url.json"):
             direct_url_data = json.loads(direct_url_content)
-            if (url := direct_url_data.get("url")) and (
-                path1 := Path(url.removeprefix("file://")) / path
-            ).is_dir():
+            if (
+                (url := direct_url_data.get("url"))
+                # url may point to a git or zip archive, but since we only care
+                # about local paths, we only handle the file:// scheme here
+                and url.startswith("file://")
+                and (
+                    path1 := Path(urllib.parse.unquote(urllib.parse.urlparse(url).path))
+                ).is_dir()
+            ):
                 return path1
     except (PackageNotFoundError, json.JSONDecodeError, FileNotFoundError):
         pass
 
-    # fallback in case it was installed via pip
-    if (path2 := importlib.resources.files(dist_name) / path).is_dir():
-        return path2
-    return None
+    # fallback in case it was installed via a wheel
+    if (trav := importlib.resources.files(dist_name)).is_dir():
+        with importlib.resources.as_file(trav) as path2:
+            return path2
+    raise FileNotFoundError(f"could not find distribution path for {dist_name}")
+
+
+def resolve_frontend(plugin: Plugin) -> Path | None:
+    if not plugin.frontend_path:
+        return None
+    return get_distribution_path(plugin.dist_name) / plugin.frontend_path
 
 
 def load_enabled_plugins(
     config: Config,
-) -> list[tuple[DistName, Plugin]]:
+) -> list[Plugin]:
     loaded_plugins = []
     enabled_plugin_names = set(config.core.plugins)
 
     for entry_point in scan_plugins():
+        # TODO: should we check entry_point.dist.name instead?
         if entry_point.name not in enabled_plugin_names:
             continue
         if (plugin := load_plugin(entry_point)) is not None:
@@ -184,24 +203,22 @@ def make_cache_route_handler(
 
 def create_app(
     backend_state: BackendState,
-    loaded_plugins: Iterable[tuple[DistName, Plugin]],
+    loaded_plugins: Iterable[Plugin],
 ) -> FastAPI:
     app = FastAPI(lifespan=partial(lifespan, backend_state=backend_state))
     frontend_plugins = []
 
-    for dist_name, plugin in loaded_plugins:
+    for plugin in loaded_plugins:
         for router in plugin.routers:
             app.include_router(router)
 
-        if (p := plugin.frontend_path) is not None and (
-            frontend_path_resolved := resolve_frontend(path=p, dist_name=dist_name)
-        ) is not None:
+        if (frontend_path_resolved := resolve_frontend(plugin)) is not None:
             app.mount(
-                f"/plugins/{dist_name}",
+                f"/plugins/{plugin.dist_name}",
                 StaticFiles(directory=str(frontend_path_resolved)),
-                name=dist_name,
+                name=plugin.dist_name,
             )
-            frontend_plugins.append(dist_name)
+            frontend_plugins.append(plugin.dist_name)
 
     # unlike v0.1 which uses `process.env`, v0.2 *compiles* the js so we no
     # no longer have access to it, so we selectively forward the config.
@@ -245,27 +262,16 @@ def create_app(
             name=f"cache-{cache_entry.serve_route.replace('/', '_')}",
         )
 
-    # Frontend mount - this is a catch-all and must come LAST
-    if (
-        frontend_path := resolve_frontend(
-            path="dist-frontend", dist_name="tangram_core"
-        )
-    ) is None:
+    if not (
+        frontend_path := get_distribution_path("tangram_core") / "dist-frontend"
+    ).is_dir():
         raise ValueError(
-            "error: frontend was not found, did you run `pnpm i && pnpm run build`?"
+            f"error: frontend {frontend_path} was not found, "
+            "did you run `pnpm i && pnpm run build`?"
         )
     app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="core")
 
     return app
-
-
-LOG_LEVEL_MAP = {
-    "TRACE": logging.DEBUG,
-    "DEBUG": logging.DEBUG,
-    "INFO": logging.INFO,
-    "WARN": logging.WARNING,
-    "ERROR": logging.ERROR,
-}
 
 
 async def run_channel_service(config: Config) -> None:
@@ -286,21 +292,19 @@ async def run_channel_service(config: Config) -> None:
 
 async def run_services(
     backend_state: BackendState,
-    loaded_plugins: Iterable[tuple[DistName, Plugin]],
+    loaded_plugins: Iterable[Plugin],
 ) -> AsyncGenerator[asyncio.Task[None], None]:
     yield asyncio.create_task(run_channel_service(backend_state.config))
 
-    for dist_name, plugin in loaded_plugins:
+    for plugin in loaded_plugins:
         for _, service_func in sorted(
             plugin.services, key=lambda s: (s[0], s[1].__name__)
         ):
             yield asyncio.create_task(service_func(backend_state))
-            logger.info(f"started service from plugin: {dist_name}")
+            logger.info(f"started service from plugin: {plugin.dist_name}")
 
 
-async def run_server(
-    backend_state: BackendState, loaded_plugins: list[tuple[DistName, Plugin]]
-) -> None:
+async def run_server(backend_state: BackendState, loaded_plugins: list[Plugin]) -> None:
     app_instance = create_app(backend_state, loaded_plugins)
     server_config = uvicorn.Config(
         app_instance,

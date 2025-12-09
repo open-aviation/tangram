@@ -77,22 +77,8 @@ export default defineConfig({
     })
   ],
   build: {
-    /* we need to include the vite output in the python wheel.
-     * according to https://www.maturin.rs/config.html#maturin-options
-     * when `[tool.maturin.include]` is set `maturin` should copy it into the
-     * wheel:
-     * ├── package.json
-     * ├── pyproject.toml
-     * ├── dist-frontend   <-- this
-     * │   ├── index.html
-     * │   └── ...
-     * └── src
-     *     └── tangram_core
-     * but for some reason maturin doesn't copy it,
-     * so we output to the src dir for now.
-     */
     sourcemap: true,
-    outDir: path.resolve(__dirname, "./src/tangram_core/dist-frontend"),
+    outDir: path.resolve(__dirname, "./dist-frontend"),
     emptyOutDir: false,
     rollupOptions: {
       input: path.resolve(__dirname, "index.html"),

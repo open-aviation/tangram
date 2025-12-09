@@ -50,6 +50,7 @@ tangram = "tangram_core.__main__:app"
 python-source = "src"              # needed for stubgen to output path correctly.
 module-name = "tangram_core._core"
 features = ["pyo3", "channel"]
+include = ["./dist-frontend"]
 
 [tool.uv]
 cache-keys = [

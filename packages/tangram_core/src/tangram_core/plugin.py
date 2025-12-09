@@ -7,19 +7,17 @@ import logging
 import traceback
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, NewType, TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 from fastapi import APIRouter
 
 if TYPE_CHECKING:
     from .backend import BackendState
 
-    RouterFunc: TypeAlias = Callable[[], APIRouter]
     ServiceAsyncFunc: TypeAlias = Callable[[BackendState], Awaitable[None]]
     ServiceFunc: TypeAlias = ServiceAsyncFunc | Callable[[BackendState], None]
     Priority: TypeAlias = int
 
-DistName = NewType("DistName", str)
 logger = logging.getLogger(__name__)
 
 
@@ -40,10 +38,20 @@ class Plugin:
     services: list[tuple[Priority, ServiceAsyncFunc]] = field(
         default_factory=list, init=False
     )
+    dist_name: str = field(init=False)
+    """Name of the distribution (package) that provided this plugin, populated
+    automatically during loading.
+    """  # we do this so plugins can know their own package name if needed
 
     def register_service(
         self, priority: Priority = 0
     ) -> Callable[[ServiceFunc], ServiceFunc]:
+        """Decorator to register a background service function.
+
+        Services are long-running async functions that receive the BackendState
+        and are started when the application launches.
+        """
+
         def decorator(func: ServiceFunc) -> ServiceFunc:
             @functools.wraps(func)
             async def async_wrapper(backend_state: BackendState) -> None:
@@ -64,7 +72,9 @@ def scan_plugins() -> importlib.metadata.EntryPoints:
 
 def load_plugin(
     entry_point: importlib.metadata.EntryPoint,
-) -> tuple[DistName, Plugin] | None:
+) -> Plugin | None:
+    """Instantiates the plugin object defined in the entry point
+    and injects the name of the distribution into it."""
     try:
         plugin_instance = entry_point.load()
     except Exception as e:
@@ -77,4 +87,11 @@ def load_plugin(
     if not isinstance(plugin_instance, Plugin):
         logger.error(f"entry point {entry_point.name} is not an instance of `Plugin`")
         return None
-    return DistName(entry_point.name), plugin_instance
+    if entry_point.dist is None:
+        logger.error(f"could not determine distribution for plugin {entry_point.name}")
+        return None
+    # NOTE: we ignore `entry_point.name` for now and simply use the distribution's name
+    # should we raise an error if they differ? not for now
+
+    plugin_instance.dist_name = entry_point.dist.name
+    return plugin_instance
