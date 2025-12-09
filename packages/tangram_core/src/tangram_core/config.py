@@ -71,14 +71,14 @@ class CoreConfig:
 
 @dataclass
 class CacheEntry:
-    # origin url (if None, just serve the local file)
     origin: str | None = None
-    # local path to cache the file
+    """Origin URL. If None, the local file is served directly."""
     local_path: Path | None = None
-    # how to serve the file
+    """Local path to cache the file."""
     serve_route: str = ""
-    # media type for the served file
+    """Where to serve the file in FastAPI."""
     media_type: str = "application/octet-stream"
+    """Media type for the response."""
 
 
 @dataclass
@@ -109,6 +109,13 @@ class Config:
         config_adapter = TypeAdapter(cls)
         config = config_adapter.validate_python(cfg_data)
         return config
+
+
+#
+# when served over reverse proxies, we do not want to simply expose the entire
+# backend config to the frontend. the following structs are used to selectively
+# expose a subset of the config to the frontend.
+#
 
 
 @dataclass

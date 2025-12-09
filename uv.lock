@@ -2446,7 +2446,6 @@ name = "tangram-jet1090"
 version = "0.2.0"
 source = { editable = "packages/tangram_jet1090" }
 dependencies = [
-    { name = "platformdirs" },
     { name = "tangram-core" },
 ]
 
@@ -2457,7 +2456,6 @@ history = [
 
 [package.metadata]
 requires-dist = [
-    { name = "platformdirs" },
     { name = "polars", extras = ["deltalake"], marker = "extra == 'history'" },
     { name = "tangram-core", editable = "packages/tangram_core" },
 ]

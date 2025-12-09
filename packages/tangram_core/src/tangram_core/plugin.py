@@ -25,7 +25,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Plugin:
+    """Stores the metadata and registered API routes, background services and
+    frontend assets for a tangram plugin.
+
+    Packages should declare an entry point in the `tangram_core.plugins` group
+    in their `pyproject.toml` pointing to an instance of this class.
+    """
+
     frontend_path: str | None = None
+    """Path to the compiled frontend assets, *relative* to the distribution root
+    (editable) or package root (wheel).
+    """
     routers: list[APIRouter] = field(default_factory=list)
     services: list[tuple[Priority, ServiceAsyncFunc]] = field(
         default_factory=list, init=False

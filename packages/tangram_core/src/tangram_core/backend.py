@@ -4,6 +4,7 @@ import asyncio
 import importlib.resources
 import json
 import logging
+import os
 import re
 import sys
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -29,12 +30,12 @@ else:
     from importlib.abc import Traversable
 
 import httpx
+import platformdirs
 import redis.asyncio as redis
 import uvicorn
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from platformdirs import user_cache_dir
 
 from .config import CacheEntry, Config, FrontendChannelConfig, FrontendConfig
 from .plugin import load_plugin, scan_plugins
@@ -105,6 +106,20 @@ async def lifespan(
         yield
 
 
+def default_cache_dir() -> Path:
+    if (xdg_cache := os.environ.get("XDG_CACHE_HOME")) is not None:
+        cache_dir = Path(xdg_cache) / "tangram"
+    else:
+        cache_dir = Path(platformdirs.user_cache_dir(appname="tangram"))
+    if not cache_dir.exists():
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+    return cache_dir
+
+
+CACHE_PARAM_PATTERN = re.compile(r"\{(\w+)\}")
+
+
 def make_cache_route_handler(
     entry: CacheEntry, state: BackendState
 ) -> Callable[..., Awaitable[FileResponse]]:
@@ -112,25 +127,18 @@ def make_cache_route_handler(
     Factory function that creates a route handler for caching and serving files.
     Dynamically handles URL parameters found in both serve_route and origin.
 
-    Args:
-        entry: Cache entry configuration
-        state: Backend state with http_client for fetching remote resources
-
-    Returns:
-        Async function that handles the route with dynamic parameters
+    :param entry: Cache entry configuration
+    :param state: Backend state with http_client for fetching remote resources
+    :returns: Async function that handles the route with dynamic parameters
     """
     from inspect import Parameter, Signature
 
     # Extract parameter names from the serve_route (e.g., {fontstack}, {range})
-    param_pattern = re.compile(r"\{(\w+)\}")
-    params = param_pattern.findall(entry.serve_route)
+    params = CACHE_PARAM_PATTERN.findall(entry.serve_route)
 
     async def cache_route_handler(**kwargs: str) -> FileResponse:
-        local_path = entry.local_path
-        if local_path is None:
-            local_path = Path(user_cache_dir("tangram_core"))
-            if not local_path.exists():
-                local_path.mkdir(parents=True)
+        if (local_path := entry.local_path) is None:
+            local_path = default_cache_dir()
         else:
             local_path = local_path.expanduser()
 
