@@ -30,7 +30,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # history
 arrow-array = "56.2.0"
-arrow-schema = "56.2.0"
+arrow-schema = "57.1.0"
 
 pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
 pyo3-async-runtimes = { version = "0.27", features = ["attributes", "tokio-runtime"], optional = true }
