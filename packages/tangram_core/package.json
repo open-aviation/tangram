@@ -9,8 +9,7 @@
     "directory": "packages/tangram_core"
   },
   "scripts": {
-    "build": "vite build --config vite.lib-esm.config.ts && vite build",
-    "prepublishOnly": "npm run build"
+    "build": "vite build --config vite.lib-esm.config.ts && vite build"
   },
   "files": [
     "src/tangram_core/*.ts",
@@ -20,7 +19,8 @@
     "src/tangram_core/*.css"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "types": "./src/tangram_core/types.d.ts",
   "exports": {

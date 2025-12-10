@@ -1,0 +1,152 @@
+name: build wheels
+
+on:
+  workflow_call:
+
+jobs:
+  build-frontend:
+    uses: ./.github/workflows/frontend-build.yml
+
+  build-hatch-wheels:
+    name: build wheels (hatchling)
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: download repo with built frontend
+        uses: actions/download-artifact@v6
+        with:
+          name: repo-with-frontend
+          path: .
+      - uses: astral-sh/setup-uv@v7
+      # not building example.
+      - name: build wheels
+        run: |
+          mkdir -p dist
+          uv build --package tangram_airports --out-dir dist
+          uv build --package tangram_system --out-dir dist
+          uv build --package tangram_weather --out-dir dist
+      - uses: actions/upload-artifact@v5
+        with:
+          name: wheels-hatch
+          path: dist/*
+
+  # adapted from: `maturin generate-ci github --platform all` and
+  # https://github.com/pydantic/pydantic-core/blob/main/.github/workflows/ci.yml
+  build-maturin-wheels:
+    name: build ${{ matrix.target }} (${{ matrix.os }})
+    needs: build-frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            manylinux: manylinux_2_28
+            target: x86_64
+          - os: linux
+            manylinux: manylinux_2_28
+            target: aarch64
+          - os: macos
+            target: x86_64
+          - os: macos
+            target: aarch64
+          # skipping windows py314 and windows-11-arm: fatal error LNK1181: cannot open input file 'python312.lib'
+          - os: windows
+            target: x86_64
+            interpreter: 3.10 3.11 3.12 3.13
+          - os: linux
+            manylinux: manylinux_2_28
+            target: i686
+          - os: linux
+            manylinux: manylinux_2_28
+            target: armv7
+            interpreter: 3.10 3.11 3.12 3.13 3.14
+          - os: linux
+            manylinux: manylinux_2_28
+            target: ppc64le
+            interpreter: 3.10 3.11 3.12 3.13 3.14
+          # skipping s390x for now: crypto/sha/keccak1600-s390x.S:399: Error: Unrecognized opcode: `cijne'
+          # we need to bundle openssl>=3.5: https://github.com/openssl/openssl/issues/27323
+          - os: linux
+            manylinux: musllinux_1_1
+            target: x86_64
+          - os: linux
+            manylinux: musllinux_1_1
+            target: aarch64
+          - os: linux
+            manylinux: musllinux_1_1
+            target: armv7
+
+    runs-on: ${{ (matrix.os == 'linux' && 'ubuntu') || matrix.os }}-latest
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: repo-with-frontend
+          path: .
+      
+      - name: build tangram_core
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          working-directory: packages/tangram_core
+          args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          sccache: true
+
+      - name: build tangram_jet1090
+        if: always()
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          working-directory: packages/tangram_jet1090
+          args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          sccache: true
+          before-script-linux: |
+            if command -v apk &> /dev/null; then
+              apk add --no-cache openssl-dev pkgconfig
+            elif command -v yum &> /dev/null; then
+              yum install -y openssl-devel pkgconfig
+            elif command -v apt-get &> /dev/null; then
+              apt-get update && apt-get install -y libssl-dev pkg-config
+            fi
+
+      - name: build tangram_ship162
+        if: always()
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          working-directory: packages/tangram_ship162
+          args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          sccache: true
+          before-script-linux: |
+            if command -v apk &> /dev/null; then
+              apk add --no-cache openssl-dev pkgconfig
+            elif command -v yum &> /dev/null; then
+              yum install -y openssl-devel pkgconfig
+            elif command -v apt-get &> /dev/null; then
+              apt-get update && apt-get install -y libssl-dev pkg-config
+            fi
+
+      - name: build tangram_history
+        if: always()
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          working-directory: packages/tangram_history
+          args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          sccache: true
+          before-script-linux: |
+            if command -v apk &> /dev/null; then
+              apk add --no-cache openssl-dev pkgconfig
+            elif command -v yum &> /dev/null; then
+              yum install -y openssl-devel pkgconfig
+            elif command -v apt-get &> /dev/null; then
+              apt-get update && apt-get install -y libssl-dev pkg-config
+            fi
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: wheels-${{ matrix.os }}_${{ matrix.target }}_${{ matrix.interpreter || 'all' }}_${{ matrix.manylinux }}
+          path: dist/*
