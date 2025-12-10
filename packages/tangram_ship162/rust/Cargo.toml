@@ -28,7 +28,7 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-arrow-array = "56.2.0"
+arrow-array = "57.1.0"
 arrow-schema = "56.2.0"
 
 pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
