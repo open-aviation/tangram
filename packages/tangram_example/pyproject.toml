@@ -19,7 +19,7 @@ tangram_example = "tangram_example:plugin"
 
 [tool.hatch.build.targets.sdist]
 ignore-vcs = true
-include = ["dist-frontend/*", "src/*"]
+include = ["dist-frontend/*", "src/*", "package.json"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "dist-frontend" = "tangram_example/dist-frontend"
