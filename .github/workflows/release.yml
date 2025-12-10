@@ -4,12 +4,17 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  build-frontend:
+    uses: ./.github/workflows/build-frontend.yml
+
   build-wheels:
+    needs: build-frontend
     uses: ./.github/workflows/build-wheels.yml
 
   # see: https://docs.pypi.org/trusted-publishers/
@@ -52,7 +57,10 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: repo-with-frontend
+          path: .
       
       - uses: pnpm/action-setup@v4
         with:
@@ -63,11 +71,6 @@ jobs:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
-
-      - name: Install & Build
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm build
 
       - name: Publish tangram-core
         working-directory: packages/tangram_core

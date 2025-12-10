@@ -1,21 +1,24 @@
 name: build wheels
+# this workflow requires ./build-frontend.yml to be already executed
 
 on:
   workflow_call:
+    inputs:
+      frontend_artifact:
+        description: "Name of the frontend artifact to download"
+        default: "repo-with-frontend"
+        type: string
+        required: false
 
 jobs:
-  build-frontend:
-    uses: ./.github/workflows/frontend-build.yml
-
   build-hatch-wheels:
     name: build wheels (hatchling)
-    needs: build-frontend
     runs-on: ubuntu-latest
     steps:
       - name: download repo with built frontend
         uses: actions/download-artifact@v6
         with:
-          name: repo-with-frontend
+          name: ${{ inputs.frontend_artifact }}
           path: .
       - uses: astral-sh/setup-uv@v7
       # not building example.
@@ -34,7 +37,6 @@ jobs:
   # https://github.com/pydantic/pydantic-core/blob/main/.github/workflows/ci.yml
   build-maturin-wheels:
     name: build ${{ matrix.target }} (${{ matrix.os }})
-    needs: build-frontend
     strategy:
       fail-fast: false
       matrix:
@@ -80,7 +82,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v6
         with:
-          name: repo-with-frontend
+          name: ${{ inputs.frontend_artifact }}
           path: .
       
       - name: build tangram_core

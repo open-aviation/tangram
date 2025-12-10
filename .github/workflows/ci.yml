@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   build-frontend:
-    uses: ./.github/workflows/frontend-build.yml
+    uses: ./.github/workflows/build-frontend.yml
 
   test:
     name: test
@@ -58,4 +58,5 @@ jobs:
         run: uv run tangram list-plugins --all
 
   build-wheels:
+    needs: build-frontend
     uses: ./.github/workflows/build-wheels.yml
