@@ -35,7 +35,7 @@ pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
 pyo3-async-runtimes = { version = "0.27", features = ["attributes", "tokio-runtime"], optional = true }
 # NOTE: v0.17 introduced support for overloading but that caused an odd post-compile
 # runtime issue, do not upgrade yet.
-pyo3-stub-gen = { version = "0.16", optional = true }
+pyo3-stub-gen = { version = "0.17", optional = true }
 
 [[bin]]
 name = "stub_gen_ships"
