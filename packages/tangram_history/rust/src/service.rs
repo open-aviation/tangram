@@ -283,9 +283,9 @@ async fn consume_stream_for_table(
             let mut total_rows = 0;
 
             for stream_key_result in reply.keys {
-                for stream_id in stream_key_result.ids {
+                for mut stream_id in stream_key_result.ids {
                     msg_ids_to_ack.push(stream_id.id.clone());
-                    if let Some(payload_value) = stream_id.map.get("data") {
+                    if let Some(payload_value) = stream_id.map.remove("data") {
                         let payload: Vec<u8> = match redis::from_redis_value(payload_value) {
                             Ok(p) => p,
                             Err(e) => {

@@ -15,8 +15,8 @@ jobs:
   build-frontend:
     uses: ./.github/workflows/build-frontend.yml
 
-  test:
-    name: test
+  test-python:
+    name: test python
     needs: build-frontend
     runs-on: ubuntu-latest
     services:
@@ -54,8 +54,8 @@ jobs:
       - name: install tangram (all plugins)
         run: uv sync --all-groups --all-packages
 
-      - name: list plugins
-        run: uv run tangram list-plugins --all
+      - name: check plugin dependencies
+        run: uv run tangram check-plugin --all
 
   build-wheels:
     needs: build-frontend

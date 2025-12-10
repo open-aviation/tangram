@@ -8,8 +8,8 @@ plugins = [
     "tangram_system",
     "tangram_airports",
     # "tangram_ship162",
+    # "tangram_weather",
     # "tangram_example",
-    # "tangram_weather"
 ]
 
 [server]
