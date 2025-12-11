@@ -1,9 +1,13 @@
 import { reactive } from "vue";
 import type { Ship162Vessel } from ".";
 
-export const selectedShip = reactive({
-  id: null as string | null,
-  trajectory: [] as Ship162Vessel[],
-  loading: false,
-  error: null as string | null
+export interface ShipSelectionData {
+  trajectory: Ship162Vessel[];
+  loading: boolean;
+  error: string | null;
+}
+
+export const shipStore = reactive({
+  selected: new Map<string, ShipSelectionData>(),
+  version: 0
 });

@@ -6,7 +6,7 @@ import AircraftInfoWidget from "./AircraftInfoWidget.vue";
 import AircraftTrailLayer from "./AircraftTrailLayer.vue";
 import RouteLayer from "./RouteLayer.vue";
 import SensorsLayer from "./SensorsLayer.vue";
-import { selectedAircraft, pluginConfig } from "./store";
+import { aircraftStore, type AircraftSelectionData, pluginConfig } from "./store";
 
 const ENTITY_TYPE = "jet1090_aircraft";
 
@@ -69,42 +69,61 @@ export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
   })();
 
   watch(
-    () => api.state.activeEntity.value,
-    async newEntity => {
-      if (newEntity?.type === ENTITY_TYPE) {
-        if (newEntity.id !== selectedAircraft.icao24) {
-          selectedAircraft.icao24 = newEntity.id;
-          selectedAircraft.trajectory = [];
-          selectedAircraft.loading = true;
-          selectedAircraft.error = null;
-          selectedAircraft.route.origin = null;
-          selectedAircraft.route.destination = null;
-
-          try {
-            const response = await fetch(`/jet1090/data/${newEntity.id}`);
-            if (!response.ok) throw new Error("Failed to fetch trajectory");
-            const data = await response.json();
-            if (selectedAircraft.icao24 === newEntity.id) {
-              selectedAircraft.trajectory = [...data, ...selectedAircraft.trajectory];
-            }
-          } catch (err: unknown) {
-            if (selectedAircraft.icao24 === newEntity.id) {
-              selectedAircraft.error = (err as Error).message;
-            }
-          } finally {
-            if (selectedAircraft.icao24 === newEntity.id) {
-              selectedAircraft.loading = false;
-            }
-          }
+    () => api.state.activeEntities.value,
+    async newEntities => {
+      const currentIds = new Set<string>();
+      for (const [id, entity] of newEntities) {
+        if (entity.type === ENTITY_TYPE) {
+          currentIds.add(id);
         }
-      } else {
-        selectedAircraft.icao24 = null;
-        selectedAircraft.trajectory = [];
-        selectedAircraft.route.origin = null;
-        selectedAircraft.route.destination = null;
       }
+
+      for (const id of aircraftStore.selected.keys()) {
+        if (!currentIds.has(id)) {
+          aircraftStore.selected.delete(id);
+        }
+      }
+
+      for (const id of currentIds) {
+        if (!aircraftStore.selected.has(id)) {
+          const selectionData: AircraftSelectionData = {
+            trajectory: [],
+            loading: true,
+            error: null,
+            route: { origin: null, destination: null }
+          };
+          aircraftStore.selected.set(id, selectionData);
+          fetchTrajectory(id);
+        }
+      }
+      aircraftStore.version++;
     }
   );
+}
+
+async function fetchTrajectory(icao24: string) {
+  const data = aircraftStore.selected.get(icao24);
+  if (!data) return;
+
+  try {
+    const response = await fetch(`/jet1090/data/${icao24}`);
+    if (!response.ok) throw new Error("Failed to fetch trajectory");
+    const trajData = await response.json();
+
+    if (aircraftStore.selected.has(icao24)) {
+      const currentData = aircraftStore.selected.get(icao24)!;
+      currentData.trajectory = [...trajData, ...currentData.trajectory];
+      aircraftStore.version++;
+    }
+  } catch (err: unknown) {
+    if (aircraftStore.selected.has(icao24)) {
+      aircraftStore.selected.get(icao24)!.error = (err as Error).message;
+    }
+  } finally {
+    if (aircraftStore.selected.has(icao24)) {
+      aircraftStore.selected.get(icao24)!.loading = false;
+    }
+  }
 }
 
 async function subscribeToAircraftData(api: TangramApi, connectionId: string) {
@@ -121,10 +140,11 @@ async function subscribeToAircraftData(api: TangramApi, connectionId: string) {
         api.state.replaceAllEntitiesByType(ENTITY_TYPE, entities);
         api.state.setTotalCount(ENTITY_TYPE, payload.count);
 
-        if (selectedAircraft.icao24) {
+        let hasUpdates = false;
+        for (const [id, data] of aircraftStore.selected) {
           const entityMap =
             api.state.getEntitiesByType<Jet1090Aircraft>(ENTITY_TYPE).value;
-          const entity = entityMap.get(selectedAircraft.icao24);
+          const entity = entityMap.get(id);
 
           if (
             entity &&
@@ -133,18 +153,20 @@ async function subscribeToAircraftData(api: TangramApi, connectionId: string) {
             entity.state.longitude
           ) {
             const updated = entity.state;
-            const last =
-              selectedAircraft.trajectory[selectedAircraft.trajectory.length - 1];
-            // rust sends micros, history sends seconds -> normalising to seconds
+            const last = data.trajectory[data.trajectory.length - 1];
             const timestamp = updated.lastseen / 1_000_000;
 
             if (!last || Math.abs((last.timestamp || 0) - timestamp) > 0.5) {
-              selectedAircraft.trajectory.push({
+              data.trajectory.push({
                 ...updated,
                 timestamp: timestamp
               });
+              hasUpdates = true;
             }
           }
+        }
+        if (hasUpdates) {
+          aircraftStore.version++;
         }
       }
     );

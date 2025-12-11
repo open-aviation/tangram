@@ -30,14 +30,14 @@ pub struct BoundingBoxMessage {
     pub south_west_lat: f64,
     #[serde(rename = "southWestLng")]
     pub south_west_lng: f64,
-    #[serde(rename = "selectedEntity")]
-    pub selected_entity: Option<SelectedEntity>,
+    #[serde(rename = "selectedEntities")]
+    pub selected_entities: Vec<SelectedEntity>,
 }
 
 #[derive(Default)]
 pub struct BoundingBoxState {
     pub bboxes: HashMap<String, BoundingBox>,
-    pub selections: HashMap<String, SelectedEntity>,
+    pub selections: HashMap<String, Vec<SelectedEntity>>,
     pub clients: HashSet<String>,
 }
 
@@ -62,14 +62,11 @@ impl BoundingBoxState {
         );
     }
 
-    pub fn set_selected(&mut self, connection_id: &str, entity: Option<SelectedEntity>) {
-        match entity {
-            Some(e) => {
-                self.selections.insert(connection_id.to_string(), e);
-            }
-            _ => {
-                self.selections.remove(connection_id);
-            }
+    pub fn set_selected(&mut self, connection_id: &str, entities: Vec<SelectedEntity>) {
+        if entities.is_empty() {
+            self.selections.remove(connection_id);
+        } else {
+            self.selections.insert(connection_id.to_string(), entities);
         }
     }
 
@@ -81,7 +78,7 @@ impl BoundingBoxState {
         self.bboxes.get(connection_id)
     }
 
-    pub fn get_selected(&self, connection_id: &str) -> Option<&SelectedEntity> {
+    pub fn get_selected(&self, connection_id: &str) -> Option<&Vec<SelectedEntity>> {
         self.selections.get(connection_id)
     }
 

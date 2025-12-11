@@ -9,15 +9,19 @@ export interface AirportInfo {
   icao: string;
 }
 
-export const selectedAircraft = reactive({
-  icao24: null as string | null,
-  trajectory: [] as Jet1090Aircraft[],
-  loading: false,
-  error: null as string | null,
+export interface AircraftSelectionData {
+  trajectory: Jet1090Aircraft[];
+  loading: boolean;
+  error: string | null;
   route: {
-    origin: null as AirportInfo | null,
-    destination: null as AirportInfo | null
-  }
+    origin: AirportInfo | null;
+    destination: AirportInfo | null;
+  };
+}
+
+export const aircraftStore = reactive({
+  selected: new Map<string, AircraftSelectionData>(),
+  version: 0
 });
 
 export const pluginConfig = reactive({

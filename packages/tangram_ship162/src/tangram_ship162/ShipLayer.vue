@@ -32,6 +32,10 @@ import { IconLayer, PolygonLayer } from "@deck.gl/layers";
 import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core/api";
 import { oklchToDeckGLColor } from "@open-aviation/tangram-core/colour";
 import type { Ship162Vessel } from ".";
+import type { PickingInfo } from "@deck.gl/core";
+
+// Type alias to match internal use
+type ShipState = Ship162Vessel;
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
@@ -39,9 +43,9 @@ if (!tangramApi) {
 }
 
 const shipEntities = computed(
-  () => tangramApi.state.getEntitiesByType<Ship162Vessel>("ship162_ship").value
+  () => tangramApi.state.getEntitiesByType<ShipState>("ship162_ship").value
 );
-const activeEntity = computed(() => tangramApi.state.activeEntity.value);
+const activeEntities = computed(() => tangramApi.state.activeEntities.value);
 const layerDisposable: Ref<Disposable | null> = ref(null);
 const hullLayerDisposable: Ref<Disposable | null> = ref(null);
 const zoom = computed(() => tangramApi.map.zoom.value);
@@ -257,15 +261,31 @@ const getShipHullPolygon = (state: ShipState): number[][] | null => {
   return [A, B, C, D, E, A];
 };
 
+const onClick = (
+  info: PickingInfo<Entity<ShipState>>,
+  event: { srcEvent: { originalEvent: MouseEvent } }
+) => {
+  if (!info.object) return;
+  const srcEvent = event.srcEvent.originalEvent;
+  const exclusive = !srcEvent.ctrlKey && !srcEvent.altKey && !srcEvent.metaKey;
+
+  if (exclusive) {
+    tangramApi.state.selectEntity(info.object, true);
+  } else {
+    if (tangramApi.state.activeEntities.value.has(info.object.id)) {
+      tangramApi.state.deselectEntity(info.object.id);
+    } else {
+      tangramApi.state.selectEntity(info.object, false);
+    }
+  }
+};
+
 watch(
-  [shipEntities, activeEntity, () => tangramApi.map.isReady.value, zoom],
-  ([entities, currentActiveEntity, isMapReady, currentZoom]) => {
+  [shipEntities, activeEntities, () => tangramApi.map.isReady.value, zoom],
+  ([entities, currentActiveEntities, isMapReady, currentZoom]) => {
     if (!entities || !isMapReady) return;
 
-    // Clean up existing layers
-    if (layerDisposable.value) {
-      layerDisposable.value.dispose();
-    }
+    if (layerDisposable.value) layerDisposable.value.dispose();
     if (hullLayerDisposable.value) {
       hullLayerDisposable.value.dispose();
       hullLayerDisposable.value = null;
@@ -274,10 +294,22 @@ watch(
     // added a 0.9 factor because it looked slightly too large
     const sizeScale = 0.9 * Math.min(Math.max(0.5, Math.pow(2, currentZoom - 10)), 2);
     const showHulls = currentZoom >= 12;
+    const selectedIds = new Set(currentActiveEntities.keys());
 
     // Ship hull layer (only visible at high zoom)
+    const baseData: Entity<ShipState>[] = [];
+    const selectedData: Entity<ShipState>[] = [];
+    for (const d of entities.values()) {
+      if (selectedIds.has(d.id)) {
+        selectedData.push(d);
+      } else {
+        baseData.push(d);
+      }
+    }
+    const allData = baseData.concat(selectedData);
+
     if (showHulls) {
-      const hullData = Array.from(entities.values())
+      const hullData = allData
         .map(entity => ({
           entity,
           polygon: getShipHullPolygon(entity.state)
@@ -297,29 +329,26 @@ watch(
         lineWidthMinPixels: 1,
         getPolygon: d => d.polygon,
         getFillColor: d => {
-          const color =
-            d.entity.id === currentActiveEntity?.id
-              ? colors.selected
-              : getIconColor(d.entity.state);
-
-          return color;
+          return selectedIds.has(d.entity.id)
+            ? colors.selected
+            : getIconColor(d.entity.state);
         },
         getLineColor: d => {
-          const color =
-            d.entity.id === currentActiveEntity?.id
-              ? colors.selected
-              : getIconColor(d.entity.state);
-
-          return color;
+          return selectedIds.has(d.entity.id)
+            ? colors.selected
+            : getIconColor(d.entity.state);
         },
         getLineWidth: 0.5,
-        onClick: ({ object }) => {
-          if (object) {
-            tangramApi.state.setActiveEntity(object.entity);
-          }
+        onClick: (info: PickingInfo, event: MjolnirEvent) => {
+          if (!info.object) return;
+          const entity = (info.object as any).entity;
+          const mockInfo = { ...info, object: entity } as PickingInfo<
+            Entity<ShipState>
+          >;
+          onClick(mockInfo, event);
         },
         updateTriggers: {
-          getFillColor: [currentActiveEntity?.id]
+          getFillColor: [currentActiveEntities]
         }
       });
 
@@ -327,35 +356,28 @@ watch(
       if (!hullLayerDisposable.value) {
         hullLayerDisposable.value = hullDisposable;
       }
-    } else if (hullLayerDisposable.value) {
-      hullLayerDisposable.value.dispose();
-      hullLayerDisposable.value = null;
     }
 
     // Icon layer (always visible, but smaller when hulls are shown)
     const shipLayer = new IconLayer<Entity<ShipState>>({
       id: "ship-layer",
-      data: Array.from(entities.values()),
+      data: allData,
       pickable: true,
       billboard: false,
       getIcon: d => ({
-        url: getShipIcon(d.state, d.id === currentActiveEntity?.id),
+        url: getShipIcon(d.state, selectedIds.has(d.id)),
         width: 24,
         height: 24,
         anchorY: 12
       }),
-      sizeScale: showHulls ? sizeScale * 0.5 : sizeScale, // Smaller icons when hulls shown
-      getPosition: d => [d.state.longitude, d.state.latitude],
+      sizeScale: showHulls ? sizeScale * 0.5 : sizeScale,
+      getPosition: d => [d.state.longitude!, d.state.latitude!],
       getSize: 24,
       getAngle: d => {
         if (isStationary(d.state)) return 0;
         return -(d.state.course || d.state.heading || 0);
       },
-      onClick: ({ object }) => {
-        if (object) {
-          tangramApi.state.setActiveEntity(object);
-        }
-      },
+      onClick: onClick,
       onHover: info => {
         if (info.object) {
           tooltip.object = info.object;
@@ -366,15 +388,12 @@ watch(
         }
       },
       updateTriggers: {
-        getIcon: [currentActiveEntity?.id],
+        getIcon: Array.from(currentActiveEntities.keys()).sort().join(","),
         sizeScale: [showHulls]
       }
     });
 
-    const disposable = tangramApi.map.setLayer(shipLayer);
-    if (!layerDisposable.value) {
-      layerDisposable.value = disposable;
-    }
+    layerDisposable.value = tangramApi.map.setLayer(shipLayer);
   },
   { immediate: true }
 );

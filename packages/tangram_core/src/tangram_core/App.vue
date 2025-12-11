@@ -86,14 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  onMounted,
-  onUnmounted,
-  getCurrentInstance,
-  ref,
-  watch,
-  computed,
-} from "vue";
+import { onMounted, onUnmounted, getCurrentInstance, ref, watch, computed } from "vue";
 import maplibregl from "maplibre-gl";
 import { TangramApi, type WidgetEntry } from "./api";
 import { loadPlugins } from "./plugin";
@@ -111,14 +104,22 @@ let mapInstance: maplibregl.Map | undefined = undefined;
 
 const visibleSidebarWidgets = computed((): WidgetEntry[] => {
   if (!tangramApi.value) return [];
-  const activeType = tangramApi.value.state?.activeEntity?.type;
+  const activeEntities = tangramApi.value.state.activeEntities;
+
+  const activeTypes = new Set<string>();
+  if (activeEntities) {
+    for (const entity of activeEntities.values()) {
+      activeTypes.add(entity.type);
+    }
+  }
 
   return tangramApi.value.ui.widgets.SideBar.filter(widget => {
     if (!widget.relevantFor) return true;
-    const types = Array.isArray(widget.relevantFor)
+
+    const widgetTypes = Array.isArray(widget.relevantFor)
       ? widget.relevantFor
       : [widget.relevantFor];
-    return activeType && types.includes(activeType);
+    return widgetTypes.some(t => activeTypes.has(t));
   });
 });
 
@@ -127,21 +128,27 @@ const toggleSection = (widget: WidgetEntry) => {
 };
 
 watch(
-  () => tangramApi.value?.state?.activeEntity?.type,
-  newType => {
-    if (newType && tangramApi.value) {
-      for (const widget of tangramApi.value.ui.widgets.SideBar) {
-        if (widget.relevantFor) {
-          const types = Array.isArray(widget.relevantFor)
-            ? widget.relevantFor
-            : [widget.relevantFor];
-          if (types.includes(newType)) {
-            widget.isCollapsed = false;
-          }
+  () => tangramApi.value?.state.activeEntities.value,
+  newEntities => {
+    if (!tangramApi.value || !newEntities) return;
+
+    const activeTypes = new Set<string>();
+    for (const entity of newEntities.values()) {
+      activeTypes.add(entity.type);
+    }
+
+    for (const widget of tangramApi.value.ui.widgets.SideBar) {
+      if (widget.relevantFor) {
+        const widgetTypes = Array.isArray(widget.relevantFor)
+          ? widget.relevantFor
+          : [widget.relevantFor];
+        if (widgetTypes.some(t => activeTypes.has(t))) {
+          widget.isCollapsed = false;
         }
       }
     }
-  }
+  },
+  { deep: true }
 );
 
 onMounted(async () => {
@@ -250,7 +257,6 @@ onUnmounted(() => {
   }
 });
 </script>
-
 <style>
 #app {
   height: 100%;
@@ -331,7 +337,7 @@ body {
 .sidebar-section {
   background-color: rgba(255, 255, 255, 0.95);
   color: #333;
-  border-radius: 4px;
+  border-radius: 10px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   pointer-events: auto;
@@ -409,7 +415,7 @@ body {
   height: 32px;
   background: white;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 10px;
   cursor: pointer;
   display: flex;
   align-items: center;

@@ -33,9 +33,8 @@ if (!tangramApi) {
 const aircraftEntities = computed(
   () => tangramApi.state.getEntitiesByType<Jet1090Aircraft>("jet1090_aircraft").value
 );
-const activeEntity = computed(() => tangramApi.state.activeEntity.value);
-const baseLayerDisposable: Ref<Disposable | null> = ref(null);
-const selectedLayerDisposable: Ref<Disposable | null> = ref(null);
+const activeEntities = computed(() => tangramApi.state.activeEntities.value);
+const layerDisposable: Ref<Disposable | null> = ref(null);
 
 const tooltip = reactive<{
   x: number;
@@ -102,65 +101,53 @@ const createAircraftSvgDataURL = (typecode: string, isSelected: boolean): string
   return dataUrl;
 };
 
-const commonLayerProps = {
-  pickable: true,
-  billboard: false,
-  sizeScale: 1,
-  getSize: 32,
-  onClick: (info: PickingInfo<Entity<Jet1090Aircraft>>) => {
-    if (info.object) {
-      tangramApi.state.setActiveEntity(info.object);
-    }
-  },
-  onHover: (info: PickingInfo<Entity<Jet1090Aircraft>>) => {
-    if (info.object) {
-      tooltip.object = info.object;
-      tooltip.x = info.x;
-      tooltip.y = info.y;
+const onClick = (
+  info: PickingInfo<Entity<Jet1090Aircraft>>,
+  event: { srcEvent: { originalEvent: MouseEvent } }
+) => {
+  if (!info.object) return;
+  const srcEvent = event.srcEvent.originalEvent;
+  const exclusive = !srcEvent.ctrlKey && !srcEvent.altKey && !srcEvent.metaKey;
+
+  if (exclusive) {
+    tangramApi.state.selectEntity(info.object, true);
+  } else {
+    if (tangramApi.state.activeEntities.value.has(info.object.id)) {
+      tangramApi.state.deselectEntity(info.object.id);
     } else {
-      tooltip.object = null;
+      tangramApi.state.selectEntity(info.object, false);
     }
   }
 };
 
 watch(
-  [aircraftEntities, activeEntity, () => tangramApi.map.isReady.value],
-  ([entities, currentActiveEntity, isMapReady]) => {
+  [aircraftEntities, activeEntities, () => tangramApi.map.isReady.value],
+  ([entities, currentActiveEntities, isMapReady]) => {
     if (!entities || !isMapReady) return;
 
-    const allAircraft = Array.from(entities.values());
-    const selectedId = currentActiveEntity?.id;
-
-    // split data to prevent global atlas invalidation
-    const baseData = selectedId
-      ? allAircraft.filter(d => d.id !== selectedId)
-      : allAircraft;
-    const selectedData = selectedId ? allAircraft.filter(d => d.id === selectedId) : [];
-
-    const baseLayer = new IconLayer<Entity<Jet1090Aircraft>>({
-      ...commonLayerProps,
-      id: "aircraft-layer-base",
-      data: baseData,
-      getIcon: d => ({
-        url: createAircraftSvgDataURL(d.state.typecode || "A320", false), // Fallback if typecode missing
-        width: 64,
-        height: 64,
-        anchorY: 32
-      }),
-      getPosition: d => [d.state.longitude!, d.state.latitude!], // Validated by upstream filter usually, but assert for TS
-      getAngle: (d: Entity<Jet1090Aircraft>) => {
-        const iconProps = get_image_object(d.state.typecode || null) as IconProps;
-        return -(d.state.track || 0) + iconProps.rotcorr;
+    const baseData = [];
+    const selectedData = [];
+    for (const d of entities.values()) {
+      if (currentActiveEntities.has(d.id)) {
+        selectedData.push(d);
+      } else {
+        baseData.push(d);
       }
-      // no updateTriggers needed, icon depends only on typecode which is stable.
-    });
+    }
+    const data = baseData.concat(selectedData);
 
-    const selectedLayer = new IconLayer<Entity<Jet1090Aircraft>>({
-      ...commonLayerProps,
-      id: "aircraft-layer-selected",
-      data: selectedData,
+    const layer = new IconLayer<Entity<Jet1090Aircraft>>({
+      id: "aircraft-layer",
+      data: data,
+      pickable: true,
+      billboard: false,
+      sizeScale: 1,
+      getSize: 32,
       getIcon: d => ({
-        url: createAircraftSvgDataURL(d.state.typecode || "A320", true),
+        url: createAircraftSvgDataURL(
+          d.state.typecode || "A320",
+          currentActiveEntities.has(d.id)
+        ),
         width: 64,
         height: 64,
         anchorY: 32
@@ -169,21 +156,30 @@ watch(
       getAngle: (d: Entity<Jet1090Aircraft>) => {
         const iconProps = get_image_object(d.state.typecode || null) as IconProps;
         return -(d.state.track || 0) + iconProps.rotcorr;
+      },
+      onClick: onClick,
+      onHover: (info: PickingInfo<Entity<Jet1090Aircraft>>) => {
+        if (info.object) {
+          tooltip.object = info.object;
+          tooltip.x = info.x;
+          tooltip.y = info.y;
+        } else {
+          tooltip.object = null;
+        }
+      },
+      updateTriggers: {
+        getIcon: Array.from(currentActiveEntities.keys()).sort().join(",")
       }
     });
 
-    const d1 = tangramApi.map.setLayer(baseLayer);
-    if (!baseLayerDisposable.value) baseLayerDisposable.value = d1;
-
-    const d2 = tangramApi.map.setLayer(selectedLayer);
-    if (!selectedLayerDisposable.value) selectedLayerDisposable.value = d2;
+    const d = tangramApi.map.setLayer(layer);
+    if (!layerDisposable.value) layerDisposable.value = d;
   },
   { immediate: true }
 );
 
 onUnmounted(() => {
-  baseLayerDisposable.value?.dispose();
-  selectedLayerDisposable.value?.dispose();
+  layerDisposable.value?.dispose();
 });
 </script>
 
@@ -193,7 +189,7 @@ onUnmounted(() => {
   background: white;
   color: black;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 10px;
   font-size: 11px;
   font-family: "B612", sans-serif;
   pointer-events: none;

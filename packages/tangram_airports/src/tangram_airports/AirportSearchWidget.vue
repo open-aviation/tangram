@@ -81,7 +81,7 @@ const selectAirport = (airport: Airport) => {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 10px;
   font-family: "B612", sans-serif;
   box-sizing: border-box;
 }

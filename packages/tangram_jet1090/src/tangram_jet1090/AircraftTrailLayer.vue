@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, inject, onUnmounted, ref, watch, type Ref } from "vue";
+import { inject, onUnmounted, ref, watch, type Ref } from "vue";
 import { PathLayer } from "@deck.gl/layers";
 import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
-import { selectedAircraft } from "./store";
+import { aircraftStore } from "./store";
+import type { Layer } from "@deck.gl/core";
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) throw new Error("assert: tangram api not provided");
 
-const activeEntity = computed(() => tangramApi.state.activeEntity.value);
 const layerDisposable: Ref<Disposable | null> = ref(null);
 
 const updateLayer = () => {
@@ -16,31 +16,31 @@ const updateLayer = () => {
     layerDisposable.value = null;
   }
 
-  if (
-    activeEntity.value?.type === "jet1090_aircraft" &&
-    selectedAircraft.icao24 === activeEntity.value.id &&
-    selectedAircraft.trajectory.length > 1
-  ) {
-    const latLngs = selectedAircraft.trajectory
-      .filter(p => p.latitude != null && p.longitude != null)
-      .map(p => [p.longitude, p.latitude]);
+  const allPaths = Array.from(aircraftStore.selected.entries())
+    .filter(([, data]) => data.trajectory.length > 1)
+    .map(([id, data]) => ({
+      id,
+      path: data.trajectory
+        .filter(p => p.latitude != null && p.longitude != null)
+        .map(p => [p.longitude, p.latitude])
+    }));
 
-    const trailLayer = new PathLayer({
-      id: `trail-layer-${activeEntity.value.id}`,
-      data: [{ path: latLngs }],
+  if (allPaths.length > 0) {
+    const layer = new PathLayer({
+      id: `jet1090-trails`,
+      data: allPaths,
       pickable: false,
       widthScale: 1,
       widthMinPixels: 2,
       getPath: d => d.path,
       getColor: [128, 0, 128, 255],
       getWidth: 2
-    });
-    layerDisposable.value = tangramApi.map.addLayer(trailLayer);
+    }) as Layer;
+    layerDisposable.value = tangramApi.map.setLayer(layer);
   }
 };
 
-watch(() => selectedAircraft.trajectory.length, updateLayer);
-watch(() => activeEntity.value?.id, updateLayer);
+watch(() => aircraftStore.version, updateLayer);
 
 onUnmounted(() => {
   layerDisposable.value?.dispose();

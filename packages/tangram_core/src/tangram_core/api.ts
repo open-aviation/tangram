@@ -192,7 +192,7 @@ export class MapApi implements Disposable {
       },
       onClick: info => {
         if (!info.object) {
-          this.tangramApi.state.deselectActiveEntity();
+          this.tangramApi.state.clearSelection();
         }
       }
     });
@@ -264,14 +264,7 @@ export class StateApi {
   readonly entitiesByType: Map<string, ShallowRef<Map<EntityId, Entity>>> = new Map();
   readonly totalCounts: Ref<ReadonlyMap<string, number>> = ref(new Map());
 
-  private readonly _selection = shallowRef<{ id: string; type: string } | null>(null);
-
-  readonly activeEntity = computed(() => {
-    const sel = this._selection.value;
-    if (!sel) return null;
-    const bucket = this.entitiesByType.get(sel.type);
-    return bucket?.value.get(sel.id) || null;
-  });
+  readonly activeEntities = shallowRef<Map<EntityId, Entity>>(new Map());
 
   registerEntityType = (type: string): void => {
     if (!this.entitiesByType.has(type)) {
@@ -300,14 +293,46 @@ export class StateApi {
       newMap.set(entity.id, entity);
     }
     bucket.value = newMap;
+
+    const currentActive = new Map(this.activeEntities.value);
+    let changed = false;
+    for (const [id, entity] of currentActive) {
+      if (entity.type === type) {
+        const fresh = newMap.get(id);
+        if (fresh) {
+          currentActive.set(id, fresh);
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      this.activeEntities.value = currentActive;
+    }
   };
 
-  setActiveEntity = (entity: Entity): void => {
-    this._selection.value = { id: entity.id, type: entity.type };
+  selectEntity = (entity: Entity, exclusive: boolean = true): void => {
+    if (exclusive) {
+      const newMap = new Map();
+      newMap.set(entity.id, entity);
+      this.activeEntities.value = newMap;
+    } else {
+      const newMap = new Map(this.activeEntities.value);
+      newMap.set(entity.id, entity);
+      this.activeEntities.value = newMap;
+    }
   };
 
-  deselectActiveEntity = (): void => {
-    this._selection.value = null;
+  deselectEntity = (entityId: EntityId): void => {
+    const newMap = new Map(this.activeEntities.value);
+    if (newMap.delete(entityId)) {
+      this.activeEntities.value = newMap;
+    }
+  };
+
+  clearSelection = (): void => {
+    if (this.activeEntities.value.size > 0) {
+      this.activeEntities.value = new Map();
+    }
   };
 
   setTotalCount = (type: string, count: number): void => {
@@ -504,24 +529,26 @@ export class TangramApi {
       const bounds = this.map.bounds.value;
       if (!bounds) return;
 
+      const selectedEntities = Array.from(this.state.activeEntities.value.values()).map(
+        e => ({
+          id: e.id,
+          typeName: e.type
+        })
+      );
+
       const payload = {
         connectionId: connId,
         northEastLat: bounds.getNorthEast().lat,
         northEastLng: bounds.getNorthEast().lng,
         southWestLat: bounds.getSouthWest().lat,
         southWestLng: bounds.getSouthWest().lng,
-        selectedEntity: this.state.activeEntity.value
-          ? {
-              id: this.state.activeEntity.value.id,
-              typeName: this.state.activeEntity.value.type
-            }
-          : null
+        selectedEntities: selectedEntities
       };
       this.realtime.publish("system:bound-box", payload);
     };
 
     watch(this.map.bounds, updateView, { deep: true });
-    watch(() => this.state.activeEntity.value?.id, updateView);
+    watch(this.state.activeEntities, updateView, { deep: true });
   }
 
   public static async create(app: App): Promise<TangramApi> {

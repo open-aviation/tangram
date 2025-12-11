@@ -1,42 +1,17 @@
 <script setup lang="ts">
-import { computed, inject, onUnmounted, ref, watch, type Ref } from "vue";
+import { inject, onUnmounted, ref, watch, type Ref } from "vue";
 import { PathLayer } from "@deck.gl/layers";
 import { PathStyleExtension } from "@deck.gl/extensions";
 import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
-import { selectedAircraft, pluginConfig } from "./store";
-import type { AircraftState } from "./AircraftLayer.vue";
+import { aircraftStore, pluginConfig } from "./store";
+import type { Layer } from "@deck.gl/core";
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) throw new Error("assert: tangram api not provided");
 
-const activeEntity = computed(() => tangramApi.state.activeEntity.value);
 const layerDisposable: Ref<Disposable | null> = ref(null);
 
-const staticOriginCache = ref<{ key: string; path: [number, number][] } | null>(null);
-const staticDestCache = ref<{ key: string; path: [number, number][] } | null>(null);
-const ghostPoint = ref<[number, number] | null>(null);
-
-// switching aircraft
-watch(
-  () => selectedAircraft.icao24,
-  () => {
-    staticOriginCache.value = null;
-    staticDestCache.value = null;
-    ghostPoint.value = null;
-  }
-);
-
-// destination change: clear ghost point
-watch(
-  () => [
-    selectedAircraft.route.destination?.lat,
-    selectedAircraft.route.destination?.lon
-  ],
-  () => {
-    staticDestCache.value = null;
-    ghostPoint.value = null;
-  }
-);
+const greatCircleCache = new Map<string, [number, number][]>();
 
 const toRad = (d: number) => (d * Math.PI) / 180;
 const toDeg = (r: number) => (r * 180) / Math.PI;
@@ -46,6 +21,9 @@ function getGreatCirclePath(
   end: [number, number],
   numPoints = 40
 ): [number, number][] {
+  const key = `${start.join(",")}-${end.join(",")}`;
+  if (greatCircleCache.has(key)) return greatCircleCache.get(key)!;
+
   const lat1 = toRad(start[1]);
   const lon1 = toRad(start[0]);
   const lat2 = toRad(end[1]);
@@ -60,24 +38,27 @@ function getGreatCirclePath(
       )
     );
 
-  if (d < 1e-6) return [start, end];
-
-  const path: [number, number][] = [];
-  const sinD = Math.sin(d);
-
-  for (let i = 0; i <= numPoints; i++) {
-    const f = i / numPoints;
-    const A = Math.sin((1 - f) * d) / sinD;
-    const B = Math.sin(f * d) / sinD;
-
-    const x = A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2);
-    const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
-    const z = A * Math.sin(lat1) + B * Math.sin(lat2);
-
-    const lat = Math.atan2(z, Math.sqrt(x * x + y * y));
-    const lon = Math.atan2(y, x);
-    path.push([toDeg(lon), toDeg(lat)]);
+  let path: [number, number][];
+  if (d < 1e-6) {
+    path = [start, end];
+  } else {
+    path = [];
+    const sinD = Math.sin(d);
+    for (let i = 0; i <= numPoints; i++) {
+      const f = i / numPoints;
+      const A = Math.sin((1 - f) * d) / sinD;
+      const B = Math.sin(f * d) / sinD;
+      const x =
+        A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2);
+      const y =
+        A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
+      const z = A * Math.sin(lat1) + B * Math.sin(lat2);
+      const lat = Math.atan2(z, Math.sqrt(x * x + y * y));
+      const lon = Math.atan2(y, x);
+      path.push([toDeg(lon), toDeg(lat)]);
+    }
   }
+  greatCircleCache.set(key, path);
   return path;
 }
 
@@ -89,104 +70,72 @@ const updateLayer = () => {
 
   if (!pluginConfig.showRouteLines) return;
 
-  const entity = activeEntity.value;
-  if (entity?.type === "jet1090_aircraft" && selectedAircraft.icao24 === entity.id) {
-    const state = entity.state as AircraftState;
-    if (state.longitude == null || state.latitude == null) return;
+  const paths: Array<{
+    path: [number, number][];
+    color: [number, number, number, number];
+  }> = [];
+
+  for (const [id, data] of aircraftStore.selected) {
+    const entity = tangramApi.state.getEntitiesByType("jet1090_aircraft").value.get(id);
+    if (!entity) continue;
+    const state = entity.state as { longitude?: number; latitude?: number };
+    if (state.longitude == null || state.latitude == null) continue;
 
     const currentPos = [state.longitude, state.latitude] as [number, number];
-    const trajectory = selectedAircraft.trajectory;
-    const firstPoint = trajectory.find(p => p.latitude != null && p.longitude != null);
-    const paths = [];
+    const firstPoint = data.trajectory.find(
+      p => p.latitude != null && p.longitude != null
+    );
 
     // 1. static: origin -> first point (great circle)
     if (
-      selectedAircraft.route.origin?.lat != null &&
-      selectedAircraft.route.origin?.lon != null &&
+      data.route.origin?.lat != null &&
+      data.route.origin?.lon != null &&
       firstPoint
     ) {
-      const originKey = `${selectedAircraft.route.origin.lon},${selectedAircraft.route.origin.lat}-${firstPoint.longitude},${firstPoint.latitude}`;
-      if (staticOriginCache.value?.key !== originKey) {
-        staticOriginCache.value = {
-          key: originKey,
-          path: getGreatCirclePath(
-            [selectedAircraft.route.origin.lon, selectedAircraft.route.origin.lat],
-            [firstPoint.longitude, firstPoint.latitude]
-          )
-        };
-      }
+      const originPos: [number, number] = [
+        data.route.origin.lon,
+        data.route.origin.lat
+      ];
+      const firstPos: [number, number] = [firstPoint.longitude!, firstPoint.latitude!];
       paths.push({
-        path: staticOriginCache.value.path,
+        path: getGreatCirclePath(originPos, firstPos),
         color: [128, 128, 128, 128]
       });
     }
 
-    if (
-      selectedAircraft.route.destination?.lat != null &&
-      selectedAircraft.route.destination?.lon != null
-    ) {
-      if (!ghostPoint.value) {
-        ghostPoint.value = currentPos;
-      }
+    // 2. ghost point -> destination (great circle) & current -> ghost (straight)
+    if (data.route.destination?.lat != null && data.route.destination?.lon != null) {
+      const destPos: [number, number] = [
+        data.route.destination.lon,
+        data.route.destination.lat
+      ];
 
-      // 2a. static: ghost point -> destination (great circle)
-      const destKey = `${ghostPoint.value[0]},${ghostPoint.value[1]}-${selectedAircraft.route.destination.lon},${selectedAircraft.route.destination.lat}`;
-      if (staticDestCache.value?.key !== destKey) {
-        staticDestCache.value = {
-          key: destKey,
-          path: getGreatCirclePath(ghostPoint.value, [
-            selectedAircraft.route.destination.lon,
-            selectedAircraft.route.destination.lat
-          ])
-        };
-      }
       paths.push({
-        path: staticDestCache.value.path,
-        color: [128, 128, 128, 128]
-      });
-
-      // 2b. dynamic: current position -> ghost point (straight line)
-      paths.push({
-        path: [currentPos, ghostPoint.value],
+        path: getGreatCirclePath(currentPos, destPos),
         color: [128, 128, 128, 128]
       });
     }
+  }
 
-    if (paths.length > 0) {
-      const routeLayer = new PathLayer({
-        id: `route-layer-${entity.id}`,
-        data: paths,
-        pickable: false,
-        widthScale: 1,
-        widthMinPixels: 2,
-        getPath: (d: { path: [number, number][] }) => d.path,
-        getColor: (d: { color: [number, number, number, number] }) => d.color,
-        getWidth: 2,
-        extensions: [new PathStyleExtension({ dash: true })],
-        getDashArray: [10, 10],
-        dashJustified: true
-      });
-      const disposable = tangramApi.map.setLayer(routeLayer);
-      if (!layerDisposable.value) {
-        layerDisposable.value = disposable;
-      }
-    }
+  if (paths.length > 0) {
+    const routeLayer = new PathLayer({
+      id: "jet1090-routes",
+      data: paths,
+      pickable: false,
+      widthScale: 1,
+      widthMinPixels: 2,
+      getPath: d => d.path,
+      getColor: d => d.color,
+      getWidth: 2,
+      extensions: [new PathStyleExtension({ dash: true })],
+      getDashArray: [10, 10],
+      dashJustified: true
+    }) as Layer;
+    layerDisposable.value = tangramApi.map.setLayer(routeLayer);
   }
 };
 
-watch(
-  () => [
-    (activeEntity.value?.state as AircraftState | undefined)?.latitude,
-    (activeEntity.value?.state as AircraftState | undefined)?.longitude,
-    pluginConfig.showRouteLines,
-    selectedAircraft.route.origin,
-    selectedAircraft.route.destination,
-    selectedAircraft.trajectory.length > 0
-      ? selectedAircraft.trajectory[0].timestamp
-      : 0
-  ],
-  updateLayer
-);
+watch([() => aircraftStore.version, () => pluginConfig.showRouteLines], updateLayer);
 
 onUnmounted(() => {
   layerDisposable.value?.dispose();

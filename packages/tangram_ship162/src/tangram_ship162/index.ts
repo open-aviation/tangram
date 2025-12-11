@@ -4,7 +4,7 @@ import ShipLayer from "./ShipLayer.vue";
 import ShipCountWidget from "./ShipCountWidget.vue";
 import ShipInfoWidget from "./ShipInfoWidget.vue";
 import ShipTrailLayer from "./ShipTrailLayer.vue";
-import { selectedShip } from "./store";
+import { shipStore, type ShipSelectionData } from "./store";
 
 const ENTITY_TYPE = "ship162_ship";
 
@@ -65,38 +65,60 @@ export function install(api: TangramApi, config?: Ship162FrontendConfig) {
   })();
 
   watch(
-    () => api.state.activeEntity.value,
-    async newEntity => {
-      if (newEntity?.type === ENTITY_TYPE) {
-        if (newEntity.id !== selectedShip.id) {
-          selectedShip.id = newEntity.id;
-          selectedShip.trajectory = [];
-          selectedShip.loading = true;
-          selectedShip.error = null;
-
-          try {
-            const response = await fetch(`/ship162/data/${newEntity.id}`);
-            if (!response.ok) throw new Error("Failed to fetch trajectory");
-            const data = await response.json();
-            if (selectedShip.id === newEntity.id) {
-              selectedShip.trajectory = [...data, ...selectedShip.trajectory];
-            }
-          } catch (err: unknown) {
-            if (selectedShip.id === newEntity.id) {
-              selectedShip.error = (err as Error).message;
-            }
-          } finally {
-            if (selectedShip.id === newEntity.id) {
-              selectedShip.loading = false;
-            }
-          }
+    () => api.state.activeEntities.value,
+    async newEntities => {
+      const currentIds = new Set<string>();
+      for (const [id, entity] of newEntities) {
+        if (entity.type === ENTITY_TYPE) {
+          currentIds.add(id);
         }
-      } else {
-        selectedShip.id = null;
-        selectedShip.trajectory = [];
       }
+
+      for (const id of shipStore.selected.keys()) {
+        if (!currentIds.has(id)) {
+          shipStore.selected.delete(id);
+        }
+      }
+
+      for (const id of currentIds) {
+        if (!shipStore.selected.has(id)) {
+          const selectionData: ShipSelectionData = {
+            trajectory: [],
+            loading: true,
+            error: null
+          };
+          shipStore.selected.set(id, selectionData);
+          fetchTrajectory(id);
+        }
+      }
+      shipStore.version++;
     }
   );
+}
+
+async function fetchTrajectory(mmsi: string) {
+  const data = shipStore.selected.get(mmsi);
+  if (!data) return;
+
+  try {
+    const response = await fetch(`/ship162/data/${mmsi}`);
+    if (!response.ok) throw new Error("Failed to fetch trajectory");
+    const trajData = await response.json();
+
+    if (shipStore.selected.has(mmsi)) {
+      const currentData = shipStore.selected.get(mmsi)!;
+      currentData.trajectory = [...trajData, ...currentData.trajectory];
+      shipStore.version++;
+    }
+  } catch (err: unknown) {
+    if (shipStore.selected.has(mmsi)) {
+      shipStore.selected.get(mmsi)!.error = (err as Error).message;
+    }
+  } finally {
+    if (shipStore.selected.has(mmsi)) {
+      shipStore.selected.get(mmsi)!.loading = false;
+    }
+  }
 }
 
 async function subscribeToShipData(api: TangramApi, connectionId: string) {
@@ -113,10 +135,11 @@ async function subscribeToShipData(api: TangramApi, connectionId: string) {
         api.state.replaceAllEntitiesByType(ENTITY_TYPE, entities);
         api.state.setTotalCount(ENTITY_TYPE, payload.count);
 
-        if (selectedShip.id) {
+        let hasUpdates = false;
+        for (const [id, data] of shipStore.selected) {
           const entityMap =
             api.state.getEntitiesByType<Ship162Vessel>(ENTITY_TYPE).value;
-          const entity = entityMap.get(selectedShip.id);
+          const entity = entityMap.get(id);
 
           if (
             entity &&
@@ -125,16 +148,20 @@ async function subscribeToShipData(api: TangramApi, connectionId: string) {
             entity.state.longitude
           ) {
             const updated = entity.state;
-            const last = selectedShip.trajectory[selectedShip.trajectory.length - 1];
+            const last = data.trajectory[data.trajectory.length - 1];
             const timestamp = updated.timestamp;
 
             if (!last || Math.abs(last.timestamp - timestamp) > 0.5) {
-              selectedShip.trajectory.push({
+              data.trajectory.push({
                 ...updated,
                 timestamp: timestamp
               });
+              hasUpdates = true;
             }
           }
+        }
+        if (hasUpdates) {
+          shipStore.version++;
         }
       }
     );
