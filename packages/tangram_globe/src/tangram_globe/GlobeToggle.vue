@@ -28,10 +28,8 @@ const toggleGlobe = () => {
     const mapInstance = tangramApi.map.getMapInstance();
     const newGlobeState = !isGlobeView.value;
 
-    // Set MapLibre's projection to globe or mercator
     mapInstance.setProjection(newGlobeState ? { type: "globe" } : { type: "mercator" });
 
-    // Update state
     isGlobeView.value = newGlobeState;
   } catch (error) {
     console.error("Failed to toggle globe view:", error);
@@ -57,13 +55,13 @@ const toggleGlobe = () => {
 }
 
 .globe-toggle button.active {
-  background: #007bff;
+  background: oklch(0.72 0.075 245);
   color: white;
-  border-color: #0056b3;
+  border-color: oklch(0.59 0.075 245);
 }
 
 .globe-toggle button:focus {
-  outline: 2px solid #007bff;
+  outline: 2px solid oklch(0.72 0.075 245);
   outline-offset: 2px;
 }
 </style>

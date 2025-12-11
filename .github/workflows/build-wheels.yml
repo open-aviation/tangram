@@ -22,6 +22,7 @@ jobs:
           path: .
       - uses: astral-sh/setup-uv@v7
       # not building example.
+      # not building globe for now, we may evolve it to `tangram_layers`
       - name: build wheels
         run: |
           mkdir -p dist

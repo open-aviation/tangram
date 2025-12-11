@@ -86,6 +86,7 @@ plugins:
             - packages/tangram_core/src
             - packages/tangram_jet1090/src
             - packages/tangram_weather/src
+            - packages/tangram_globe/src
             - packages/tangram_system/src
             - packages/tangram_ship162/src
           inventories:
