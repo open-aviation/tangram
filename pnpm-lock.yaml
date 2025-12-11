@@ -129,6 +129,16 @@ importers:
         specifier: ^3.5.25
         version: 3.5.25(typescript@5.9.3)
 
+  packages/tangram_globe:
+    dependencies:
+      '@open-aviation/tangram-core':
+        specifier: workspace:*
+        version: link:../tangram_core
+    devDependencies:
+      vue:
+        specifier: ^3.5.25
+        version: 3.5.25(typescript@5.9.3)
+
   packages/tangram_jet1090:
     dependencies:
       '@open-aviation/tangram-core':
