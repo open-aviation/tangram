@@ -206,7 +206,7 @@ def create_app(
     loaded_plugins: Iterable[Plugin],
 ) -> FastAPI:
     app = FastAPI(lifespan=partial(lifespan, backend_state=backend_state))
-    frontend_plugins = []
+    frontend_plugins = {}
 
     for plugin in loaded_plugins:
         for router in plugin.routers:
@@ -218,7 +218,15 @@ def create_app(
                 StaticFiles(directory=str(frontend_path_resolved)),
                 name=plugin.dist_name,
             )
-            frontend_plugins.append(plugin.dist_name)
+
+            manifest_path = frontend_path_resolved / "plugin.json"
+            if manifest_path.exists():
+                try:
+                    frontend_plugins[plugin.dist_name] = json.loads(
+                        manifest_path.read_text(encoding="utf-8")
+                    )
+                except Exception as e:
+                    logger.error(f"failed to load manifest for {plugin.dist_name}: {e}")
 
     # unlike v0.1 which uses `process.env`, v0.2 *compiles* the js so we no
     # no longer have access to it, so we selectively forward the config.

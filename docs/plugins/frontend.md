@@ -84,9 +84,9 @@ plugins = ["my_tangram_plugin"]
 
 When `tangram serve` runs, it will:
 
-1. Serve the static assets from your plugin's `dist-frontend` directory.
-2. Include your plugin in the `/manifest.json` endpoint.
-3. The core web app will fetch the manifest and dynamically load and install your plugin.
+1. Read the `plugin.json` manifest from every enabled plugin at startup.
+2. Amalgamate these into a single cached response for `/manifest.json`.
+3. The core web app fetches this single manifest and dynamically loads resources.
 
 ```mermaid
 sequenceDiagram
@@ -95,9 +95,7 @@ sequenceDiagram
     participant S as Tangram Server
 
     B->>S: GET /manifest.json
-    S-->>B: Respond with {"plugins": ["my_plugin"]}
-    B->>S: GET /plugins/my_plugin/plugin.json
-    S-->>B: Respond with {"main": "index.js"}
+    S-->>B: Respond with {"plugins": {"my_plugin": {"main": "index.js"}}}
     B->>S: GET /plugins/my_plugin/index.js
     S-->>B: Serve plugin's JS entry point
     Note over B, P: Browser executes plugin code

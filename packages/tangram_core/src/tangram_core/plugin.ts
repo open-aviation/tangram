@@ -13,19 +13,19 @@ export async function loadPlugins(
   onProgress?.({ stage: "manifest" });
   const manifest = await fetch("/manifest.json").then(res => res.json());
 
-  for (const pluginName of manifest.plugins) {
+  for (const [pluginName, pluginManifest] of Object.entries(manifest.plugins)) {
     onProgress?.({ stage: "plugin", pluginName });
-    const pluginManifestUrl = `/plugins/${pluginName}/plugin.json`;
-    const pluginManifest = await fetch(pluginManifestUrl).then(res => res.json());
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pm = pluginManifest as any;
 
-    if (pluginManifest.style) {
+    if (pm.style) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
-      link.href = `/plugins/${pluginName}/${pluginManifest.style}`;
+      link.href = `/plugins/${pluginName}/${pm.style}`;
       document.head.appendChild(link);
     }
 
-    const entryPointUrl = `/plugins/${pluginName}/${pluginManifest.main}`;
+    const entryPointUrl = `/plugins/${pluginName}/${pm.main}`;
 
     try {
       const pluginModule = await import(/* @vite-ignore */ entryPointUrl);
