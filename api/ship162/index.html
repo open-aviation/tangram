@@ -2443,8 +2443,7 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_ship162/src/tangram_ship162/__init__.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">62</span>
-<span class="normal">63</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">63</span>
 <span class="normal">64</span>
 <span class="normal">65</span>
 <span class="normal">66</span>
@@ -2460,7 +2459,8 @@
 <span class="normal">76</span>
 <span class="normal">77</span>
 <span class="normal">78</span>
-<span class="normal">79</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">79</span>
+<span class="normal">80</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">ShipsConfig</span><span class="p">(</span>
     <span class="n">tangram_core</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">HasTopbarUiConfig</span><span class="p">,</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">HasSidebarUiConfig</span>
 <span class="p">):</span>
@@ -2887,12 +2887,12 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_ship162/src/tangram_ship162/__init__.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">82</span>
-<span class="normal">83</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">83</span>
 <span class="normal">84</span>
 <span class="normal">85</span>
 <span class="normal">86</span>
-<span class="normal">87</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">87</span>
+<span class="normal">88</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">FrontendShipsConfig</span><span class="p">(</span>
     <span class="n">tangram_core</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">HasTopbarUiConfig</span><span class="p">,</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">HasSidebarUiConfig</span>
 <span class="p">):</span>
@@ -3014,8 +3014,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_ship162/src/tangram_ship162/__init__.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">23</span>
-<span class="normal">24</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">24</span>
 <span class="normal">25</span>
 <span class="normal">26</span>
 <span class="normal">27</span>
@@ -3050,7 +3049,8 @@
 <span class="normal">56</span>
 <span class="normal">57</span>
 <span class="normal">58</span>
-<span class="normal">59</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/data/</span><span class="si">{mmsi}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="normal">59</span>
+<span class="normal">60</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/data/</span><span class="si">{mmsi}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_trajectory_data</span><span class="p">(</span>
     <span class="n">mmsi</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">InjectBackendState</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
@@ -3082,7 +3082,7 @@
             <span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s2">&quot;timestamp&quot;</span><span class="p">)</span>
             <span class="o">.</span><span class="n">collect</span><span class="p">()</span>
         <span class="p">)</span>
-        <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">to_dicts</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">write_json</span><span class="p">(),</span> <span class="n">media_type</span><span class="o">=</span><span class="s2">&quot;application/json&quot;</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span>
             <span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Failed to query trajectory data: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -3116,12 +3116,12 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_ship162/src/tangram_ship162/__init__.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">90</span>
-<span class="normal">91</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">91</span>
 <span class="normal">92</span>
 <span class="normal">93</span>
 <span class="normal">94</span>
-<span class="normal">95</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">transform_config</span><span class="p">(</span><span class="n">config_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">FrontendShipsConfig</span><span class="p">:</span>
+<span class="normal">95</span>
+<span class="normal">96</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">transform_config</span><span class="p">(</span><span class="n">config_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">FrontendShipsConfig</span><span class="p">:</span>
     <span class="n">config</span> <span class="o">=</span> <span class="n">TypeAdapter</span><span class="p">(</span><span class="n">ShipsConfig</span><span class="p">)</span><span class="o">.</span><span class="n">validate_python</span><span class="p">(</span><span class="n">config_dict</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">FrontendShipsConfig</span><span class="p">(</span>
         <span class="n">topbar_order</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">topbar_order</span><span class="p">,</span>
@@ -3158,8 +3158,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_ship162/src/tangram_ship162/__init__.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">105</span>
-<span class="normal">106</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">106</span>
 <span class="normal">107</span>
 <span class="normal">108</span>
 <span class="normal">109</span>
@@ -3185,7 +3184,8 @@
 <span class="normal">129</span>
 <span class="normal">130</span>
 <span class="normal">131</span>
-<span class="normal">132</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@plugin</span><span class="o">.</span><span class="n">register_service</span><span class="p">()</span>
+<span class="normal">132</span>
+<span class="normal">133</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@plugin</span><span class="o">.</span><span class="n">register_service</span><span class="p">()</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_ships</span><span class="p">(</span><span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">BackendState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">_ships</span>
 

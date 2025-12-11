@@ -3486,7 +3486,7 @@
   
       module-attribute
    (tangram_core.InjectBackendState)" href="../core/#tangram_core.InjectBackendState">InjectBackendState</a></span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="fastapi.responses.Response" href="https://fastapi.tiangolo.com/reference/responses/#fastapi.responses.Response">Response</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -3534,7 +3534,7 @@
 <span class="normal">72</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/data/</span><span class="si">{icao24}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_trajectory_data</span><span class="p">(</span>
     <span class="n">icao24</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">InjectBackendState</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the full trajectory for a given ICAO24 address.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">_HISTORY_AVAILABLE</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span>
@@ -3563,7 +3563,7 @@
             <span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s2">&quot;timestamp&quot;</span><span class="p">)</span>
             <span class="o">.</span><span class="n">collect</span><span class="p">()</span>
         <span class="p">)</span>
-        <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">to_dicts</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">write_json</span><span class="p">(),</span> <span class="n">media_type</span><span class="o">=</span><span class="s2">&quot;application/json&quot;</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to query trajectory for </span><span class="si">{</span><span class="n">icao24</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Failed to query trajectory data.&quot;</span><span class="p">)</span>
@@ -3592,7 +3592,7 @@
   
       module-attribute
    (tangram_core.InjectBackendState)" href="../core/#tangram_core.InjectBackendState">InjectBackendState</a></span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="fastapi.responses.JSONResponse" href="https://fastapi.tiangolo.com/reference/responses/#fastapi.responses.JSONResponse">JSONResponse</a></span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="fastapi.responses.ORJSONResponse" href="https://fastapi.tiangolo.com/reference/responses/#fastapi.responses.ORJSONResponse">ORJSONResponse</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -3617,7 +3617,7 @@
 <span class="normal">89</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/route/</span><span class="si">{callsign}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_route_data</span><span class="p">(</span>
     <span class="n">callsign</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">InjectBackendState</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ORJSONResponse</span><span class="p">:</span>
     <span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://flightroutes.opensky-network.org/api/routeset&quot;</span>
     <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;planes&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;callsign&quot;</span><span class="p">:</span> <span class="n">callsign</span><span class="p">}]}</span>
     <span class="n">client</span> <span class="o">=</span> <span class="n">backend_state</span><span class="o">.</span><span class="n">http_client</span>
@@ -3625,10 +3625,10 @@
         <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">5.0</span><span class="p">)</span>
         <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ORJSONResponse</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to fetch route data for </span><span class="si">{</span><span class="n">callsign</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="p">[],</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ORJSONResponse</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="p">[],</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3654,7 +3654,7 @@
   
       module-attribute
    (tangram_core.InjectBackendState)" href="../core/#tangram_core.InjectBackendState">InjectBackendState</a></span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="fastapi.responses.JSONResponse" href="https://fastapi.tiangolo.com/reference/responses/#fastapi.responses.JSONResponse">JSONResponse</a></span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="fastapi.responses.ORJSONResponse" href="https://fastapi.tiangolo.com/reference/responses/#fastapi.responses.ORJSONResponse">ORJSONResponse</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -3682,7 +3682,7 @@
 <span class="normal">109</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/sensors&quot;</span><span class="p">)</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_sensors_data</span><span class="p">(</span>
     <span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">InjectBackendState</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ORJSONResponse</span><span class="p">:</span>
     <span class="n">plugin_config</span> <span class="o">=</span> <span class="n">backend_state</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">plugins</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tangram_jet1090&quot;</span><span class="p">,</span> <span class="p">{})</span>
     <span class="n">config</span> <span class="o">=</span> <span class="n">TypeAdapter</span><span class="p">(</span><span class="n">PlanesConfig</span><span class="p">)</span><span class="o">.</span><span class="n">validate_python</span><span class="p">(</span><span class="n">plugin_config</span><span class="p">)</span>
     <span class="c1"># Keeping &quot;localhost&quot; in the URL can lead to issues on systems where localhost</span>
@@ -3693,7 +3693,7 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">backend_state</span><span class="o">.</span><span class="n">http_client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">10.0</span><span class="p">)</span>
         <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">ORJSONResponse</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to fetch sensors data from </span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">502</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>

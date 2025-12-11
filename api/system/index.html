@@ -2051,15 +2051,19 @@
 <span class="normal">66</span>
 <span class="normal">67</span>
 <span class="normal">68</span>
-<span class="normal">69</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">server_events</span><span class="p">(</span><span class="n">redis_client</span><span class="p">:</span> <span class="n">redis</span><span class="o">.</span><span class="n">Redis</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NoReturn</span><span class="p">:</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">server_events</span><span class="p">(</span><span class="n">redis_client</span><span class="p">:</span> <span class="n">redis</span><span class="o">.</span><span class="n">Redis</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NoReturn</span><span class="p">:</span>
     <span class="n">counter</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;serving system events...&quot;</span><span class="p">)</span>
 
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">uptime</span><span class="p">(</span><span class="n">counter</span><span class="p">)))</span>
-        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">info_utc</span><span class="p">()))</span>
-        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">cpu_load</span><span class="p">()))</span>
-        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">ram_usage</span><span class="p">()))</span>
+        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
+            <span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">orjson</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">uptime</span><span class="p">(</span><span class="n">counter</span><span class="p">))</span>
+        <span class="p">)</span>
+        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">orjson</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">info_utc</span><span class="p">()))</span>
+        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">orjson</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">cpu_load</span><span class="p">()))</span>
+        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:system:update-node&quot;</span><span class="p">,</span> <span class="n">orjson</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">ram_usage</span><span class="p">()))</span>
         <span class="n">counter</span> <span class="o">+=</span> <span class="mi">1</span>
 
         <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
@@ -2094,9 +2098,9 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">77</span>
-<span class="normal">78</span>
-<span class="normal">79</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@plugin</span><span class="o">.</span><span class="n">register_service</span><span class="p">()</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@plugin</span><span class="o">.</span><span class="n">register_service</span><span class="p">()</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_system</span><span class="p">(</span><span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">BackendState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="k">await</span> <span class="n">server_events</span><span class="p">(</span><span class="n">backend_state</span><span class="o">.</span><span class="n">redis_client</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
