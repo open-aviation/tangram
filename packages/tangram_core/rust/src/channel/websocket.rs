@@ -13,9 +13,9 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Error};
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{broadcast, Mutex};
 use tokio::task::JoinHandle;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, instrument, warn, Instrument};
 
 /// reply data structures
 #[derive(Clone, Debug, Serialize_tuple)]
@@ -130,6 +130,7 @@ pub struct State {
 
 impl State {}
 
+#[instrument(skip(ws, state, user_token))]
 pub async fn axum_on_connected(
     ws: axum::extract::ws::WebSocket,
     state: Arc<State>,
@@ -139,119 +140,128 @@ pub async fn axum_on_connected(
 
     let conn_id = nanoid::nanoid!(8).to_string();
     state.ctl.lock().await.conn_add_tx(conn_id.clone()).await;
-    info!("AXUM / WS_TX / new connection connected: {}", conn_id);
+    info!("new connection connected: {}", conn_id);
 
     let (mut ws_tx, mut ws_rx) = ws.split();
 
     // conn rx => ws tx
     let ws_tx_state = state.clone();
     let ws_tx_conn_id = conn_id.clone();
-    let mut ws_tx_task = tokio::spawn(async move {
-        info!("AXUM / WS_TX / launch websocket tx task (conn rx => ws tx) ...");
+    let span_tx = tracing::info_span!("ws_tx");
+    let mut ws_tx_task = tokio::spawn(
+        async move {
+            info!("launch websocket tx task (conn rx => ws tx) ...");
 
-        let mut conn_rx = ws_tx_state
-            .ctl
-            .lock()
-            .await
-            .conn_rx(ws_tx_conn_id.clone())
-            .await
-            .unwrap();
-        loop {
-            match conn_rx.recv().await {
-                Ok(channel_message) => {
-                    let ChannelMessage::Reply(reply_message) = channel_message;
-                    let text_result = serde_json::to_string(&reply_message);
-                    if text_result.is_err() {
-                        error!(
-                            "AXUM / WS_TX / fail to serialize reply message: {}",
-                            text_result.err().unwrap()
-                        );
+            let mut conn_rx = ws_tx_state
+                .ctl
+                .lock()
+                .await
+                .conn_rx(ws_tx_conn_id.clone())
+                .await
+                .unwrap();
+            loop {
+                match conn_rx.recv().await {
+                    Ok(channel_message) => {
+                        let ChannelMessage::Reply(reply_message) = channel_message;
+                        let text_result = serde_json::to_string(&reply_message);
+                        if text_result.is_err() {
+                            error!(
+                                error = %text_result.err().unwrap(),
+                                "fail to serialize reply message"
+                            );
+                            break;
+                        }
+                        let text = text_result.unwrap();
+                        let sending_result = ws_tx
+                            .send(axum::extract::ws::Message::Text(text.into()))
+                            .await;
+                        if sending_result.is_err() {
+                            error!(
+                                error = %sending_result.err().unwrap(),
+                                "websocket tx sending failed"
+                            );
+                            break; // what happend? exit if the connection is lost
+                        }
+                    }
+                    Err(e) => {
+                        error!(error = ?e, "rx error");
                         break;
                     }
-                    let text = text_result.unwrap();
-                    let sending_result = ws_tx
-                        .send(axum::extract::ws::Message::Text(text.into()))
-                        .await;
-                    if sending_result.is_err() {
-                        error!(
-                            "AXUM / WS_TX / websocket tx sending failed: {}",
-                            sending_result.err().unwrap()
-                        );
-                        break; // what happend? exit if the connection is lost
-                    }
-                }
-                Err(e) => {
-                    error!("AXUM / WS_TX / rx error: {:?}", e);
-                    break;
                 }
             }
         }
-    });
+        .instrument(span_tx),
+    );
 
     let ws_rx_state = state.clone();
     let ws_rx_conn_id = conn_id.clone();
     let ws_rx_user_token = user_token.clone();
-    let mut ws_rx_task = tokio::spawn(async move {
-        info!("AXUM / WS_RX / websocket rx handling (ws rx =>) ...");
-        let mut redis_conn = ws_rx_state
-            .redis_client
-            .get_multiplexed_async_connection()
-            .await
-            .unwrap();
+    let span_rx = tracing::info_span!("ws_rx");
+    let mut ws_rx_task = tokio::spawn(
+        async move {
+            info!("websocket rx handling (ws rx =>) ...");
+            let mut redis_conn = ws_rx_state
+                .redis_client
+                .get_multiplexed_async_connection()
+                .await
+                .unwrap();
 
-        // Read all messages from websocket rx, process or dispatch to each channel
-        while let Some(msg_result) = ws_rx.next().await {
-            match msg_result {
-                Ok(msg) => match msg {
-                    axum::extract::ws::Message::Text(text) => {
-                        if let Err(e) = handle_message(
-                            ws_rx_state.clone(),
-                            ws_rx_user_token.clone(),
-                            &ws_rx_conn_id,
-                            &text,
-                            &mut redis_conn,
-                        )
-                        .await
-                        {
-                            error!("AXUM / WS_RX / handle_message error: {:?}", e);
+            // Read all messages from websocket rx, process or dispatch to each channel
+            while let Some(msg_result) = ws_rx.next().await {
+                match msg_result {
+                    Ok(msg) => match msg {
+                        axum::extract::ws::Message::Text(text) => {
+                            if let Err(e) = handle_message(
+                                ws_rx_state.clone(),
+                                ws_rx_user_token.clone(),
+                                &ws_rx_conn_id,
+                                &text,
+                                &mut redis_conn,
+                            )
+                            .await
+                            {
+                                error!(error = ?e, "handle_message error");
+                            }
                         }
-                    }
-                    axum::extract::ws::Message::Close(_) => {
-                        debug!("AXUM / WS_RX / close frame received");
+                        axum::extract::ws::Message::Close(_) => {
+                            debug!("close frame received");
+                            break;
+                        }
+                        // TODO: handle ping/pong/binary (e.g. arrow recordbatches)
+                        _ => {}
+                    },
+                    Err(e) => {
+                        error!(error = ?e, "rx error");
                         break;
                     }
-                    // TODO: handle ping/pong/binary (e.g. arrow recordbatches)
-                    _ => {}
-                },
-                Err(e) => {
-                    error!("AXUM / WS_RX / rx error: {:?}", e);
-                    break;
                 }
             }
         }
-    });
+        .instrument(span_rx),
+    );
 
     // Wait for either task to finish: when one ends, always wait for the other
     tokio::select! {
         _ = (&mut ws_tx_task) => {
-            info!("AXUM / ws_tx_task exits.");
+            info!("ws_tx_task exits.");
 
             ws_rx_task.abort();
-            info!("AXUM / ws_rx_task aborts.");
+            info!("ws_rx_task aborts.");
         },
         _ = (&mut ws_rx_task) => {
-            info!("AXUM / ws_rx_task exits.");
+            info!("ws_rx_task exits.");
 
             ws_tx_task.abort();
-            info!("AXUM / ws_tx_task aborts.");
+            info!("ws_tx_task aborts.");
         },
     }
 
     state.ctl.lock().await.conn_cleanup(conn_id.clone()).await;
-    info!("AXUM / CONNECTION CLOSED");
+    info!("connection closed");
     // Except for phoenix/admin/system, if this is the last agent of the channel, clean up channel related resources
 }
 
+#[instrument(skip(state, user_token, redis_conn, text), fields(conn_id = %conn_id))]
 async fn handle_message(
     state: Arc<State>,
     user_token: Option<String>,
@@ -262,10 +272,9 @@ async fn handle_message(
     let rm_result = serde_json::from_str::<RequestMessage>(text);
     if rm_result.is_err() {
         error!(
-            "WS_RX / conn: {}, error: {:?} text: {}",
-            &conn_id,
-            rm_result.err(),
-            text
+            error = ?rm_result.err(),
+            %text,
+            "deserialization error"
         );
         // Clean up all agents for conn_id
         // state.ctl.lock().await.agent_rm(conn_id).await;
@@ -294,7 +303,7 @@ async fn handle_message(
         // Start a new relay task (agent rx => conn tx), needs to be cleared when agent leaves
         // Each join in the connection will generate this task; when the connection is broken, it will exit automatically
         let _relay_task = handle_join(user_token, &rm, state.clone(), conn_id).await;
-        debug!("WS_RX / join processed");
+        debug!("join processed");
         // continue;
     }
 
@@ -307,7 +316,7 @@ async fn handle_message(
             channel_name.clone(),
         )
         .await;
-        debug!("WS_RX / leave processed");
+        debug!("leave processed");
     }
 
     // all events are dispatched to redis
@@ -337,26 +346,26 @@ pub fn is_special_channel(ch: &str) -> bool {
     excludes.contains(&ch)
 }
 
+#[instrument(skip(ctl))]
 pub async fn add_channel(ctl: &Mutex<ChannelControl>, channel_name: String) {
     let ctl = ctl.lock().await;
 
     let mut channels = ctl.channels.lock().await;
     let channel_exists = channels.contains_key(&channel_name);
     if channel_exists {
-        warn!("ADD_CH / channel {} already exists", channel_name);
+        warn!("channel already exists");
     }
 
     channels
         .entry(channel_name.clone())
         .or_insert_with(|| Channel::new(channel_name.clone(), None));
-    warn!("ADD_CH / {} added", channel_name);
+    warn!("channel added");
 
     let channel_names = channels.keys().cloned().collect::<Vec<String>>();
     info!(
-        "ADD_CH / {} created, channels: {} {:?}",
-        channel_name,
-        channel_names.len(),
-        channel_names
+        channels_count = channel_names.len(),
+        ?channel_names,
+        "channel created"
     );
 
     let meta = json!({
@@ -370,6 +379,7 @@ pub async fn add_channel(ctl: &Mutex<ChannelControl>, channel_name: String) {
 /// launch a tokio thread to listen to redis topic
 /// For each channel, when the first agent connects, this thread is created, and when the last one leaves, it is destroyed
 /// phoenix, system, admin: these 3 are created directly and always exist
+#[instrument(skip(state, ctl, redis_client))]
 pub async fn launch_channel_redis_listen_task(
     state: Arc<State>,
     ctl: &Mutex<ChannelControl>,
@@ -380,10 +390,7 @@ pub async fn launch_channel_redis_listen_task(
     let mut channels = ctl.channels.lock().await;
     let channel: &mut Channel = channels.get_mut(&channel_name).unwrap();
     if channel.redis_listen_task.is_some() {
-        warn!(
-            "LAUNCH_REDIS_TASK / channel {} redis_listen_task already exists",
-            channel_name
-        );
+        warn!("redis_listen_task already exists");
         return;
     }
     channel.redis_listen_task = Some(tokio::spawn(listen_to_redis(
@@ -392,13 +399,11 @@ pub async fn launch_channel_redis_listen_task(
         redis_client,
         channel_name.clone(),
     )));
-    info!(
-        "LAUNCH_REDIS_TASK / channel {} redis_listen_task launched",
-        channel_name
-    );
+    info!("redis_listen_task launched");
 }
 
 // Add agent tx, join channel, spawn agent/conn relay task, ack joining
+#[instrument(skip(user_token, rm, state), fields(channel = %rm.topic, join_ref = ?rm.join_ref))]
 async fn handle_join(
     user_token: Option<String>,
     rm: &RequestMessage,
@@ -409,23 +414,23 @@ async fn handle_join(
     let token = match &rm.payload {
         RequestPayload::Join { token } => Ok(token.clone()),
         _ => user_token.ok_or_else(|| {
-            error!("JOIN / invalid payload: {:?}", rm.payload);
+            error!(payload = ?rm.payload, "invalid payload");
             ChannelError::BadToken
         }),
     }?;
     let claims = match decode_jwt(&token, state.jwt_secret.clone()).await {
         Ok(claims) => claims,
         Err(e) => {
-            error!("JOIN / fail to decode JWT, {}, {}", e, token);
+            error!(error = %e, %token, "fail to decode JWT");
             return Err(ChannelError::BadToken);
         }
     };
 
-    debug!("JOIN / claims: {:?}", claims);
+    debug!(?claims, "jwt claims");
 
     let channel_name = rm.topic.clone();
     if is_special_channel(&channel_name) {
-        info!("ADD_CH / channel {} is special, ignored", channel_name);
+        info!("channel is special, ignored");
     } else {
         add_channel(&state.ctl, channel_name.clone()).await;
         launch_channel_redis_listen_task(
@@ -446,10 +451,7 @@ async fn handle_join(
     let join_ref = rm.join_ref.clone();
     let event_ref = rm.event_ref.clone();
 
-    info!(
-        "JOIN / agent joining ({} => {}) ...",
-        agent_id, channel_name
-    );
+    info!(%agent_id, "agent joining");
     state
         .ctl
         .lock()
@@ -470,7 +472,7 @@ async fn handle_join(
         Ok(_) => {}
         Err(e) => {
             // What happens to relay task when connection is lost?
-            error!("JOIN / fail to join: {}", e);
+            error!(error = %e, "fail to join");
             return Err(e);
         }
     }
@@ -481,52 +483,50 @@ async fn handle_join(
     let local_join_ref = rm.join_ref.clone();
     let local_conn_id = conn_id.to_string();
     let local_agent_id = agent_id.clone();
-    let relay_task = tokio::spawn(async move {
-        let mut agent_rx = relay_state
-            .ctl
-            .lock()
-            .await
-            .agent_rx(local_agent_id.clone())
-            .await
-            .unwrap();
-        let conn_tx = relay_state
-            .ctl
-            .lock()
-            .await
-            .conn_tx(local_conn_id.to_string())
-            .await
-            .unwrap();
+    let span_relay = tracing::info_span!("relay", agent_id = %local_agent_id);
+    let relay_task = tokio::spawn(
+        async move {
+            let mut agent_rx = relay_state
+                .ctl
+                .lock()
+                .await
+                .agent_rx(local_agent_id.clone())
+                .await
+                .unwrap();
+            let conn_tx = relay_state
+                .ctl
+                .lock()
+                .await
+                .conn_tx(local_conn_id.to_string())
+                .await
+                .unwrap();
 
-        debug!(
-            "R / agent {} => conn {}",
-            local_agent_id.clone(),
-            local_conn_id.clone()
-        );
-        loop {
-            let message_opt = agent_rx.recv().await;
-            if message_opt.is_err() {
-                error!(
-                    "R / fail to get message from agent rx: {}",
-                    message_opt.err().unwrap()
-                );
-                break;
+            debug!("agent => conn established");
+            loop {
+                match agent_rx.recv().await {
+                    Ok(mut channel_message) => {
+                        let ChannelMessage::Reply(ref mut reply) = channel_message;
+                        reply.join_ref = local_join_ref.clone();
+                        // agent rx => conn tx => conn rx => ws tx
+                        if conn_tx.send(channel_message.clone()).is_err() {
+                            // fails when there's no reciever, connection lost, stop forwarding
+                            debug!("connection closed, stopping relay");
+                            break;
+                        }
+                    }
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                        warn!(skipped, "agent rx lagged");
+                        continue;
+                    }
+                    Err(broadcast::error::RecvError::Closed) => {
+                        debug!("agent rx closed"); // expected during cleanup
+                        break;
+                    }
+                }
             }
-            let mut channel_message = message_opt.unwrap();
-            let ChannelMessage::Reply(ref mut reply) = channel_message;
-            reply.join_ref = local_join_ref.clone();
-            let send_result = conn_tx.send(channel_message.clone()); // agent rx => conn tx => conn rx => ws tx
-            if send_result.is_err() {
-                error!(
-                    "R / agent {}, conn: {}, sending failure: {:?}, exit ...",
-                    &local_agent_id,
-                    &local_conn_id,
-                    send_result.err().unwrap()
-                );
-                break; // fails when there's no reciever, connection lost, stop forwarding
-            }
-            // debug!("R / agent {}, sent", &local_agent_id);
         }
-    });
+        .instrument(span_relay),
+    );
 
     // phx_reply, confirm join event
     ok_reply(
@@ -537,10 +537,10 @@ async fn handle_join(
         state.clone(),
     )
     .await;
-    info!("JOIN / acked");
+    info!("acked");
 
     if channel_name == "admin" {
-        info!("JOIN / handling admin initialization ...");
+        info!("handling admin initialization ...");
         let ctl = state.ctl.lock().await;
         let channels = ctl.channels.lock().await;
         for (name, channel) in channels.iter() {
@@ -579,6 +579,7 @@ async fn handle_join(
     Ok(relay_task)
 }
 
+#[instrument(skip(state), fields(channel = %channel_name, join_ref = ?join_ref))]
 async fn handle_leave(
     state: Arc<State>,
     conn_id: &str,
@@ -606,10 +607,10 @@ async fn handle_leave(
     ok_reply(conn_id, join_ref, event_ref, &channel_name, state.clone()).await;
 
     if external_id_opt.is_none() {
-        error!("LEAVE / agent {} not found", agent_id);
+        error!("agent not found");
         return;
     }
-    info!("LEAVE / send presense_diff");
+    info!("send presense_diff");
     let mut redis_conn = state
         .redis_client
         .get_multiplexed_async_connection()
@@ -704,7 +705,7 @@ async fn presence_state(
         .conn_send(conn_id.to_string(), ChannelMessage::Reply(reply))
         .await
         .unwrap();
-    info!("P_STATE / sent");
+    info!("sent");
 }
 
 #[derive(Debug)]
@@ -713,6 +714,7 @@ pub enum PresenceAction {
     Leave,
 }
 
+#[instrument(skip(redis_conn, items))]
 pub async fn presence_diff_many(
     redis_conn: &mut MultiplexedConnection,
     channel_name: String,
@@ -729,13 +731,14 @@ pub async fn presence_diff_many(
         .publish(redis_topic.clone(), message.clone())
         .await;
     if let Err(e) = publish_result {
-        error!("P_DIFF_MANY / fail to publish to redis: {}", e)
+        error!(error = %e, "fail to publish to redis");
     } else {
-        info!("P_DIFF_MANY / sent, {:?}", action);
+        info!(?action, "sent");
     }
 }
 
 /// broadcast presence_diff over redis
+#[instrument(skip(redis_conn))]
 pub async fn presence_diff(
     redis_conn: &mut MultiplexedConnection,
     channel_name: String,
@@ -760,13 +763,14 @@ pub async fn presence_diff(
         .publish(redis_topic.clone(), message.clone())
         .await;
     if let Err(e) = publish_result {
-        error!("P_DIFF / fail to publish to redis: {}", e)
+        error!(error = %e, "fail to publish to redis");
     } else {
-        info!("P_DIFF / sent, {:?}", action);
+        info!(?action, "sent");
     }
 }
 
 // Send a timestamp every second
+#[instrument(skip(state))]
 pub async fn datetime_handler(state: Arc<State>, channel_name: String) {
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
@@ -800,8 +804,9 @@ pub async fn datetime_handler(state: Arc<State>, channel_name: String) {
             Err(ChannelError::ChannelEmpty) => {}
             Err(e) => {
                 error!(
-                    "DT / fail to broadcast, channel: {}, event: {}, error: {}",
-                    channel_name, event, e
+                    error = %e,
+                    %event,
+                    "fail to broadcast"
                 );
             }
         }

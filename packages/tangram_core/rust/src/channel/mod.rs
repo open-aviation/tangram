@@ -21,7 +21,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 use websocket::{is_special_channel, Response, ServerMessage, ServerPayload, State};
 
@@ -120,24 +120,20 @@ impl Channel {
 
     /// agent joins the channel, returns a sender to the channel
     /// if agent does not exist, a new agent is added
+    #[instrument(skip(self), fields(channel = %self.name))]
     pub async fn join(&self, agent_id: String) -> broadcast::Sender<ChannelMessage> {
         let mut agents = self.agents.lock().await;
         if !agents.contains(&agent_id) {
             agents.push(agent_id.clone());
             self.count.fetch_add(1, Ordering::SeqCst);
-            info!(
-                "C / {}, total: {:?}, agent added {}",
-                self.name, self.count, agent_id
-            );
+            info!(total = ?self.count, %agent_id, "agent added");
         } else {
-            info!(
-                "C / {}, total: {:?}, agent {} exists",
-                self.name, self.count, agent_id
-            );
+            info!(total = ?self.count, %agent_id, "agent exists");
         }
         self.tx.clone()
     }
 
+    #[instrument(skip(self), fields(channel = %self.name))]
     pub async fn leave(&self, agent_id: String) {
         let mut agents = self.agents.lock().await;
         if let Some(pos) = agents.iter().position(|x| *x == agent_id) {
@@ -145,10 +141,7 @@ impl Channel {
             // - remove the item at index, use the last one to replace this position
             let agent = agents.swap_remove(pos);
             self.count.fetch_sub(1, Ordering::SeqCst);
-            info!(
-                "C / {}, total: {:?}, agent removed {}",
-                self.name, self.count, agent
-            );
+            info!(total = ?self.count, removed_agent = %agent, "agent removed");
         }
     }
 
@@ -186,13 +179,14 @@ impl ChannelControl {
         }
     }
 
+    #[instrument(skip(self), fields(conn_id = %conn_id))]
     pub async fn conn_add_tx(&self, conn_id: String) {
         let mut conn_tx = self.conn_tx.lock().await;
         match conn_tx.entry(conn_id.clone()) {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(100);
                 entry.insert(tx);
-                debug!("CONN / conn_tx added, conn_id: {}", conn_id.clone());
+                debug!("connection tx added");
             }
             Entry::Occupied(_) => {}
         }
@@ -226,6 +220,7 @@ impl ChannelControl {
             .map_err(|_| ChannelError::MessageSendError)
     }
 
+    #[instrument(skip(self), fields(channel = %channel_name))]
     pub async fn channel_remove_if_empty(&self, channel_name: String) -> bool {
         let mut channels = self.channels.lock().await;
 
@@ -252,7 +247,7 @@ impl ChannelControl {
             self.pub_meta_event("channel".into(), "remove".into(), meta)
                 .await;
 
-            info!("CH_RM / safely removed empty channel {}", channel_name);
+            info!("safely removed empty channel");
             return true;
         }
         false
@@ -260,6 +255,7 @@ impl ChannelControl {
 
     // Clean up all resources related to conn: conn, channel, agent
     // agent_id: {conn_id}:{channel}:{join_ref}
+    #[instrument(skip(self), fields(conn_id = %conn_id))]
     pub async fn conn_cleanup(&self, conn_id: String) {
         let agents_to_remove = {
             let mut ca = self.conn_agents.lock().await;
@@ -271,11 +267,7 @@ impl ChannelControl {
             return;
         }
 
-        info!(
-            "CONN / cleanup, conn_id: {}, agents: {}",
-            conn_id,
-            agents_to_remove.len()
-        );
+        info!(agents_count = agents_to_remove.len(), "cleanup connection");
 
         struct AgentInfo {
             id: String,
@@ -362,14 +354,16 @@ impl ChannelControl {
         }
     }
 
+    #[instrument(skip(self), fields(channel = %channel_name))]
     pub async fn channel_add(&self, channel_name: String, capacity: Option<usize>) {
         let mut channels = self.channels.lock().await;
         channels
             .entry(channel_name.clone())
             .or_insert_with(|| Channel::new(channel_name.clone(), capacity));
-        debug!("CH / channel {} added", channel_name);
+        debug!("channel added");
     }
 
+    #[instrument(skip(self, redis_listen_task), fields(channel = %channel_name))]
     pub async fn channel_add_redis_listen_task(
         &self,
         channel_name: String,
@@ -378,13 +372,14 @@ impl ChannelControl {
         let mut channels = self.channels.lock().await;
         let channel = channels.get_mut(&channel_name).unwrap();
         channel.redis_listen_task = Some(redis_listen_task);
-        info!("CH / added redis listen task to channel {}", channel_name);
+        info!("added redis listen task");
 
         let meta = json!({"channel": channel_name});
         self.pub_meta_event("channel".into(), "add-redis-listener".into(), meta)
             .await;
     }
 
+    #[instrument(skip(self, meta))]
     pub async fn pub_meta_event(&self, topic: String, event: String, meta: serde_json::Value) {
         let redis_topic = format!("to:admin:{}.{}", topic, event);
 
@@ -394,7 +389,7 @@ impl ChannelControl {
             .get_multiplexed_async_connection()
             .await;
         if redis_conn_result.is_err() {
-            error!("ADMIN_PUB / fail to get redis connection");
+            error!("fail to get redis connection");
             return;
         }
 
@@ -404,15 +399,16 @@ impl ChannelControl {
             .publish(redis_topic, message.clone())
             .await;
         if result.is_err() {
-            error!("ADMIN_PUB / fail to publish to redis");
+            error!("fail to publish to redis");
             return;
         }
 
-        info!("ADMIN_PUB / event published to redis");
+        debug!("event published to redis");
     }
 
     // Delete a channel
     // All resources on the channel: channel, agents, agent_tx, relay_task, redis_listen_task, conn_tx
+    #[instrument(skip(self), fields(channel = %channel_name))]
     pub async fn channel_rm(&self, channel_name: String) {
         let mut channels = self.channels.lock().await;
         match channels.entry(channel_name.clone()) {
@@ -424,20 +420,17 @@ impl ChannelControl {
                         self.agents.lock().await.entry(agent_id.into())
                     {
                         agent_task.get().relay_task.abort();
-                        info!(
-                            "CH_RM / channel {}, agent {}, relay_task aborted",
-                            channel_name, agent_id
-                        );
+                        info!(agent_id = %agent_id, "relay_task aborted");
                         agent_task.remove();
                     }
                 }
                 if let Some(task) = &channel.redis_listen_task {
                     task.abort();
-                    info!("CH_RM / channel {} redis listen task aborted", channel_name);
+                    info!("redis listen task aborted");
                 }
 
                 entry.remove();
-                info!("CH_RM / removed from channels, {}", channel_name);
+                info!("removed from channels");
             }
         }
         let channel_names = channels.keys().cloned().collect::<Vec<String>>();
@@ -447,10 +440,9 @@ impl ChannelControl {
             .await;
 
         info!(
-            "CH_RM / {} cleared, channels: {} {:?}",
-            channel_name,
-            channel_names.len(),
-            channel_names
+            channels_count = channel_names.len(),
+            ?channel_names,
+            "channel cleared"
         );
     }
 
@@ -459,6 +451,7 @@ impl ChannelControl {
         channels.contains_key(channel_name)
     }
     /// join agent to a channel
+    #[instrument(skip(self), fields(channel = %channel_name))]
     pub async fn channel_join(
         &self,
         channel_name: &str,
@@ -494,7 +487,7 @@ impl ChannelControl {
 
         match self.agents.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(_) => {
-                warn!("AGENT / {} already has a relay task", agent_id);
+                warn!(%agent_id, "already has a relay task");
             }
             Entry::Vacant(entry) => {
                 entry.insert(Agent {
@@ -523,12 +516,13 @@ impl ChannelControl {
         Ok(channel_tx)
     }
 
+    #[instrument(skip(self), fields(channel = %channel_name))]
     pub async fn channel_leave(
         &self,
         channel_name: String,
         agent_id: String,
     ) -> Result<usize, ChannelError> {
-        info!("CH / leave {} from {} ...", agent_id, channel_name);
+        info!("leaving channel...");
         let channels = self.channels.lock().await;
         let channel = channels
             .get(&channel_name)
@@ -538,7 +532,7 @@ impl ChannelControl {
             Entry::Occupied(entry) => {
                 entry.get().relay_task.abort();
                 entry.remove();
-                debug!("AGENT / {} relay task removed", agent_id);
+                debug!(%agent_id, "relay task removed");
             }
             Entry::Vacant(_) => {}
         }
@@ -579,6 +573,7 @@ impl ChannelControl {
 
     /// broadcast message to the channel
     /// it returns the number of agents who received the message
+    #[instrument(skip(self, message), fields(channel = %channel_name))]
     pub async fn channel_broadcast(
         &self,
         channel_name: String,
@@ -595,8 +590,8 @@ impl ChannelControl {
 
         channel.send(message).map_err(|e| {
             error!(
-                "CH / broadcasting error, channel: {}, {:?}",
-                channel_name, e
+                error = ?e,
+                "broadcasting error"
             );
             ChannelError::MessageSendError
         })
@@ -618,23 +613,25 @@ impl ChannelControl {
     /// Add channel agent to the channel ctl, just add agent tx
     /// `capacity` is the maximum number of messages that can be stored in the channel. The default value is 100.
     /// This will create a broadcast channel: ChannelAgent will write to and websocket_tx_task will subscribe to and read from
+    #[instrument(skip(self), fields(agent_id = %agent_id))]
     pub async fn agent_add(&self, agent_id: String, capacity: Option<usize>) {
         match self.agent_tx.lock().await.entry(agent_id.clone()) {
             Entry::Vacant(entry) => {
                 let (tx, _rx) = broadcast::channel(capacity.unwrap_or(100));
                 entry.insert(tx);
-                info!("AGENT / added: {}", agent_id.clone());
+                info!("added agent");
             }
             Entry::Occupied(_) => {
-                info!("AGENT / already exists: {}", agent_id.clone());
+                info!("agent already exists");
             }
         }
 
         let agents = self.agent_list().await;
-        info!("AGENT / list: {} {:?}", agents.len(), agents);
+        debug!(agents_count = agents.len(), ?agents, "agent list");
     }
 
     /// remove the agent after leaving all channels, returns external_id
+    #[instrument(skip(self), fields(agent_id = %agent_id))]
     pub async fn agent_rm(&self, agent_id: String) -> Option<String> {
         let mut external_id: Option<String> = None;
 
@@ -643,7 +640,7 @@ impl ChannelControl {
                 entry.get().relay_task.abort();
                 external_id = Some(entry.get().external_id.clone());
                 entry.remove();
-                debug!("AGENT / {} relay task removed", agent_id);
+                debug!("relay task removed");
             }
             Entry::Vacant(_) => {}
         }
@@ -651,7 +648,7 @@ impl ChannelControl {
         match self.agent_tx.lock().await.entry(agent_id.clone()) {
             Entry::Occupied(entry) => {
                 entry.remove();
-                debug!("AGENT / {} tx removed", agent_id);
+                debug!("tx removed");
             }
             Entry::Vacant(_) => {}
         }
@@ -661,7 +658,7 @@ impl ChannelControl {
         }
 
         let agents = self.agent_list().await;
-        info!("AGENT / list {} {:?}", agents.len(), agents);
+        info!(agents_count = agents.len(), ?agents, "agent list");
 
         external_id
     }
@@ -732,6 +729,7 @@ impl ChannelEventFromRedis {
 }
 
 /// Listen to messages from redis, per channel task
+#[instrument(skip(state, tx, redis_client), fields(channel = %channel_name))]
 pub async fn listen_to_redis(
     state: Arc<State>,
     tx: broadcast::Sender<ChannelMessage>,
@@ -744,11 +742,11 @@ pub async fn listen_to_redis(
     let mut redis_pubsub_stream = redis_pubsub.on_message();
     let counter = Arc::new(AtomicU64::new(0));
 
-    info!("LISTENER / subscribed to redis, channel: {}", redis_topic);
+    info!(redis_topic = %redis_topic, "subscribed to redis");
 
     loop {
         let Some(stream_message) = redis_pubsub_stream.next().await else {
-            error!("LISTENER / stream ended");
+            error!("stream ended");
             break;
         };
 
@@ -756,9 +754,9 @@ pub async fn listen_to_redis(
             Ok(ev) => ev,
             Err(err) => {
                 warn!(
-                    "LISTENER / parse error: {} ({})",
-                    err,
-                    stream_message.get_channel_name()
+                    error = %err,
+                    channel = %stream_message.get_channel_name(),
+                    "parse error"
                 );
                 continue;
             }
@@ -767,7 +765,7 @@ pub async fn listen_to_redis(
         let payload: String = match stream_message.get_payload() {
             Ok(p) => p,
             Err(e) => {
-                error!("LISTENER / payload error: {}", e);
+                error!("payload error: {}", e);
                 continue;
             }
         };
@@ -776,7 +774,7 @@ pub async fn listen_to_redis(
         let value = match serde_json::from_str::<serde_json::Value>(&payload) {
             Ok(v) => v,
             Err(e) => {
-                warn!("LISTENER / json error: {} in {}", e, payload);
+                warn!("json error: {} in {}", e, payload);
                 continue;
             }
         };
@@ -791,7 +789,7 @@ pub async fn listen_to_redis(
 
         // Do not suicide if sending fails (no active subscribers)
         if tx.send(ChannelMessage::Reply(reply_message)).is_err() {
-            debug!("LISTENER / no subscribers for {}", channel_name);
+            debug!("no subscribers");
         }
     }
 
