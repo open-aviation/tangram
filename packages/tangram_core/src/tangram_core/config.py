@@ -66,10 +66,15 @@ class MapConfig:
     )
     center_lat: float = 48.0
     center_lon: float = 7.0
-    zoom: int = 4
+    zoom: float = 4
     pitch: float = 0
     bearing: float = 0
     lang: str = "en"
+    min_zoom: float = 0
+    max_zoom: float = 24
+    max_pitch: float = 70
+    allow_pitch: bool = True
+    allow_bearing: bool = True
 
 
 @dataclass

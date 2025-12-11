@@ -1,5 +1,4 @@
 <template>
-  <!-- NOTE: copied largely from v0.1. -->
   <div v-if="apiState === 'loading'" class="loading-container">
     <div>initialising tangram…</div>
     <div v-if="loadingMessage" class="loading-detail">{{ loadingMessage }}</div>
@@ -54,6 +53,37 @@
         v-for="widget in tangramApi.ui.widgets.MapOverlay"
         :key="widget.id"
       />
+      <!-- map controls must be children of map-container to be positioned absolutely within it -->
+      <div v-if="tangramApi && tangramApi.map.isReady" class="map-controls">
+        <button
+          v-if="
+            tangramApi.config.map.allow_bearing &&
+            Math.abs(tangramApi.map.bearing) > 0.1
+          "
+          class="map-btn"
+          title="Reset Bearing (North)"
+          @click="resetBearing"
+        >
+          <svg
+            viewBox="0 0 100 100"
+            class="compass-icon"
+            :style="{ transform: `rotate(${-tangramApi.map.bearing}deg)` }"
+          >
+            <path d="M50 15 L65 50 L50 50 Z" fill="#e74c3c" />
+            <path d="M50 15 L35 50 L50 50 Z" fill="#c0392b" />
+            <path d="M50 85 L65 50 L50 50 Z" fill="#ecf0f1" />
+            <path d="M50 85 L35 50 L50 50 Z" fill="#bdc3c7" />
+          </svg>
+        </button>
+        <button
+          v-if="tangramApi.config.map.allow_pitch && tangramApi.map.pitch > 0.1"
+          class="map-btn"
+          title="Reset Pitch (2D)"
+          @click="resetPitch"
+        >
+          2D
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -161,12 +191,26 @@ watch(mapContainer, newEl => {
       zoom: mapConfig.zoom,
       pitch: mapConfig.pitch,
       bearing: mapConfig.bearing,
-      attributionControl: false
+      attributionControl: false,
+      minZoom: mapConfig.min_zoom,
+      maxZoom: mapConfig.max_zoom,
+      maxPitch: mapConfig.allow_pitch ? mapConfig.max_pitch : 0,
+      dragRotate: mapConfig.allow_bearing,
+      touchZoomRotate: mapConfig.allow_bearing,
+      pitchWithRotate: mapConfig.allow_pitch
     });
 
     tangramApi.value.map.initialize(mapInstance);
   }
 });
+
+const resetBearing = () => {
+  tangramApi.value?.map.getMapInstance().easeTo({ bearing: 0 });
+};
+
+const resetPitch = () => {
+  tangramApi.value?.map.getMapInstance().easeTo({ pitch: 0 });
+};
 
 onUnmounted(() => {
   tangramApi.value?.map.dispose();
@@ -304,15 +348,10 @@ body {
   overflow-y: hidden;
 }
 
-.control-container {
-  position: absolute;
-  right: 55px;
-  bottom: 90px;
-}
-
 .map-container {
   flex: 1;
   flex-grow: 1;
+  position: relative;
 }
 
 .control-attribution {
@@ -331,5 +370,43 @@ body {
 .loading-detail {
   margin-top: 0.5rem;
   color: #555;
+}
+
+.map-controls {
+  position: absolute;
+  bottom: 30px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+.map-btn {
+  width: 32px;
+  height: 32px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "B612", sans-serif;
+  font-weight: bold;
+  font-size: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  padding: 2px;
+}
+
+.map-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.compass-icon {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.1s linear;
 }
 </style>

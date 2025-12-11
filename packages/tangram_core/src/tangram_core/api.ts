@@ -34,6 +34,11 @@ export interface MapConfig {
   pitch: number;
   bearing: number;
   lang: string;
+  min_zoom: number;
+  max_zoom: number;
+  max_pitch: number;
+  allow_pitch: boolean;
+  allow_bearing: boolean;
 }
 
 export interface TangramConfig {
