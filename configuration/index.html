@@ -739,6 +739,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../plugins/history/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../plugins/jet1090/" class="md-nav__link">
         
   
@@ -775,34 +803,6 @@
     
   
     Ship162 Plugin
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../plugins/history/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    History Plugin
   
 
     
@@ -1053,6 +1053,8 @@
       
         
       
+        
+      
     
     
     
@@ -1133,6 +1135,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../api/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../api/jet1090/" class="md-nav__link">
         
   
@@ -1161,14 +1191,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/weather/" class="md-nav__link">
+      <a href="../api/ship162/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Weather
+    Ship162
   
 
     
@@ -1189,14 +1219,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/system/" class="md-nav__link">
+      <a href="../api/weather/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    System
+    Weather
   
 
     
@@ -1339,6 +1369,14 @@
 <span class="c1"># The structure of this table is defined by the plugin itself.</span>
 <span class="n">jet1090_channel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;jet1090&quot;</span>
 <span class="n">state_vector_expire</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span>
+<span class="c1"># UI positioning</span>
+<span class="c1"># widgets with higher priority are displayed first (left-to-right or top-to-bottom).</span>
+<span class="n">topbar_order</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50</span><span class="w">  </span><span class="c1"># (4)!</span>
+<span class="n">sidebar_order</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50</span><span class="w">  </span><span class="c1"># (5)!</span>
+
+<span class="k">[plugins.tangram_ship162]</span>
+<span class="n">topbar_order</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="w">  </span><span class="c1"># will appear to the left of jet1090 (100 &gt; 50)</span>
+<span class="n">sidebar_order</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span>
 </code></pre></div>
 <ol>
 <li>See <a class="autorefs autorefs-internal" title="            CoreConfig
@@ -1359,6 +1397,8 @@
   
       dataclass
   " href="../api/core/#tangram_core.config.ChannelConfig"><code>tangram_core.config.ChannelConfig</code></a></li>
+<li>See <a class="autorefs autorefs-internal" title="            HasTopbarUiConfig" href="../api/core/#tangram_core.config.HasTopbarUiConfig"><code>tangram_core.config.HasTopbarUiConfig</code></a></li>
+<li>See <a class="autorefs autorefs-internal" title="            HasSidebarUiConfig" href="../api/core/#tangram_core.config.HasSidebarUiConfig"><code>tangram_core.config.HasSidebarUiConfig</code></a></li>
 </ol>
 
 

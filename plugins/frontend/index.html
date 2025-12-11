@@ -774,6 +774,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../history/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../jet1090/" class="md-nav__link">
         
   
@@ -810,34 +838,6 @@
     
   
     Ship162 Plugin
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../history/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    History Plugin
   
 
     
@@ -1088,6 +1088,8 @@
       
         
       
+        
+      
     
     
     
@@ -1168,6 +1170,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/jet1090/" class="md-nav__link">
         
   
@@ -1196,14 +1226,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/weather/" class="md-nav__link">
+      <a href="../../api/ship162/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Weather
+    Ship162
   
 
     
@@ -1224,14 +1254,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/system/" class="md-nav__link">
+      <a href="../../api/weather/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    System
+    Weather
   
 
     
@@ -1433,9 +1463,9 @@
 </code></pre></div>
 <p>When <code>tangram serve</code> runs, it will:</p>
 <ol>
-<li>Serve the static assets from your plugin's <code>dist-frontend</code> directory.</li>
-<li>Include your plugin in the <code>/manifest.json</code> endpoint.</li>
-<li>The core web app will fetch the manifest and dynamically load and install your plugin.</li>
+<li>Read the <code>plugin.json</code> manifest from every enabled plugin at startup.</li>
+<li>Amalgamate these into a single cached response for <code>/manifest.json</code>.</li>
+<li>The core web app fetches this single manifest and dynamically loads resources.</li>
 </ol>
 <pre class="mermaid"><code>sequenceDiagram
     participant P as Plugin Module
@@ -1443,9 +1473,7 @@
     participant S as Tangram Server
 
     B-&gt;&gt;S: GET /manifest.json
-    S--&gt;&gt;B: Respond with {"plugins": ["my_plugin"]}
-    B-&gt;&gt;S: GET /plugins/my_plugin/plugin.json
-    S--&gt;&gt;B: Respond with {"main": "index.js"}
+    S--&gt;&gt;B: Respond with {"plugins": {"my_plugin": {"main": "index.js"}}}
     B-&gt;&gt;S: GET /plugins/my_plugin/index.js
     S--&gt;&gt;B: Serve plugin's JS entry point
     Note over B, P: Browser executes plugin code

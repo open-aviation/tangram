@@ -16,7 +16,7 @@
         <link rel="prev" href="../frontend/">
       
       
-        <link rel="next" href="../jet1090/">
+        <link rel="next" href="../history/">
       
       
         
@@ -727,10 +727,49 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#redis-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redis Events
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../history/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -779,34 +818,6 @@
     
   
     Ship162 Plugin
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../history/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    History Plugin
   
 
     
@@ -1057,6 +1068,8 @@
       
         
       
+        
+      
     
     
     
@@ -1137,6 +1150,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/jet1090/" class="md-nav__link">
         
   
@@ -1165,14 +1206,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/weather/" class="md-nav__link">
+      <a href="../../api/ship162/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Weather
+    Ship162
   
 
     
@@ -1193,14 +1234,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/system/" class="md-nav__link">
+      <a href="../../api/weather/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    System
+    Weather
   
 
     
@@ -1285,6 +1326,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#redis-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redis Events
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1315,6 +1367,25 @@
 <li>It publishes these metrics as JSON payloads to the <code>to:system:update-node</code> Redis channel.</li>
 <li>The core <code>tangram</code> frontend is subscribed to the <code>system</code> WebSocket channel. The <code>channel</code> service forwards these Redis messages to the UI, where components like <code>SystemInfo.vue</code> update to display the live data.</li>
 </ol>
+<h2 id="redis-events">Redis Events<a class="headerlink" href="#redis-events" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Direction</th>
+<th style="text-align: left;">Channel</th>
+<th style="text-align: left;">Event/Command</th>
+<th style="text-align: left;">Payload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Output</td>
+<td style="text-align: left;"><code>to:system:update-node</code></td>
+<td style="text-align: left;"><code>PUBLISH</code></td>
+<td style="text-align: left;"><code>{"el": "uptime" \| "cpu_load" \| ..., "value": "..."}</code></td>
+</tr>
+</tbody>
+</table>
 
 
 
@@ -1367,13 +1438,13 @@
         
         
           
-          <a href="../jet1090/" class="md-footer__link md-footer__link--next" aria-label="Next: Jet1090 Plugin">
+          <a href="../history/" class="md-footer__link md-footer__link--next" aria-label="Next: History Plugin">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Jet1090 Plugin
+                History Plugin
               </div>
             </div>
             <div class="md-footer__button md-icon">

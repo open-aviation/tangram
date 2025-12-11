@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://mode-s.org/tangram/plugins/jet1090/">
       
       
-        <link rel="prev" href="../system/">
+        <link rel="prev" href="../history/">
       
       
         <link rel="next" href="../ship162/">
@@ -682,6 +682,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../history/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History Plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -767,6 +795,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#redis-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redis Events
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#trajectory-api" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -812,34 +851,6 @@
     
   
     Ship162 Plugin
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../history/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    History Plugin
   
 
     
@@ -1090,6 +1101,8 @@
       
         
       
+        
+      
     
     
     
@@ -1170,6 +1183,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/jet1090/" class="md-nav__link">
         
   
@@ -1198,14 +1239,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/weather/" class="md-nav__link">
+      <a href="../../api/ship162/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Weather
+    Ship162
   
 
     
@@ -1226,14 +1267,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/system/" class="md-nav__link">
+      <a href="../../api/weather/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    System
+    Weather
   
 
     
@@ -1330,6 +1371,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#redis-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redis Events
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#trajectory-api" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1411,18 +1463,49 @@
 
     loop Every second
         Note over P: Filter aircraft by each client's bbox
-        P-&gt;&gt;R: PUBLISH to:streaming-client1:new-data
+        P-&gt;&gt;R: PUBLISH to:streaming-client1:new-jet1090-data
     end
 
     C-&gt;&gt;R: SUBSCRIBE to:streaming-client1:*
-    C-&gt;&gt;F: PUSH new-data</code></pre>
+    C-&gt;&gt;F: PUSH new-jet1090-data</code></pre>
 <ul>
 <li><strong>Continuous Tracking</strong>: It subscribes to the <code>jet1090</code> Redis channel to receive decoded aircraft messages.</li>
 <li><strong>State Vector Maintenance</strong>: It maintains a comprehensive in-memory view of the current air traffic situation by collecting and processing state vectors for all active aircraft.</li>
 <li><strong>History Persistence</strong>: It acts as a producer for the <a href="../history/"><code>tangram_history</code> plugin</a>. It batches raw messages into arrow Recordbatches and sends them to a redis stream. The history service consumes this stream and persists the data into a delta lake table.</li>
 <li><strong>Client-Specific Filtering</strong>: The service listens for bounding box updates from each connected frontend client. It filters the aircraft data for each client, sending only the aircraft visible within their map view.</li>
-<li><strong>Data Publishing</strong>: Once per second, it publishes the filtered state vectors to a dedicated Redis channel for each client (e.g., <code>to:streaming-&lt;client_id&gt;:new-data</code>), which are then relayed to the browser via the WebSocket <code>channel</code> service.</li>
+<li><strong>Data Publishing</strong>: Once per second, it publishes the filtered state vectors to a dedicated Redis channel for each client (e.g., <code>to:streaming-&lt;client_id&gt;:new-jet1090-data</code>), which are then relayed to the browser via the WebSocket <code>channel</code> service.</li>
 </ul>
+<h2 id="redis-events">Redis Events<a class="headerlink" href="#redis-events" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Direction</th>
+<th style="text-align: left;">Channel</th>
+<th style="text-align: left;">Event/Command</th>
+<th style="text-align: left;">Payload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Input</td>
+<td style="text-align: left;"><code>jet1090</code></td>
+<td style="text-align: left;"><code>PUBLISH</code></td>
+<td style="text-align: left;">Raw JSON message from <code>jet1090</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Output</td>
+<td style="text-align: left;"><code>to:streaming-{id}:new-jet1090-data</code></td>
+<td style="text-align: left;"><code>PUBLISH</code></td>
+<td style="text-align: left;"><code>{ "count": 123, "aircraft": [...] }</code> containing visible aircraft.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Output</td>
+<td style="text-align: left;"><code>history:ingest:jet1090</code></td>
+<td style="text-align: left;"><code>XADD</code></td>
+<td style="text-align: left;">Apache Arrow record batch (binary).</td>
+</tr>
+</tbody>
+</table>
 <h2 id="trajectory-api">Trajectory API<a class="headerlink" href="#trajectory-api" title="Permanent link">&para;</a></h2>
 <p>The plugin provides an API for querying the historical data persisted by the <code>planes</code> service.</p>
 <p><strong>Endpoint</strong>: <code>GET /jet1090/data/{icao24}</code></p>
@@ -1481,7 +1564,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../system/" class="md-footer__link md-footer__link--prev" aria-label="Previous: System Plugin">
+          <a href="../history/" class="md-footer__link md-footer__link--prev" aria-label="Previous: History Plugin">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1491,7 +1574,7 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                System Plugin
+                History Plugin
               </div>
             </div>
           </a>
