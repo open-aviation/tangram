@@ -10,7 +10,7 @@ readme = "readme.md"
 requires-python = ">=3.10"
 license = "AGPL-3.0"
 authors = [
-    { name = "Xavier Olive", email = "git@xoolive.org" },
+    { name = "Andres Morfin Veytia" },
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -24,7 +24,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Visualization",
 ]
-dependencies = ["tangram_core>=0.2.0"]
+dependencies = ["tangram_core>=0.2.1"]
 
 [project.entry-points."tangram_core.plugins"]
 tangram_globe = "tangram_globe:plugin"

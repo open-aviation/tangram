@@ -169,6 +169,10 @@ watch(
       },
       updateTriggers: {
         getIcon: Array.from(currentActiveEntities.keys()).sort().join(",")
+      },
+      // required for globe: https://github.com/visgl/deck.gl/issues/9777#issuecomment-3628393899
+      parameters: {
+        cullMode: "none"
       }
     });
 

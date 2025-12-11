@@ -16,6 +16,7 @@ COPY packages/tangram_example/package.json /packages/tangram_example/
 COPY packages/tangram_jet1090/package.json /packages/tangram_jet1090/
 COPY packages/tangram_system/package.json /packages/tangram_system/
 COPY packages/tangram_weather/package.json /packages/tangram_weather/
+COPY packages/tangram_globe/package.json /packages/tangram_globe/
 COPY packages/tangram_airports/package.json /packages/tangram_airports/
 COPY packages/tangram_ship162/package.json /packages/tangram_ship162/
 COPY Cargo.toml package.json pnpm-lock.yaml pnpm-workspace.yaml /
