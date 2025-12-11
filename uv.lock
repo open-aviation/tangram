@@ -12,6 +12,7 @@ members = [
     "tangram-airports",
     "tangram-core",
     "tangram-example",
+    "tangram-globe",
     "tangram-history",
     "tangram-jet1090",
     "tangram-ship162",
@@ -2421,6 +2422,17 @@ requires-dist = [
 name = "tangram-example"
 version = "0.2.1"
 source = { editable = "packages/tangram_example" }
+dependencies = [
+    { name = "tangram-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tangram-core", editable = "packages/tangram_core" }]
+
+[[package]]
+name = "tangram-globe"
+version = "0.2.1"
+source = { editable = "packages/tangram_globe" }
 dependencies = [
     { name = "tangram-core" },
 ]

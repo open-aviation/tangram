@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tangram_globe"
+version = "0.2.1"
+description = "Globe view toggle plugin for tangram"
+readme = "readme.md"
+requires-python = ">=3.10"
+license = "AGPL-3.0"
+authors = [
+    { name = "Xavier Olive", email = "git@xoolive.org" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = ["tangram_core>=0.2.0"]
+
+[project.entry-points."tangram_core.plugins"]
+tangram_globe = "tangram_globe:plugin"
+
+[tool.uv.sources]
+tangram_core = { workspace = true }
+
+[tool.hatch.build.targets.sdist]
+ignore-vcs = true
+include = ["dist-frontend/*", "src/*"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"dist-frontend" = "tangram_globe/dist-frontend"
+"package.json" = "tangram_globe/package.json"
