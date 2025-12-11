@@ -8,6 +8,11 @@ import { selectedShip } from "./store";
 
 const ENTITY_TYPE = "ship162_ship";
 
+interface Ship162FrontendConfig {
+  topbar_order: number;
+  sidebar_order: number;
+}
+
 export interface MmsiInfo {
   country: string;
   flag: string;
@@ -37,9 +42,19 @@ export interface Ship162Vessel {
   turn?: number;
 }
 
-export function install(api: TangramApi) {
-  api.ui.registerWidget("ship162-count-widget", "TopBar", ShipCountWidget);
-  api.ui.registerWidget("ship162-info-widget", "SideBar", ShipInfoWidget);
+export function install(api: TangramApi, config?: Ship162FrontendConfig) {
+  api.ui.registerWidget(
+    "ship162-count-widget",
+    "TopBar",
+    ShipCountWidget,
+    config?.topbar_order
+  );
+  api.ui.registerWidget(
+    "ship162-info-widget",
+    "SideBar",
+    ShipInfoWidget,
+    config?.sidebar_order
+  );
   api.ui.registerWidget("ship162-ship-layer", "MapOverlay", ShipLayer);
   api.ui.registerWidget("ship162-trail-layer", "MapOverlay", ShipTrailLayer);
   api.state.registerEntityType(ENTITY_TYPE);

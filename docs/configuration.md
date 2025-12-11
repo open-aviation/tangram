@@ -40,8 +40,18 @@ jwt_secret = "a-better-secret-than-this"
 # The structure of this table is defined by the plugin itself.
 jet1090_channel = "jet1090"
 state_vector_expire = 20
+# UI positioning
+# widgets with higher priority are displayed first (left-to-right or top-to-bottom).
+topbar_order = 50  # (4)!
+sidebar_order = 50  # (5)!
+
+[plugins.tangram_ship162]
+topbar_order = 100  # will appear to the left of jet1090 (100 > 50)
+sidebar_order = 100
 ```
 
 1. See [`tangram_core.config.CoreConfig`][].
 2. See [`tangram_core.config.ServerConfig`][]
 3. See [`tangram_core.config.ChannelConfig`][]
+4. See [`tangram_core.config.HasTopbarUiConfig`][]
+5. See [`tangram_core.config.HasSidebarUiConfig`][]

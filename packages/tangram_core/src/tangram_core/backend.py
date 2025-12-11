@@ -35,7 +35,7 @@ import platformdirs
 import redis.asyncio as redis
 import uvicorn
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import CacheEntry, Config, FrontendChannelConfig, FrontendConfig
@@ -218,15 +218,26 @@ def create_app(
                 StaticFiles(directory=str(frontend_path_resolved)),
                 name=plugin.dist_name,
             )
-
-            manifest_path = frontend_path_resolved / "plugin.json"
-            if manifest_path.exists():
+            plugin_json_path = frontend_path_resolved / "plugin.json"
+            if plugin_json_path.exists():
                 try:
-                    frontend_plugins[plugin.dist_name] = json.loads(
-                        manifest_path.read_text(encoding="utf-8")
+                    with plugin_json_path.open("rb") as f:
+                        plugin_meta = json.load(f)
+
+                    conf_backend = backend_state.config.plugins.get(
+                        plugin.dist_name, {}
                     )
+                    if to_frontend_conf := plugin.into_frontend_config_function:
+                        conf_frontend = to_frontend_conf(conf_backend)
+                    else:
+                        conf_frontend = conf_backend
+
+                    plugin_meta["config"] = conf_frontend
+                    frontend_plugins[plugin.dist_name] = plugin_meta
                 except Exception as e:
-                    logger.error(f"failed to load manifest for {plugin.dist_name}: {e}")
+                    logger.error(
+                        f"failed to read plugin.json for {plugin.dist_name}: {e}"
+                    )
 
     # unlike v0.1 which uses `process.env`, v0.2 *compiles* the js so we no
     # no longer have access to it, so we selectively forward the config.
@@ -249,8 +260,8 @@ def create_app(
         )
 
     @app.get("/manifest.json")
-    async def get_manifest() -> JSONResponse:
-        return JSONResponse(content={"plugins": frontend_plugins})
+    async def get_manifest() -> ORJSONResponse:
+        return ORJSONResponse(content={"plugins": frontend_plugins})
 
     # Cache mechanism - MUST be registered BEFORE the catch-all frontend mount
     for cache_entry in backend_state.config.cache.entries:

@@ -86,10 +86,14 @@ export class TimeApi implements Disposable {
     throw new NotImplementedError();
   }
 }
+export interface WidgetEntry {
+  id: string;
+  priority: number;
+}
 
 export class UiApi {
   private app: App;
-  readonly widgets = reactive<Record<WidgetLocation, { id: string }[]>>({
+  readonly widgets = reactive<Record<WidgetLocation, WidgetEntry[]>>({
     TopBar: [],
     SideBar: [],
     MapOverlay: []
@@ -115,12 +119,16 @@ export class UiApi {
   registerWidget(
     id: string,
     location: WidgetLocation,
-    component: Component
+    component: Component,
+    priority: number = 0
   ): Disposable {
     this.app.component(id, component);
 
-    const widget = { id };
+    // TODO: deckgl map overlays order
+    const effectivePriority = location === "MapOverlay" ? 0 : priority;
+    const widget = { id, priority: effectivePriority };
     this.widgets[location].push(widget);
+    this.widgets[location].sort((a, b) => b.priority - a.priority);
 
     return {
       dispose: () => {

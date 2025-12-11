@@ -41,13 +41,14 @@ dependencies = [
     "typer",                          # provides rich
     "tomli; python_version < '3.11'",
     "platformdirs>=4.5.0",
+    "orjson>=3",
 ]
 
 [project.scripts]
 tangram = "tangram_core.__main__:app"
 
 [tool.maturin]
-python-source = "src"              # needed for stubgen to output path correctly.
+python-source = "src"                         # needed for stubgen to output path correctly.
 module-name = "tangram_core._core"
 features = ["pyo3", "channel"]
 include = ["./dist-frontend", "package.json"]

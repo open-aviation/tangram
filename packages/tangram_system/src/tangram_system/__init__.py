@@ -1,14 +1,26 @@
 import asyncio
 import json
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import psutil
 import redis.asyncio as redis
 import tangram_core
 
 log = logging.getLogger(__name__)
+
+
+@dataclass
+class SystemConfig(tangram_core.config.HasSidebarUiConfig):
+    topbar_order: int = 0
+
+
+def transform_config(config_dict: dict[str, Any]) -> SystemConfig:
+    from pydantic import TypeAdapter
+
+    return TypeAdapter(SystemConfig).validate_python(config_dict)
 
 
 def uptime(counter: int) -> dict[str, str]:
@@ -57,7 +69,9 @@ async def server_events(redis_client: redis.Redis) -> NoReturn:
         await asyncio.sleep(1)
 
 
-plugin = tangram_core.Plugin(frontend_path="dist-frontend")
+plugin = tangram_core.Plugin(
+    frontend_path="dist-frontend", into_frontend_config_function=transform_config
+)
 
 
 @plugin.register_service()

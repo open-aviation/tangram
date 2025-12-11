@@ -3,7 +3,17 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Protocol, runtime_checkable
+
+
+@runtime_checkable
+class HasTopbarUiConfig(Protocol):
+    topbar_order: int
+
+
+@runtime_checkable
+class HasSidebarUiConfig(Protocol):
+    sidebar_order: int
 
 
 @dataclass

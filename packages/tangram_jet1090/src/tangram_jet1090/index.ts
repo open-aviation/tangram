@@ -10,6 +10,12 @@ import { selectedAircraft, pluginConfig } from "./store";
 
 const ENTITY_TYPE = "jet1090_aircraft";
 
+interface Jet1090FrontendConfig {
+  show_route_lines: boolean;
+  topbar_order: number;
+  sidebar_order: number;
+}
+
 export interface Jet1090Aircraft {
   icao24: string;
   lastseen: number;
@@ -33,23 +39,29 @@ export interface Jet1090Aircraft {
   count: number;
   timestamp?: number; // synthetic, added by frontend
 }
+export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
+  if (config) {
+    pluginConfig.showRouteLines = config.show_route_lines;
+  }
 
-export function install(api: TangramApi) {
-  api.ui.registerWidget("jet1090-count-widget", "TopBar", AircraftCountWidget);
+  api.ui.registerWidget(
+    "jet1090-count-widget",
+    "TopBar",
+    AircraftCountWidget,
+    config?.topbar_order
+  );
   api.ui.registerWidget("jet1090-aircraft-layer", "MapOverlay", AircraftLayer);
-  api.ui.registerWidget("jet1090-info-widget", "SideBar", AircraftInfoWidget);
+  api.ui.registerWidget(
+    "jet1090-info-widget",
+    "SideBar",
+    AircraftInfoWidget,
+    config?.sidebar_order
+  );
   api.ui.registerWidget("jet1090-trail-layer", "MapOverlay", AircraftTrailLayer);
   api.ui.registerWidget("jet1090-route-layer", "MapOverlay", RouteLayer);
   api.ui.registerWidget("jet1090-sensors-layer", "MapOverlay", SensorsLayer);
 
   api.state.registerEntityType(ENTITY_TYPE);
-
-  fetch("/jet1090/config")
-    .then(r => r.json())
-    .then(c => {
-      pluginConfig.showRouteLines = c.show_route_lines;
-    })
-    .catch(e => console.error("failed to fetch jet1090 config", e));
 
   (async () => {
     try {

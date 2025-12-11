@@ -7,7 +7,7 @@ import logging
 import traceback
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from fastapi import APIRouter
 
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     ServiceAsyncFunc: TypeAlias = Callable[[BackendState], Awaitable[None]]
     ServiceFunc: TypeAlias = ServiceAsyncFunc | Callable[[BackendState], None]
     Priority: TypeAlias = int
+    IntoFrontendConfigFunction: TypeAlias = Callable[[dict[str, Any]], Any]
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,11 @@ class Plugin:
     (editable) or package root (wheel).
     """
     routers: list[APIRouter] = field(default_factory=list)
+    into_frontend_config_function: IntoFrontendConfigFunction | None = None
+    """Function to parse plugin-scoped backend configuration (within the
+    `tangram.toml`) into a frontend-safe configuration object.
+
+    If not specified, the backend configuration dict is passed as-is."""
     services: list[tuple[Priority, ServiceAsyncFunc]] = field(
         default_factory=list, init=False
     )

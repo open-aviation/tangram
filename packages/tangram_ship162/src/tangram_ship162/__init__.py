@@ -59,11 +59,10 @@ async def get_trajectory_data(
         )
 
 
-plugin = tangram_core.Plugin(frontend_path="dist-frontend", routers=[router])
-
-
 @dataclass(frozen=True)
-class ShipsConfig:
+class ShipsConfig(
+    tangram_core.config.HasTopbarUiConfig, tangram_core.config.HasSidebarUiConfig
+):
     ship162_channel: str = "ship162"
     history_table_name: str = "ship162"
     history_control_channel: str = "history:control"
@@ -76,6 +75,31 @@ class ShipsConfig:
     history_optimize_target_file_size: int = 134217728
     history_vacuum_interval_secs: int = 120
     history_vacuum_retention_period_secs: int | None = 120
+    topbar_order: int = 100
+    sidebar_order: int = 100
+
+
+@dataclass(frozen=True)
+class FrontendShipsConfig(
+    tangram_core.config.HasTopbarUiConfig, tangram_core.config.HasSidebarUiConfig
+):
+    topbar_order: int
+    sidebar_order: int
+
+
+def transform_config(config_dict: dict[str, Any]) -> FrontendShipsConfig:
+    config = TypeAdapter(ShipsConfig).validate_python(config_dict)
+    return FrontendShipsConfig(
+        topbar_order=config.topbar_order,
+        sidebar_order=config.sidebar_order,
+    )
+
+
+plugin = tangram_core.Plugin(
+    frontend_path="dist-frontend",
+    routers=[router],
+    into_frontend_config_function=transform_config,
+)
 
 
 @plugin.register_service()

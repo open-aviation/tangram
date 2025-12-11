@@ -6,6 +6,8 @@ type PluginProgress = {
   pluginName?: string;
 };
 
+export type PluginConfig = unknown; // to be casted by each plugin who consume it
+
 export async function loadPlugins(
   tangramApi: TangramApi,
   onProgress?: (progress: PluginProgress) => void
@@ -13,24 +15,28 @@ export async function loadPlugins(
   onProgress?.({ stage: "manifest" });
   const manifest = await fetch("/manifest.json").then(res => res.json());
 
-  for (const [pluginName, pluginManifest] of Object.entries(manifest.plugins)) {
-    onProgress?.({ stage: "plugin", pluginName });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pm = pluginManifest as any;
+  for (const [pluginName, meta] of Object.entries(manifest.plugins)) {
+    const pluginMeta = meta as {
+      main: string;
+      style?: string;
+      config?: PluginConfig;
+    };
 
-    if (pm.style) {
+    onProgress?.({ stage: "plugin", pluginName });
+
+    if (pluginMeta.style) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
-      link.href = `/plugins/${pluginName}/${pm.style}`;
+      link.href = `/plugins/${pluginName}/${pluginMeta.style}`;
       document.head.appendChild(link);
     }
 
-    const entryPointUrl = `/plugins/${pluginName}/${pm.main}`;
+    const entryPointUrl = `/plugins/${pluginName}/${pluginMeta.main}`;
 
     try {
       const pluginModule = await import(/* @vite-ignore */ entryPointUrl);
       if (pluginModule.install) {
-        pluginModule.install(tangramApi);
+        pluginModule.install(tangramApi, pluginMeta.config);
       }
     } catch (e) {
       console.error(`failed to load plugin "${pluginName}":`, e);

@@ -2395,6 +2395,7 @@ source = { editable = "packages/tangram_core" }
 dependencies = [
     { name = "fastapi" },
     { name = "httpx", extra = ["http2"] },
+    { name = "orjson" },
     { name = "platformdirs" },
     { name = "pydantic" },
     { name = "redis" },
@@ -2407,6 +2408,7 @@ dependencies = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115.4" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.27.2" },
+    { name = "orjson", specifier = ">=3" },
     { name = "platformdirs", specifier = ">=4.5.0" },
     { name = "pydantic", specifier = ">=2.6.1" },
     { name = "redis", specifier = ">=5.2.0" },

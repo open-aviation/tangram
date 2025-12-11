@@ -109,20 +109,35 @@ async def get_sensors_data(
         raise HTTPException(status_code=502, detail=str(e))
 
 
-@router.get("/config")
-async def get_config(
-    backend_state: tangram_core.InjectBackendState,
-) -> JSONResponse:
-    plugin_config = backend_state.config.plugins.get("tangram_jet1090", {})
-    config = TypeAdapter(PlanesConfig).validate_python(plugin_config)
-    return JSONResponse(content={"show_route_lines": config.show_route_lines})
+@dataclass(frozen=True)
+class FrontendPlanesConfig(
+    tangram_core.config.HasTopbarUiConfig, tangram_core.config.HasSidebarUiConfig
+):
+    show_route_lines: bool
+    topbar_order: int
+    sidebar_order: int
 
 
-plugin = tangram_core.Plugin(frontend_path="dist-frontend", routers=[router])
+def transform_config(config_dict: dict[str, Any]) -> FrontendPlanesConfig:
+    config = TypeAdapter(PlanesConfig).validate_python(config_dict)
+    return FrontendPlanesConfig(
+        show_route_lines=config.show_route_lines,
+        topbar_order=config.topbar_order,
+        sidebar_order=config.sidebar_order,
+    )
+
+
+plugin = tangram_core.Plugin(
+    frontend_path="dist-frontend",
+    routers=[router],
+    into_frontend_config_function=transform_config,
+)
 
 
 @dataclass(frozen=True)
-class PlanesConfig:
+class PlanesConfig(
+    tangram_core.config.HasTopbarUiConfig, tangram_core.config.HasSidebarUiConfig
+):
     jet1090_channel: str = "jet1090"
     history_table_name: str = "jet1090"
     history_control_channel: str = "history:control"
@@ -142,6 +157,8 @@ class PlanesConfig:
     history_optimize_target_file_size: int = 134217728
     history_vacuum_interval_secs: int = 120
     history_vacuum_retention_period_secs: int | None = 120
+    topbar_order: int = 50
+    sidebar_order: int = 50
 
 
 # NOTE: we fetch the aircraft database on the python side, not Rust. two reasons:
