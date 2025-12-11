@@ -15,13 +15,15 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 tangram_core_rs = { path = "../../tangram_core/rust" }
-tangram_history = { path = "../../tangram_history/rust", default-features = false, features = ["client"] }
+tangram_history = { path = "../../tangram_history/rust", default-features = false, features = [
+    "client",
+] }
 arrow-array = "56.2.0"
 arrow-schema = "56.2.0"
 
 anyhow = "1.0"
 futures = "0.3"
-redis = { version = "1.0", features = ["tokio-comp"] }
+redis = { version = "0.32", features = ["tokio-comp"] }
 rs1090 = "0.4.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -32,7 +34,10 @@ tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
-pyo3-async-runtimes = { version = "0.27", features = ["attributes", "tokio-runtime"], optional = true }
+pyo3-async-runtimes = { version = "0.27", features = [
+    "attributes",
+    "tokio-runtime",
+], optional = true }
 # NOTE: v0.17 introduced support for overloading but that caused an odd post-compile
 # runtime issue, do not upgrade yet.
 pyo3-stub-gen = { version = "0.16", optional = true }

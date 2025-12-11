@@ -18,7 +18,7 @@ crate-type = ["cdylib", "rlib"]
 # stream
 anyhow = "1.0"
 futures = "0.3"
-redis = { version = "1.0", features = ["tokio-comp"] }
+redis = { version = "0.32", features = ["tokio-comp"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
@@ -27,7 +27,11 @@ tracing = "0.1"
 
 # channel
 axum = { version = "0.8", features = ["ws"], optional = true }
-tower-http = { version = "0.6", features = ["fs", "trace", "cors"], optional = true }
+tower-http = { version = "0.6", features = [
+    "fs",
+    "trace",
+    "cors",
+], optional = true }
 thiserror = { version = "2.0", optional = true }
 serde_tuple = { version = "1.1", optional = true }
 nanoid = { version = "0.4", optional = true }
@@ -38,9 +42,14 @@ itertools = { version = "0.14", optional = true }
 
 # pyo3
 pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
-pyo3-async-runtimes = { version = "0.27", features = ["attributes", "tokio-runtime"], optional = true }
+pyo3-async-runtimes = { version = "0.27", features = [
+    "attributes",
+    "tokio-runtime",
+], optional = true }
 pyo3-stub-gen = { version = "0.16", optional = true }
-tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+], optional = true }
 
 [dev-dependencies]
 tokio-tungstenite = "0.28" # for unit tests in websocket.rs
@@ -64,5 +73,10 @@ channel = [
     "dep:rand",
     "dep:itertools",
 ]
-pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "dep:tracing-subscriber", "channel"]
+pyo3 = [
+    "dep:pyo3",
+    "dep:pyo3-async-runtimes",
+    "dep:tracing-subscriber",
+    "channel",
+]
 stubgen = ["pyo3", "dep:pyo3-stub-gen"]
