@@ -43,18 +43,14 @@ export interface Ship162Vessel {
 }
 
 export function install(api: TangramApi, config?: Ship162FrontendConfig) {
-  api.ui.registerWidget(
-    "ship162-count-widget",
-    "TopBar",
-    ShipCountWidget,
-    config?.topbar_order
-  );
-  api.ui.registerWidget(
-    "ship162-info-widget",
-    "SideBar",
-    ShipInfoWidget,
-    config?.sidebar_order
-  );
+  api.ui.registerWidget("ship162-count-widget", "TopBar", ShipCountWidget, {
+    priority: config?.topbar_order
+  });
+  api.ui.registerWidget("ship162-info-widget", "SideBar", ShipInfoWidget, {
+    priority: config?.sidebar_order,
+    title: "Ship Details",
+    relevantFor: ENTITY_TYPE
+  });
   api.ui.registerWidget("ship162-ship-layer", "MapOverlay", ShipLayer);
   api.ui.registerWidget("ship162-trail-layer", "MapOverlay", ShipTrailLayer);
   api.state.registerEntityType(ENTITY_TYPE);

@@ -44,19 +44,15 @@ export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
     pluginConfig.showRouteLines = config.show_route_lines;
   }
 
-  api.ui.registerWidget(
-    "jet1090-count-widget",
-    "TopBar",
-    AircraftCountWidget,
-    config?.topbar_order
-  );
+  api.ui.registerWidget("jet1090-count-widget", "TopBar", AircraftCountWidget, {
+    priority: config?.topbar_order
+  });
   api.ui.registerWidget("jet1090-aircraft-layer", "MapOverlay", AircraftLayer);
-  api.ui.registerWidget(
-    "jet1090-info-widget",
-    "SideBar",
-    AircraftInfoWidget,
-    config?.sidebar_order
-  );
+  api.ui.registerWidget("jet1090-info-widget", "SideBar", AircraftInfoWidget, {
+    priority: config?.sidebar_order,
+    title: "Aircraft Details",
+    relevantFor: ENTITY_TYPE
+  });
   api.ui.registerWidget("jet1090-trail-layer", "MapOverlay", AircraftTrailLayer);
   api.ui.registerWidget("jet1090-route-layer", "MapOverlay", RouteLayer);
   api.ui.registerWidget("jet1090-sensors-layer", "MapOverlay", SensorsLayer);

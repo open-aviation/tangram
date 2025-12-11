@@ -91,9 +91,17 @@ export class TimeApi implements Disposable {
     throw new NotImplementedError();
   }
 }
-export interface WidgetEntry {
+
+export interface WidgetOptions {
+  priority?: number;
+  title?: string;
+  relevantFor?: string | string[];
+}
+
+export interface WidgetEntry extends WidgetOptions {
   id: string;
   priority: number;
+  isCollapsed: boolean;
 }
 
 export class UiApi {
@@ -103,35 +111,31 @@ export class UiApi {
     SideBar: [],
     MapOverlay: []
   });
-  readonly isSidebarCollapsed = ref(true);
 
   constructor(app: App) {
     this.app = app;
   }
 
-  openSidebar = (): void => {
-    this.isSidebarCollapsed.value = false;
-  };
-
-  closeSidebar = (): void => {
-    this.isSidebarCollapsed.value = true;
-  };
-
-  toggleSidebar = (): void => {
-    this.isSidebarCollapsed.value = !this.isSidebarCollapsed.value;
-  };
-
   registerWidget(
     id: string,
     location: WidgetLocation,
     component: Component,
-    priority: number = 0
+    options: WidgetOptions = {}
   ): Disposable {
     this.app.component(id, component);
 
     // TODO: deckgl map overlays order
+    const { priority = 0, title, relevantFor } = options;
     const effectivePriority = location === "MapOverlay" ? 0 : priority;
-    const widget = { id, priority: effectivePriority };
+
+    const widget: WidgetEntry = {
+      id,
+      priority: effectivePriority,
+      title,
+      relevantFor,
+      isCollapsed: false
+    };
+
     this.widgets[location].push(widget);
     this.widgets[location].sort((a, b) => b.priority - a.priority);
 

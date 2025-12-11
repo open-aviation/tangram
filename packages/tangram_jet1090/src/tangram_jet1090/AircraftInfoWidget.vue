@@ -1,5 +1,8 @@
 <template>
-  <div v-if="activeEntity && activeEntity.type === 'jet1090_aircraft'">
+  <div
+    v-if="activeEntity && activeEntity.type === 'jet1090_aircraft'"
+    class="aircraft-info-widget"
+  >
     <div v-if="aircraft" id="metadata">
       <span v-if="aircraft.typecode" id="typecode"> {{ aircraft.typecode }}</span>
       <span>{{ aircraft.callsign }}</span>
@@ -416,6 +419,10 @@ watch(() => activeEntity.value?.id, updateChart);
 </script>
 
 <style scoped>
+.aircraft-info-widget {
+  padding: 10px;
+}
+
 #metadata {
   margin-bottom: 10px;
 }

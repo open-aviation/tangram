@@ -22,38 +22,35 @@
       />
     </div>
 
-    <div
-      id="sidebar"
-      class="sidebar"
-      :class="{
-        collapsed: !tangramApi.state.activeEntity || tangramApi.ui.isSidebarCollapsed
-      }"
-    >
-      <div class="sidebar-tabs">
-        <ul role="tablist">
-          <li>
-            <a role="tab" @click="tangramApi.ui.toggleSidebar()">
-              <span class="fa fa-plane"></span>
-            </a>
-          </li>
-        </ul>
-      </div>
-      <div class="sidebar-content">
-        <component
-          :is="widget.id"
-          v-for="widget in tangramApi.ui.widgets.SideBar"
-          :key="widget.id"
-        />
-      </div>
-    </div>
-
     <div ref="mapContainer" class="map-container">
+      <div v-if="visibleSidebarWidgets.length > 0" class="sidebar-container">
+        <div
+          v-for="widget in visibleSidebarWidgets"
+          :key="widget.id"
+          class="sidebar-section"
+        >
+          <div class="sidebar-header" @click="toggleSection(widget)">
+            <svg
+              class="caret"
+              :class="{ open: !widget.isCollapsed }"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+            >
+              <path d="M8 5v14l11-7z" fill="currentColor" />
+            </svg>
+            {{ widget.title || widget.id }}
+          </div>
+          <div v-show="!widget.isCollapsed" class="sidebar-body">
+            <component :is="widget.id" />
+          </div>
+        </div>
+      </div>
       <component
         :is="widget.id"
         v-for="widget in tangramApi.ui.widgets.MapOverlay"
         :key="widget.id"
       />
-      <!-- map controls must be children of map-container to be positioned absolutely within it -->
       <div v-if="tangramApi && tangramApi.map.isReady" class="map-controls">
         <button
           v-if="
@@ -89,9 +86,16 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, getCurrentInstance, ref, watch } from "vue";
+import {
+  onMounted,
+  onUnmounted,
+  getCurrentInstance,
+  ref,
+  watch,
+  computed,
+} from "vue";
 import maplibregl from "maplibre-gl";
-import { TangramApi } from "./api";
+import { TangramApi, type WidgetEntry } from "./api";
 import { loadPlugins } from "./plugin";
 import { layers, namedFlavor } from "@protomaps/basemaps";
 import * as pmtiles from "pmtiles";
@@ -104,6 +108,41 @@ const loadingMessage = ref<string>("");
 const tangramApi = ref<TangramApi | null>(null);
 const mapContainer = ref<HTMLElement | null>(null);
 let mapInstance: maplibregl.Map | undefined = undefined;
+
+const visibleSidebarWidgets = computed((): WidgetEntry[] => {
+  if (!tangramApi.value) return [];
+  const activeType = tangramApi.value.state?.activeEntity?.type;
+
+  return tangramApi.value.ui.widgets.SideBar.filter(widget => {
+    if (!widget.relevantFor) return true;
+    const types = Array.isArray(widget.relevantFor)
+      ? widget.relevantFor
+      : [widget.relevantFor];
+    return activeType && types.includes(activeType);
+  });
+});
+
+const toggleSection = (widget: WidgetEntry) => {
+  widget.isCollapsed = !widget.isCollapsed;
+};
+
+watch(
+  () => tangramApi.value?.state?.activeEntity?.type,
+  newType => {
+    if (newType && tangramApi.value) {
+      for (const widget of tangramApi.value.ui.widgets.SideBar) {
+        if (widget.relevantFor) {
+          const types = Array.isArray(widget.relevantFor)
+            ? widget.relevantFor
+            : [widget.relevantFor];
+          if (types.includes(newType)) {
+            widget.isCollapsed = false;
+          }
+        }
+      }
+    }
+  }
+);
 
 onMounted(async () => {
   try {
@@ -125,15 +164,6 @@ onMounted(async () => {
     apiState.value = "error";
   }
 });
-
-watch(
-  () => tangramApi.value?.state.activeEntity,
-  newEntity => {
-    if (newEntity) {
-      tangramApi.value?.ui.openSidebar();
-    }
-  }
-);
 
 watch(mapContainer, newEl => {
   if (newEl && tangramApi.value && !mapInstance) {
@@ -226,7 +256,6 @@ onUnmounted(() => {
   height: 100%;
 }
 
-/* styles from v0.1 App.vue */
 html {
   width: 100%;
   height: 100%;
@@ -283,71 +312,68 @@ body {
   margin-left: auto;
 }
 
-.sidebar {
+/* sidebar */
+.sidebar-container {
+  font-family: "B612", sans-serif;
   position: absolute;
-  bottom: 15px;
-  left: 15px;
+  top: 10px;
+  left: 10px;
   width: 21rem;
-  height: calc(100% - 95px);
-  transform: translate(2.5%, 0%);
-  overflow: hidden;
+  max-height: calc(100% - 20px);
   z-index: 1000;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
-  border-radius: 4px;
-  display: flex;
-}
-
-.sidebar.collapsed {
-  width: 40px;
-  height: 40px;
-}
-
-.sidebar-tabs,
-.sidebar-tabs > ul {
-  width: 40px;
-  margin: 0;
-  padding: 0;
-  list-style-type: none;
-  border-right: 1px solid #ddd;
-}
-
-.sidebar-tabs > li,
-.sidebar-tabs > ul > li {
-  width: 40px;
-  height: 40px;
-  color: #333;
-  font-size: 12pt;
-  font-family: "B612", monospace;
-  overflow: hidden;
-  transition: all 80ms;
-}
-
-.sidebar-tabs > li > a,
-.sidebar-tabs > ul > li > a {
-  display: block;
-  width: 40px;
-  height: 100%;
-  line-height: 40px;
-  color: inherit;
-  text-decoration: none;
-  text-align: center;
-  cursor: pointer;
-}
-
-.sidebar-content {
-  flex: 1;
-  background-color: rgba(255, 255, 255, 1);
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 5px;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  scrollbar-width: thin;
 }
 
-.sidebar.collapsed > .sidebar-content {
-  overflow-y: hidden;
+.sidebar-section {
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #333;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  pointer-events: auto;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
+.sidebar-header {
+  padding: 4px;
+  background-color: #f8f9fa;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  color: #222;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-header:hover {
+  background-color: #e9ecef;
+}
+
+.sidebar-body {
+  padding: 0;
+  background-color: white;
+}
+
+.caret {
+  display: inline-block;
+  margin-right: 8px;
+  transition: transform 0.15s ease;
+  color: #666;
+  width: 16px;
+  height: 16px;
+}
+
+.caret.open {
+  transform: rotate(90deg);
+}
+
+/* map and controls */
 .map-container {
   flex: 1;
   flex-grow: 1;
@@ -356,11 +382,6 @@ body {
 
 .control-attribution {
   display: none !important;
-}
-
-.top,
-.bottom {
-  z-index: 400;
 }
 
 .loading-container {

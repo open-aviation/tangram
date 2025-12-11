@@ -73,7 +73,7 @@ const selectAirport = (airport: Airport) => {
   position: absolute;
   width: 300px;
   z-index: 1000;
-  top: 15px;
+  top: 10px;
   right: 10px;
 }
 

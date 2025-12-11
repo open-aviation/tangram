@@ -6,5 +6,7 @@ interface SystemConfig {
 }
 
 export function install(api: TangramApi, config?: SystemConfig) {
-  api.ui.registerWidget("system-widget", "TopBar", SystemWidget, config?.topbar_order);
+  api.ui.registerWidget("system-widget", "TopBar", SystemWidget, {
+    priority: config?.topbar_order
+  });
 }
