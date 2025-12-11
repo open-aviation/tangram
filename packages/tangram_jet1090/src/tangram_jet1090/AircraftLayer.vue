@@ -21,7 +21,6 @@ import { computed, inject, onUnmounted, ref, watch, reactive, type Ref } from "v
 import { IconLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core/api";
-import Raphael from "raphael";
 import { html, svg, render } from "lit-html";
 import { get_image_object, type IconProps } from "./PlanePath";
 import type { Jet1090Aircraft } from ".";
@@ -45,6 +44,22 @@ const tooltip = reactive<{
 }>({ x: 0, y: 0, object: null });
 
 const iconCache = new Map<string, string>();
+const bboxCache = new Map<string, DOMRect>();
+
+const getPathBBox = (d: string): DOMRect => {
+  if (bboxCache.has(d)) return bboxCache.get(d)!;
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svgEl = document.createElementNS(svgNS, "svg");
+  svgEl.style.cssText = "position:absolute;visibility:hidden;width:0;height:0";
+  const pathEl = document.createElementNS(svgNS, "path");
+  pathEl.setAttribute("d", d);
+  svgEl.appendChild(pathEl);
+  document.body.appendChild(svgEl);
+  const bbox = pathEl.getBBox();
+  document.body.removeChild(svgEl);
+  bboxCache.set(d, bbox);
+  return bbox;
+};
 
 const createAircraftSvgDataURL = (typecode: string, isSelected: boolean): string => {
   const cacheKey = `${typecode}-${isSelected}`;
@@ -53,21 +68,21 @@ const createAircraftSvgDataURL = (typecode: string, isSelected: boolean): string
   }
 
   const iconProps = get_image_object(typecode) as IconProps;
-  const bbox = Raphael.pathBBox(iconProps.path);
-  const centerX = Math.floor(bbox.x + bbox.width / 2.0);
-  const centerY = Math.floor(bbox.y + bbox.height / 2.0);
+  const bbox = getPathBBox(iconProps.path);
+  const centerX = bbox.x + bbox.width / 2.0;
+  const centerY = bbox.y + bbox.height / 2.0;
   const offsetX = iconProps.ofX || 0;
   const offsetY = iconProps.ofY || 0;
-  const transform = `T${-1 * centerX + offsetX},${
-    -1 * centerY + offsetY
-  }S${iconProps.scale * 0.7}`;
-  const transformedPath = Raphael.mapPath(
-    iconProps.path,
-    Raphael.toMatrix(iconProps.path, transform)
-  );
+  const scale = iconProps.scale * 0.7;
+
+  const tx = -centerX + offsetX;
+  const ty = -centerY + offsetY;
+  const strokeWidth = 0.65 / scale;
 
   const fillColor = isSelected ? "#ff6464" : "#f9fd15";
-  const path = svg`<path stroke="#0014aa" fill="${fillColor}" stroke-width="0.65" d="${transformedPath}"/>`;
+  const transform = `scale(${scale}) translate(${tx}, ${ty})`;
+
+  const path = svg`<path stroke="#0014aa" fill="${fillColor}" stroke-width="${strokeWidth}" d="${iconProps.path}" transform="${transform}"/>`;
   const template = html`<svg
     version="1.1"
     shape-rendering="geometricPrecision"
