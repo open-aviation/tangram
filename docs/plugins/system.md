@@ -9,3 +9,9 @@ The `tangram_system` plugin provides a background service that monitors and broa
 3. When `tangram serve` starts, the core framework discovers and runs the `run_system` service.
 4. It publishes these metrics as JSON payloads to the `to:system:update-node` Redis channel.
 5. The core `tangram` frontend is subscribed to the `system` WebSocket channel. The `channel` service forwards these Redis messages to the UI, where components like `SystemInfo.vue` update to display the live data.
+
+## Redis Events
+
+| Direction | Channel                 | Event/Command | Payload                                                 |
+| :-------- | :---------------------- | :------------ | :------------------------------------------------------ |
+| Output    | `to:system:update-node` | `PUBLISH`     | `{"el": "uptime" \| "cpu_load" \| ..., "value": "..."}` |

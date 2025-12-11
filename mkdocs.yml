@@ -16,9 +16,9 @@ nav:
     - "plugins/frontend.md"
     - Built-in:
       - "plugins/system.md"
+      - "plugins/history.md"
       - "plugins/jet1090.md"
       - "plugins/ship162.md"
-      - "plugins/history.md"
       - "plugins/weather.md"
       - "plugins/airports.md"
     - Examples:
@@ -27,9 +27,11 @@ nav:
       - "plugins/examples/windfield.md"
   - API Reference:
     - "api/core.md"
-    - "api/jet1090.md"
-    - "api/weather.md"
     - "api/system.md"
+    - "api/history.md"
+    - "api/jet1090.md"
+    - "api/ship162.md"
+    - "api/weather.md"
   - Contribute: "contribute.md"
 
 theme:

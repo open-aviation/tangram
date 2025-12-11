@@ -30,6 +30,14 @@ sequenceDiagram
     C->>F: PUSH new-ship162-data
 ```
 
+## Redis Events
+
+| Direction | Channel                              | Event/Command | Payload                                                     |
+| :-------- | :----------------------------------- | :------------ | :---------------------------------------------------------- |
+| Input     | `ship162`                            | `PUBLISH`     | Raw JSON message from `ship162`.                            |
+| Output    | `to:streaming-{id}:new-ship162-data` | `PUBLISH`     | `{ "count": 123, "ship": [...] }` containing visible ships. |
+| Output    | `history:ingest:ship162`             | `XADD`        | Apache Arrow record batch (binary).                         |
+
 ## Configuration
 
 To use this plugin, you must have a running `ship162` instance publishing data to redis.
