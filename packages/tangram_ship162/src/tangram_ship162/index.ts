@@ -22,10 +22,10 @@ export interface MmsiInfo {
 export interface Ship162Vessel {
   mmsi: string;
   timestamp: number;
-  latitude: number;
-  longitude: number;
-  ship_name: string;
-  course: number;
+  latitude?: number;
+  longitude?: number;
+  ship_name?: string;
+  course?: number;
   speed?: number;
   destination?: string;
   mmsi_info?: MmsiInfo;

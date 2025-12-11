@@ -11,7 +11,7 @@ import httpx
 import platformdirs
 import tangram_core
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import ORJSONResponse, Response
 from pydantic import TypeAdapter
 
 if TYPE_CHECKING:
@@ -37,7 +37,7 @@ router = APIRouter(
 @router.get("/data/{icao24}")
 async def get_trajectory_data(
     icao24: str, backend_state: tangram_core.InjectBackendState
-) -> list[dict[str, Any]]:
+) -> Response:
     """Get the full trajectory for a given ICAO24 address."""
     if not _HISTORY_AVAILABLE:
         raise HTTPException(
@@ -66,7 +66,7 @@ async def get_trajectory_data(
             .sort("timestamp")
             .collect()
         )
-        return df.to_dicts()
+        return Response(df.write_json(), media_type="application/json")
     except Exception as e:
         log.error(f"Failed to query trajectory for {icao24}: {e}")
         raise HTTPException(status_code=500, detail="Failed to query trajectory data.")
@@ -75,7 +75,7 @@ async def get_trajectory_data(
 @router.get("/route/{callsign}")
 async def get_route_data(
     callsign: str, backend_state: tangram_core.InjectBackendState
-) -> JSONResponse:
+) -> ORJSONResponse:
     url = "https://flightroutes.opensky-network.org/api/routeset"
     payload = {"planes": [{"callsign": callsign}]}
     client = backend_state.http_client
@@ -83,16 +83,16 @@ async def get_route_data(
         response = await client.post(url, json=payload, timeout=5.0)
         response.raise_for_status()
         data = response.json()
-        return JSONResponse(content=data)
+        return ORJSONResponse(content=data)
     except Exception as e:
         log.error(f"Failed to fetch route data for {callsign}: {e}")
-        return JSONResponse(content=[], status_code=500)
+        return ORJSONResponse(content=[], status_code=500)
 
 
 @router.get("/sensors")
 async def get_sensors_data(
     backend_state: tangram_core.InjectBackendState,
-) -> JSONResponse:
+) -> ORJSONResponse:
     plugin_config = backend_state.config.plugins.get("tangram_jet1090", {})
     config = TypeAdapter(PlanesConfig).validate_python(plugin_config)
     # Keeping "localhost" in the URL can lead to issues on systems where localhost
@@ -103,7 +103,7 @@ async def get_sensors_data(
     try:
         response = await backend_state.http_client.get(url, timeout=10.0)
         response.raise_for_status()
-        return JSONResponse(content=response.json())
+        return ORJSONResponse(content=response.json())
     except Exception as e:
         log.error(f"Failed to fetch sensors data from {url}: {e}")
         raise HTTPException(status_code=502, detail=str(e))

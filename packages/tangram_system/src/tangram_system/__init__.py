@@ -1,10 +1,10 @@
 import asyncio
-import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, NoReturn
 
+import orjson
 import psutil
 import redis.asyncio as redis
 import tangram_core
@@ -60,10 +60,12 @@ async def server_events(redis_client: redis.Redis) -> NoReturn:
     log.info("serving system events...")
 
     while True:
-        await redis_client.publish("to:system:update-node", json.dumps(uptime(counter)))
-        await redis_client.publish("to:system:update-node", json.dumps(info_utc()))
-        await redis_client.publish("to:system:update-node", json.dumps(cpu_load()))
-        await redis_client.publish("to:system:update-node", json.dumps(ram_usage()))
+        await redis_client.publish(
+            "to:system:update-node", orjson.dumps(uptime(counter))
+        )
+        await redis_client.publish("to:system:update-node", orjson.dumps(info_utc()))
+        await redis_client.publish("to:system:update-node", orjson.dumps(cpu_load()))
+        await redis_client.publish("to:system:update-node", orjson.dumps(ram_usage()))
         counter += 1
 
         await asyncio.sleep(1)

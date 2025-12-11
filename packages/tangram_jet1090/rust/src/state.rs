@@ -22,7 +22,9 @@ use tangram_history::client::{HistoryBuffer, HistoryFrame};
 #[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Aircraft {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub typecode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub registration: Option<String>,
 }
 
@@ -118,38 +120,55 @@ pub struct StateVector {
     /// The timestamp of the last seen message
     pub lastseen: u64,
     /// The callsign of the aircraft, ICAO flight number for commercial aircraft, often matches registration in General Aviation.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub callsign: Option<String>,
     /// The tail number of the aircraft. If the aircraft is not known in the local database, some heuristics may reconstruct the tail number in some countries.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub registration: Option<String>,
     /// The ICAO code to the type of aircraft, e.g. A32O or B789
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub typecode: Option<String>,
     /// The squawk code, a 4-digit number set on the transponder, 7700 for general emergencies
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub squawk: Option<u16>, // IdentityCode
     /// WGS84 latitude angle in degrees
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub latitude: Option<f64>,
     /// WGS84 longitude angle in degrees
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub longitude: Option<f64>,
     /// Barometric altitude in feet, expressed in ISA
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub altitude: Option<u16>,
     /// Altitude selected in the FMS
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub selected_altitude: Option<u16>,
     /// Ground speed, in knots
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub groundspeed: Option<f64>,
     /// Vertical rate of the aircraft, in feet/min
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vertical_rate: Option<i16>,
     /// The true track angle of the aircraft in degrees with respect to the geographic North
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub track: Option<f64>,
     /// Indicated air speed, in knots
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ias: Option<u16>,
     /// True air speed, in knots
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tas: Option<u16>,
     /// The Mach number
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mach: Option<f64>,
     /// The roll angle of the aircraft in degrees (positive angle for banking to the right-hand side)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub roll: Option<f64>,
     /// The magnetic heading of the aircraft in degrees with respect to the magnetic North
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub heading: Option<f64>,
     /// The NAC position indicator, for uncertainty
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub nacp: Option<u8>,
     /// Number of messages received for the aircraft
     pub count: usize,

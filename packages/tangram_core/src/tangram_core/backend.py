@@ -205,7 +205,10 @@ def create_app(
     backend_state: BackendState,
     loaded_plugins: Iterable[Plugin],
 ) -> FastAPI:
-    app = FastAPI(lifespan=partial(lifespan, backend_state=backend_state))
+    app = FastAPI(
+        lifespan=partial(lifespan, backend_state=backend_state),
+        default_response_class=ORJSONResponse,
+    )
     frontend_plugins = {}
 
     for plugin in loaded_plugins:

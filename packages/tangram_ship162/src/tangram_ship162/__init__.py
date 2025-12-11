@@ -3,6 +3,7 @@ from typing import Any
 
 import tangram_core
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import TypeAdapter
 
 try:
@@ -52,7 +53,7 @@ async def get_trajectory_data(
             .sort("timestamp")
             .collect()
         )
-        return df.to_dicts()
+        return Response(df.write_json(), media_type="application/json")
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to query trajectory data: {e}"

@@ -16,23 +16,41 @@ use tracing::info;
 pub struct ShipStateVector {
     pub mmsi: u32,
     pub lastseen: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub latitude: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub longitude: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ship_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub course: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub heading: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub speed: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ship_type: Option<ShipType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub callsign: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub destination: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<NavigationStatus>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mmsi_info: Option<MmsiInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub imo: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub draught: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to_bow: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to_stern: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to_port: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to_starboard: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub turn: Option<f32>,
 }
 
