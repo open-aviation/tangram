@@ -12,6 +12,13 @@ pub struct BoundingBox {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SelectedEntity {
+    pub id: String,
+    #[serde(rename = "typeName")]
+    pub type_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BoundingBoxMessage {
     #[serde(rename = "connectionId")]
     pub connection_id: String,
@@ -23,14 +30,14 @@ pub struct BoundingBoxMessage {
     pub south_west_lat: f64,
     #[serde(rename = "southWestLng")]
     pub south_west_lng: f64,
-    #[serde(rename = "selectedEntityId")]
-    pub selected_entity_id: Option<String>,
+    #[serde(rename = "selectedEntity")]
+    pub selected_entity: Option<SelectedEntity>,
 }
 
 #[derive(Default)]
 pub struct BoundingBoxState {
     pub bboxes: HashMap<String, BoundingBox>,
-    pub selections: HashMap<String, String>,
+    pub selections: HashMap<String, SelectedEntity>,
     pub clients: HashSet<String>,
 }
 
@@ -55,12 +62,12 @@ impl BoundingBoxState {
         );
     }
 
-    pub fn set_selected(&mut self, connection_id: &str, entity_id: Option<String>) {
-        match entity_id {
-            Some(id) => {
-                self.selections.insert(connection_id.to_string(), id);
+    pub fn set_selected(&mut self, connection_id: &str, entity: Option<SelectedEntity>) {
+        match entity {
+            Some(e) => {
+                self.selections.insert(connection_id.to_string(), e);
             }
-            None => {
+            _ => {
                 self.selections.remove(connection_id);
             }
         }
@@ -74,7 +81,7 @@ impl BoundingBoxState {
         self.bboxes.get(connection_id)
     }
 
-    pub fn get_selected(&self, connection_id: &str) -> Option<&String> {
+    pub fn get_selected(&self, connection_id: &str) -> Option<&SelectedEntity> {
         self.selections.get(connection_id)
     }
 

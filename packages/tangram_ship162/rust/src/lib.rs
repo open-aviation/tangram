@@ -185,6 +185,7 @@ async fn _run_service(config: ShipsConfig) -> Result<()> {
         redis_url: config.redis_url,
         stream_interval_secs: config.stream_interval_secs,
         entity_type_name: "ship".to_string(),
+        entity_type: "ship162_ship".to_string(),
         broadcast_channel_suffix: "new-ship162-data".to_string(),
     };
 

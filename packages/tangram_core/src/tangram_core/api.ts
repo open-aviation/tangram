@@ -442,6 +442,35 @@ export class TangramApi {
     this.time = new TimeApi();
     this.map = new MapApi(this);
     this.state = new StateApi();
+
+    this.setupViewUpdates();
+  }
+
+  private setupViewUpdates() {
+    const updateView = () => {
+      const connId = this.realtime.getConnectionId();
+      if (!connId) return;
+      const bounds = this.map.bounds.value;
+      if (!bounds) return;
+
+      const payload = {
+        connectionId: connId,
+        northEastLat: bounds.getNorthEast().lat,
+        northEastLng: bounds.getNorthEast().lng,
+        southWestLat: bounds.getSouthWest().lat,
+        southWestLng: bounds.getSouthWest().lng,
+        selectedEntity: this.state.activeEntity.value
+          ? {
+              id: this.state.activeEntity.value.id,
+              typeName: this.state.activeEntity.value.type
+            }
+          : null
+      };
+      this.realtime.publish("system:bound-box", payload);
+    };
+
+    watch(this.map.bounds, updateView, { deep: true });
+    watch(() => this.state.activeEntity.value?.id, updateView);
   }
 
   public static async create(app: App): Promise<TangramApi> {

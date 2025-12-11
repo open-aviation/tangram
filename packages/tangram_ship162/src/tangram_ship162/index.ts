@@ -6,6 +6,8 @@ import ShipInfoWidget from "./ShipInfoWidget.vue";
 import ShipTrailLayer from "./ShipTrailLayer.vue";
 import { selectedShip } from "./store";
 
+const ENTITY_TYPE = "ship162_ship";
+
 export interface MmsiInfo {
   country: string;
   flag: string;
@@ -40,7 +42,7 @@ export function install(api: TangramApi) {
   api.ui.registerWidget("ship162-info-widget", "SideBar", ShipInfoWidget);
   api.ui.registerWidget("ship162-ship-layer", "MapOverlay", ShipLayer);
   api.ui.registerWidget("ship162-trail-layer", "MapOverlay", ShipTrailLayer);
-  api.state.registerEntityType("ship162_ship");
+  api.state.registerEntityType(ENTITY_TYPE);
 
   (async () => {
     try {
@@ -54,7 +56,7 @@ export function install(api: TangramApi) {
   watch(
     () => api.state.activeEntity.value,
     async newEntity => {
-      if (newEntity?.type === "ship162_ship") {
+      if (newEntity?.type === ENTITY_TYPE) {
         if (newEntity.id !== selectedShip.id) {
           selectedShip.id = newEntity.id;
           selectedShip.trajectory = [];
@@ -84,26 +86,6 @@ export function install(api: TangramApi) {
       }
     }
   );
-
-  const updateView = () => {
-    const connId = api.realtime.getConnectionId();
-    if (!connId) return;
-    const bounds = api.map.bounds.value;
-    if (!bounds) return;
-
-    const payload = {
-      connectionId: connId,
-      northEastLat: bounds.getNorthEast().lat,
-      northEastLng: bounds.getNorthEast().lng,
-      southWestLat: bounds.getSouthWest().lat,
-      southWestLng: bounds.getSouthWest().lng,
-      selectedEntityId: selectedShip.id
-    };
-    api.realtime.publish("system:bound-box", payload);
-  };
-
-  watch(api.map.bounds, updateView, { deep: true });
-  watch(() => selectedShip.id, updateView);
 }
 
 async function subscribeToShipData(api: TangramApi, connectionId: string) {
@@ -114,15 +96,15 @@ async function subscribeToShipData(api: TangramApi, connectionId: string) {
       payload => {
         const entities: Entity[] = payload.ship.map(ship => ({
           id: ship.mmsi.toString(),
-          type: "ship162_ship",
+          type: ENTITY_TYPE,
           state: ship
         }));
-        api.state.replaceAllEntitiesByType("ship162_ship", entities);
-        api.state.setTotalCount("ship162_ship", payload.count);
+        api.state.replaceAllEntitiesByType(ENTITY_TYPE, entities);
+        api.state.setTotalCount(ENTITY_TYPE, payload.count);
 
         if (selectedShip.id) {
           const entityMap =
-            api.state.getEntitiesByType<Ship162Vessel>("ship162_ship").value;
+            api.state.getEntitiesByType<Ship162Vessel>(ENTITY_TYPE).value;
           const entity = entityMap.get(selectedShip.id);
 
           if (

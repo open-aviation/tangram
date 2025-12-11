@@ -101,7 +101,7 @@ pub async fn start_redis_subscriber(
                         south_west_lng: bbox_msg.south_west_lng,
                     },
                 );
-                state.set_selected(&bbox_msg.connection_id, bbox_msg.selected_entity_id.clone());
+                state.set_selected(&bbox_msg.connection_id, bbox_msg.selected_entity.clone());
             }
         }
     }
@@ -113,6 +113,7 @@ pub struct StreamConfig {
     pub redis_url: String,
     pub stream_interval_secs: f64,
     pub entity_type_name: String,
+    pub entity_type: String,
     pub broadcast_channel_suffix: String,
 }
 
@@ -160,12 +161,16 @@ where
             let filtered_data = {
                 let state = bbox_state.lock().await;
                 if state.has_bbox(client_id) {
-                    let selected_id = state.get_selected(client_id).cloned();
+                    let selected = state.get_selected(client_id);
+                    let force_select_id = selected
+                        .filter(|s| s.type_name == config.entity_type)
+                        .map(|s| s.id.clone());
+
                     all_items
                         .iter()
                         .filter(|a| {
                             is_within_bbox(*a, &state, client_id)
-                                || selected_id
+                                || force_select_id
                                     .as_ref()
                                     .map(|id| id == &a.id())
                                     .unwrap_or(false)

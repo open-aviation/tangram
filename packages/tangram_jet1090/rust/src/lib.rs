@@ -226,6 +226,7 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
         redis_url: config.redis_url,
         stream_interval_secs: config.stream_interval_secs,
         entity_type_name: "aircraft".to_string(),
+        entity_type: "jet1090_aircraft".to_string(),
         broadcast_channel_suffix: "new-jet1090-data".to_string(),
     };
 
