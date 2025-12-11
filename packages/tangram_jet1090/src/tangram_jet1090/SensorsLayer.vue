@@ -39,10 +39,15 @@ watch(
 
     fetch("/jet1090/sensors")
       .then(response => {
-        if (!response.ok) throw new Error("network response was not ok");
+        if (!response.ok) {
+          console.warn(`sensors endpoint returned ${response}`);
+          return {};
+        }
         return response.json();
       })
       .then(sensors => {
+        if (!sensors || typeof sensors !== "object") return;
+
         const sensorData: Sensor[] = Object.values(sensors).map((sensor: unknown) => {
           const s = sensor as RawSensorResponse;
           return {
