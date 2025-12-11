@@ -306,6 +306,7 @@ export class RealtimeApi {
   private channelConfig: ChannelConfig;
   private connectionPromise: Promise<void> | null = null;
   private connectionId: string | null = null;
+  private joinPromises: Map<string, Promise<Channel>> = new Map();
 
   constructor(config: TangramConfig) {
     this.channelConfig = config.channel;
@@ -375,9 +376,22 @@ export class RealtimeApi {
     return this.connectionPromise!;
   }
 
+  /**
+   * Multiple plugins can subscribe to the *same* Phoenix channel topic,
+   * e.g. `streaming-<conn_id>` but listen to different events (e.g.
+   * `new-jet1090-data` or `new-ship162-data`).
+   *
+   * To avoid two plugins racing to create a channel instance which can
+   * overwrite each other, we store in-flight join promises in `joinPromises`
+   * map so both plugins receive the same `Channel` instance.
+   */
   private async getChannel(topic: string): Promise<Channel> {
     await this.connect();
     if (!this.socket) throw new Error("socket connection failed");
+
+    if (this.joinPromises.has(topic)) {
+      return this.joinPromises.get(topic)!;
+    }
 
     if (this.channels.has(topic)) {
       const channel = this.channels.get(topic)!;
@@ -386,17 +400,37 @@ export class RealtimeApi {
       }
     }
 
-    const { token } = await this.fetchToken(topic);
-    const channel = this.socket.channel(topic, { token });
-    this.channels.set(topic, channel);
+    const joinPromise = (async () => {
+      try {
+        let channel = this.channels.get(topic);
+        if (!channel) {
+          const { token } = await this.fetchToken(topic);
+          channel = this.socket!.channel(topic, { token });
+          this.channels.set(topic, channel);
+        }
 
-    return new Promise((resolve, reject) => {
-      channel
-        .join()
-        .receive("ok", () => resolve(channel))
-        .receive("error", reason => reject(reason))
-        .receive("timeout", () => reject("channel join timeout"));
-    });
+        if (channel.state === "joined") return channel;
+
+        await new Promise<void>((resolve, reject) => {
+          channel!
+            .join()
+            .receive("ok", () => resolve())
+            .receive("error", reason => reject(reason))
+            .receive("timeout", () => reject("channel join timeout"));
+        });
+        return channel!;
+      } catch (e) {
+        this.channels.delete(topic);
+        throw e;
+      }
+    })();
+
+    this.joinPromises.set(topic, joinPromise);
+    try {
+      return await joinPromise;
+    } finally {
+      this.joinPromises.delete(topic);
+    }
   }
 
   private parseTopicEvent(topic: string): [string, string] {
