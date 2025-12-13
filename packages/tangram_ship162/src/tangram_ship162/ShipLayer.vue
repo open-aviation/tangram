@@ -144,7 +144,10 @@ const rgbToHex = (r: number, g: number, b: number) =>
     })
     .join("");
 
-const getShipIcon = (state: ShipState, isSelected: boolean): string => {
+const getShipIcon = (
+  state: ShipState,
+  isSelected: boolean
+): { url: string; id: string } => {
   const stationary = isStationary(state);
   const isAton = state.ship_type === "AIS AtoN";
   const colorArray = isSelected ? colors.selected : getIconColor(state);
@@ -152,7 +155,7 @@ const getShipIcon = (state: ShipState, isSelected: boolean): string => {
   const cacheKey = `${color}-${stationary}-${isAton}`;
 
   if (iconCache.has(cacheKey)) {
-    return iconCache.get(cacheKey)!;
+    return { url: iconCache.get(cacheKey)!, id: cacheKey };
   }
 
   let svg;
@@ -166,7 +169,7 @@ const getShipIcon = (state: ShipState, isSelected: boolean): string => {
 
   const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
   iconCache.set(cacheKey, dataUrl);
-  return dataUrl;
+  return { url: dataUrl, id: cacheKey };
 };
 
 /**
@@ -364,12 +367,17 @@ watch(
       data: allData,
       pickable: true,
       billboard: false,
-      getIcon: d => ({
-        url: getShipIcon(d.state, selectedIds.has(d.id)),
-        width: 24,
-        height: 24,
-        anchorY: 12
-      }),
+      getIcon: d => {
+        const { url, id } = getShipIcon(d.state, selectedIds.has(d.id));
+        return {
+          url,
+          id,
+          width: 24,
+          height: 24,
+          anchorY: 12,
+          mask: false
+        };
+      },
       sizeScale: showHulls ? sizeScale * 0.5 : sizeScale,
       getPosition: d => [d.state.longitude!, d.state.latitude!],
       getSize: 24,

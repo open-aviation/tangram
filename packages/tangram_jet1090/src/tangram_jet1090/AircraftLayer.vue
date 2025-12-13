@@ -143,15 +143,19 @@ watch(
       billboard: false,
       sizeScale: 1,
       getSize: 32,
-      getIcon: d => ({
-        url: createAircraftSvgDataURL(
-          d.state.typecode || "A320",
-          currentActiveEntities.has(d.id)
-        ),
-        width: 64,
-        height: 64,
-        anchorY: 32
-      }),
+      getIcon: d => {
+        const typecode = d.state.typecode || "A320";
+        const isSelected = currentActiveEntities.has(d.id);
+        const iconId = `${typecode}-${isSelected}`;
+        return {
+          url: createAircraftSvgDataURL(typecode, isSelected),
+          id: iconId,
+          width: 64,
+          height: 64,
+          anchorY: 32,
+          mask: false
+        };
+      },
       getPosition: d => [d.state.longitude!, d.state.latitude!],
       getAngle: (d: Entity<Jet1090Aircraft>) => {
         const iconProps = get_image_object(d.state.typecode || null) as IconProps;

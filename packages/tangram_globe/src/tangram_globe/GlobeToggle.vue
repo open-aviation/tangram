@@ -24,16 +24,12 @@ const isGlobeView = ref(false);
 const toggleGlobe = () => {
   if (!tangramApi.map.isReady.value) return;
 
-  try {
-    const mapInstance = tangramApi.map.getMapInstance();
-    const newGlobeState = !isGlobeView.value;
+  const mapInstance = tangramApi.map.getMapInstance();
+  const newGlobeState = !isGlobeView.value;
 
-    mapInstance.setProjection(newGlobeState ? { type: "globe" } : { type: "mercator" });
+  mapInstance.setProjection(newGlobeState ? { type: "globe" } : { type: "mercator" });
 
-    isGlobeView.value = newGlobeState;
-  } catch (error) {
-    console.error("Failed to toggle globe view:", error);
-  }
+  isGlobeView.value = newGlobeState;
 };
 </script>
 
@@ -58,10 +54,5 @@ const toggleGlobe = () => {
   background: oklch(0.72 0.075 245);
   color: white;
   border-color: oklch(0.59 0.075 245);
-}
-
-.globe-toggle button:focus {
-  outline: 2px solid oklch(0.72 0.075 245);
-  outline-offset: 2px;
 }
 </style>
