@@ -16,7 +16,7 @@
             <span v-if="item.state.typecode" class="chip blue">{{
               item.state.typecode
             }}</span>
-            <span class="chip yellow">{{ item.state.icao24 }}</span>
+            <span class="chip yellow icao24">{{ item.state.icao24 }}</span>
           </div>
           <div class="right-group">
             <span v-if="item.state.groundspeed !== undefined"
@@ -37,6 +37,7 @@
         </div>
         <div class="row sub-row">
           <div class="left-group registration">
+            {{ aircraft_information(item.state.icao24, item.state.registration)?.flag || "" }}
             {{ item.state.registration }}
           </div>
           <div class="right-group">
@@ -107,6 +108,7 @@ import {
   type ChartData,
   type ChartOptions
 } from "chart.js";
+import { aircraft_information } from "rs1090-wasm";
 import { Line as LineChart } from "vue-chartjs";
 import dayjs from "dayjs";
 import CityPairWidget from "./CityPairWidget.vue";
@@ -524,14 +526,14 @@ watch(
   text-align: right;
   display: flex;
   gap: 4px;
-  font-family: "Inconsolata", monospace;
+  font-family: "B612", monospace;
   font-size: 0.9em;
   color: #333;
 }
 
 .callsign {
-  font-size: 1.1em;
-  font-weight: bold;
+  font-size: 1.2em;
+  font-weight: normal;
 }
 
 .no-data {
@@ -546,11 +548,10 @@ watch(
 }
 
 .chip {
-  border-radius: 10px;
-  padding: 0px 3px;
+  border-radius: 5px;
+  padding: 0px 5px;
   font-family: "Inconsolata", monospace;
   font-size: 1em;
-  font-weight: bold;
 }
 
 .chip.blue {
@@ -563,6 +564,12 @@ watch(
   background-color: #f2cf5b;
   color: black;
   border: 1px solid #e0c050;
+}
+
+.icao24::before {
+  content: "0x";
+  color: #79706e;
+  font-size: 95%;
 }
 
 .sub-row .right-group {

@@ -43,7 +43,7 @@
       <div v-if="isExpanded(item.id)" class="details-body" @click.stop>
         <div class="details-header">
           <span v-if="item.state.mmsi_info?.flag">
-            Flag: {{ item.state.mmsi_info.flag }}
+            {{ item.state.mmsi_info.flag }}
             {{ item.state.mmsi_info.country }}
           </span>
           <span v-if="item.state.status" class="status-chip">{{
@@ -185,7 +185,7 @@ watch(
   text-align: right;
   display: flex;
   gap: 4px;
-  font-family: "Inconsolata", monospace;
+  font-family: "B612", monospace;
   font-size: 0.9em;
   color: #333;
   white-space: nowrap;
@@ -213,10 +213,9 @@ watch(
 
 .chip {
   border-radius: 5px;
-  padding: 0px 3px;
+  padding: 0px 5px;
   font-family: "Inconsolata", monospace;
   font-size: 1em;
-  font-weight: bold;
   white-space: nowrap;
 }
 
