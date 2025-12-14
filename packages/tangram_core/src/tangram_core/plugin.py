@@ -5,7 +5,7 @@ import functools
 import importlib.metadata
 import logging
 import traceback
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeAlias
 
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     ServiceFunc: TypeAlias = ServiceAsyncFunc | Callable[[BackendState], None]
     Priority: TypeAlias = int
     IntoFrontendConfigFunction: TypeAlias = Callable[[dict[str, Any]], Any]
+    Lifespan: TypeAlias = Callable[[BackendState], AsyncGenerator[None, None]]
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,8 @@ class Plugin:
     `tangram.toml`) into a frontend-safe configuration object.
 
     If not specified, the backend configuration dict is passed as-is."""
+    lifespan: Lifespan | None = None
+    """Async context manager for plugin initialization and teardown."""
     services: list[tuple[Priority, ServiceAsyncFunc]] = field(
         default_factory=list, init=False
     )

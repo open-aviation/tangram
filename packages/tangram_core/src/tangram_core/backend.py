@@ -117,10 +117,14 @@ def load_enabled_plugins(
 
 @asynccontextmanager
 async def lifespan(
-    app: FastAPI, backend_state: BackendState
+    app: FastAPI, backend_state: BackendState, loaded_plugins: Iterable[Plugin]
 ) -> AsyncGenerator[None, None]:
-    # we don't need to __aenter__ httpx.AsyncClient again
-    async with backend_state.redis_client:
+    async with AsyncExitStack() as stack:
+        for plugin in loaded_plugins:
+            if plugin.lifespan:
+                logger.info(f"initializing lifespan for {plugin.dist_name}")
+                await stack.enter_async_context(plugin.lifespan(backend_state))
+
         app.state.backend_state = backend_state
         yield
 
@@ -206,7 +210,9 @@ def create_app(
     loaded_plugins: Iterable[Plugin],
 ) -> FastAPI:
     app = FastAPI(
-        lifespan=partial(lifespan, backend_state=backend_state),
+        lifespan=partial(
+            lifespan, backend_state=backend_state, loaded_plugins=loaded_plugins
+        ),
         default_response_class=ORJSONResponse,
     )
     frontend_plugins = {}
