@@ -9,9 +9,7 @@ description = "Globe view toggle plugin for tangram"
 readme = "readme.md"
 requires-python = ">=3.10"
 license = "AGPL-3.0"
-authors = [
-    { name = "Andres Morfin Veytia" },
-]
+authors = [{ name = "Andres Morfin Veytia" }]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -34,7 +32,7 @@ tangram_core = { workspace = true }
 
 [tool.hatch.build.targets.sdist]
 ignore-vcs = true
-include = ["dist-frontend/*", "src/*"]
+include = ["dist-frontend/*", "src/*", "package.json"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "dist-frontend" = "tangram_globe/dist-frontend"

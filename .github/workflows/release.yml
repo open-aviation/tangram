@@ -72,13 +72,15 @@ jobs:
       
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
 
       - name: Publish tangram-core
         working-directory: packages/tangram_core
-        run: pnpm publish
+        run: pnpm publish --no-git-checks
+        env:
+          NPM_CONFIG_PROVENANCE: true
   
   github-release:
     name: >-
