@@ -24,7 +24,7 @@ Your `pyproject.toml` must declare an entry point under the `tangram_core.plugin
 [project]
 name = "my-tangram-plugin"
 version = "0.1.0"
-dependencies = ["tangram_core>=0.2.0"]
+dependencies = ["tangram_core>=0.2.1"]
 
 [project.entry-points."tangram_core.plugins"]
 my_plugin = "my_plugin:plugin"

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "tangram_example"
 version = "0.2.1"
 readme = "readme.md"
-dependencies = ["tangram_core>=0.2.0"]
+dependencies = ["tangram_core>=0.2.1"]
 classifiers = ["Private :: Do Not Upload"]
 authors = [
     { name = "Xavier Olive", email = "git@xoolive.org" },

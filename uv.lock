@@ -2445,15 +2445,11 @@ name = "tangram-history"
 version = "0.2.1"
 source = { editable = "packages/tangram_history" }
 dependencies = [
-    { name = "platformdirs" },
     { name = "tangram-core" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "platformdirs" },
-    { name = "tangram-core", editable = "packages/tangram_core" },
-]
+requires-dist = [{ name = "tangram-core", editable = "packages/tangram_core" }]
 
 [[package]]
 name = "tangram-jet1090"

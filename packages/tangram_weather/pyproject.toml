@@ -21,11 +21,12 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Atmospheric Science",
     "Topic :: Scientific/Engineering :: Visualization",
 ]
 dependencies = [
-    "tangram_core>=0.2.0",
+    "tangram_core>=0.2.1",
     "xarray>=2025.6.1",
     "cfgrib>=0.9.15.0",
     "tqdm>=4.67.1",
