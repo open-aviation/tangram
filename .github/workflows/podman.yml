@@ -48,7 +48,7 @@ jobs:
           sudo chmod +x /usr/bin/tar
 
       - name: cache container layers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.local/share/containers
