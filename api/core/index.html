@@ -1323,6 +1323,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tangram_core.Plugin.lifespan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;lifespan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#tangram_core.Plugin.services" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2454,6 +2465,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tangram_core.plugin.Lifespan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;Lifespan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#tangram_core.plugin.logger" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2503,6 +2525,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;into_frontend_config_function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_core.plugin.Plugin.lifespan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;lifespan
       
     </span>
   </a>
@@ -3283,6 +3316,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tangram_core.Plugin.lifespan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;lifespan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#tangram_core.Plugin.services" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4414,6 +4458,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tangram_core.plugin.Lifespan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;Lifespan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#tangram_core.plugin.logger" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4463,6 +4518,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;into_frontend_config_function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tangram_core.plugin.Plugin.lifespan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;lifespan
       
     </span>
   </a>
@@ -5447,8 +5513,7 @@ in their <code>pyproject.toml</code> pointing to an instance of this class.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_core/src/tangram_core/plugin.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">25</span>
-<span class="normal">26</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">26</span>
 <span class="normal">27</span>
 <span class="normal">28</span>
 <span class="normal">29</span>
@@ -5494,7 +5559,10 @@ in their <code>pyproject.toml</code> pointing to an instance of this class.</p>
 <span class="normal">69</span>
 <span class="normal">70</span>
 <span class="normal">71</span>
-<span class="normal">72</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Plugin</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Stores the metadata and registered API routes, background services and</span>
 <span class="sd">    frontend assets for a tangram plugin.</span>
@@ -5513,6 +5581,8 @@ in their <code>pyproject.toml</code> pointing to an instance of this class.</p>
 <span class="sd">    `tangram.toml`) into a frontend-safe configuration object.</span>
 
 <span class="sd">    If not specified, the backend configuration dict is passed as-is.&quot;&quot;&quot;</span>
+    <span class="n">lifespan</span><span class="p">:</span> <span class="n">Lifespan</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Async context manager for plugin initialization and teardown.&quot;&quot;&quot;</span>
     <span class="n">services</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">Priority</span><span class="p">,</span> <span class="n">ServiceAsyncFunc</span><span class="p">]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span>
         <span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">,</span> <span class="n">init</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
@@ -5642,6 +5712,36 @@ in their <code>pyproject.toml</code> pointing to an instance of this class.</p>
 
 
 
+<h4 id="tangram_core.Plugin.lifespan" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">lifespan</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#tangram_core.Plugin.lifespan" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">lifespan</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            Lifespan
+
+
+  
+      module-attribute
+   (tangram_core.plugin.Lifespan)" href="#tangram_core.plugin.Lifespan">Lifespan</a></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Async context manager for plugin initialization and teardown.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
 <h4 id="tangram_core.Plugin.services" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">services</span>
 
@@ -5739,10 +5839,7 @@ and are started when the application launches.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/plugin.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">52</span>
-<span class="normal">53</span>
-<span class="normal">54</span>
-<span class="normal">55</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">55</span>
 <span class="normal">56</span>
 <span class="normal">57</span>
 <span class="normal">58</span>
@@ -5759,7 +5856,10 @@ and are started when the application launches.</p>
 <span class="normal">69</span>
 <span class="normal">70</span>
 <span class="normal">71</span>
-<span class="normal">72</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">register_service</span><span class="p">(</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">register_service</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">priority</span><span class="p">:</span> <span class="n">Priority</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ServiceFunc</span><span class="p">],</span> <span class="n">ServiceFunc</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to register a background service function.</span>
@@ -6261,12 +6361,19 @@ and are started when the application launches.</p>
 
 <a href="#tangram_core.backend.lifespan" class="headerlink" title="Permanent link">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">lifespan</span><span class="p">(</span>
-    <span class="n">app</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="fastapi.FastAPI" href="https://fastapi.tiangolo.com/reference/fastapi/#fastapi.FastAPI">FastAPI</a></span><span class="p">,</span> <span class="n">backend_state</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            BackendState
+    <span class="n">app</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="fastapi.FastAPI" href="https://fastapi.tiangolo.com/reference/fastapi/#fastapi.FastAPI">FastAPI</a></span><span class="p">,</span>
+    <span class="n">backend_state</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            BackendState
 
 
   
       dataclass
-   (tangram_core.backend.BackendState)" href="#tangram_core.backend.BackendState">BackendState</a></span>
+   (tangram_core.backend.BackendState)" href="#tangram_core.backend.BackendState">BackendState</a></span><span class="p">,</span>
+    <span class="n">loaded_plugins</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Iterable" href="https://docs.python.org/3/library/typing.html#typing.Iterable">Iterable</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="            Plugin
+
+
+  
+      dataclass
+   (tangram_core.plugin.Plugin)" href="#tangram_core.plugin.Plugin">Plugin</a></span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="typing.AsyncGenerator" href="https://docs.python.org/3/library/typing.html#typing.AsyncGenerator">AsyncGenerator</a></span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
 </code></pre></div>
 
@@ -6282,12 +6389,20 @@ and are started when the application launches.</p>
 <span class="normal">122</span>
 <span class="normal">123</span>
 <span class="normal">124</span>
-<span class="normal">125</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@asynccontextmanager</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@asynccontextmanager</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">lifespan</span><span class="p">(</span>
-    <span class="n">app</span><span class="p">:</span> <span class="n">FastAPI</span><span class="p">,</span> <span class="n">backend_state</span><span class="p">:</span> <span class="n">BackendState</span>
+    <span class="n">app</span><span class="p">:</span> <span class="n">FastAPI</span><span class="p">,</span> <span class="n">backend_state</span><span class="p">:</span> <span class="n">BackendState</span><span class="p">,</span> <span class="n">loaded_plugins</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Plugin</span><span class="p">]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncGenerator</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
-    <span class="c1"># we don&#39;t need to __aenter__ httpx.AsyncClient again</span>
-    <span class="k">async</span> <span class="k">with</span> <span class="n">backend_state</span><span class="o">.</span><span class="n">redis_client</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">AsyncExitStack</span><span class="p">()</span> <span class="k">as</span> <span class="n">stack</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">plugin</span> <span class="ow">in</span> <span class="n">loaded_plugins</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">plugin</span><span class="o">.</span><span class="n">lifespan</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;initializing lifespan for </span><span class="si">{</span><span class="n">plugin</span><span class="o">.</span><span class="n">dist_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">await</span> <span class="n">stack</span><span class="o">.</span><span class="n">enter_async_context</span><span class="p">(</span><span class="n">plugin</span><span class="o">.</span><span class="n">lifespan</span><span class="p">(</span><span class="n">backend_state</span><span class="p">))</span>
+
         <span class="n">app</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">backend_state</span> <span class="o">=</span> <span class="n">backend_state</span>
         <span class="k">yield</span>
 </code></pre></div></td></tr></table></div>
@@ -6312,15 +6427,15 @@ and are started when the application launches.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/backend.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">128</span>
-<span class="normal">129</span>
-<span class="normal">130</span>
-<span class="normal">131</span>
-<span class="normal">132</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">132</span>
 <span class="normal">133</span>
 <span class="normal">134</span>
 <span class="normal">135</span>
-<span class="normal">136</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">default_cache_dir</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">default_cache_dir</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">xdg_cache</span> <span class="o">:=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;XDG_CACHE_HOME&quot;</span><span class="p">))</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">cache_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">xdg_cache</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;tangram&quot;</span>
     <span class="k">else</span><span class="p">:</span>
@@ -6446,11 +6561,7 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/backend.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">142</span>
-<span class="normal">143</span>
-<span class="normal">144</span>
-<span class="normal">145</span>
-<span class="normal">146</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">146</span>
 <span class="normal">147</span>
 <span class="normal">148</span>
 <span class="normal">149</span>
@@ -6505,7 +6616,11 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 <span class="normal">198</span>
 <span class="normal">199</span>
 <span class="normal">200</span>
-<span class="normal">201</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_cache_route_handler</span><span class="p">(</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_cache_route_handler</span><span class="p">(</span>
     <span class="n">entry</span><span class="p">:</span> <span class="n">CacheEntry</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">BackendState</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">FileResponse</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -6600,11 +6715,7 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/backend.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">204</span>
-<span class="normal">205</span>
-<span class="normal">206</span>
-<span class="normal">207</span>
-<span class="normal">208</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">208</span>
 <span class="normal">209</span>
 <span class="normal">210</span>
 <span class="normal">211</span>
@@ -6692,12 +6803,20 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 <span class="normal">293</span>
 <span class="normal">294</span>
 <span class="normal">295</span>
-<span class="normal">296</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">create_app</span><span class="p">(</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">create_app</span><span class="p">(</span>
     <span class="n">backend_state</span><span class="p">:</span> <span class="n">BackendState</span><span class="p">,</span>
     <span class="n">loaded_plugins</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Plugin</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FastAPI</span><span class="p">:</span>
     <span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">(</span>
-        <span class="n">lifespan</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="n">lifespan</span><span class="p">,</span> <span class="n">backend_state</span><span class="o">=</span><span class="n">backend_state</span><span class="p">),</span>
+        <span class="n">lifespan</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span>
+            <span class="n">lifespan</span><span class="p">,</span> <span class="n">backend_state</span><span class="o">=</span><span class="n">backend_state</span><span class="p">,</span> <span class="n">loaded_plugins</span><span class="o">=</span><span class="n">loaded_plugins</span>
+        <span class="p">),</span>
         <span class="n">default_response_class</span><span class="o">=</span><span class="n">ORJSONResponse</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">frontend_plugins</span> <span class="o">=</span> <span class="p">{}</span>
@@ -6816,20 +6935,20 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/backend.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">299</span>
-<span class="normal">300</span>
-<span class="normal">301</span>
-<span class="normal">302</span>
-<span class="normal">303</span>
-<span class="normal">304</span>
-<span class="normal">305</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">305</span>
 <span class="normal">306</span>
 <span class="normal">307</span>
 <span class="normal">308</span>
 <span class="normal">309</span>
 <span class="normal">310</span>
 <span class="normal">311</span>
-<span class="normal">312</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_channel_service</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_channel_service</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">_core</span>
 
     <span class="n">_core</span><span class="o">.</span><span class="n">init_tracing_stderr</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">log_level</span><span class="p">)</span>
@@ -6882,18 +7001,18 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/backend.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">315</span>
-<span class="normal">316</span>
-<span class="normal">317</span>
-<span class="normal">318</span>
-<span class="normal">319</span>
-<span class="normal">320</span>
-<span class="normal">321</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">321</span>
 <span class="normal">322</span>
 <span class="normal">323</span>
 <span class="normal">324</span>
 <span class="normal">325</span>
-<span class="normal">326</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_services</span><span class="p">(</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_services</span><span class="p">(</span>
     <span class="n">backend_state</span><span class="p">:</span> <span class="n">BackendState</span><span class="p">,</span>
     <span class="n">loaded_plugins</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Plugin</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncGenerator</span><span class="p">[</span><span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="p">[</span><span class="kc">None</span><span class="p">],</span> <span class="kc">None</span><span class="p">]:</span>
@@ -6944,16 +7063,16 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/backend.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">329</span>
-<span class="normal">330</span>
-<span class="normal">331</span>
-<span class="normal">332</span>
-<span class="normal">333</span>
-<span class="normal">334</span>
-<span class="normal">335</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">335</span>
 <span class="normal">336</span>
 <span class="normal">337</span>
-<span class="normal">338</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_server</span><span class="p">(</span><span class="n">backend_state</span><span class="p">:</span> <span class="n">BackendState</span><span class="p">,</span> <span class="n">loaded_plugins</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Plugin</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_server</span><span class="p">(</span><span class="n">backend_state</span><span class="p">:</span> <span class="n">BackendState</span><span class="p">,</span> <span class="n">loaded_plugins</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Plugin</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">app_instance</span> <span class="o">=</span> <span class="n">create_app</span><span class="p">(</span><span class="n">backend_state</span><span class="p">,</span> <span class="n">loaded_plugins</span><span class="p">)</span>
     <span class="n">server_config</span> <span class="o">=</span> <span class="n">uvicorn</span><span class="o">.</span><span class="n">Config</span><span class="p">(</span>
         <span class="n">app_instance</span><span class="p">,</span>
@@ -6994,13 +7113,7 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/backend.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">341</span>
-<span class="normal">342</span>
-<span class="normal">343</span>
-<span class="normal">344</span>
-<span class="normal">345</span>
-<span class="normal">346</span>
-<span class="normal">347</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">347</span>
 <span class="normal">348</span>
 <span class="normal">349</span>
 <span class="normal">350</span>
@@ -7009,7 +7122,13 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 <span class="normal">353</span>
 <span class="normal">354</span>
 <span class="normal">355</span>
-<span class="normal">356</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">start_tasks</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">start_tasks</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">loaded_plugins</span> <span class="o">=</span> <span class="n">load_enabled_plugins</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 
     <span class="k">async</span> <span class="k">with</span> <span class="n">AsyncExitStack</span><span class="p">()</span> <span class="k">as</span> <span class="n">stack</span><span class="p">:</span>
@@ -7052,13 +7171,7 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/backend.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">359</span>
-<span class="normal">360</span>
-<span class="normal">361</span>
-<span class="normal">362</span>
-<span class="normal">363</span>
-<span class="normal">364</span>
-<span class="normal">365</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">365</span>
 <span class="normal">366</span>
 <span class="normal">367</span>
 <span class="normal">368</span>
@@ -7067,7 +7180,13 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 <span class="normal">371</span>
 <span class="normal">372</span>
 <span class="normal">373</span>
-<span class="normal">374</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_log_config_dict</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="normal">374</span>
+<span class="normal">375</span>
+<span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_log_config_dict</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Config</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">format_time</span><span class="p">(</span><span class="n">dt</span><span class="p">:</span> <span class="n">datetime</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">dt</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%S.</span><span class="si">%f</span><span class="s2">Z &quot;</span><span class="p">)</span>
 
@@ -9448,6 +9567,35 @@ Dynamically handles URL parameters found in both serve_route and origin.</p>
 
 
 
+<h4 id="tangram_core.plugin.Lifespan" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">Lifespan</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#tangram_core.plugin.Lifespan" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">Lifespan</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="typing.TypeAlias" href="https://docs.python.org/3/library/typing.html#typing.TypeAlias">TypeAlias</a></span> <span class="o">=</span> <span class="n"><a class="autorefs autorefs-external" title="collections.abc.Callable" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Callable">Callable</a></span><span class="p">[</span>
+    <span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="            BackendState
+
+
+  
+      dataclass
+   (tangram_core.backend.BackendState)" href="#tangram_core.backend.BackendState">BackendState</a></span><span class="p">],</span> <span class="n"><a class="autorefs autorefs-external" title="collections.abc.AsyncGenerator" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.AsyncGenerator">AsyncGenerator</a></span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+<span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
 <h4 id="tangram_core.plugin.logger" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">logger</span>
 
@@ -9501,8 +9649,7 @@ in their <code>pyproject.toml</code> pointing to an instance of this class.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_core/src/tangram_core/plugin.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">25</span>
-<span class="normal">26</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">26</span>
 <span class="normal">27</span>
 <span class="normal">28</span>
 <span class="normal">29</span>
@@ -9548,7 +9695,10 @@ in their <code>pyproject.toml</code> pointing to an instance of this class.</p>
 <span class="normal">69</span>
 <span class="normal">70</span>
 <span class="normal">71</span>
-<span class="normal">72</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Plugin</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Stores the metadata and registered API routes, background services and</span>
 <span class="sd">    frontend assets for a tangram plugin.</span>
@@ -9567,6 +9717,8 @@ in their <code>pyproject.toml</code> pointing to an instance of this class.</p>
 <span class="sd">    `tangram.toml`) into a frontend-safe configuration object.</span>
 
 <span class="sd">    If not specified, the backend configuration dict is passed as-is.&quot;&quot;&quot;</span>
+    <span class="n">lifespan</span><span class="p">:</span> <span class="n">Lifespan</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Async context manager for plugin initialization and teardown.&quot;&quot;&quot;</span>
     <span class="n">services</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">Priority</span><span class="p">,</span> <span class="n">ServiceAsyncFunc</span><span class="p">]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span>
         <span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">,</span> <span class="n">init</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
@@ -9696,6 +9848,36 @@ in their <code>pyproject.toml</code> pointing to an instance of this class.</p>
 
 
 
+<h5 id="tangram_core.plugin.Plugin.lifespan" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">lifespan</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#tangram_core.plugin.Plugin.lifespan" class="headerlink" title="Permanent link">&para;</a></h5>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">lifespan</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            Lifespan
+
+
+  
+      module-attribute
+   (tangram_core.plugin.Lifespan)" href="#tangram_core.plugin.Lifespan">Lifespan</a></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Async context manager for plugin initialization and teardown.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
 <h5 id="tangram_core.plugin.Plugin.services" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">services</span>
 
@@ -9793,10 +9975,7 @@ and are started when the application launches.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/plugin.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">52</span>
-<span class="normal">53</span>
-<span class="normal">54</span>
-<span class="normal">55</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">55</span>
 <span class="normal">56</span>
 <span class="normal">57</span>
 <span class="normal">58</span>
@@ -9813,7 +9992,10 @@ and are started when the application launches.</p>
 <span class="normal">69</span>
 <span class="normal">70</span>
 <span class="normal">71</span>
-<span class="normal">72</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">register_service</span><span class="p">(</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">register_service</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">priority</span><span class="p">:</span> <span class="n">Priority</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ServiceFunc</span><span class="p">],</span> <span class="n">ServiceFunc</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to register a background service function.</span>
@@ -9865,8 +10047,8 @@ and are started when the application launches.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/plugin.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">75</span>
-<span class="normal">76</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scan_plugins</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">importlib</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">EntryPoints</span><span class="p">:</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">78</span>
+<span class="normal">79</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scan_plugins</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">importlib</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">EntryPoints</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">importlib</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">entry_points</span><span class="p">(</span><span class="n">group</span><span class="o">=</span><span class="s2">&quot;tangram_core.plugins&quot;</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -9898,10 +10080,7 @@ and injects the name of the distribution into it.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_core/src/tangram_core/plugin.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 79</span>
-<span class="normal"> 80</span>
-<span class="normal"> 81</span>
-<span class="normal"> 82</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 82</span>
 <span class="normal"> 83</span>
 <span class="normal"> 84</span>
 <span class="normal"> 85</span>
@@ -9922,7 +10101,10 @@ and injects the name of the distribution into it.</p>
 <span class="normal">100</span>
 <span class="normal">101</span>
 <span class="normal">102</span>
-<span class="normal">103</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_plugin</span><span class="p">(</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_plugin</span><span class="p">(</span>
     <span class="n">entry_point</span><span class="p">:</span> <span class="n">importlib</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">EntryPoint</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Plugin</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Instantiates the plugin object defined in the entry point</span>
