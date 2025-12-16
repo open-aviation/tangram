@@ -104,7 +104,7 @@ async fn control_subscriber(
                         ("schema", schema),
                         (
                             "partition_columns",
-                            serde_json::to_string(&partition_columns).unwrap(),
+                            serde_json::to_string(&partition_columns)?,
                         ),
                         ("optimize_interval_secs", optimize_interval_secs.to_string()),
                         (
@@ -114,7 +114,7 @@ async fn control_subscriber(
                         ("vacuum_interval_secs", vacuum_interval_secs.to_string()),
                         (
                             "vacuum_retention_period_secs",
-                            serde_json::to_string(&vacuum_retention_period_secs).unwrap(),
+                            serde_json::to_string(&vacuum_retention_period_secs)?,
                         ),
                     ];
                     let _: Result<(), _> = conn.hset_multiple(&config_key, &config_values).await;
@@ -136,7 +136,10 @@ async fn control_subscriber(
                         dashmap::mapref::entry::Entry::Vacant(entry) => {
                             let table_path = PathBuf::from(&base_path).join(&table_name);
                             tokio::fs::create_dir_all(&table_path).await?;
-                            let table_uri = table_path.to_str().unwrap();
+                            let table_uri = table_path
+                                .to_str()
+                                .ok_or_else(|| anyhow!("invalid table path"))?
+                                .to_string();
                             let table_url = url::Url::from_directory_path(&table_path)
                                 .map_err(|_| {
                                     DeltaTableError::InvalidTableLocation(table_uri.to_string())
@@ -153,8 +156,8 @@ async fn control_subscriber(
                                     let columns: Vec<StructField> = arrow_schema
                                         .fields()
                                         .iter()
-                                        .map(|f| f.as_ref().try_into_kernel().unwrap())
-                                        .collect();
+                                        .map(|f| f.as_ref().try_into_kernel())
+                                        .collect::<Result<Vec<_>, _>>()?;
                                     CreateBuilder::new()
                                         .with_location(table_uri)
                                         .with_columns(columns)
@@ -312,7 +315,7 @@ async fn consume_stream_for_table(
                 }
             }
 
-            let write_successful = if !batches.is_empty() {
+            if !batches.is_empty() {
                 info!(
                     "decoded {} rows in {} batches for table '{}'",
                     total_rows,
@@ -325,21 +328,19 @@ async fn consume_stream_for_table(
                     Ok(new_table) => {
                         let mut table_lock = table.lock().await;
                         *table_lock = new_table;
-                        true
                     }
                     Err(e) => {
+                        // swallow the error and proceed to ack, accepting data loss
+                        // TODO: reprocessing strategy?
                         error!(
-                            "failed to write to table '{}', messages will be re-processed: {}",
+                            "failed to write to table '{}', dropping messages: {}",
                             table_name, e
                         );
-                        false
                     }
                 }
-            } else {
-                true
-            };
+            }
 
-            if write_successful && !msg_ids_to_ack.is_empty() {
+            if !msg_ids_to_ack.is_empty() {
                 let ids_to_ack: Vec<&str> = msg_ids_to_ack.iter().map(AsRef::as_ref).collect();
                 if let Err(e) = conn
                     .xack::<_, _, _, ()>(&stream_key, group_name, &ids_to_ack)
@@ -391,8 +392,8 @@ async fn maintenance_task(manager: Arc<ManagedTables>) {
 
             if needs_vacuum {
                 info!("running vacuum for table {}", table_name);
-                let table_clone = managed_table.table.lock().await.clone();
                 let _guard = managed_table.maintenance_lock.write().await;
+                let table_clone = managed_table.table.lock().await.clone();
                 // by default the minimum data retention is 7 days to prevent accidental data loss
                 // but since we're writing frequently we want more aggressive purging of small files
                 let mut builder = DeltaOps(table_clone)
@@ -474,7 +475,10 @@ pub async fn start_ingest_service(config: IngestConfig) -> Result<()> {
 
         let table_path = PathBuf::from(&config.base_path).join(&table_name);
         tokio::fs::create_dir_all(&table_path).await?;
-        let table_uri = table_path.to_str().unwrap();
+        let table_uri = table_path
+            .to_str()
+            .ok_or_else(|| anyhow!("invalid table path"))?
+            .to_string();
         let table_url = url::Url::from_directory_path(&table_path)
             .map_err(|_| DeltaTableError::InvalidTableLocation(table_uri.to_string()))
             .unwrap();
@@ -485,8 +489,8 @@ pub async fn start_ingest_service(config: IngestConfig) -> Result<()> {
                 let columns: Vec<StructField> = arrow_schema
                     .fields()
                     .iter()
-                    .map(|f| f.as_ref().try_into_kernel().unwrap())
-                    .collect();
+                    .map(|f| f.as_ref().try_into_kernel())
+                    .collect::<Result<Vec<_>, _>>()?;
                 CreateBuilder::new()
                     .with_location(table_uri)
                     .with_columns(columns)
