@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 import sqlite3
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
 import platformdirs
@@ -62,7 +62,7 @@ async def get_trajectory_data(
         df = (
             pl.scan_delta(table_uri)
             .filter(pl.col("icao24") == icao24)
-            .with_columns(pl.col("timestamp").dt.epoch(time_unit="s"))
+            .with_columns(pl.col("timestamp").dt.epoch(time_unit="ms"))
             .sort("timestamp")
             .collect()
         )
@@ -110,20 +110,34 @@ async def get_sensors_data(
 
 
 @dataclass(frozen=True)
+class TrailColorOptions:
+    by_attribute: Literal["altitude", "groundspeed", "vertical_rate", "track"]
+    min: float | None = None
+    max: float | None = None
+
+
+@dataclass(frozen=True)
 class FrontendPlanesConfig(
     tangram_core.config.HasTopbarUiConfig, tangram_core.config.HasSidebarUiConfig
 ):
     show_route_lines: bool
     topbar_order: int
     sidebar_order: int
+    trail_type: Literal["line", "curtain"]
+    trail_color: str | TrailColorOptions = "#600000"
+    trail_alpha: float = 0.6
 
 
 def transform_config(config_dict: dict[str, Any]) -> FrontendPlanesConfig:
     config = TypeAdapter(PlanesConfig).validate_python(config_dict)
+
     return FrontendPlanesConfig(
         show_route_lines=config.show_route_lines,
         topbar_order=config.topbar_order,
         sidebar_order=config.sidebar_order,
+        trail_type=config.trail_type,
+        trail_color=config.trail_color,
+        trail_alpha=config.trail_alpha,
     )
 
 
@@ -159,6 +173,9 @@ class PlanesConfig(
     history_vacuum_retention_period_secs: int | None = 120
     topbar_order: int = 50
     sidebar_order: int = 50
+    trail_type: Literal["line", "curtain"] = "line"
+    trail_color: str | TrailColorOptions = "#600000"
+    trail_alpha: float = 0.6
 
 
 # NOTE: we fetch the aircraft database on the python side, not Rust. two reasons:
@@ -221,6 +238,12 @@ async def run_planes(backend_state: tangram_core.BackendState) -> None:
 
     plugin_config = backend_state.config.plugins.get("tangram_jet1090", {})
     config_planes = TypeAdapter(PlanesConfig).validate_python(plugin_config)
+    if not backend_state.config.map.enable_3d and config_planes.trail_type == "curtain":
+        log.warning(
+            "expected 'enable_3d' to be true when using 'curtain' trail type"
+            ", switching to 'line'"
+        )
+        config_planes = replace(config_planes, trail_type="line")
 
     default_log_level = plugin_config.get(
         "log_level", backend_state.config.core.log_level

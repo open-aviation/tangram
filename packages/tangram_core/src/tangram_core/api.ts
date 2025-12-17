@@ -39,6 +39,7 @@ export interface MapConfig {
   max_pitch: number;
   allow_pitch: boolean;
   allow_bearing: boolean;
+  enable_3d: boolean;
 }
 
 export interface TangramConfig {

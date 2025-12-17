@@ -25,6 +25,7 @@ import { html, svg, render } from "lit-html";
 import { get_image_object, type IconProps } from "./PlanePath";
 import type { Jet1090Aircraft } from ".";
 
+const FEET_TO_METERS = 0.3048;
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
   throw new Error("assert: tangram api not provided");
@@ -156,7 +157,11 @@ watch(
           mask: false
         };
       },
-      getPosition: d => [d.state.longitude!, d.state.latitude!],
+      getPosition: d => [
+        d.state.longitude!,
+        d.state.latitude!,
+        !tangramApi.config.map.enable_3d ? 0 : (d.state.altitude || 0) * FEET_TO_METERS
+      ],
       getAngle: (d: Entity<Jet1090Aircraft>) => {
         const iconProps = get_image_object(d.state.typecode || null) as IconProps;
         return -(d.state.track || 0) + iconProps.rotcorr;

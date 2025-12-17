@@ -6,7 +6,12 @@ import AircraftInfoWidget from "./AircraftInfoWidget.vue";
 import AircraftTrailLayer from "./AircraftTrailLayer.vue";
 import RouteLayer from "./RouteLayer.vue";
 import SensorsLayer from "./SensorsLayer.vue";
-import { aircraftStore, type AircraftSelectionData, pluginConfig } from "./store";
+import {
+  aircraftStore,
+  type AircraftSelectionData,
+  pluginConfig,
+  type TrailColorOptions
+} from "./store";
 
 const ENTITY_TYPE = "jet1090_aircraft";
 
@@ -14,6 +19,9 @@ interface Jet1090FrontendConfig {
   show_route_lines: boolean;
   topbar_order: number;
   sidebar_order: number;
+  trail_type: "line" | "curtain";
+  trail_color: string | TrailColorOptions;
+  trail_alpha: number;
 }
 
 export interface Jet1090Aircraft {
@@ -42,6 +50,9 @@ export interface Jet1090Aircraft {
 export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
   if (config) {
     pluginConfig.showRouteLines = config.show_route_lines;
+    pluginConfig.trailType = config.trail_type;
+    pluginConfig.trailColor = config.trail_color;
+    pluginConfig.trailAlpha = config.trail_alpha;
   }
 
   api.ui.registerWidget("jet1090-count-widget", "TopBar", AircraftCountWidget, {
@@ -154,9 +165,9 @@ async function subscribeToAircraftData(api: TangramApi, connectionId: string) {
           ) {
             const updated = entity.state;
             const last = data.trajectory[data.trajectory.length - 1];
-            const timestamp = updated.lastseen / 1_000_000;
+            const timestamp = updated.lastseen / 1_000;
 
-            if (!last || Math.abs((last.timestamp || 0) - timestamp) > 0.5) {
+            if (!last || Math.abs((last.timestamp || 0) - timestamp) > 500) {
               data.trajectory.push({
                 ...updated,
                 timestamp: timestamp

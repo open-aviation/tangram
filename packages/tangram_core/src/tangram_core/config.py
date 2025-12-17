@@ -75,6 +75,7 @@ class MapConfig:
     max_pitch: float = 70
     allow_pitch: bool = True
     allow_bearing: bool = True
+    enable_3d: bool = False
 
 
 @dataclass

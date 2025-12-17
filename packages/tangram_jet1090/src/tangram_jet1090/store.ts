@@ -19,11 +19,20 @@ export interface AircraftSelectionData {
   };
 }
 
+export interface TrailColorOptions {
+  by_attribute: "altitude" | "groundspeed" | "vertical_rate" | "track";
+  min?: number;
+  max?: number;
+}
+
 export const aircraftStore = reactive({
   selected: new Map<string, AircraftSelectionData>(),
   version: 0
 });
 
 export const pluginConfig = reactive({
-  showRouteLines: true
+  showRouteLines: true,
+  trailType: "line" as "line" | "curtain",
+  trailColor: "#600000" as string | TrailColorOptions,
+  trailAlpha: 0.6
 });
