@@ -1,0 +1,17 @@
+[project]
+name = "tangram-explore"
+version = "0.1.0"
+description = "Add your description here"
+readme = "readme.md"
+requires-python = ">=3.10"
+dependencies = ["fastapi>=0.124.2", "polars>=1.36.1", "tangram_core>=0.2.1"]
+
+[project.entry-points."tangram_core.plugins"]
+tangram_explore = "tangram_explore:plugin"
+
+[tool.uv.sources]
+tangram_core = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
