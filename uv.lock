@@ -2435,14 +2435,12 @@ name = "tangram-explore"
 version = "0.1.0"
 source = { editable = "packages/tangram_explore" }
 dependencies = [
-    { name = "fastapi" },
     { name = "polars" },
     { name = "tangram-core" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "fastapi", specifier = ">=0.124.2" },
     { name = "polars", specifier = ">=1.36.1" },
     { name = "tangram-core", editable = "packages/tangram_core" },
 ]
