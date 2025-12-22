@@ -17,8 +17,8 @@
     "@deck.gl/core": "^9.2.5",
     "@deck.gl/extensions": "^9.2.5",
     "@deck.gl/layers": "^9.2.5",
-    "maplibre-gl": "^5.14.0",
+    "maplibre-gl": "^5.15.0",
     "rs1090-wasm": "^0.4.14",
-    "vue": "^3.5.25"
+    "vue": "^3.5.26"
   }
 }

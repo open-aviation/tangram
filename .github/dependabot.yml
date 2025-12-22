@@ -22,6 +22,9 @@ updates:
       # regression in https://redirect.github.com/Jij-Inc/pyo3-stub-gen/pull/345
       - dependency-name: "pyo3-stub-gen"
         versions: [">=0.17"]
+      # see: https://github.com/open-aviation/tangram/commit/24161f730af4206aae3660ba5b330dc99c90f66e
+      - dependency-name: "redis"
+        versions: [">=1.0"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

@@ -43,14 +43,14 @@
     "@fontsource/inconsolata": "^5.2.8",
     "@fontsource/roboto-condensed": "^5.2.8",
     "@protomaps/basemaps": "^5.7.0",
+    "@vitejs/plugin-vue": "^6.0.3",
     "font-awesome": "^4.7.0",
     "lit-html": "^3.3.1",
-    "maplibre-gl": "^5.14.0",
+    "maplibre-gl": "^5.15.0",
     "phoenix": "^1.8.3",
     "pmtiles": "^4.3.0",
     "rs1090-wasm": "^0.4.14",
-    "vue": "^3.5.25",
-    "@vitejs/plugin-vue": "^6.0.2"
+    "vue": "^3.5.26"
   },
   "devDependencies": {
     "@types/phoenix": "^1.6.7",
