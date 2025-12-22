@@ -49,7 +49,7 @@
     "phoenix": "^1.8.3",
     "pmtiles": "^4.3.0",
     "rs1090-wasm": "^0.4.14",
-    "vue": "^3.5.25",
+    "vue": "^3.5.26",
     "@vitejs/plugin-vue": "^6.0.2"
   },
   "devDependencies": {
