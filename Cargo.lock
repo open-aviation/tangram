@@ -1639,40 +1639,15 @@ dependencies = [
 
 [[package]]
 name = "deku"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9711031e209dc1306d66985363b4397d4c7b911597580340b93c9729b55f6eb"
-dependencies = [
- "bitvec",
- "deku_derive 0.18.1",
- "log",
- "no_std_io2 0.8.1",
- "rustversion",
-]
-
-[[package]]
-name = "deku"
 version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f68a0d2437e0caae2a1fa10ddeae9a62644520036a64ec70cffb586c6ff1d2a"
 dependencies = [
  "bitvec",
- "deku_derive 0.20.2",
- "no_std_io2 0.9.2",
+ "deku_derive",
+ "log",
+ "no_std_io2",
  "rustversion",
-]
-
-[[package]]
-name = "deku_derive"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58cb0719583cbe4e81fb40434ace2f0d22ccc3e39a74bb3796c22b451b4f139d"
-dependencies = [
- "darling 0.20.11",
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 2.0.111",
 ]
 
 [[package]]
@@ -2941,15 +2916,6 @@ dependencies = [
 
 [[package]]
 name = "no_std_io2"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a3564ce7035b1e4778d8cb6cacebb5d766b5e8fe5a75b9e441e33fb61a872c6"
-dependencies = [
- "memchr",
-]
-
-[[package]]
-name = "no_std_io2"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "363b2defc9b4f195a84e7419e11e1b9af7df1f0ea62305fc5d1d04e93c536d65"
@@ -4024,13 +3990,13 @@ dependencies = [
 
 [[package]]
 name = "rs1090"
-version = "0.4.14"
+version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f713a27b5cfefe5156452869572c27305d78e564b1a0f4073e5f29d322c762e8"
+checksum = "611bbec4f0dcc314f20430dfef15c06333bc17969c8441c7ebb898204198b438"
 dependencies = [
  "ansi_term",
  "async-stream",
- "deku 0.18.1",
+ "deku",
  "futures",
  "futures-util",
  "hex",
@@ -4054,7 +4020,7 @@ name = "rs162"
 version = "0.1.0"
 source = "git+https://github.com/xoolive/ship162?rev=3d3eb30de72d112ebc78f7565d274bf3e4b5bf99#3d3eb30de72d112ebc78f7565d274bf3e4b5bf99"
 dependencies = [
- "deku 0.20.2",
+ "deku",
  "desperado",
  "futures",
  "num-complex",
