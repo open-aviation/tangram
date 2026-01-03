@@ -4,6 +4,8 @@ use arrow_array::{
     TimestampMicrosecondArray,
 };
 use arrow_schema::{DataType as ArrowDataType, Field, Schema as ArrowSchema, TimeUnit};
+use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
+use nucleo_matcher::{Config, Matcher, Utf32Str};
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
 #[cfg(feature = "stubgen")]
@@ -172,6 +174,12 @@ pub struct StateVector {
     pub nacp: Option<u8>,
     /// Number of messages received for the aircraft
     pub count: usize,
+}
+
+#[derive(Serialize)]
+pub struct SearchResult {
+    pub state: StateVector,
+    pub score: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -408,6 +416,55 @@ impl StateVectors {
 
     pub fn set_history_buffer(&mut self, buffer: HistoryBuffer<Jet1090HistoryFrame>) {
         self.history_buffer = Some(buffer);
+    }
+
+    pub fn search(&self, query: &str) -> Vec<SearchResult> {
+        let candidates: Vec<&StateVector> = self.aircraft.values().collect();
+
+        let haystacks: Vec<String> = candidates
+            .iter()
+            .map(|sv| {
+                format!(
+                    "{} {} {}",
+                    sv.icao24,
+                    sv.callsign.as_deref().unwrap_or(""),
+                    sv.registration.as_deref().unwrap_or("")
+                )
+            })
+            .collect();
+
+        if haystacks.is_empty() {
+            return vec![];
+        }
+
+        let mut matcher = Matcher::new(Config::DEFAULT);
+        let pattern = Pattern::parse(query, CaseMatching::Ignore, Normalization::Smart);
+
+        let mut matches: Vec<(u32, usize)> = haystacks
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, haystack)| {
+                let mut buf = Vec::new();
+                pattern
+                    .score(Utf32Str::new(haystack, &mut buf), &mut matcher)
+                    .map(|score| (score, idx))
+            })
+            .collect();
+
+        matches.sort_by(|a, b| b.0.cmp(&a.0));
+
+        matches
+            .into_iter()
+            .take(10)
+            .filter(|(score, _)| *score > 20)
+            .map(|(score, idx)| {
+                let sv = candidates[idx];
+                SearchResult {
+                    state: sv.clone(),
+                    score,
+                }
+            })
+            .collect()
     }
 
     pub async fn add(&mut self, msg: &Jet1090Message) -> Result<()> {

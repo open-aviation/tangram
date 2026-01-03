@@ -4,6 +4,8 @@ use arrow_array::{
     StringArray, TimestampMicrosecondArray,
 };
 use arrow_schema::{DataType as ArrowDataType, Field, Schema as ArrowSchema, TimeUnit};
+use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
+use nucleo_matcher::{Config, Matcher, Utf32Str};
 use rs162::prelude::{Message, MmsiInfo, NavigationStatus, ShipType, StaticDataReport};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -90,6 +92,12 @@ pub struct ShipHistoryFrame {
     pub to_port: Option<u8>,
     pub to_starboard: Option<u8>,
     pub turn: Option<f32>,
+}
+
+#[derive(Serialize)]
+pub struct SearchResult {
+    pub state: ShipStateVector,
+    pub score: u32,
 }
 
 impl From<&TimedMessage> for ShipHistoryFrame {
@@ -299,6 +307,55 @@ impl ShipStateVectors {
 
     pub fn set_history_buffer(&mut self, buffer: HistoryBuffer<ShipHistoryFrame>) {
         self.history_buffer = Some(buffer);
+    }
+
+    pub fn search(&self, query: &str) -> Vec<SearchResult> {
+        let candidates: Vec<&ShipStateVector> = self.ships.values().collect();
+
+        let haystacks: Vec<String> = candidates
+            .iter()
+            .map(|s| {
+                format!(
+                    "{} {} {}",
+                    s.mmsi,
+                    s.ship_name.as_deref().unwrap_or(""),
+                    s.callsign.as_deref().unwrap_or("")
+                )
+            })
+            .collect();
+
+        if haystacks.is_empty() {
+            return vec![];
+        }
+
+        let mut matcher = Matcher::new(Config::DEFAULT);
+        let pattern = Pattern::parse(query, CaseMatching::Ignore, Normalization::Smart);
+
+        let mut matches: Vec<(u32, usize)> = haystacks
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, haystack)| {
+                let mut buf = Vec::new();
+                pattern
+                    .score(Utf32Str::new(haystack, &mut buf), &mut matcher)
+                    .map(|score| (score, idx))
+            })
+            .collect();
+
+        matches.sort_by(|a, b| b.0.cmp(&a.0));
+
+        matches
+            .into_iter()
+            .take(10)
+            .filter(|(score, _)| *score > 20)
+            .map(|(score, idx)| {
+                let s = candidates[idx];
+                SearchResult {
+                    state: s.clone(),
+                    score,
+                }
+            })
+            .collect()
     }
 
     pub async fn add(&mut self, sentence: &TimedMessage) {

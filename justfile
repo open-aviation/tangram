@@ -68,9 +68,9 @@ c-run path_config='./tangram.example.toml':
 
 # Regenerate `.pyi` stub files from Rust code.
 stubgen:
-  cargo run --package tangram_core --bin stub_gen_core --features pyo3,stubgen || true
-  cargo run --package jet1090_planes --bin stub_gen_planes --features pyo3,stubgen || true
-  cargo run --package ship162_ships --bin stub_gen_ships --features pyo3,stubgen || true
+  cargo run --package tangram_core_rs --bin stub_gen_core --features pyo3,stubgen || true
+  cargo run --package tangram_jet1090 --bin stub_gen_planes --features pyo3,stubgen || true
+  cargo run --package tangram_ship162 --bin stub_gen_ships --features pyo3,stubgen || true
   cargo run --package tangram_history --bin stub_gen_history --features pyo3,stubgen || true
 
 # Fix code quality (eslint, ruff, clippy) and formatting (prettier, ruff, rustfmt).

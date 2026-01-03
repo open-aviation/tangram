@@ -3,6 +3,7 @@ import logging
 import polars as pl
 import tangram_core
 from fastapi import APIRouter, Response
+from fastapi.responses import ORJSONResponse
 
 router = APIRouter(
     prefix="/explore",
@@ -13,45 +14,45 @@ log = logging.getLogger(__name__)
 redis_key = "tangram:history:table_uri:jet1090"
 
 
-@router.get("/all")
-async def get_all(backend_state: tangram_core.InjectBackendState) -> Response:
+@router.get("/search")
+async def search_flights(
+    q: str, backend_state: tangram_core.InjectBackendState
+) -> Response:
     table_uri_bytes = await backend_state.redis_client.get(redis_key)
+    if not table_uri_bytes:
+        return ORJSONResponse(content=[])
     table_uri = table_uri_bytes.decode("utf-8")
-    df = pl.scan_delta(table_uri).collect()
-    return Response(df.write_json(), media_type="application/json")
 
+    df = pl.scan_delta(table_uri)
+    q_lower = q.lower()
 
-@router.get("/count")
-async def get_count(backend_state: tangram_core.InjectBackendState) -> Response:
-    table_uri_bytes = await backend_state.redis_client.get(redis_key)
-    table_uri = table_uri_bytes.decode("utf-8")
-    df = (
-        pl.scan_delta(table_uri)
-        .group_by(["icao24", "callsign"])
-        .agg(pl.len().alias("n_rows"))
-        .sort("n_rows", descending=True)
+    # forward_fill -> callsign.contains causes OOM, so we
+    # first find aircraft that *ever* matched the query
+    # then fetch full history for those candidates
+    candidates = (
+        df.filter(
+            pl.col("callsign").str.to_lowercase().str.contains(q_lower)
+            | pl.col("icao24").str.contains(q_lower)
+        )
+        .select("icao24")
+        .unique()
+        .head(20)
         .collect()
     )
-    return Response(df.write_json(), media_type="application/json")
+    candidate_icaos = candidates["icao24"].to_list()
 
-
-@router.get("/stats")
-async def get_stats(backend_state: tangram_core.InjectBackendState) -> Response:
-    table_uri_bytes = await backend_state.redis_client.get(redis_key)
-    table_uri = table_uri_bytes.decode("utf-8")
-    df = pl.scan_delta(table_uri)
+    if not candidate_icaos:
+        return ORJSONResponse(content=[])
 
     intervals = (
-        df.sort(["icao24", "timestamp"])
-        # forward-fill callsign within each aircraft
+        df.filter(pl.col("icao24").is_in(candidate_icaos))
+        .sort(["icao24", "timestamp"])
         .with_columns(pl.col("callsign").forward_fill().over("icao24"))
-        # compute gaps in minutes
         .with_columns(
             gap_minutes=(
                 pl.col("timestamp") - pl.col("timestamp").shift(1)
             ).dt.total_minutes()
         )
-        # mark new intervals: first row, gap ≥ 30 min, or callsign/icao24 change
         .with_columns(
             new_interval=(
                 (pl.col("gap_minutes") >= 30)
@@ -59,21 +60,27 @@ async def get_stats(backend_state: tangram_core.InjectBackendState) -> Response:
                 | (pl.col("callsign") != pl.col("callsign").shift(1))
             ).fill_null(True)
         )
-        # assign interval IDs
         .with_columns(interval_id=pl.col("new_interval").cast(pl.Int64).cum_sum())
-        # aggregate per interval
         .group_by(["icao24", "callsign", "interval_id"])
         .agg(
             start_ts=pl.col("timestamp").min(),
             end_ts=pl.col("timestamp").max(),
             n_rows=pl.len(),
+            lat=pl.col("latitude").mean(),
+            lon=pl.col("longitude").mean(),
         )
-        .sort(["n_rows", "icao24"], descending=True)
-        .filter(pl.col("n_rows") >= 5)
+        .filter(
+            (pl.col("n_rows") >= 5)
+            & (
+                pl.col("callsign").str.to_lowercase().str.contains(q_lower)
+                | pl.col("icao24").str.contains(q_lower)
+            )
+        )
         .with_columns(
             duration=((pl.col("end_ts") - pl.col("start_ts")).dt.total_seconds()),
         )
-        .collect()  # executes lazy query
+        .sort(["start_ts"], descending=True)
+        .collect()
     )
 
     return Response(intervals.write_json(), media_type="application/json")
@@ -89,8 +96,6 @@ async def get_history(
     """Get the trajectory history for a given ICAO24 address within a time range."""
     table_uri_bytes = await backend_state.redis_client.get(redis_key)
     table_uri = table_uri_bytes.decode("utf-8")
-    # Convert start_timestamp and end_timestamp (unix seconds) to polars datetime
-    # If you need to use these as datetime objects, use pl.from_epoch
 
     start_dt = pl.lit(start_timestamp).cast(pl.Datetime("ms"))
     end_dt = pl.lit(end_timestamp).cast(pl.Datetime("ms"))

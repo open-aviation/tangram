@@ -126,6 +126,7 @@ class FrontendPlanesConfig(
     trail_type: Literal["line", "curtain"]
     trail_color: str | TrailColorOptions = "#600000"
     trail_alpha: float = 0.6
+    search_channel: str = "jet1090:search"
 
 
 def transform_config(config_dict: dict[str, Any]) -> FrontendPlanesConfig:
@@ -138,6 +139,7 @@ def transform_config(config_dict: dict[str, Any]) -> FrontendPlanesConfig:
         trail_type=config.trail_type,
         trail_color=config.trail_color,
         trail_alpha=config.trail_alpha,
+        search_channel=config.search_channel,
     )
 
 
@@ -155,6 +157,7 @@ class PlanesConfig(
     jet1090_channel: str = "jet1090"
     history_table_name: str = "jet1090"
     history_control_channel: str = "history:control"
+    search_channel: str = "jet1090:search"
     state_vector_expire: int = 20
     stream_interval_secs: float = 1.0
     aircraft_db_url: str = (
@@ -271,5 +274,6 @@ async def run_planes(backend_state: tangram_core.BackendState) -> None:
         history_optimize_target_file_size=config_planes.history_optimize_target_file_size,
         history_vacuum_interval_secs=config_planes.history_vacuum_interval_secs,
         history_vacuum_retention_period_secs=config_planes.history_vacuum_retention_period_secs,
+        search_channel=config_planes.search_channel,
     )
     await _planes.run_planes(rust_config)
