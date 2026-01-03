@@ -23,6 +23,7 @@
     </div>
 
     <div ref="mapContainer" class="map-container">
+      <CommandPalette />
       <div v-if="visibleSidebarWidgets.length > 0" class="sidebar-container">
         <div
           v-for="widget in visibleSidebarWidgets"
@@ -92,6 +93,7 @@ import { TangramApi, type WidgetEntry } from "./api";
 import { loadPlugins } from "./plugin";
 import { layers, namedFlavor } from "@protomaps/basemaps";
 import * as pmtiles from "pmtiles";
+import CommandPalette from "./CommandPalette.vue";
 
 type ApiState = "loading" | "ready" | "error";
 

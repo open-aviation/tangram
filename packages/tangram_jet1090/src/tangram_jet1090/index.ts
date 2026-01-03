@@ -6,6 +6,7 @@ import AircraftInfoWidget from "./AircraftInfoWidget.vue";
 import AircraftTrailLayer from "./AircraftTrailLayer.vue";
 import RouteLayer from "./RouteLayer.vue";
 import SensorsLayer from "./SensorsLayer.vue";
+import AircraftResult from "./AircraftResult.vue";
 import {
   aircraftStore,
   type AircraftSelectionData,
@@ -22,6 +23,7 @@ interface Jet1090FrontendConfig {
   trail_type: "line" | "curtain";
   trail_color: string | TrailColorOptions;
   trail_alpha: number;
+  search_channel?: string;
 }
 
 export interface Jet1090Aircraft {
@@ -47,7 +49,15 @@ export interface Jet1090Aircraft {
   count: number;
   timestamp?: number; // synthetic, added by frontend
 }
+
+interface BackendSearchResult {
+  state: Jet1090Aircraft;
+  score: number;
+}
+
 export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
+  const channel = config?.search_channel || "jet1090:search";
+
   if (config) {
     pluginConfig.showRouteLines = config.show_route_lines;
     pluginConfig.trailType = config.trail_type;
@@ -69,6 +79,49 @@ export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
   api.ui.registerWidget("jet1090-sensors-layer", "MapOverlay", SensorsLayer);
 
   api.state.registerEntityType(ENTITY_TYPE);
+
+  api.search.registerProvider({
+    id: "aircraft",
+    name: "Aircraft (Live)",
+    search: async (query, signal) => {
+      if (query.length < 3) return [];
+      try {
+        const results = await api.realtime.request<BackendSearchResult[]>(
+          channel,
+          { query },
+          5000
+        );
+        return results.map(r => ({
+          id: `aircraft-${r.state.icao24}`,
+          component: AircraftResult,
+          props: {
+            registration: r.state.registration,
+            icao24: r.state.icao24,
+            callsign: r.state.callsign,
+            typecode: r.state.typecode
+          },
+          score: r.score,
+          onSelect: () => {
+            const entity: Entity = {
+              id: r.state.icao24,
+              type: ENTITY_TYPE,
+              state: r.state
+            };
+            api.state.selectEntity(entity);
+
+            if (r.state.latitude && r.state.longitude) {
+              api.map.getMapInstance().flyTo({
+                center: [r.state.longitude, r.state.latitude],
+                zoom: 10
+              });
+            }
+          }
+        }));
+      } catch (e) {
+        return [];
+      }
+    }
+  });
 
   (async () => {
     try {

@@ -32,6 +32,7 @@ tokio-stream = "0.1"
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+nucleo-matcher = "0.3.1"
 
 pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
 pyo3-async-runtimes = { version = "0.27", features = [

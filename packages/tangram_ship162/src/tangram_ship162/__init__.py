@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,7 +15,6 @@ try:
 except ImportError:
     _HISTORY_AVAILABLE = False
 
-
 router = APIRouter(
     prefix="/ship162",
     tags=["ship162"],
@@ -24,7 +25,7 @@ router = APIRouter(
 @router.get("/data/{mmsi}")
 async def get_trajectory_data(
     mmsi: int, backend_state: tangram_core.InjectBackendState
-) -> list[dict[str, Any]]:
+) -> Response:
     """Get the full trajectory for a given ship MMSI."""
     if not _HISTORY_AVAILABLE:
         raise HTTPException(
@@ -67,6 +68,7 @@ class ShipsConfig(
     ship162_channel: str = "ship162"
     history_table_name: str = "ship162"
     history_control_channel: str = "history:control"
+    search_channel: str = "ship162:search"
     state_vector_expire: int = 600  # 10 minutes
     stream_interval_secs: float = 1.0
     log_level: str = "INFO"
@@ -86,6 +88,7 @@ class FrontendShipsConfig(
 ):
     topbar_order: int
     sidebar_order: int
+    search_channel: str
 
 
 def transform_config(config_dict: dict[str, Any]) -> FrontendShipsConfig:
@@ -93,6 +96,7 @@ def transform_config(config_dict: dict[str, Any]) -> FrontendShipsConfig:
     return FrontendShipsConfig(
         topbar_order=config.topbar_order,
         sidebar_order=config.sidebar_order,
+        search_channel=config.search_channel,
     )
 
 
@@ -129,5 +133,6 @@ async def run_ships(backend_state: tangram_core.BackendState) -> None:
         history_optimize_target_file_size=config_ships.history_optimize_target_file_size,
         history_vacuum_interval_secs=config_ships.history_vacuum_interval_secs,
         history_vacuum_retention_period_secs=config_ships.history_vacuum_retention_period_secs,
+        search_channel=config_ships.search_channel,
     )
     await _ships.run_ships(rust_config)

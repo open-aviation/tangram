@@ -1,20 +1,18 @@
 <template>
-  <div class="airport-result">
+  <div class="ship-result">
     <div class="row">
       <span class="name">
-        <HighlightText :text="name" :query="query" />
+        <HighlightText :text="name || 'Unknown'" :query="query" />
       </span>
       <div class="chips">
-        <span class="chip blue">
-          <HighlightText :text="iata" :query="query" />
-        </span>
+        <span class="chip blue">{{ type || "?" }}</span>
         <span class="chip yellow">
-          <HighlightText :text="icao" :query="query" />
+          <HighlightText :text="mmsi" :query="query" />
         </span>
       </div>
     </div>
     <div class="subtitle">
-      <HighlightText :text="city" :query="query" />, {{ countryCode }}
+      <HighlightText :text="callsign || 'N/A'" :query="query" />
     </div>
   </div>
 </template>
@@ -23,11 +21,10 @@
 import { HighlightText } from "@open-aviation/tangram-core/components";
 
 defineProps<{
-  name: string;
-  city: string;
-  countryCode: string;
-  iata: string;
-  icao: string;
+  name?: string;
+  mmsi: string;
+  callsign?: string;
+  type?: string;
   query: string;
 }>();
 </script>

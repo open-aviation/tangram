@@ -27,7 +27,8 @@
     "./vite-plugin": "./src/tangram_core/vite-plugin-tangram.mjs",
     "./api": "./src/tangram_core/api.ts",
     "./types": "./src/tangram_core/types.d.ts",
-    "./colour": "./src/tangram_core/colour.ts"
+    "./colour": "./src/tangram_core/colour.ts",
+    "./components": "./src/tangram_core/components.ts"
   },
   "dependencies": {
     "@deck.gl/aggregation-layers": "^9.2.5",
@@ -54,6 +55,7 @@
   },
   "devDependencies": {
     "@types/phoenix": "^1.6.7",
+    "vite": "^7.2.7",
     "vite-plugin-static-copy": "^3.1.4"
   }
 }
