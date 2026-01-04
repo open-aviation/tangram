@@ -77,7 +77,10 @@ async def live_server(server_config: ServerConfig) -> AsyncGenerator[str, None]:
             except (httpx.ConnectError, httpx.TimeoutException):
                 await asyncio.sleep(poll_interval_seconds)
         else:
-            proc.terminate()
+            try:
+                proc.terminate()
+            except ProcessLookupError:
+                pass
             stdout, stderr = await proc.communicate()
             pytest.fail(
                 f"server did not start within {max_wait_seconds} seconds.\n"
@@ -86,7 +89,10 @@ async def live_server(server_config: ServerConfig) -> AsyncGenerator[str, None]:
 
     yield server_config.server_url
 
-    proc.terminate()
+    try:
+        proc.terminate()
+    except ProcessLookupError:
+        pass
     await proc.wait()
 
 
@@ -115,3 +121,22 @@ async def test_api(client: httpx.AsyncClient, server_url: str) -> None:
     response.raise_for_status()
     manifest = response.json()
     assert "plugins" in manifest
+
+
+@pytest.mark.anyio
+async def test_launch() -> None:
+    import tangram_core
+    from tangram_core.config import Config
+
+    config = Config()
+    # avoid port conflict with the session-scoped live_server
+    config.server.port = 2348
+    config.channel.port = 2349
+
+    async with tangram_core.launch(config=config) as t:
+        assert await t.redis_client.ping()  # type: ignore
+        assert t.http_client is not None
+        response = await t.http_client.get(f"{t.base_url}/manifest.json")
+        response.raise_for_status()
+        manifest = response.json()
+        assert "plugins" in manifest

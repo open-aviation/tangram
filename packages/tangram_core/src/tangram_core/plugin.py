@@ -5,7 +5,7 @@ import functools
 import importlib.metadata
 import logging
 import traceback
-from collections.abc import AsyncGenerator, Awaitable, Callable
+from collections.abc import AsyncGenerator, Callable, Coroutine
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeAlias
 
@@ -14,7 +14,7 @@ from fastapi import APIRouter
 if TYPE_CHECKING:
     from .backend import BackendState
 
-    ServiceAsyncFunc: TypeAlias = Callable[[BackendState], Awaitable[None]]
+    ServiceAsyncFunc: TypeAlias = Callable[[BackendState], Coroutine[Any, Any, None]]
     ServiceFunc: TypeAlias = ServiceAsyncFunc | Callable[[BackendState], None]
     Priority: TypeAlias = int
     IntoFrontendConfigFunction: TypeAlias = Callable[[dict[str, Any]], Any]

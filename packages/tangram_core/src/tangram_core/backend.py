@@ -6,8 +6,8 @@ import json
 import logging
 import os
 import re
-import sys
 import urllib.parse
+import webbrowser
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -24,11 +24,6 @@ from typing import (
     Iterable,
     TypeAlias,
 )
-
-if sys.version_info >= (3, 11):
-    pass
-else:
-    pass
 
 import httpx
 import platformdirs
@@ -53,6 +48,14 @@ class BackendState:
     redis_client: redis.Redis
     http_client: httpx.AsyncClient
     config: Config
+
+    @property
+    def base_url(self) -> str:
+        host = self.config.server.host
+        port = self.config.server.port
+        if host == "0.0.0.0":
+            host = "127.0.0.1"
+        return f"http://{host}:{port}"
 
 
 async def get_state(request: Request) -> BackendState:
@@ -332,34 +335,97 @@ async def run_services(
             logger.info(f"started service from plugin: {plugin.dist_name}")
 
 
-async def run_server(backend_state: BackendState, loaded_plugins: list[Plugin]) -> None:
-    app_instance = create_app(backend_state, loaded_plugins)
-    server_config = uvicorn.Config(
-        app_instance,
-        host=backend_state.config.server.host,
-        port=backend_state.config.server.port,
-        log_config=get_log_config_dict(backend_state.config),
+async def _setup_state(stack: AsyncExitStack, config: Config) -> BackendState:
+    redis_client = await stack.enter_async_context(
+        redis.from_url(config.core.redis_url)  # type: ignore
     )
-    server = uvicorn.Server(server_config)
-    await server.serve()
+    http_client = await stack.enter_async_context(httpx.AsyncClient(http2=True))
+    return BackendState(
+        redis_client=redis_client, http_client=http_client, config=config
+    )
 
 
-async def start_tasks(config: Config) -> None:
+def _create_server(
+    state: BackendState, loaded_plugins: Iterable[Plugin]
+) -> uvicorn.Server:
+    app = create_app(state, loaded_plugins)
+    server_config = uvicorn.Config(
+        app,
+        host=state.config.server.host,
+        port=state.config.server.port,
+        log_config=get_log_config_dict(state.config),
+    )
+    return uvicorn.Server(server_config)
+
+
+@dataclass
+class _BackendRuntime:
+    state: BackendState
+    server: uvicorn.Server
+    server_task: asyncio.Task[None]
+    service_tasks: list[asyncio.Task[None]]
+
+
+@asynccontextmanager
+async def _backend_runtime(
+    config: Config,
+) -> AsyncGenerator[_BackendRuntime, None]:
     loaded_plugins = load_enabled_plugins(config)
 
     async with AsyncExitStack() as stack:
-        redis_client = await stack.enter_async_context(
-            redis.from_url(config.core.redis_url)  # type: ignore
-        )
-        http_client = await stack.enter_async_context(httpx.AsyncClient(http2=True))
-        state = BackendState(
-            redis_client=redis_client, http_client=http_client, config=config
-        )
+        state = await _setup_state(stack, config)
+        server = _create_server(state, loaded_plugins)
 
-        server_task = asyncio.create_task(run_server(state, loaded_plugins))
         service_tasks = [s async for s in run_services(state, loaded_plugins)]
+        server_task = asyncio.create_task(server.serve())
 
-        await asyncio.gather(server_task, *service_tasks)
+        try:
+            yield _BackendRuntime(
+                state=state,
+                server=server,
+                server_task=server_task,
+                service_tasks=service_tasks,
+            )
+        finally:
+            server.should_exit = True
+            await server_task
+
+            for task in service_tasks:
+                task.cancel()
+            if service_tasks:
+                await asyncio.gather(*service_tasks, return_exceptions=True)
+
+
+@asynccontextmanager
+async def launch(
+    config: Config | None = None, open_browser: bool = False
+) -> AsyncGenerator[BackendState, None]:
+    """Asynchronous context manager that starts the tangram backend system
+    (including fastapi, rust channel, redis, plugin background services...) and returns
+    **direct access** to the internal state.
+
+    Useful for local research and development.
+    """
+    if config is None:
+        config = Config()
+
+    async with _backend_runtime(config) as runtime:
+        while not runtime.server.started:  # wait for fastapi before opening browser
+            if runtime.server_task.done():
+                runtime.server_task.result()
+            await asyncio.sleep(0.1)
+
+        if open_browser:
+            asyncio.get_running_loop().run_in_executor(
+                None, lambda: webbrowser.open(runtime.state.base_url)
+            )
+
+        yield runtime.state
+
+
+async def start_tasks(config: Config) -> None:
+    async with _backend_runtime(config) as runtime:
+        await asyncio.gather(runtime.server_task, *runtime.service_tasks)
 
 
 def get_log_config_dict(config: Config) -> dict[str, Any]:

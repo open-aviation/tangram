@@ -15,6 +15,8 @@ While often used for aviation data, `tangram_core` itself is domain-agnostic. It
 
 ## Usage
 
+### CLI
+
 This package is rarely used alone. It is typically installed alongside plugins:
 
 ```bash
@@ -24,4 +26,17 @@ uv tool install --with tangram-jet1090 --with tangram-system tangram-core
 pip install tangram-core tangram-jet1090 tangram-system
 # launch!
 tangram serve --config /path/to/your/tangram.toml
+```
+
+### Programmatic
+
+You can also launch `tangram` from a Python script or a Jupyter notebook using `tangram_core.launch()`.
+
+This provides direct access to the backend state (e.g. Redis client, HTTP client), enabling you to spawn data or interact with services programmatically.
+
+```py
+import tangram_core
+
+async with tangram_core.launch(open_browser=True) as t:
+    await t.redis_client.set("my_key", "value")
 ```
