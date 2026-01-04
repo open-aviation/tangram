@@ -12,7 +12,6 @@
       </div>
     </div>
     <div class="subtitle">
-      Callsign:
       <HighlightText :text="callsign || 'N/A'" :query="query" />
     </div>
   </div>
