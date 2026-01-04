@@ -3,6 +3,7 @@ import { inject, onUnmounted, ref, watch, type Ref } from "vue";
 import { PathLayer } from "@deck.gl/layers";
 import { PathStyleExtension } from "@deck.gl/extensions";
 import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
+import { generateSegments } from "@open-aviation/tangram-core/utils";
 import { shipStore } from "./store";
 import type { Layer } from "@deck.gl/core";
 
@@ -27,56 +28,22 @@ const updateLayer = async () => {
   );
   const data = await response.json();
 
-  const layers: Layer[] = [];
-  const MAX_GAP_SECONDS = 3600;
-  const segments: { path: number[][]; colors: any[]; dashed: boolean }[] = [];
-  let currentSegment: { path: number[][]; colors: any[]; dashed: boolean } | null =
-    null;
-  let lastPoint: any = null;
+  const segments = generateSegments(data, {
+    getPosition: (d: any) =>
+      Number.isFinite(d.longitude) && Number.isFinite(d.latitude)
+        ? [d.longitude, d.latitude, 0]
+        : null,
+    getTimestamp: (d: any) => new Date(d.timestamp).getTime() / 1000,
+    getColor: () => [128, 0, 128],
+    gapColor: [150, 150, 150],
+    maxGapSeconds: 3600
+  });
 
-  for (const point of data) {
-    if (!Number.isFinite(point.latitude) || !Number.isFinite(point.longitude)) continue;
-    if (
-      lastPoint &&
-      Math.abs(
-        new Date(point.timestamp).getTime() - new Date(lastPoint.timestamp).getTime()
-      ) /
-        1000 >
-        MAX_GAP_SECONDS
-    ) {
-      if (currentSegment && currentSegment.path.length > 1) {
-        segments.push(currentSegment);
-      }
-      if (lastPoint) {
-        segments.push({
-          path: [
-            [lastPoint.longitude, lastPoint.latitude],
-            [point.longitude, point.latitude]
-          ],
-          colors: [
-            [150, 150, 150],
-            [150, 150, 150]
-          ],
-          dashed: true
-        });
-      }
-      currentSegment = { path: [], colors: [], dashed: false };
-    }
-    if (!currentSegment) {
-      currentSegment = { path: [], colors: [], dashed: false };
-    }
-    currentSegment.path.push([point.longitude, point.latitude]);
-    currentSegment.colors.push([128, 0, 128]);
-    lastPoint = point;
-  }
-  if (currentSegment && currentSegment.path.length > 1) {
-    segments.push(currentSegment);
-  }
-
-  segments.forEach((segment, idx) => {
+  let idx = 0;
+  for (const segment of segments) {
     layers.push(
       new PathLayer({
-        id: `ship-history-path-${idx}`,
+        id: `ship-history-path-${idx++}`,
         data: [{ path: segment.path, colors: segment.colors }],
         pickable: false,
         widthScale: 1,
@@ -94,7 +61,7 @@ const updateLayer = async () => {
           : {})
       })
     );
-  });
+  }
 
   const layerPromises = layers.map(layer => tangramApi.map.addLayer(layer));
   layerDisposable.value = {
