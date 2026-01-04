@@ -17,12 +17,18 @@ use tokio::sync::{broadcast, Mutex};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, instrument, warn, Instrument};
 
-/// reply data structures
+/// Phoenix V2 Protocol Message (Server -> Client).
+///
+/// Serialises to a JSON array: `[join_ref, ref, topic, event, payload]`.
+///
+/// Matches `Phoenix.Socket.Message` V2 serialization format.
+///
+/// - Only supports JSON payloads. Binary payloads (arrow) need extension here.
 #[derive(Clone, Debug, Serialize_tuple)]
 pub struct ServerMessage {
-    pub join_ref: Option<String>, // null when it's heartbeat, or initialized from server
+    pub join_ref: Option<String>,
     pub event_ref: String,
-    pub topic: String, // `channel`
+    pub topic: String,
     pub event: String,
     pub payload: ServerPayload,
 }
@@ -40,7 +46,7 @@ pub struct ServerResponse {
     pub response: Response,
 }
 
-/// Deserialized from websocket
+/// Standard Phoenix Reply Payloads
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum Response {
@@ -62,16 +68,6 @@ pub enum Response {
 
 impl fmt::Display for ServerMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Format the response based on its variant
-        // let response_str = match &self.payload.response {
-        //     Response::Empty {} => "Empty".to_string(),
-        //     Response::Join {} => "Join".to_string(),
-        //     Response::Heartbeat {} => "Heartbeat".to_string(),
-        //     Response::Datetime { datetime, counter } => {
-        //         format!("<Datetime '{}' {}>", datetime, counter)
-        //     }
-        //     Response::Message { message } => format!("{{message: {}}}", message),
-        // };
         let join_ref = self.join_ref.clone().unwrap_or("None".to_string());
 
         let response_str = "...";
@@ -90,14 +86,14 @@ impl fmt::Display for ServerMessage {
     }
 }
 
-// request data structures
-// RequestMessage is a message from client through websocket
-// it's deserialized from a JSON array
+/// Phoenix V2 Protocol Message (client -> server).
+///
+/// Deserialises from `[join_ref, ref, topic, event, payload]`.
 #[derive(Debug, Deserialize_tuple)]
 struct RequestMessage {
-    join_ref: Option<String>, // null when it's heartbeat
+    join_ref: Option<String>,
     event_ref: String,
-    topic: String, // `channel`
+    topic: String,
     event: String,
     payload: RequestPayload,
 }
@@ -117,9 +113,10 @@ impl Display for RequestMessage {
 enum RequestPayload {
     Join { token: String },
     Message { message: String },
-    JsonValue(serde_json::Value), // This allows any JSON data to be submitted
+    JsonValue(serde_json::Value),
 }
 
+/// Global Application State passed to Axum handlers.
 pub struct State {
     pub ctl: Mutex<ChannelControl>,
     pub redis_client: redis::Client,
@@ -128,8 +125,15 @@ pub struct State {
     pub jwt_expiration_secs: i64,
 }
 
-impl State {}
-
+/// Main Websocket Upgrade Handler.
+///
+/// Roughly equivalent to `Phoenix.Endpoint.socket/3` + `Phoenix.Socket.connect/2` + process loop.
+///
+/// 1. Establishes connection ID.
+/// 2. Spawns `ws_tx_task`: Reads from `conn_tx` (mpsc) -> Writes to Websocket.
+/// 3. Spawns `ws_rx_task`: Reads from Websocket -> Calls `handle_message`.
+/// 4. Waits for either to finish (connection close).
+/// 5. Calls `conn_cleanup`.
 #[instrument(skip(ws, state, user_token))]
 pub async fn axum_on_connected(
     ws: axum::extract::ws::WebSocket,
@@ -144,7 +148,7 @@ pub async fn axum_on_connected(
 
     let (mut ws_tx, mut ws_rx) = ws.split();
 
-    // conn rx => ws tx
+    // connection broadcast channel -> websocket frame
     let ws_tx_state = state.clone();
     let ws_tx_conn_id = conn_id.clone();
     let span_tx = tracing::info_span!("ws_tx");
@@ -193,6 +197,7 @@ pub async fn axum_on_connected(
         .instrument(span_tx),
     );
 
+    // websocket frame -> redis / control logic
     let ws_rx_state = state.clone();
     let ws_rx_conn_id = conn_id.clone();
     let ws_rx_user_token = user_token.clone();
@@ -240,27 +245,28 @@ pub async fn axum_on_connected(
         .instrument(span_rx),
     );
 
-    // Wait for either task to finish: when one ends, always wait for the other
+    // Fault Isolation: If either task fails/exits, abort the other to clean up.
     tokio::select! {
         _ = (&mut ws_tx_task) => {
-            info!("ws_tx_task exits.");
-
             ws_rx_task.abort();
-            info!("ws_rx_task aborts.");
         },
         _ = (&mut ws_rx_task) => {
-            info!("ws_rx_task exits.");
-
             ws_tx_task.abort();
-            info!("ws_tx_task aborts.");
         },
     }
 
     state.ctl.lock().await.conn_cleanup(conn_id.clone()).await;
     info!("connection closed");
-    // Except for phoenix/admin/system, if this is the last agent of the channel, clean up channel related resources
 }
 
+/// Dispatches incoming websocket messages.
+///
+/// Equivalent to the `Phoenix.Channel.Server` loop handling `handle_in/3`.
+///
+/// - `heartbeat`: Sends local reply.
+/// - `phx_join`: Triggers `handle_join` (auth + subscription).
+/// - `phx_leave`: Triggers `handle_leave` (unsubscription).
+/// - Other events: Published directly to Redis `from:<channel>:<event>`.
 #[instrument(skip(state, user_token, redis_conn, text), fields(conn_id = %conn_id))]
 async fn handle_message(
     state: Arc<State>,
@@ -327,7 +333,6 @@ async fn handle_message(
     Ok(())
 }
 
-// iredis --url redis://localhost:6379 psubscribe 'from*'
 async fn publish_event(
     redis_conn: &mut redis::aio::MultiplexedConnection,
     redis_topic: String,
@@ -372,7 +377,7 @@ pub async fn add_channel(ctl: &Mutex<ChannelControl>, channel_name: String) {
         "channel": channel_name,
         "channels": channels.keys().cloned().collect::<Vec<String>>(),
     });
-    ctl.pub_meta_event("channe".into(), "add".into(), meta)
+    ctl.pub_meta_event("channel".into(), "add".into(), meta)
         .await;
 }
 
@@ -390,9 +395,10 @@ pub async fn launch_channel_redis_listen_task(
     let mut channels = ctl.channels.lock().await;
     let channel: &mut Channel = channels.get_mut(&channel_name).unwrap();
     if channel.redis_listen_task.is_some() {
-        warn!("redis_listen_task already exists");
         return;
     }
+    // Spawn a listener for this channel.
+    // This task dies if Redis connection fails (no auto-reconnect implemented yet).
     channel.redis_listen_task = Some(tokio::spawn(listen_to_redis(
         state,
         channel.tx.clone(),
@@ -402,7 +408,13 @@ pub async fn launch_channel_redis_listen_task(
     info!("redis_listen_task launched");
 }
 
-// Add agent tx, join channel, spawn agent/conn relay task, ack joining
+/// Handles `phx_join` requests.
+/// 1. Validates JWT.
+/// 2. Creates/Finds Channel.
+/// 3. Registers Agent.
+/// 4. Spawns Relay Task (Agent -> Conn).
+/// 5. Sends `phx_reply` (ok).
+/// 6. Sends Presence State.
 #[instrument(skip(user_token, rm, state), fields(channel = %rm.topic, join_ref = ?rm.join_ref))]
 async fn handle_join(
     user_token: Option<String>,
@@ -776,14 +788,13 @@ pub async fn datetime_handler(state: Arc<State>, channel_name: String) {
 
     info!("launch system/datetime task...");
     let mut counter = 0;
-    let event = "datetime";
     loop {
         let now = chrono::Local::now();
         let message = ServerMessage {
             join_ref: None,
             event_ref: counter.to_string(),
             topic: channel_name.to_string(),
-            event: event.to_string(),
+            event: "datetime".to_string(),
             payload: ServerPayload::ServerResponse(ServerResponse {
                 status: "ok".to_string(),
                 response: Response::Datetime {
@@ -805,7 +816,6 @@ pub async fn datetime_handler(state: Arc<State>, channel_name: String) {
             Err(e) => {
                 error!(
                     error = %e,
-                    %event,
                     "fail to broadcast"
                 );
             }
@@ -815,7 +825,6 @@ pub async fn datetime_handler(state: Arc<State>, channel_name: String) {
         counter += 1;
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -865,11 +874,10 @@ mod tests {
             jwt_expiration_secs: 3600,
         });
 
-        // use unique channel name for each test to avoid pub/sub interference
+        // unique channel to prevent pub/sub collisions between parallel tests
         let rand_suffix = nanoid::nanoid!(8);
         let system_channel = format!("system_{}", rand_suffix);
 
-        // Setup channels
         state
             .ctl
             .lock()
@@ -889,25 +897,20 @@ mod tests {
             .channel_add("streaming".into(), None)
             .await;
 
-        // Spawn system task
         tokio::spawn(datetime_handler(state.clone(), system_channel.clone()));
 
-        // Create Axum router with websocket handler
         let app = Router::new()
             .route("/websocket", get(axum_websocket_handler))
             .with_state(state.clone());
 
-        // Bind to a random available port
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let addr = format!("ws://127.0.0.1:{}/websocket", port);
 
-        // Start the server
         tokio::spawn(async move {
             axum::serve(listener, app).await.unwrap();
         });
 
-        // Return the websocket URL, state, and the random channel name
         (addr, state, system_channel)
     }
 
@@ -936,11 +939,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_ws_websocket_connection() {
-        let (addr, _, _) = setup_test_server().await;
+    async fn test_ws_sanity_check() {
+        let (addr, state, sys_chan) = setup_test_server().await;
         let (mut tx, mut rx) = connect_client(&addr).await;
 
-        // Test initial connection with heartbeat
+        {
+            let ctl = state.ctl.lock().await;
+            let channels = ctl.channels.lock().await;
+            assert!(channels.contains_key(&sys_chan));
+        }
+
+        // verify basic heartbeat
         let heartbeat = r#"[null,"1","phoenix","heartbeat",{}]"#;
         tx.send(Message::text(heartbeat)).await.unwrap();
 
@@ -955,49 +964,35 @@ mod tests {
     async fn test_ws_channel_join_leave_flow() {
         let (addr, state, sys_chan) = setup_test_server().await;
         let (mut tx, mut rx) = connect_client(&addr).await;
-
         let token = gen_token(&state, &sys_chan, "user1").await;
 
-        // Join system channel
         let join_msg = format!(
             r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#,
             sys_chan, token
         );
         tx.send(Message::text(join_msg)).await.unwrap();
 
-        // Wait for and verify join response (may need to skip other messages)
+        // verify join confirmation
+        let timeout = std::time::Duration::from_secs(5);
         let mut join_confirmed = false;
-        // Use a longer timeout and handle timeout error properly
-        let timeout_duration = std::time::Duration::from_secs(5);
-        'join_loop: for _ in 0..10 {
-            // Try up to 10 messages before giving up
-            match tokio::time::timeout(timeout_duration, rx.next()).await {
+
+        // loop required to skip potential "presence_state" or "datetime" noise
+        for _ in 0..10 {
+            match tokio::time::timeout(timeout, rx.next()).await {
                 Ok(Some(Ok(msg))) => {
                     let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
-
-                    // Print for debugging purposes during test development
-                    // println!("Received message: {}", resp);
-
-                    // Check if this is the join response we're looking for
                     if resp[1] == "ref1" && resp[2] == sys_chan && resp[3] == "phx_reply" {
                         assert_eq!(resp[4]["status"], "ok");
                         join_confirmed = true;
-                        break 'join_loop;
+                        break;
                     }
-                    // Otherwise it's some other message like presence_state - ignore and continue
                 }
-                Ok(Some(Err(_))) => panic!("WebSocket error during join"),
-                Ok(None) => panic!("WebSocket closed unexpectedly during join"),
-                Err(_) => panic!("Timed out waiting for join response"),
+                _ => panic!("error or timeout waiting for join"),
             }
         }
+        assert!(join_confirmed, "join confirmation missing");
 
-        assert!(
-            join_confirmed,
-            "Never received join confirmation after reading multiple messages"
-        );
-
-        // Check system channel has our agent
+        // verify internal state (agent exists)
         {
             let ctl = state.ctl.lock().await;
             let channels = ctl.channels.lock().await;
@@ -1005,56 +1000,34 @@ mod tests {
             assert_eq!(agents.len(), 1);
         }
 
-        // Leave channel
         let leave_msg = format!(r#"["1","ref2","{}","phx_leave",{{}}]"#, sys_chan);
         tx.send(Message::text(leave_msg)).await.unwrap();
 
-        // Wait for and verify leave response
+        // verify leave connection
         let mut leave_confirmed = false;
-        'leave_loop: for _ in 0..10 {
-            // Try up to 10 messages before giving up
-            match tokio::time::timeout(timeout_duration, rx.next()).await {
+        for _ in 0..10 {
+            match tokio::time::timeout(timeout, rx.next()).await {
                 Ok(Some(Ok(msg))) => {
                     let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
-
-                    // Print for debugging purposes during test development
-                    // println!("Received message: {}", resp);
-
-                    // Check if this is the leave response we're looking for
-                    if resp[1] == "ref2" && resp[2] == sys_chan && resp[3] == "phx_reply" {
+                    if resp[1] == "ref2" && resp[3] == "phx_reply" {
                         assert_eq!(resp[4]["status"], "ok");
                         leave_confirmed = true;
-                        break 'leave_loop;
+                        break;
                     }
-                    // Otherwise it's some other message - ignore and continue
                 }
-                Ok(Some(Err(_))) => panic!("WebSocket error during leave"),
-                Ok(None) => panic!("WebSocket closed unexpectedly during leave"),
-                Err(_) => panic!("Timed out waiting for leave response"),
+                _ => panic!("error or timeout waiting for leave"),
             }
         }
+        assert!(leave_confirmed, "leave confirmation missing");
 
-        assert!(
-            leave_confirmed,
-            "Never received leave confirmation after reading multiple messages"
-        );
-
-        // Verify channel state
+        // verify cleanup
         {
             let ctl = state.ctl.lock().await;
             let channels = ctl.channels.lock().await;
             if let Some(channel) = channels.get(&sys_chan) {
-                let agents = channel.agents.lock().await;
-                assert_eq!(agents.len(), 0);
+                assert_eq!(channel.agents.lock().await.len(), 0);
             }
         }
-
-        // Explicitly close the connection and wait for it to finish
-        drop(tx);
-        drop(rx);
-
-        // Give time for cleanup tasks to complete
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
 
     #[tokio::test]
@@ -1064,20 +1037,17 @@ mod tests {
 
         let token = gen_token(&state, &sys_chan, "user1").await;
 
-        // Join system channel
         let join_msg = format!(
             r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#,
             sys_chan, token
         );
         tx.send(Message::text(join_msg)).await.unwrap();
 
-        // Wait for join response
         if let Some(Ok(_)) = rx.next().await {}
 
-        // Give time for join to complete
+        // give time for join to complete
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
-        // Verify agent joined
         let agent_count = {
             let ctl = state.ctl.lock().await;
             let channels = ctl.channels.lock().await;
@@ -1089,14 +1059,13 @@ mod tests {
         };
         assert_eq!(agent_count, 1, "Agent should be joined");
 
-        // Close connection by dropping handles
+        // close connection by dropping handles
         drop(tx);
         drop(rx);
 
-        // Give time for cleanup
+        // allow cleanup
         tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
 
-        // Verify agent was removed
         let agent_count = {
             let ctl = state.ctl.lock().await;
             let channels = ctl.channels.lock().await;
@@ -1112,26 +1081,23 @@ mod tests {
         );
     }
 
-    // Add a new test for multiple clients that doesn't depend on specific agent IDs
+    // multiple clients that doesn't depend on specific agent IDs
     #[tokio::test]
-    async fn test_ws_multiple_clients_fixed() {
+    async fn test_ws_multiple_clients() {
         let (addr, state, sys_chan) = setup_test_server().await;
 
-        // Connect and join with multiple clients
         let mut clients = vec![];
         for i in 0..3 {
             let (mut tx, mut rx) = connect_client(&addr).await;
 
             let token = gen_token(&state, &sys_chan, &format!("user{}", i)).await;
 
-            // Join system channel
             let join_msg = format!(
                 r#"["{}","ref{}","{}","phx_join",{{"token":"{}"}}]"#,
                 i, i, sys_chan, token
             );
             tx.send(Message::text(join_msg)).await.unwrap();
 
-            // Verify join response
             if let Some(Ok(_)) = tokio::time::timeout(std::time::Duration::from_secs(2), rx.next())
                 .await
                 .unwrap()
@@ -1140,10 +1106,8 @@ mod tests {
             clients.push((tx, rx));
         }
 
-        // Give time for all joins to complete
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-        // Verify channel has 3 agents
         let agent_count = {
             let ctl = state.ctl.lock().await;
             let channels = ctl.channels.lock().await;
@@ -1154,127 +1118,7 @@ mod tests {
 
         assert_eq!(agent_count, 3, "Should have 3 agents connected");
 
-        // Clean up
         drop(clients);
-    }
-
-    #[tokio::test]
-    async fn test_ws_flow_server() {
-        let (_addr, state, sys_chan) = setup_test_server().await;
-
-        let ctl = state.ctl.lock().await;
-        let channels = ctl.channels.lock().await;
-
-        // Check our random channel exists
-        assert!(channels.contains_key("phoenix"));
-        assert!(channels.contains_key(&sys_chan));
-        assert!(channels.contains_key("streaming"));
-
-        let agents = channels.get(&sys_chan).unwrap().agents.lock().await;
-        assert_eq!(agents.len(), 0);
-    }
-
-    #[tokio::test]
-    async fn test_ws_flow_join_leave() {
-        let (addr, state, sys_chan) = setup_test_server().await;
-        let (mut tx, mut rx) = connect_client(&addr).await;
-
-        let token = gen_token(&state, &sys_chan, "user1").await;
-
-        // Join system channel
-        let join_msg = format!(
-            r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#,
-            sys_chan, token
-        );
-        tx.send(Message::text(join_msg)).await.unwrap();
-
-        // Verify join response (filter out presence_state)
-        loop {
-            if let Some(Ok(msg)) = rx.next().await {
-                let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
-                if resp[3] == "phx_reply" && resp[1] == "ref1" {
-                    assert_eq!(resp[2], sys_chan);
-                    assert_eq!(resp[4]["status"], "ok");
-                    break;
-                }
-            } else {
-                panic!("Stream ended or error before join reply");
-            }
-        }
-
-        {
-            let ctl = state.ctl.lock().await;
-            let channels = ctl.channels.lock().await;
-            let agents = channels.get(&sys_chan).unwrap().agents.lock().await;
-            // Can't know the specific agent_id
-            // assert_eq!(*agents, vec!["foobar"]);
-            assert_eq!(agents.len(), 1);
-        }
-
-        // Leave channel
-        let leave_msg = format!(r#"["1","ref2","{}","phx_leave",{{}}]"#, sys_chan);
-        tx.send(Message::text(leave_msg)).await.unwrap();
-
-        // Verify leave response
-        loop {
-            if let Some(Ok(msg)) = rx.next().await {
-                let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
-                if resp[3] == "phx_reply" && resp[1] == "ref2" {
-                    assert_eq!(resp[2], sys_chan);
-                    assert_eq!(resp[4]["status"], "ok");
-                    break;
-                }
-            } else {
-                panic!("Stream ended or error before leave reply");
-            }
-        }
-
-        {
-            let ctl = state.ctl.lock().await;
-            let channels = ctl.channels.lock().await;
-            if let Some(channel) = channels.get(&sys_chan) {
-                let agents = channel.agents.lock().await;
-                assert_eq!(agents.len(), 0);
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn test_ws_multiple_clients() {
-        let (addr, state, sys_chan) = setup_test_server().await;
-
-        // Connect multiple clients
-        let mut clients = vec![];
-        assert_eq!(clients.len(), 0);
-
-        for i in 0..3 {
-            let (mut tx, mut rx) = connect_client(&addr).await;
-
-            let token = gen_token(&state, &sys_chan, &format!("user{}", i)).await;
-
-            // Join system channel
-            let join_msg = format!(
-                r#"["{}","ref{}","{}","phx_join",{{"token":"{}"}}]"#,
-                i, i, sys_chan, token
-            );
-            tx.send(Message::text(join_msg)).await.unwrap();
-
-            // Verify join
-            if let Some(Ok(msg)) = rx.next().await {
-                let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
-                assert_eq!(resp[4]["status"], "ok");
-            }
-            clients.push((tx, rx));
-        }
-
-        assert_eq!(clients.len(), 3);
-
-        let ctl = state.ctl.lock().await;
-        let channels = ctl.channels.lock().await;
-
-        let agents = channels.get(&sys_chan).unwrap().agents.lock().await;
-        // there should be 3 unique agent ids since we use different user IDs for tokens
-        assert_eq!(agents.len(), 3);
     }
 
     #[tokio::test]
@@ -1283,7 +1127,6 @@ mod tests {
         let (mut tx1, mut rx1) = connect_client(&addr).await;
         let (mut tx2, mut rx2) = connect_client(&addr).await;
 
-        // Both clients join system channel
         for (tx, i) in [(&mut tx1, 1), (&mut tx2, 2)] {
             let token = gen_token(&state, &sys_chan, &format!("user{}", i)).await;
             let join_msg = format!(
@@ -1291,16 +1134,11 @@ mod tests {
                 i, i, sys_chan, token
             );
             tx.send(Message::text(join_msg)).await.unwrap();
-
-            // Wait for join response
-            if let Some(Ok(_)) = if i == 1 {
-                rx1.next().await
-            } else {
-                rx2.next().await
-            } {}
+            // consume join reply to flush buffer
+            rx1.next().await;
         }
 
-        // Broadcast message to system channel
+        // simulate internal broadcast
         let message = ServerMessage {
             join_ref: None,
             event_ref: "broadcast".to_string(),
@@ -1322,7 +1160,6 @@ mod tests {
             .await
             .unwrap();
 
-        // Both clients should receive the message
         for rx in [&mut rx1, &mut rx2] {
             if let Some(Ok(msg)) = rx.next().await {
                 let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
@@ -1338,19 +1175,15 @@ mod tests {
         let (addr, _, _) = setup_test_server().await;
         let (mut tx, mut rx) = connect_client(&addr).await;
 
-        // Send invalid JSON
         tx.send(Message::text("invalid json")).await.unwrap();
 
-        // Send invalid message format
         tx.send(Message::text(r#"["invalid","format"]"#))
             .await
             .unwrap();
 
-        // Send to non-existent channel
         let invalid_channel = r#"["1","ref1","nonexistent","phx_join",{"token":"test"}]"#;
         tx.send(Message::text(invalid_channel)).await.unwrap();
 
-        // Connection should still be alive
         let heartbeat = r#"[null,"1","phoenix","heartbeat",{}]"#;
         tx.send(Message::text(heartbeat)).await.unwrap();
 
@@ -1366,7 +1199,6 @@ mod tests {
         let (addr, state, sys_chan) = setup_test_server().await;
         let (mut tx, mut rx) = connect_client(&addr).await;
 
-        // Join system channel
         let token = gen_token(&state, &sys_chan, "user1").await;
         let join_msg = format!(
             r#"["1","ref1","{}","phx_join",{{"token":"{}"}}]"#,
@@ -1381,7 +1213,7 @@ mod tests {
             assert_eq!(resp[4]["status"], "ok");
         }
 
-        // Should receive datetime updates
+        // expect a datetime event within a few seconds
         match tokio::time::timeout(std::time::Duration::from_secs(5), rx.next()).await {
             Ok(Some(Ok(msg))) => {
                 let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
@@ -1410,7 +1242,6 @@ mod tests {
 
     #[test]
     fn test_ws_request_json_heartbeat() {
-        // Test full message with join payload
         let msg: RequestMessage =
             serde_json::from_str(r#"["1", "ref1", "room123", "heartbeat", {}]"#).unwrap();
 
@@ -1423,7 +1254,6 @@ mod tests {
 
     #[test]
     fn test_ws_request_json_join() {
-        // Test full message with join payload
         let msg: RequestMessage = serde_json::from_str(
             r#"["1", "ref1", "room123", "phx_join", {"token": "secret_token"}]"#,
         )
@@ -1603,7 +1433,6 @@ mod tests {
         .unwrap();
         expect_msg_content(&mut rx_b, "phx_reply").await;
 
-        // publish message, B should get it
         redis_conn
             .publish::<_, _, ()>(&redis_topic, r#"{"type":"message","message":"two"}"#)
             .await
@@ -1653,7 +1482,6 @@ mod tests {
             {
                 let resp: serde_json::Value = serde_json::from_str(&msg.to_string()).unwrap();
 
-                // check if this is the message we want: [join_ref, ref, topic, event, payload]
                 if resp.get(3).and_then(|v| v.as_str()) == Some("update") {
                     assert_eq!(resp[2], "weather:wind", "Topic parsed incorrectly");
                     assert_eq!(resp[4]["temperature"], 25.5, "Raw JSON payload corrupted");
@@ -1691,7 +1519,7 @@ mod tests {
             );
         }
 
-        // abrupt disconnect (drop socket)
+        // abrupt disconnect
         drop(tx);
         drop(rx);
 
