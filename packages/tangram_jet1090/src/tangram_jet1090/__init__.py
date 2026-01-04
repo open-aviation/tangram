@@ -56,7 +56,8 @@ async def get_trajectory_data(
         df = (
             pl.scan_delta(table_uri)
             .filter(pl.col("icao24") == icao24)
-            .with_columns(pl.col("timestamp").dt.epoch(time_unit="ms"))
+            # for some reason setting this to ms causes curtain to render weirdly
+            .with_columns(pl.col("timestamp").dt.epoch(time_unit="s"))
             .sort("timestamp")
             .collect()
         )
