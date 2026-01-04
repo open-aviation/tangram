@@ -10,30 +10,13 @@
 </template>
 
 <script setup lang="ts">
+import { formatTime, formatDuration } from "@open-aviation/tangram-core/utils";
+
 defineProps<{
   start_ts: string;
   end_ts: string;
   duration: number;
 }>();
-
-const formatTime = (ts: string) => {
-  const d = new Date(ts + "Z");
-  return (
-    d.toLocaleString("en-GB", {
-      timeZone: "UTC",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    }) + "Z"
-  );
-};
-
-const formatDuration = (sec: number) => {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  return `${h}h ${m}m`;
-};
 </script>
 
 <style scoped>

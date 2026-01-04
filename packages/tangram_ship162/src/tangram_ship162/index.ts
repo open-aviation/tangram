@@ -1,11 +1,14 @@
 import { watch } from "vue";
-import type { TangramApi, Entity } from "@open-aviation/tangram-core/api";
+import type { TangramApi, Entity, SearchResult } from "@open-aviation/tangram-core/api";
 import ShipLayer from "./ShipLayer.vue";
 import ShipCountWidget from "./ShipCountWidget.vue";
 import ShipInfoWidget from "./ShipInfoWidget.vue";
 import ShipTrailLayer from "./ShipTrailLayer.vue";
 import ShipResult from "./ShipResult.vue";
-import { shipStore, type ShipSelectionData } from "./store";
+import ShipHistoryLayer from "./ShipHistoryLayer.vue";
+import ShipHistoryGroup from "./ShipHistoryGroup.vue";
+import ShipHistoryInterval from "./ShipHistoryInterval.vue";
+import { shipStore, type ShipSelectionData, type HistoryInterval } from "./store";
 
 const ENTITY_TYPE = "ship162_ship";
 
@@ -62,6 +65,8 @@ export function install(api: TangramApi, config?: Ship162FrontendConfig) {
   });
   api.ui.registerWidget("ship162-ship-layer", "MapOverlay", ShipLayer);
   api.ui.registerWidget("ship162-trail-layer", "MapOverlay", ShipTrailLayer);
+  api.ui.registerWidget("ship162-history-layer", "MapOverlay", ShipHistoryLayer);
+
   api.state.registerEntityType(ENTITY_TYPE);
 
   api.search.registerProvider({
@@ -101,6 +106,65 @@ export function install(api: TangramApi, config?: Ship162FrontendConfig) {
             }
           }
         }));
+      } catch {
+        return [];
+      }
+    }
+  });
+
+  api.search.registerProvider({
+    id: "ships-history",
+    name: "Ships (History)",
+    search: async (query, signal) => {
+      if (query.length < 3) return [];
+      try {
+        const res = await fetch(`/ship162/search?q=${encodeURIComponent(query)}`, {
+          signal
+        });
+        if (!res.ok) return [];
+        const intervals: HistoryInterval[] = await res.json();
+
+        const groups = new Map<string, HistoryInterval[]>();
+        for (const iv of intervals) {
+          const key = `${iv.mmsi}|${iv.ship_name || "Unknown"}`;
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key)!.push(iv);
+        }
+
+        const results: SearchResult[] = [];
+        for (const [key, groupIntervals] of groups) {
+          const [mmsi, name] = key.split("|");
+
+          results.push({
+            id: `group-${key}`,
+            component: ShipHistoryGroup,
+            props: {
+              mmsi,
+              name
+            },
+            score: 80,
+            children: groupIntervals.map(s => ({
+              id: `ship-${s.mmsi}-${s.start_ts}`,
+              component: ShipHistoryInterval,
+              props: {
+                start_ts: s.start_ts,
+                end_ts: s.end_ts,
+                duration: s.duration
+              },
+              onSelect: () => {
+                shipStore.selectedHistoryInterval = s;
+                shipStore.historyVersion++;
+                if (s.lat && s.lon) {
+                  api.map.getMapInstance().flyTo({
+                    center: [s.lon, s.lat],
+                    zoom: 10
+                  });
+                }
+              }
+            }))
+          });
+        }
+        return results;
       } catch {
         return [];
       }

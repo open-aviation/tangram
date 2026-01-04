@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
 import tangram_core
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import ORJSONResponse, Response
 from pydantic import TypeAdapter
 
 try:
@@ -14,6 +15,8 @@ try:
     _HISTORY_AVAILABLE = True
 except ImportError:
     _HISTORY_AVAILABLE = False
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/ship162",
@@ -30,20 +33,14 @@ async def get_trajectory_data(
     if not _HISTORY_AVAILABLE:
         raise HTTPException(
             status_code=501,
-            detail="History feature is not installed. "
-            "Install with `pip install 'tangram_ship162[history]'`",
+            detail="History feature is not installed.",
         )
 
     redis_key = "tangram:history:table_uri:ship162"
     table_uri_bytes = await backend_state.redis_client.get(redis_key)
 
     if not table_uri_bytes:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "Table 'ship162' not found.\nhelp: is the history service running?"
-            ),
-        )
+        raise HTTPException(status_code=404, detail="Table 'ship162' not found.")
     table_uri = table_uri_bytes.decode("utf-8")
 
     try:
@@ -59,6 +56,112 @@ async def get_trajectory_data(
         raise HTTPException(
             status_code=500, detail=f"Failed to query trajectory data: {e}"
         )
+
+
+@router.get("/search")
+async def search_ships(
+    q: str, backend_state: tangram_core.InjectBackendState
+) -> Response:
+    if not _HISTORY_AVAILABLE:
+        return ORJSONResponse(content=[])
+
+    redis_key = "tangram:history:table_uri:ship162"
+    table_uri_bytes = await backend_state.redis_client.get(redis_key)
+    if not table_uri_bytes:
+        return ORJSONResponse(content=[])
+    table_uri = table_uri_bytes.decode("utf-8")
+
+    try:
+        df = pl.scan_delta(table_uri)
+        q_lower = q.lower()
+
+        candidates = (
+            df.filter(
+                pl.col("ship_name").str.to_lowercase().str.contains(q_lower)
+                | pl.col("mmsi").cast(pl.String).str.contains(q_lower)
+                | pl.col("callsign").str.to_lowercase().str.contains(q_lower)
+            )
+            .select("mmsi")
+            .unique()
+            .head(20)
+            .collect()
+        )
+        candidate_mmsis = candidates["mmsi"].to_list()
+
+        if not candidate_mmsis:
+            return ORJSONResponse(content=[])
+
+        intervals = (
+            df.filter(pl.col("mmsi").is_in(candidate_mmsis))
+            .sort(["mmsi", "timestamp"])
+            .with_columns(pl.col("ship_name").forward_fill().over("mmsi"))
+            .with_columns(
+                gap_minutes=(
+                    pl.col("timestamp") - pl.col("timestamp").shift(1)
+                ).dt.total_minutes()
+            )
+            .with_columns(
+                new_interval=(
+                    (pl.col("gap_minutes") >= 60)
+                    | (pl.col("mmsi") != pl.col("mmsi").shift(1))
+                ).fill_null(True)
+            )
+            .with_columns(interval_id=pl.col("new_interval").cast(pl.Int64).cum_sum())
+            .group_by(["mmsi", "ship_name", "interval_id"])
+            .agg(
+                start_ts=pl.col("timestamp").min(),
+                end_ts=pl.col("timestamp").max(),
+                n_rows=pl.len(),
+                lat=pl.col("latitude").mean(),
+                lon=pl.col("longitude").mean(),
+            )
+            .filter((pl.col("n_rows") >= 5))
+            .with_columns(
+                duration=((pl.col("end_ts") - pl.col("start_ts")).dt.total_seconds()),
+            )
+            .sort(["start_ts"], descending=True)
+            .collect()
+        )
+        return Response(intervals.write_json(), media_type="application/json")
+    except Exception as e:
+        log.error(f"Search failed: {e}")
+        return ORJSONResponse(content=[])
+
+
+@router.get("/history/{mmsi}/{start_timestamp}/{end_timestamp}")
+async def get_history_slice(
+    mmsi: int,
+    start_timestamp: int,
+    end_timestamp: int,
+    backend_state: tangram_core.InjectBackendState,
+) -> Response:
+    if not _HISTORY_AVAILABLE:
+        return ORJSONResponse(content=[])
+
+    redis_key = "tangram:history:table_uri:ship162"
+    table_uri_bytes = await backend_state.redis_client.get(redis_key)
+    if not table_uri_bytes:
+        return ORJSONResponse(content=[])
+    table_uri = table_uri_bytes.decode("utf-8")
+
+    start_dt = pl.lit(start_timestamp).cast(pl.Datetime("ms"))
+    end_dt = pl.lit(end_timestamp).cast(pl.Datetime("ms"))
+
+    try:
+        df = (
+            pl.scan_delta(table_uri)
+            .filter(
+                (pl.col("mmsi") == mmsi)
+                & (pl.col("timestamp") >= start_dt)
+                & (pl.col("timestamp") <= end_dt)
+            )
+            .sort("timestamp")
+            .collect()
+        )
+        return Response(df.write_json(), media_type="application/json")
+    except Exception as e:
+        log.error(f"History slice failed: {e}")
+        return ORJSONResponse(content=[])
 
 
 @dataclass(frozen=True)
