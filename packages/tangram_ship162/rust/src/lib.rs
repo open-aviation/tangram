@@ -136,7 +136,11 @@ async fn start_search_subscriber(
     let mut conn = client.get_multiplexed_async_connection().await?;
     let mut pubsub = client.get_async_pubsub().await?;
 
-    let topic = format!("from:{}:search", search_channel);
+    let (channel, event) = search_channel
+        .split_once(':')
+        .unwrap_or((&search_channel, "search"));
+
+    let topic = format!("from:{}:{}", channel, event);
     pubsub.subscribe(&topic).await?;
 
     info!("Ship162 search subscriber listening on '{}'", topic);
@@ -154,7 +158,7 @@ async fn start_search_subscriber(
                     state.search(query)
                 };
 
-                let response_topic = format!("to:{}:search_result", search_channel);
+                let response_topic = format!("to:{}:{}_result", channel, event);
                 let response = serde_json::json!({
                     "request_id": request_id,
                     "data": results
