@@ -1,6 +1,8 @@
 pub mod utils;
 pub mod websocket;
 
+use crate::channel::websocket::Opcode;
+use bytes::Bytes;
 use futures::StreamExt;
 use redis::{AsyncCommands, RedisResult};
 use serde::{Deserialize, Serialize};
@@ -618,6 +620,7 @@ impl ChannelControl {
         value: serde_json::Value,
     ) -> Result<usize, ChannelError> {
         let message = ServerMessage {
+            opcode: Opcode::Push,
             join_ref: None,
             event_ref: "0".into(),
             topic: channel_name.to_string(),
@@ -730,7 +733,6 @@ impl ChannelControl {
 /// Represents the structure of messages coming FROM Redis TO the Channel.
 ///
 /// - Strictly relies on the `type` field in the JSON payload.
-/// - Does not support binary payloads (Arrow RecordBatches) yet.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(tag = "type")]
 pub enum ResponseFromRedis {
@@ -789,8 +791,7 @@ impl ChannelEventFromRedis {
 
 /// Task that subscribes to Redis `to:<channel>:*` patterns and forwards messages to the Channel.
 ///
-/// This task performs payload deserialization (JSON -> `serde_json::Value` ->
-/// `ServerMessage`) inline, a CPU bottleneck.
+/// This task performs payload deserialization.
 #[instrument(skip(state, tx, redis_client), fields(channel = %channel_name))]
 pub async fn listen_to_redis(
     state: Arc<State>,
@@ -824,30 +825,33 @@ pub async fn listen_to_redis(
             }
         };
 
-        let payload: String = match stream_message.get_payload() {
-            Ok(p) => p,
-            Err(e) => {
-                error!("payload error: {}", e);
-                continue;
-            }
-        };
+        let payload_bytes = stream_message.get_payload_bytes();
+        if payload_bytes.is_empty() {
+            continue;
+        }
 
-        // NOTE: Accept any JSON payload, don't enforce internal strict types
-        // TODO: Binary Payload (Arrow) support should be handled here by checking event prefix or type
-        let value = match serde_json::from_str::<serde_json::Value>(&payload) {
-            Ok(v) => v,
-            Err(e) => {
-                warn!("json error: {} in {}", e, payload);
-                continue;
+        // heuristic: arrow recordbatches (and other binary formats) usually don't start with { or [
+        // and json payloads are typically objects or arrays.
+        let first_byte = payload_bytes[0];
+        let is_likely_json = first_byte == b'{' || first_byte == b'[';
+
+        let payload = if is_likely_json {
+            match serde_json::from_slice(payload_bytes) {
+                Ok(v) => ServerPayload::ServerJsonValue(v),
+                // Fallback to binary if JSON parsing fails despite heuristic
+                Err(_) => ServerPayload::Binary(Bytes::copy_from_slice(payload_bytes)),
             }
+        } else {
+            ServerPayload::Binary(Bytes::copy_from_slice(payload_bytes))
         };
 
         let reply_message = ServerMessage {
+            opcode: Opcode::Push, // Server -> Client is a Push (Opcode 0)
             join_ref: None,
             event_ref: counter.fetch_add(1, Ordering::Relaxed).to_string(),
             topic: ev.channel,
             event: ev.event,
-            payload: ServerPayload::ServerJsonValue(value),
+            payload,
         };
 
         // Do not suicide if sending fails (no active subscribers)
@@ -873,11 +877,14 @@ mod test {
     use tokio::sync::broadcast;
 
     use crate::channel::utils::random_string;
-    use crate::channel::websocket::{Response, ServerMessage, ServerPayload, ServerResponse};
+    use crate::channel::websocket::{
+        Opcode, Response, ServerMessage, ServerPayload, ServerResponse,
+    };
     use crate::channel::{Channel, ChannelControl, ChannelError, ChannelMessage};
 
     fn create_test_message(topic: &str, reference: &str, message: &str) -> ChannelMessage {
         ChannelMessage::Reply(ServerMessage {
+            opcode: Opcode::Broadcast,
             join_ref: None,
             event_ref: reference.to_string(),
             topic: topic.to_string(),
@@ -1135,6 +1142,7 @@ mod test {
         }
 
         let message = ChannelMessage::Reply(ServerMessage {
+            opcode: Opcode::Broadcast,
             join_ref: None,
             event_ref: "1".to_string(),
             topic: "room1".to_string(),

@@ -1,5 +1,6 @@
 use super::utils::decode_jwt;
 use super::{listen_to_redis, Channel, ChannelControl, ChannelError, ChannelMessage};
+use bytes::Bytes;
 use futures::SinkExt;
 use futures::StreamExt;
 use itertools::Itertools;
@@ -10,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_tuple::{Deserialize_tuple, Serialize_tuple};
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::fmt;
 use std::fmt::{Display, Error};
 use std::sync::Arc;
@@ -17,15 +19,37 @@ use tokio::sync::{broadcast, Mutex};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, instrument, warn, Instrument};
 
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Opcode {
+    Push = 0,
+    Reply = 1,
+    Broadcast = 2,
+}
+
+impl TryFrom<u8> for Opcode {
+    type Error = u8;
+
+    fn try_from(v: u8) -> Result<Self, Self::Error> {
+        match v {
+            0 => Ok(Opcode::Push),
+            1 => Ok(Opcode::Reply),
+            2 => Ok(Opcode::Broadcast),
+            _ => Err(v),
+        }
+    }
+}
+
 /// Phoenix V2 Protocol Message (Server -> Client).
 ///
 /// Serialises to a JSON array: `[join_ref, ref, topic, event, payload]`.
 ///
 /// Matches `Phoenix.Socket.Message` V2 serialization format.
-///
-/// - Only supports JSON payloads. Binary payloads (arrow) need extension here.
 #[derive(Clone, Debug, Serialize_tuple)]
 pub struct ServerMessage {
+    // Opcode is not part of the JSON array body, handled at frame level.
+    #[serde(skip)]
+    pub opcode: Opcode,
     pub join_ref: Option<String>,
     pub event_ref: String,
     pub topic: String,
@@ -38,6 +62,80 @@ pub struct ServerMessage {
 pub enum ServerPayload {
     ServerResponse(ServerResponse),
     ServerJsonValue(serde_json::Value),
+    #[serde(serialize_with = "serialize_bytes_as_array")]
+    Binary(Bytes),
+}
+
+/// Custom serializer for Bytes to serialize as a JSON array of bytes if forced to JSON.
+fn serialize_bytes_as_array<S>(bytes: &Bytes, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_bytes(bytes)
+}
+
+impl ServerMessage {
+    /// Encodes the message into the Phoenix V2 binary push format (Server -> Client).
+    ///
+    /// - Push (0): `<< 0, join_ref_len, topic_len, event_len, join_ref, topic, event, data >>`
+    /// - Reply (1): `<< 1, join_ref_len, ref_len, topic_len, status_len, join_ref, ref, topic, status, data >>`
+    /// - Broadcast (2): `<< 2, topic_len, event_len, topic, event, data >>`
+    pub fn to_binary_frame(&self) -> Bytes {
+        let ServerPayload::Binary(ref data) = self.payload else {
+            panic!("to_binary_frame called on non-binary payload");
+        };
+
+        let join_ref = self.join_ref.as_deref().unwrap_or("");
+
+        let mut out = Vec::with_capacity(64 + data.len());
+
+        out.push(self.opcode as u8);
+
+        match self.opcode {
+            Opcode::Push => {
+                let join_ref_len = join_ref.len() as u8;
+                let topic_len = self.topic.len() as u8;
+                let event_len = self.event.len() as u8;
+
+                out.push(join_ref_len);
+                out.push(topic_len);
+                out.push(event_len);
+                out.extend_from_slice(join_ref.as_bytes());
+                out.extend_from_slice(self.topic.as_bytes());
+                out.extend_from_slice(self.event.as_bytes());
+            }
+            Opcode::Reply => {
+                let ref_val = &self.event_ref;
+                let status = &self.event;
+
+                let join_ref_len = join_ref.len() as u8;
+                let ref_len = ref_val.len() as u8;
+                let topic_len = self.topic.len() as u8;
+                let status_len = status.len() as u8;
+
+                out.push(join_ref_len);
+                out.push(ref_len);
+                out.push(topic_len);
+                out.push(status_len);
+                out.extend_from_slice(join_ref.as_bytes());
+                out.extend_from_slice(ref_val.as_bytes());
+                out.extend_from_slice(self.topic.as_bytes());
+                out.extend_from_slice(status.as_bytes());
+            }
+            Opcode::Broadcast => {
+                let topic_len = self.topic.len() as u8;
+                let event_len = self.event.len() as u8;
+
+                out.push(topic_len);
+                out.push(event_len);
+                out.extend_from_slice(self.topic.as_bytes());
+                out.extend_from_slice(self.event.as_bytes());
+            }
+        }
+
+        out.extend_from_slice(data);
+        Bytes::from(out)
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -70,13 +168,12 @@ impl fmt::Display for ServerMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let join_ref = self.join_ref.clone().unwrap_or("None".to_string());
 
-        let response_str = "...";
-        let payload_display = match self.payload {
-            ServerPayload::ServerResponse(ref resp) => format!(
-                "<Payload status={}, response={}>",
-                resp.status, response_str
-            ),
-            ServerPayload::ServerJsonValue(ref value) => format!("<ServerJsonResponse {}>", value),
+        let payload_display = match &self.payload {
+            ServerPayload::ServerResponse(resp) => {
+                format!("<Payload status={}, response=...>", resp.status)
+            }
+            ServerPayload::ServerJsonValue(value) => format!("<ServerJsonResponse {}>", value),
+            ServerPayload::Binary(data) => format!("<Binary len={}>", data.len()),
         };
         write!(
             f,
@@ -167,24 +264,33 @@ pub async fn axum_on_connected(
                 match conn_rx.recv().await {
                     Ok(channel_message) => {
                         let ChannelMessage::Reply(reply_message) = channel_message;
-                        let text_result = serde_json::to_string(&reply_message);
-                        if text_result.is_err() {
-                            error!(
-                                error = %text_result.err().unwrap(),
-                                "fail to serialize reply message"
-                            );
-                            break;
-                        }
-                        let text = text_result.unwrap();
-                        let sending_result = ws_tx
-                            .send(axum::extract::ws::Message::Text(text.into()))
-                            .await;
-                        if sending_result.is_err() {
-                            error!(
-                                error = %sending_result.err().unwrap(),
-                                "websocket tx sending failed"
-                            );
-                            break; // what happend? exit if the connection is lost
+
+                        match reply_message.payload {
+                            ServerPayload::Binary(_) => {
+                                let frame = reply_message.to_binary_frame();
+                                if let Err(e) = ws_tx
+                                    .send(axum::extract::ws::Message::Binary(frame))
+                                    .await
+                                {
+                                    error!(error = %e, "websocket tx sending binary failed");
+                                    break;
+                                }
+                            }
+                            _ => {
+                                let text_result = serde_json::to_string(&reply_message);
+                                if let Ok(text) = text_result {
+                                    if let Err(e) = ws_tx
+                                        .send(axum::extract::ws::Message::Text(text.into()))
+                                        .await
+                                    {
+                                        error!(error = %e, "websocket tx sending failed");
+                                        break;
+                                    }
+                                } else {
+                                    error!(error = %text_result.err().unwrap(), "fail to serialize reply");
+                                    break;
+                                }
+                            }
                         }
                     }
                     Err(e) => {
@@ -216,7 +322,7 @@ pub async fn axum_on_connected(
                 match msg_result {
                     Ok(msg) => match msg {
                         axum::extract::ws::Message::Text(text) => {
-                            if let Err(e) = handle_message(
+                            if let Err(e) = handle_text_message(
                                 ws_rx_state.clone(),
                                 ws_rx_user_token.clone(),
                                 &ws_rx_conn_id,
@@ -225,14 +331,22 @@ pub async fn axum_on_connected(
                             )
                             .await
                             {
-                                error!(error = ?e, "handle_message error");
+                                error!(error = ?e, "handle_text_message error");
+                            }
+                        }
+                        axum::extract::ws::Message::Binary(bin) => {
+                            if let Err(e) =
+                                handle_binary_message(ws_rx_state.clone(), &bin, &mut redis_conn)
+                                    .await
+                            {
+                                error!(error = ?e, "handle_binary_message error");
                             }
                         }
                         axum::extract::ws::Message::Close(_) => {
                             debug!("close frame received");
                             break;
                         }
-                        // TODO: handle ping/pong/binary (e.g. arrow recordbatches)
+                        // TODO: handle ping/pong
                         _ => {}
                     },
                     Err(e) => {
@@ -259,6 +373,89 @@ pub async fn axum_on_connected(
     info!("connection closed");
 }
 
+/// Parses Phoenix V2 binary push format (Client -> Server)
+/// Format (Push): `<< 0, join_ref_len::8, ref_len::8, topic_len::8, event_len::8, join_ref, ref, topic, event, data >>`
+async fn handle_binary_message(
+    _state: Arc<State>,
+    data: &[u8],
+    redis_conn: &mut redis::aio::MultiplexedConnection,
+) -> RedisResult<()> {
+    if data.len() < 5 {
+        error!("binary message too short header");
+        return Ok(());
+    }
+
+    let opcode_u8 = data[0];
+    let Ok(opcode) = Opcode::try_from(opcode_u8) else {
+        error!("unsupported binary opcode: {}", opcode_u8);
+        return Ok(());
+    };
+
+    if opcode != Opcode::Push {
+        // phoenix clients typically use Push (0) to send binary data.
+        // for now, only Push is implemented as per specs.
+        error!("unsupported binary opcode from client: {:?}", opcode);
+        return Ok(());
+    }
+
+    let join_ref_len = data[1] as usize;
+    let ref_len = data[2] as usize;
+    let topic_len = data[3] as usize;
+    let event_len = data[4] as usize;
+
+    let Some(header_content_len) = join_ref_len
+        .checked_add(ref_len)
+        .and_then(|n| n.checked_add(topic_len))
+        .and_then(|n| n.checked_add(event_len))
+    else {
+        error!("binary message length overflow");
+        return Ok(());
+    };
+
+    let Some(needed) = (5_usize).checked_add(header_content_len) else {
+        error!("binary message total length overflow");
+        return Ok(());
+    };
+
+    if data.len() < needed {
+        error!(
+            data_len = data.len(),
+            needed = needed,
+            "binary message too short body"
+        );
+        return Ok(());
+    }
+
+    let cursor = 5usize;
+    // skip join_ref and ref for now, as we just forward payload.
+    // in a full implementation we might need `ref` to construct a reply.
+    let cursor = cursor
+        .checked_add(join_ref_len)
+        .and_then(|n| n.checked_add(ref_len))
+        .unwrap();
+
+    let topic_end = cursor.checked_add(topic_len).unwrap();
+    let Ok(topic) = std::str::from_utf8(&data[cursor..topic_end]) else {
+        error!("binary message topic not utf8");
+        return Ok(());
+    };
+
+    let event_end = topic_end.checked_add(event_len).unwrap();
+    let Ok(event) = std::str::from_utf8(&data[topic_end..event_end]) else {
+        error!("binary message event not utf8");
+        return Ok(());
+    };
+
+    let payload = &data[event_end..];
+
+    let redis_topic = format!("from:{}:{}", topic, event);
+    if let Err(e) = redis_conn.publish::<_, _, ()>(redis_topic, payload).await {
+        error!("fail to publish binary to redis: {}", e);
+    }
+
+    Ok(())
+}
+
 /// Dispatches incoming websocket messages.
 ///
 /// Equivalent to the `Phoenix.Channel.Server` loop handling `handle_in/3`.
@@ -268,7 +465,7 @@ pub async fn axum_on_connected(
 /// - `phx_leave`: Triggers `handle_leave` (unsubscription).
 /// - Other events: Published directly to Redis `from:<channel>:<event>`.
 #[instrument(skip(state, user_token, redis_conn, text), fields(conn_id = %conn_id))]
-async fn handle_message(
+async fn handle_text_message(
     state: Arc<State>,
     user_token: Option<String>,
     conn_id: &str,
@@ -282,8 +479,6 @@ async fn handle_message(
             %text,
             "deserialization error"
         );
-        // Clean up all agents for conn_id
-        // state.ctl.lock().await.agent_rm(conn_id).await;
         return Ok(());
     }
     let rm: RequestMessage = rm_result.unwrap();
@@ -297,8 +492,7 @@ async fn handle_message(
         // it continues to publish events to the Redis
         ok_reply(conn_id, None, event_ref, "phoenix", state.clone()).await;
 
-        // payload is {}, so add some info here
-        let message = format!(r#"{{"conn_id": "{}"}}"#, conn_id); // double {{ and }} to escape
+        let message = format!(r#"{{"conn_id": "{}"}}"#, conn_id);
         publish_event(redis_conn, "from:phoenix:heartbeat".to_string(), message).await;
         // continue;
     }
@@ -326,7 +520,6 @@ async fn handle_message(
     }
 
     // all events are dispatched to redis
-    // iredis --url redis://localhost:6379 psubscribe 'from*'
     let redis_topic = format!("from:{}:{}", channel_name, event.clone());
     let message = serde_json::to_string(&payload).unwrap();
     publish_event(redis_conn, redis_topic, message).await;
@@ -652,6 +845,7 @@ async fn ok_reply(
         }, // join
     };
     let join_reply_message = ServerMessage {
+        opcode: Opcode::Reply,
         join_ref: join_ref.clone(),
         event_ref: event_ref.to_string(),
         topic: channel_name.to_string(),
@@ -704,6 +898,7 @@ async fn presence_state(
         })
         .collect::<HashMap<_, _>>();
     let reply = ServerMessage {
+        opcode: Opcode::Reply,
         join_ref: join_ref.clone(),
         event_ref: event_ref.to_string(),
         topic: channel_name.to_string(),
@@ -791,6 +986,7 @@ pub async fn datetime_handler(state: Arc<State>, channel_name: String) {
     loop {
         let now = chrono::Local::now();
         let message = ServerMessage {
+            opcode: Opcode::Push,
             join_ref: None,
             event_ref: counter.to_string(),
             topic: channel_name.to_string(),
@@ -1140,6 +1336,7 @@ mod tests {
 
         // simulate internal broadcast
         let message = ServerMessage {
+            opcode: Opcode::Broadcast,
             join_ref: None,
             event_ref: "broadcast".to_string(),
             topic: sys_chan.clone(),

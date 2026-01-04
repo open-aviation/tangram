@@ -4668,6 +4668,7 @@ version = "0.2.1"
 dependencies = [
  "anyhow",
  "axum",
+ "bytes",
  "chrono",
  "futures",
  "itertools 0.14.0",
