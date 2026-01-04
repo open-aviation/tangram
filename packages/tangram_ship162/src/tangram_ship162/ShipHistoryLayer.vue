@@ -3,7 +3,7 @@ import { inject, onUnmounted, ref, watch, type Ref } from "vue";
 import { PathLayer } from "@deck.gl/layers";
 import { PathStyleExtension } from "@deck.gl/extensions";
 import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
-import { flightStore } from "./store";
+import { shipStore } from "./store";
 import type { Layer } from "@deck.gl/core";
 
 const tangramApi = inject<TangramApi>("tangramApi");
@@ -11,31 +11,24 @@ if (!tangramApi) throw new Error("assert: tangram api not provided");
 
 const layerDisposable: Ref<Disposable | null> = ref(null);
 
-function hexToRgb(hex: string): [number, number, number, number] {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result
-    ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16), 255]
-    : [128, 0, 128, 255];
-}
-
 const updateLayer = async () => {
   if (layerDisposable.value) {
     layerDisposable.value.dispose();
     layerDisposable.value = null;
   }
 
-  const flight = flightStore.selectedFlight;
-  if (!flight) return;
+  const ship = shipStore.selectedHistoryInterval;
+  if (!ship) return;
 
-  const start_ts = new Date(flight.start_ts + "Z").getTime();
-  const end_ts = new Date(flight.end_ts + "Z").getTime();
+  const start_ts = new Date(ship.start_ts + "Z").getTime();
+  const end_ts = new Date(ship.end_ts + "Z").getTime();
   const response = await fetch(
-    `/explore/history/${flight.icao24}/${Math.floor(start_ts)}/${Math.floor(end_ts)}`
+    `/ship162/history/${ship.mmsi}/${Math.floor(start_ts)}/${Math.floor(end_ts)}`
   );
   const data = await response.json();
 
   const layers: Layer[] = [];
-  const MAX_GAP_SECONDS = 600;
+  const MAX_GAP_SECONDS = 3600;
   const segments: { path: number[][]; colors: any[]; dashed: boolean }[] = [];
   let currentSegment: { path: number[][]; colors: any[]; dashed: boolean } | null =
     null;
@@ -60,7 +53,10 @@ const updateLayer = async () => {
             [lastPoint.longitude, lastPoint.latitude],
             [point.longitude, point.latitude]
           ],
-          colors: [hexToRgb("#bab0ac"), hexToRgb("#bab0ac")],
+          colors: [
+            [150, 150, 150],
+            [150, 150, 150]
+          ],
           dashed: true
         });
       }
@@ -70,7 +66,7 @@ const updateLayer = async () => {
       currentSegment = { path: [], colors: [], dashed: false };
     }
     currentSegment.path.push([point.longitude, point.latitude]);
-    currentSegment.colors.push(hexToRgb("#4c78a8"));
+    currentSegment.colors.push([128, 0, 128]);
     lastPoint = point;
   }
   if (currentSegment && currentSegment.path.length > 1) {
@@ -80,7 +76,7 @@ const updateLayer = async () => {
   segments.forEach((segment, idx) => {
     layers.push(
       new PathLayer({
-        id: `explore-history-path-${idx}`,
+        id: `ship-history-path-${idx}`,
         data: [{ path: segment.path, colors: segment.colors }],
         pickable: false,
         widthScale: 1,
@@ -108,7 +104,7 @@ const updateLayer = async () => {
   };
 };
 
-watch(() => flightStore.version, updateLayer);
+watch(() => shipStore.historyVersion, updateLayer);
 
 onUnmounted(() => {
   layerDisposable.value?.dispose();

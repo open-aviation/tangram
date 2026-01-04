@@ -2,7 +2,7 @@
 import { inject, onUnmounted, watch } from "vue";
 import { PathLayer, SolidPolygonLayer } from "@deck.gl/layers";
 import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
-import { oklchToDeckGLColor } from "@open-aviation/tangram-core/colour";
+import { oklchToDeckGLColor } from "@open-aviation/tangram-core/utils";
 import { aircraftStore, pluginConfig } from "./store";
 import type { Layer } from "@deck.gl/core";
 import type { Jet1090Aircraft } from ".";

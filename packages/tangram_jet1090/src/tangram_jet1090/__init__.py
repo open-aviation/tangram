@@ -42,20 +42,14 @@ async def get_trajectory_data(
     if not _HISTORY_AVAILABLE:
         raise HTTPException(
             status_code=501,
-            detail="History feature is not installed. "
-            "Install with `pip install 'tangram_jet1090[history]'`",
+            detail="History feature is not installed.",
         )
 
     redis_key = "tangram:history:table_uri:jet1090"
     table_uri_bytes = await backend_state.redis_client.get(redis_key)
 
     if not table_uri_bytes:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "Table 'jet1090' not found.\nhelp: is the history service running?"
-            ),
-        )
+        raise HTTPException(status_code=404, detail="Table 'jet1090' not found.")
     table_uri = table_uri_bytes.decode("utf-8")
 
     try:
@@ -70,6 +64,118 @@ async def get_trajectory_data(
     except Exception as e:
         log.error(f"Failed to query trajectory for {icao24}: {e}")
         raise HTTPException(status_code=500, detail="Failed to query trajectory data.")
+
+
+@router.get("/search")
+async def search_flights(
+    q: str, backend_state: tangram_core.InjectBackendState
+) -> Response:
+    if not _HISTORY_AVAILABLE:
+        return ORJSONResponse(content=[])
+
+    redis_key = "tangram:history:table_uri:jet1090"
+    table_uri_bytes = await backend_state.redis_client.get(redis_key)
+    if not table_uri_bytes:
+        return ORJSONResponse(content=[])
+    table_uri = table_uri_bytes.decode("utf-8")
+
+    try:
+        df = pl.scan_delta(table_uri)
+        q_lower = q.lower()
+
+        candidates = (
+            df.filter(
+                pl.col("callsign").str.to_lowercase().str.contains(q_lower)
+                | pl.col("icao24").str.contains(q_lower)
+            )
+            .select("icao24")
+            .unique()
+            .head(20)
+            .collect()
+        )
+        candidate_icaos = candidates["icao24"].to_list()
+
+        if not candidate_icaos:
+            return ORJSONResponse(content=[])
+
+        intervals = (
+            df.filter(pl.col("icao24").is_in(candidate_icaos))
+            .sort(["icao24", "timestamp"])
+            .with_columns(pl.col("callsign").forward_fill().over("icao24"))
+            .with_columns(
+                gap_minutes=(
+                    pl.col("timestamp") - pl.col("timestamp").shift(1)
+                ).dt.total_minutes()
+            )
+            .with_columns(
+                new_interval=(
+                    (pl.col("gap_minutes") >= 30)
+                    | (pl.col("icao24") != pl.col("icao24").shift(1))
+                    | (pl.col("callsign") != pl.col("callsign").shift(1))
+                ).fill_null(True)
+            )
+            .with_columns(interval_id=pl.col("new_interval").cast(pl.Int64).cum_sum())
+            .group_by(["icao24", "callsign", "interval_id"])
+            .agg(
+                start_ts=pl.col("timestamp").min(),
+                end_ts=pl.col("timestamp").max(),
+                n_rows=pl.len(),
+                lat=pl.col("latitude").mean(),
+                lon=pl.col("longitude").mean(),
+            )
+            .filter(
+                (pl.col("n_rows") >= 5)
+                & (
+                    pl.col("callsign").str.to_lowercase().str.contains(q_lower)
+                    | pl.col("icao24").str.contains(q_lower)
+                )
+            )
+            .with_columns(
+                duration=((pl.col("end_ts") - pl.col("start_ts")).dt.total_seconds()),
+            )
+            .sort(["start_ts"], descending=True)
+            .collect()
+        )
+        return Response(intervals.write_json(), media_type="application/json")
+    except Exception as e:
+        log.error(f"Search failed: {e}")
+        return ORJSONResponse(content=[])
+
+
+@router.get("/history/{icao24}/{start_timestamp}/{end_timestamp}")
+async def get_history_slice(
+    icao24: str,
+    start_timestamp: int,
+    end_timestamp: int,
+    backend_state: tangram_core.InjectBackendState,
+) -> Response:
+    if not _HISTORY_AVAILABLE:
+        return ORJSONResponse(content=[])
+
+    redis_key = "tangram:history:table_uri:jet1090"
+    table_uri_bytes = await backend_state.redis_client.get(redis_key)
+    if not table_uri_bytes:
+        return ORJSONResponse(content=[])
+    table_uri = table_uri_bytes.decode("utf-8")
+
+    start_dt = pl.lit(start_timestamp).cast(pl.Datetime("ms"))
+    end_dt = pl.lit(end_timestamp).cast(pl.Datetime("ms"))
+
+    try:
+        df = (
+            pl.scan_delta(table_uri)
+            .filter(
+                (pl.col("icao24") == icao24)
+                & (pl.col("timestamp") >= start_dt)
+                & (pl.col("timestamp") <= end_dt)
+            )
+            .sort("timestamp")
+            .collect()
+        )
+        return Response(df.write_json(), media_type="application/json")
+    except Exception as e:
+        log.error(f"History slice failed: {e}")
+        return ORJSONResponse(content=[])
 
 
 @router.get("/route/{callsign}")
@@ -95,9 +201,6 @@ async def get_sensors_data(
 ) -> ORJSONResponse:
     plugin_config = backend_state.config.plugins.get("tangram_jet1090", {})
     config = TypeAdapter(PlanesConfig).validate_python(plugin_config)
-    # Keeping "localhost" in the URL can lead to issues on systems where localhost
-    # does not resolve to 127.0.0.1 first but rather to ::1 (IPv6).
-    # Therefore, we replace it explicitly.
     url = f"{config.jet1090_url}/sensors".replace("localhost", "127.0.0.1")
 
     try:
@@ -167,7 +270,6 @@ class PlanesConfig(
     path_cache: Path = Path(platformdirs.user_cache_dir("tangram_jet1090"))
     log_level: str = "INFO"
     show_route_lines: bool = True
-    # flush is primarily time-based. this buffer is a backpressure mechanism.
     history_buffer_size: int = 100_000
     history_flush_interval_secs: int = 5
     history_optimize_interval_secs: int = 120
@@ -181,17 +283,6 @@ class PlanesConfig(
     trail_alpha: float = 0.6
 
 
-# NOTE: we fetch the aircraft database on the python side, not Rust. two reasons:
-# - the httpx AsyncClient is already available in the tangram core, and the user may
-#   have configured proxies, timeouts, etc, so we want to respect that
-# - moving the implementation into Rust adds complexity. in particular:
-#   - apache datafusion (used by `tangram_history`) depends on `xz2`
-#     but `zip` depends on the newer `liblzma` fork:
-#     https://github.com/apache/datafusion/issues/15342
-#   - `maturin_action` requires that `openssl_probe` is configured correctly
-#     for aarch64 and other nonstandard platforms:
-#     https://github.com/PyO3/maturin-action/discussions/162
-# so for simplicity we just do it here.
 async def get_aircraft_db(
     client: httpx.AsyncClient, url: str, path_cache: Path
 ) -> dict[str, _planes.Aircraft]:

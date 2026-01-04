@@ -69,3 +69,22 @@ export function oklchToDeckGLColor(
     a
   ];
 }
+
+export const formatTime = (ts: string) => {
+  const d = new Date(ts + "Z");
+  return (
+    d.toLocaleString("en-GB", {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }) + "Z"
+  );
+};
+
+export const formatDuration = (sec: number) => {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  return `${h}h ${m}m`;
+};

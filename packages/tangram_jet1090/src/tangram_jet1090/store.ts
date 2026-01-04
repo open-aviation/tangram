@@ -25,9 +25,22 @@ export interface TrailColorOptions {
   max?: number;
 }
 
+export interface HistoryInterval {
+  icao24: string;
+  callsign: string;
+  start_ts: string;
+  end_ts: string;
+  duration: number;
+  n_rows: number;
+  lat: number;
+  lon: number;
+}
+
 export const aircraftStore = reactive({
   selected: new Map<string, AircraftSelectionData>(),
-  version: 0
+  version: 0,
+  selectedHistoryInterval: null as HistoryInterval | null,
+  historyVersion: 0
 });
 
 export const pluginConfig = reactive({
