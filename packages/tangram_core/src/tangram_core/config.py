@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field
+from os import PathLike
 from pathlib import Path
 from typing import Any, Literal, Protocol, runtime_checkable
 
@@ -102,6 +103,11 @@ class CacheConfig:
     entries: list[CacheEntry] = field(default_factory=list)
 
 
+# do not use with dataclasses yet: it probably wont work for pydantic.TypeAdapter
+# stolen from typeshed. maybe we should apply it everywhere
+StrOrPathLike = str | bytes | PathLike[str] | PathLike[bytes]
+
+
 @dataclass
 class Config:
     core: CoreConfig = field(default_factory=CoreConfig)
@@ -112,7 +118,7 @@ class Config:
     cache: CacheConfig = field(default_factory=CacheConfig)
 
     @classmethod
-    def from_file(cls, config_path: Path) -> Config:
+    def from_file(cls, config_path: StrOrPathLike) -> Config:
         if sys.version_info < (3, 11):
             import tomli as tomllib
         else:

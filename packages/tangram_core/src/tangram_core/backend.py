@@ -22,6 +22,7 @@ from typing import (
     Awaitable,
     Callable,
     Iterable,
+    Literal,
     TypeAlias,
 )
 
@@ -396,21 +397,37 @@ async def _backend_runtime(
                 await asyncio.gather(*service_tasks, return_exceptions=True)
 
 
+# TODO: maybe make config IntoConfig
 @asynccontextmanager
 async def launch(
-    config: Config | None = None, open_browser: bool = False
+    config: Config | Literal["from_env"] | None = None, open_browser: bool = False
 ) -> AsyncGenerator[BackendState, None]:
-    """Asynchronous context manager that starts the tangram backend system
-    (including fastapi, rust channel, redis, plugin background services...) and returns
-    **direct access** to the internal state.
+    """Asynchronous context manager that starts the tangram backend system.
 
-    Useful for local research and development.
+    Starts fastapi, rust channel, redis, plugin background services and returns
+    direct access to the internal state. The context manager blocks until the
+    server is shut down.
     """
-    if config is None:
+    if config == "from_env":
+        env_path = os.environ.get("TANGRAM_CONFIG")
+        if env_path:
+            config = Config.from_file(Path(env_path))
+        else:
+            if (xdg_config := os.environ.get("XDG_CONFIG_HOME")) is not None:
+                config_dir = Path(xdg_config) / "tangram"
+            else:
+                config_dir = Path(platformdirs.user_config_dir(appname="tangram"))
+
+            default_path = config_dir / "tangram.toml"
+            if default_path.exists():
+                config = Config.from_file(default_path)
+            else:
+                config = Config()
+    elif config is None:
         config = Config()
 
     async with _backend_runtime(config) as runtime:
-        while not runtime.server.started:  # wait for fastapi before opening browser
+        while not runtime.server.started:
             if runtime.server_task.done():
                 runtime.server_task.result()
             await asyncio.sleep(0.1)
@@ -421,6 +438,8 @@ async def launch(
             )
 
         yield runtime.state
+
+        await runtime.server_task
 
 
 async def start_tasks(config: Config) -> None:

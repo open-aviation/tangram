@@ -52,7 +52,14 @@ export function tangramPlugin() {
             formats: ["es"]
           },
           rollupOptions: {
-            external: ["vue", "maplibre", ...DECKGL_PACKAGES, "lit-html", "rs1090-wasm"]
+            external: [
+              "vue",
+              "maplibre",
+              ...DECKGL_PACKAGES,
+              "lit-html",
+              "rs1090-wasm",
+              "parquet-wasm"
+            ]
           },
           outDir: "dist-frontend",
           minify: true

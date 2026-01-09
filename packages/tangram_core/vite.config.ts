@@ -32,7 +32,6 @@ export default defineConfig({
             path.resolve(__dirname, "node_modules/maplibre-gl/dist/maplibre-gl.js.map"),
             path.resolve(__dirname, "node_modules/lit-html/lit-html.js"),
             path.resolve(__dirname, "node_modules/lit-html/lit-html.js.map"),
-            path.resolve(__dirname, "node_modules/lit-html/lit-html.js.map"),
             /*
              * HACK: Putting `rs1090` in the core would seem very strange, because `jet1090`
              * is the only consumer of it. However, this is necessary to work around
@@ -62,6 +61,20 @@ export default defineConfig({
             path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm.js"),
             path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm_bg.js"),
             path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm_bg.wasm"),
+            /**
+             * In tangram>=0.5, we will migrate most things to parquet/arrow so we are putting
+             * `parquet-wasm` in the core for the forseeable future.
+             *
+             * We are not putting some useful arrow packages here yet because:
+             * - `arrow-js-ffi`: there is no esm, only source ts files
+             * - `apache-arrow`: Arrow.mjs internally fetches a bunch of mjs
+             * We need to modify vite.lib-esm.config.ts to bundle these properly.
+             */
+            path.resolve(__dirname, "node_modules/parquet-wasm/esm/parquet_wasm.js"),
+            path.resolve(
+              __dirname,
+              "node_modules/parquet-wasm/esm/parquet_wasm_bg.wasm"
+            ),
             path.resolve(
               __dirname,
               "node_modules/font-awesome/css/font-awesome.min.css"
@@ -82,7 +95,14 @@ export default defineConfig({
     emptyOutDir: false,
     rollupOptions: {
       input: path.resolve(__dirname, "index.html"),
-      external: ["vue", "maplibre", ...DECKGL_PACKAGES, "lit-html", "rs1090-wasm"]
+      external: [
+        "vue",
+        "maplibre",
+        ...DECKGL_PACKAGES,
+        "lit-html",
+        "rs1090-wasm",
+        "parquet-wasm"
+      ]
     }
   }
 });
