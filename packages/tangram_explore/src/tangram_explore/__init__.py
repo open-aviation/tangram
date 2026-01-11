@@ -3,13 +3,14 @@ from __future__ import annotations
 import io
 import uuid
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass, field
+from dataclasses import KW_ONLY, dataclass, field, fields, is_dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
     Literal,
     Protocol,
+    cast,
     runtime_checkable,
 )
 
@@ -44,11 +45,15 @@ async def lifespan(state: BackendState) -> AsyncGenerator[None, None]:
     delattr(state, "explore_state")
 
 
+def get_explore_state(state: tangram_core.InjectBackendState) -> ExploreState:
+    return cast(ExploreState, getattr(state, "explore_state"))
+
+
 @router.get("/data/{data_id}")
 async def get_explore_data(
     data_id: str, state: tangram_core.InjectBackendState
 ) -> Response:
-    explore_state: ExploreState = getattr(state, "explore_state")
+    explore_state = get_explore_state(state)
     data = explore_state.data.get(data_id)
     if data is None:
         return Response(status_code=404)
@@ -58,7 +63,7 @@ async def get_explore_data(
 @router.get("/layers")
 async def get_layers(state: tangram_core.InjectBackendState) -> list[dict[str, Any]]:
     """Returns the current list of layers to new clients."""
-    explore_state: ExploreState = getattr(state, "explore_state")
+    explore_state = get_explore_state(state)
     return [explore_state.layers[uid] for uid in explore_state.layer_order]
 
 
@@ -67,9 +72,16 @@ class ArrowStreamExportable(Protocol):
     def __arrow_c_stream__(self, requested_schema: Any = None) -> Any: ...
 
 
-@dataclass(frozen=True)
-class Scatter:
-    kind: str = field(default="scatter", init=False)
+@runtime_checkable
+class ExploreLayer(Protocol):
+    data: ArrowStreamExportable
+    label: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ScatterLayer(ExploreLayer):
+    data: ArrowStreamExportable
+    _: KW_ONLY
     radius_scale: float = 50.0
     radius_min_pixels: float = 2.0
     radius_max_pixels: float = 5.0
@@ -80,6 +92,8 @@ class Scatter:
     stroked: bool = False
     filled: bool = True
     pickable: bool = True
+    label: str | None = None
+    kind: Literal["scatter"] = field(default="scatter", init=False)
 
 
 def _to_parquet_bytes(df: Any) -> bytes:
@@ -108,49 +122,58 @@ class Layer:
 class Session:
     state: BackendState
 
-    @property
-    def _explore_state(self) -> ExploreState:
-        return getattr(self.state, "explore_state")
-
     async def _broadcast(self, op: str, **kwargs: Any) -> None:
         payload = {"op": op, **kwargs}
         topic = f"to:{EXPLORE_CHANNEL}:{EXPLORE_EVENT}"
         await self.state.redis_client.publish(topic, orjson.dumps(payload))
 
-    async def push(
-        self, df: ArrowStreamExportable, style: Scatter, *, label: str | None = None
-    ) -> Layer:
-        data_id = str(uuid.uuid4())
-        parquet_bytes = _to_parquet_bytes(df)
+    async def push(self, layer: ExploreLayer) -> Layer:
+        if not is_dataclass(layer):  # required for fields()
+            raise TypeError("layer must be a dataclass")
+        if not isinstance(layer, ExploreLayer):
+            raise TypeError("layer must implement ExploreLayer protocol")
 
-        self._explore_state.data[data_id] = parquet_bytes
+        data_id = str(uuid.uuid4())
+        parquet_bytes = _to_parquet_bytes(layer.data)
+
+        explore_state = get_explore_state(self.state)
+        explore_state.data[data_id] = parquet_bytes
+
+        style = {
+            f.name: getattr(layer, f.name)
+            for f in fields(layer)
+            if f.name not in ("data", "label")
+        }
+        label = getattr(layer, "label", None)
 
         layer_def = {
             "id": data_id,
             "label": label or data_id[:8],
             "url": f"/explore/data/{data_id}",
-            "style": asdict(style),
+            "style": style,
         }
-        self._explore_state.layers[data_id] = layer_def
-        self._explore_state.layer_order.append(data_id)
+        explore_state.layers[data_id] = layer_def
+        explore_state.layer_order.append(data_id)
 
         await self._broadcast("add", layer=layer_def)
 
         return Layer(id=data_id, _session=self)
 
     async def remove(self, data_id: str) -> None:
-        if data_id in self._explore_state.data:
-            del self._explore_state.data[data_id]
-        if data_id in self._explore_state.layers:
-            del self._explore_state.layers[data_id]
-        if data_id in self._explore_state.layer_order:
-            self._explore_state.layer_order.remove(data_id)
+        explore_state = get_explore_state(self.state)
+        if data_id in explore_state.data:
+            del explore_state.data[data_id]
+        if data_id in explore_state.layers:
+            del explore_state.layers[data_id]
+        if data_id in explore_state.layer_order:
+            explore_state.layer_order.remove(data_id)
         await self._broadcast("remove", id=data_id)
 
     async def clear(self) -> None:
-        self._explore_state.data.clear()
-        self._explore_state.layers.clear()
-        self._explore_state.layer_order.clear()
+        explore_state = get_explore_state(self.state)
+        explore_state.data.clear()
+        explore_state.layers.clear()
+        explore_state.layer_order.clear()
         await self._broadcast("clear")
 
 
