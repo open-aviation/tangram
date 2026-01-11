@@ -1,10 +1,24 @@
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
-from typing import Any, Literal, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, TypeAlias, runtime_checkable
+
+
+def default_config_file() -> Path:
+    import platformdirs
+
+    if (xdg_config := os.environ.get("XDG_CONFIG_HOME")) is not None:
+        config_dir = Path(xdg_config) / "tangram"
+    else:
+        config_dir = Path(platformdirs.user_config_dir(appname="tangram"))
+    if not config_dir.exists():
+        config_dir.mkdir(parents=True, exist_ok=True)
+
+    return Path(config_dir) / "tangram.toml"
 
 
 @runtime_checkable
@@ -106,6 +120,7 @@ class CacheConfig:
 # do not use with dataclasses yet: it probably wont work for pydantic.TypeAdapter
 # stolen from typeshed. maybe we should apply it everywhere
 StrOrPathLike = str | bytes | PathLike[str] | PathLike[bytes]
+IntoConfig: TypeAlias = "Config | StrOrPathLike"
 
 
 @dataclass
@@ -115,6 +130,7 @@ class Config:
     channel: ChannelConfig = field(default_factory=ChannelConfig)
     map: MapConfig = field(default_factory=MapConfig)
     plugins: dict[str, Any] = field(default_factory=dict)
+    """Mapping of plugin name to plugin-specific config."""
     cache: CacheConfig = field(default_factory=CacheConfig)
 
     @classmethod

@@ -133,10 +133,13 @@ async def test_launch() -> None:
     config.server.port = 2348
     config.channel.port = 2349
 
-    async with tangram_core.launch(config=config) as t:
-        assert await t.redis_client.ping()  # type: ignore
-        assert t.http_client is not None
-        response = await t.http_client.get(f"{t.base_url}/manifest.json")
+    async with tangram_core.Runtime(config=config) as runtime:
+        assert runtime.state
+        assert await runtime.state.redis_client.ping()  # type: ignore
+        assert runtime.state.http_client is not None
+        response = await runtime.state.http_client.get(
+            f"{runtime.state.base_url}/manifest.json"
+        )
         response.raise_for_status()
         manifest = response.json()
         assert "plugins" in manifest

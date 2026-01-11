@@ -5,7 +5,8 @@ import functools
 import importlib.metadata
 import logging
 import traceback
-from collections.abc import AsyncGenerator, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeAlias
 
@@ -18,7 +19,9 @@ if TYPE_CHECKING:
     ServiceFunc: TypeAlias = ServiceAsyncFunc | Callable[[BackendState], None]
     Priority: TypeAlias = int
     IntoFrontendConfigFunction: TypeAlias = Callable[[dict[str, Any]], Any]
-    Lifespan: TypeAlias = Callable[[BackendState], AsyncGenerator[None, None]]
+    Lifespan: TypeAlias = Callable[
+        [BackendState], AbstractAsyncContextManager[None, bool | None]
+    ]
 
 logger = logging.getLogger(__name__)
 

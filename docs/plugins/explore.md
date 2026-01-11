@@ -15,3 +15,23 @@ It is strongly inspired [lonboard](https://github.com/developmentseed/lonboard).
 - Support for LineString and Polygon layers (requires GeoArrow processing).
 - Drag-and-drop file upload in the sidebar.
 - Synchronization
+
+## Examples
+
+### Basic
+
+Spawn two intersecting diagonal lines as 100 scatter points, centred at (0, 0).
+
+![map interface](../screenshot/explore_basic.png)
+
+=== "Interactive (Jupytext)"
+
+    ```py
+    --8<-- "packages/tangram_explore/examples/basic_interactive.py"
+    ```
+
+=== "Script"
+
+    ```py
+    --8<-- "packages/tangram_explore/examples/basic.py"
+    ```

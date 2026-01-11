@@ -2502,12 +2502,19 @@ dependencies = [
     { name = "tangram-core" },
 ]
 
+[package.optional-dependencies]
+polars = [
+    { name = "polars" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "arro3-core", specifier = ">=0.4.0" },
     { name = "arro3-io", specifier = ">=0.4.0" },
+    { name = "polars", marker = "extra == 'polars'", specifier = ">=1" },
     { name = "tangram-core", editable = "packages/tangram_core" },
 ]
+provides-extras = ["polars"]
 
 [[package]]
 name = "tangram-globe"

@@ -30,13 +30,38 @@ tangram serve --config /path/to/your/tangram.toml
 
 ### Programmatic
 
-You can also launch `tangram` from a Python script or a Jupyter notebook using `tangram_core.launch()`.
+You can also launch `tangram` from a Python script or a Jupyter notebook using [`tangram_core.Runtime`][].
 
 This provides direct access to the backend state (e.g. Redis client, HTTP client), enabling you to spawn data or interact with services programmatically.
+
+For scripts, use the async context manager to safely configure the server within the async with block and then explicitly yield control to the server loop until a signal (Ctrl+C) is received.
 
 ```py
 import tangram_core
 
-async with tangram_core.launch(open_browser=True) as t:
-    await t.redis_client.set("my_key", "value")
+async def main() -> None:
+    async with tangram_core.Runtime() as runtime:
+        await runtime.state.redis_client.set("my_key", "value")
+        await runtime.wait()  # required to run the server indefinitely
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(main())
+```
+
+For interactive environments (Jupyter) where execution spans multiple cells,
+you must start and stop the server manually:
+
+```py
+# %%
+import tangram_core
+
+runtime = tangram_core.Runtime()
+await runtime.start()
+# %%
+await runtime.state.redis_client.set("my_key", "value")
+# %%
+await runtime.stop()
+# %%
 ```

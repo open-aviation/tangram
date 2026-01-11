@@ -7,7 +7,6 @@ import logging
 import os
 import re
 import urllib.parse
-import webbrowser
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -22,7 +21,6 @@ from typing import (
     Awaitable,
     Callable,
     Iterable,
-    Literal,
     TypeAlias,
 )
 
@@ -34,7 +32,13 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import CacheEntry, Config, FrontendChannelConfig, FrontendConfig
+from .config import (
+    CacheEntry,
+    Config,
+    FrontendChannelConfig,
+    FrontendConfig,
+    IntoConfig,
+)
 from .plugin import load_plugin, scan_plugins
 
 if TYPE_CHECKING:
@@ -322,129 +326,111 @@ async def run_channel_service(config: Config) -> None:
     await _core.run(rust_config)
 
 
-async def run_services(
-    backend_state: BackendState,
-    loaded_plugins: Iterable[Plugin],
-) -> AsyncGenerator[asyncio.Task[None], None]:
-    yield asyncio.create_task(run_channel_service(backend_state.config))
-
-    for plugin in loaded_plugins:
-        for _, service_func in sorted(
-            plugin.services, key=lambda s: (s[0], s[1].__name__)
-        ):
-            yield asyncio.create_task(service_func(backend_state))
-            logger.info(f"started service from plugin: {plugin.dist_name}")
-
-
-async def _setup_state(stack: AsyncExitStack, config: Config) -> BackendState:
-    redis_client = await stack.enter_async_context(
-        redis.from_url(config.core.redis_url)  # type: ignore
-    )
-    http_client = await stack.enter_async_context(httpx.AsyncClient(http2=True))
-    return BackendState(
-        redis_client=redis_client, http_client=http_client, config=config
-    )
-
-
-def _create_server(
-    state: BackendState, loaded_plugins: Iterable[Plugin]
-) -> uvicorn.Server:
-    app = create_app(state, loaded_plugins)
-    server_config = uvicorn.Config(
-        app,
-        host=state.config.server.host,
-        port=state.config.server.port,
-        log_config=get_log_config_dict(state.config),
-    )
-    return uvicorn.Server(server_config)
-
-
-@dataclass
-class _BackendRuntime:
-    state: BackendState
-    server: uvicorn.Server
-    server_task: asyncio.Task[None]
-    service_tasks: list[asyncio.Task[None]]
-
-
-@asynccontextmanager
-async def _backend_runtime(
-    config: Config,
-) -> AsyncGenerator[_BackendRuntime, None]:
-    loaded_plugins = load_enabled_plugins(config)
-
-    async with AsyncExitStack() as stack:
-        state = await _setup_state(stack, config)
-        server = _create_server(state, loaded_plugins)
-
-        service_tasks = [s async for s in run_services(state, loaded_plugins)]
-        server_task = asyncio.create_task(server.serve())
-
-        try:
-            yield _BackendRuntime(
-                state=state,
-                server=server,
-                server_task=server_task,
-                service_tasks=service_tasks,
-            )
-        finally:
-            server.should_exit = True
-            await server_task
-
-            for task in service_tasks:
-                task.cancel()
-            if service_tasks:
-                await asyncio.gather(*service_tasks, return_exceptions=True)
-
-
-# TODO: maybe make config IntoConfig
-@asynccontextmanager
-async def launch(
-    config: Config | Literal["from_env"] | None = None, open_browser: bool = False
-) -> AsyncGenerator[BackendState, None]:
-    """Asynchronous context manager that starts the tangram backend system.
-
-    Starts fastapi, rust channel, redis, plugin background services and returns
-    direct access to the internal state. The context manager blocks until the
-    server is shut down.
+class Runtime:
+    """Manages the lifecycle of the Tangram backend, including the
+    Uvicorn server, background services, and connection pools (Redis, HTTPX).
     """
-    if config == "from_env":
-        env_path = os.environ.get("TANGRAM_CONFIG")
-        if env_path:
-            config = Config.from_file(Path(env_path))
+
+    def __init__(self, config: IntoConfig | None = None) -> None:
+        if isinstance(config, (str, bytes, Path, os.PathLike)):
+            self.config = Config.from_file(config)
         else:
-            if (xdg_config := os.environ.get("XDG_CONFIG_HOME")) is not None:
-                config_dir = Path(xdg_config) / "tangram"
-            else:
-                config_dir = Path(platformdirs.user_config_dir(appname="tangram"))
+            self.config = config or Config()
+        self._stack = AsyncExitStack()
+        self._state: BackendState | None = None
+        self._server: uvicorn.Server | None = None
+        self._server_task: asyncio.Task[None] | None = None
+        self._service_tasks: list[asyncio.Task[None]] = []
 
-            default_path = config_dir / "tangram.toml"
-            if default_path.exists():
-                config = Config.from_file(default_path)
-            else:
-                config = Config()
-    elif config is None:
-        config = Config()
+    @property
+    def state(self) -> BackendState:
+        if self._state is None:
+            raise RuntimeError("runtime is not started, call start() first")
+        return self._state
 
-    async with _backend_runtime(config) as runtime:
-        while not runtime.server.started:
-            if runtime.server_task.done():
-                runtime.server_task.result()
+    async def start(self) -> Runtime:
+        """Starts the backend runtime."""
+        if self._state is not None:
+            raise RuntimeError("runtime is already started")
+
+        redis_client = await self._stack.enter_async_context(
+            redis.from_url(self.config.core.redis_url)  # type: ignore
+        )
+        http_client = await self._stack.enter_async_context(
+            httpx.AsyncClient(http2=True)
+        )
+        self._state = BackendState(
+            redis_client=redis_client,
+            http_client=http_client,
+            config=self.config,
+        )
+
+        loaded_plugins = load_enabled_plugins(self.config)
+        app = create_app(self._state, loaded_plugins)
+
+        server_config = uvicorn.Config(
+            app,
+            host=self.config.server.host,
+            port=self.config.server.port,
+            log_config=get_log_config_dict(self.config),
+        )
+        self._server = uvicorn.Server(server_config)
+
+        self._service_tasks.append(
+            asyncio.create_task(run_channel_service(self.config))
+        )
+        for plugin in loaded_plugins:
+            for _, service_func in sorted(
+                plugin.services, key=lambda s: (s[0], s[1].__name__)
+            ):
+                self._service_tasks.append(
+                    asyncio.create_task(service_func(self._state))
+                )
+                logger.info(f"started service from plugin: {plugin.dist_name}")
+
+        self._server_task = asyncio.create_task(self._server.serve())
+
+        while not self._server.started:
+            if self._server_task.done():
+                await self._server_task
             await asyncio.sleep(0.1)
 
-        if open_browser:
-            asyncio.get_running_loop().run_in_executor(
-                None, lambda: webbrowser.open(runtime.state.base_url)
-            )
+        return self
 
-        yield runtime.state
+    async def wait(self) -> None:
+        """Waits for the server task to complete (e.g. via signal or internal error)."""
+        if self._server_task:
+            try:
+                await self._server_task
+            except asyncio.CancelledError:
+                pass
 
-        await runtime.server_task
+    async def stop(self) -> None:
+        """Stops the backend runtime."""
+        if self._server and self._server.started:
+            self._server.should_exit = True
+            if self._server_task:
+                try:
+                    await self._server_task
+                except asyncio.CancelledError:
+                    pass
 
+        for task in self._service_tasks:
+            task.cancel()
+        if self._service_tasks:
+            await asyncio.gather(*self._service_tasks, return_exceptions=True)
+        self._service_tasks.clear()
 
-async def start_tasks(config: Config) -> None:
-    async with _backend_runtime(config) as runtime:
-        await asyncio.gather(runtime.server_task, *runtime.service_tasks)
+        await self._stack.aclose()
+        self._state = None
+        self._server = None
+        self._server_task = None
+
+    async def __aenter__(self) -> Runtime:
+        return await self.start()
+
+    async def __aexit__(self, *args: Any) -> None:
+        await self.stop()
 
 
 def get_log_config_dict(config: Config) -> dict[str, Any]:

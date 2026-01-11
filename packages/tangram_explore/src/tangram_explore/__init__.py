@@ -22,6 +22,8 @@ from fastapi import APIRouter
 from fastapi.responses import Response
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from tangram_core import BackendState
 
 EXPLORE_CHANNEL = "explore"
@@ -30,16 +32,22 @@ EXPLORE_EVENT = "layers"
 router = APIRouter(prefix="/explore", tags=["explore"])
 
 
+LayerId: TypeAlias = str
+"""Unique UUID for a layer."""
+ParquetBytes: TypeAlias = bytes
+LayerConfig: TypeAlias = dict[str, Any]
+"""Serialised layer configuration without data or label."""
+
+
 @dataclass
 class ExploreState:
-    data: dict[str, bytes] = field(default_factory=dict)
-    layers: dict[str, dict[str, Any]] = field(default_factory=dict)
-    layer_order: list[str] = field(default_factory=list)
+    data: dict[LayerId, ParquetBytes] = field(default_factory=dict)
+    layers: dict[LayerId, LayerConfig] = field(default_factory=dict)
+    layer_order: list[LayerId] = field(default_factory=list)
 
 
 @asynccontextmanager
 async def lifespan(state: BackendState) -> AsyncGenerator[None, None]:
-    # monkey-patch backend state to store explore data in memory
     setattr(state, "explore_state", ExploreState())
     yield
     delattr(state, "explore_state")
@@ -56,13 +64,12 @@ async def get_explore_data(
     explore_state = get_explore_state(state)
     data = explore_state.data.get(data_id)
     if data is None:
-        return Response(status_code=404)
+        return Response(status_code=404)  # shouldn't occur
     return Response(content=data, media_type="application/vnd.apache.parquet")
 
 
 @router.get("/layers")
 async def get_layers(state: tangram_core.InjectBackendState) -> list[dict[str, Any]]:
-    """Returns the current list of layers to new clients."""
     explore_state = get_explore_state(state)
     return [explore_state.layers[uid] for uid in explore_state.layer_order]
 
@@ -75,7 +82,12 @@ class ArrowStreamExportable(Protocol):
 @runtime_checkable
 class ExploreLayer(Protocol):
     data: ArrowStreamExportable
+    """Any data structure that implements the
+    [Arrow C data interface](https://arrow.apache.org/docs/format/CDataInterface.html),
+    such as polars DataFrames or pyarrow Tables."""
     label: str | None
+    """Unique name for the layer (optional).
+    If not provided, a random 8-character ID will be used."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +133,13 @@ class Layer:
 @dataclass(frozen=True, slots=True)
 class Session:
     state: BackendState
+
+    def __post_init__(self) -> None:
+        if not hasattr(self.state, "explore_state"):
+            raise RuntimeError(
+                "The 'tangram_explore' plugin is not active. "
+                "Ensure it is added to the [core.plugins] list in your config."
+            )
 
     async def _broadcast(self, op: str, **kwargs: Any) -> None:
         payload = {"op": op, **kwargs}
@@ -180,6 +199,7 @@ class Session:
 @dataclass
 class ExploreConfig:
     enable_3d: Literal["inherit"] | bool = "inherit"
+    """Whether to render scatter points in 3D"""
 
 
 def transform_config(config_dict: dict[str, Any]) -> ExploreConfig:

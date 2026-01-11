@@ -11,6 +11,9 @@ dependencies = ["tangram_core>=0.2.1", "arro3-core>=0.4.0", "arro3-io>=0.4.0"]
 [project.entry-points."tangram_core.plugins"]
 tangram_explore = "tangram_explore:plugin"
 
+[project.optional-dependencies]
+polars = ["polars>=1"]
+
 [tool.uv.sources]
 tangram_core = { workspace = true }
 
