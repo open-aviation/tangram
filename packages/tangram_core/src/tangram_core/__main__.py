@@ -9,7 +9,6 @@
 import asyncio
 import logging
 import logging.config
-import os
 import re
 import subprocess
 import sys
@@ -24,6 +23,8 @@ else:
 import typer
 from rich.console import Console
 
+from .config import default_config_file
+
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 logger = logging.getLogger(__name__)
 stderr = Console(stderr=True)
@@ -36,21 +37,6 @@ def print_error(v: Any) -> None:
 
 def print_success(v: Any) -> None:
     stdout.print(f"[bold green]success[/bold green]: {v}")
-
-
-def default_config_file() -> Path:
-    # NOTE: we do not expose this in the core to discourage plugins from
-    # manually parsing config files themselves.
-    import platformdirs
-
-    if (xdg_config := os.environ.get("XDG_CONFIG_HOME")) is not None:
-        config_dir = Path(xdg_config) / "tangram"
-    else:
-        config_dir = Path(platformdirs.user_config_dir(appname="tangram"))
-    if not config_dir.exists():
-        config_dir.mkdir(parents=True, exist_ok=True)
-
-    return Path(config_dir) / "tangram.toml"
 
 
 PathTangramConfig: TypeAlias = Annotated[
@@ -70,16 +56,20 @@ def serve(
     config: PathTangramConfig,
 ) -> None:
     """Serves the core tangram frontend and backend services."""
-    from .backend import get_log_config_dict, start_tasks
+    from .backend import Runtime, get_log_config_dict
     from .config import Config
 
     cfg = Config.from_file(config)
     logging.config.dictConfig(get_log_config_dict(cfg))
 
+    async def run_server() -> None:
+        async with Runtime(cfg) as runtime:
+            await runtime.wait()
+
     try:
-        asyncio.run(start_tasks(cfg))
+        asyncio.run(run_server())
     except KeyboardInterrupt:
-        logger.info("shutting down services.")
+        pass
 
 
 @app.command()

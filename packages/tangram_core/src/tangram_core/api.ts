@@ -499,6 +499,90 @@ export class RealtimeApi {
     const channel = await this.getChannel(channelTopic);
     channel.push(event, payload);
   }
+
+  /**
+   * Performs a request-response cycle over the websocket.
+   */
+  async request<TRes, TReq = unknown>(
+    topic: string,
+    payload: TReq,
+    timeoutMs = 5000
+  ): Promise<TRes> {
+    const [channelTopic, event] = this.parseTopicEvent(topic);
+    const channel = await this.getChannel(channelTopic);
+    const responseEvent = `${event}_result`;
+    const requestId = crypto.randomUUID();
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error("request timeout"));
+      }, timeoutMs);
+
+      const ref = channel.on(responseEvent, (msg: any) => {
+        if (msg.request_id === requestId) {
+          cleanup();
+          resolve(msg.data as TRes);
+        }
+      });
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        channel.off(responseEvent, ref);
+      };
+
+      channel.push(event, { ...payload, request_id: requestId });
+    });
+  }
+}
+
+export interface SearchResult {
+  id: string;
+  score?: number;
+  component: Component;
+  props?: Record<string, unknown>;
+  onSelect?: () => void;
+  children?: SearchResult[];
+}
+
+export interface SearchProvider {
+  id: string;
+  name: string;
+  search: (query: string, signal: AbortSignal) => Promise<SearchResult[]>;
+}
+
+export class SearchApi {
+  private providers = new Map<string, SearchProvider>();
+
+  registerProvider(provider: SearchProvider): Disposable {
+    this.providers.set(provider.id, provider);
+    return {
+      dispose: () => {
+        this.providers.delete(provider.id);
+      }
+    };
+  }
+
+  async search(
+    query: string,
+    signal: AbortSignal,
+    onResult: (results: SearchResult[]) => void
+  ): Promise<void> {
+    await Promise.all(
+      Array.from(this.providers.values()).map(async provider => {
+        try {
+          const results = await provider.search(query, signal);
+          if (!signal.aborted && results.length > 0) {
+            onResult(results);
+          }
+        } catch (e) {
+          if (!signal.aborted) {
+            console.error(`search error in ${provider.id}:`, e);
+          }
+        }
+      })
+    );
+  }
 }
 
 export class TangramApi {
@@ -507,6 +591,7 @@ export class TangramApi {
   readonly map: MapApi;
   readonly state: StateApi;
   readonly realtime: RealtimeApi;
+  readonly search: SearchApi;
   readonly config: TangramConfig;
 
   private constructor(
@@ -519,6 +604,7 @@ export class TangramApi {
     this.time = new TimeApi();
     this.map = new MapApi(this);
     this.state = new StateApi();
+    this.search = new SearchApi();
 
     this.setupViewUpdates();
   }

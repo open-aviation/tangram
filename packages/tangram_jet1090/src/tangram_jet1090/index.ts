@@ -1,16 +1,21 @@
 import { watch } from "vue";
-import type { TangramApi, Entity } from "@open-aviation/tangram-core/api";
+import type { TangramApi, Entity, SearchResult } from "@open-aviation/tangram-core/api";
 import AircraftLayer from "./AircraftLayer.vue";
 import AircraftCountWidget from "./AircraftCountWidget.vue";
 import AircraftInfoWidget from "./AircraftInfoWidget.vue";
 import AircraftTrailLayer from "./AircraftTrailLayer.vue";
 import RouteLayer from "./RouteLayer.vue";
 import SensorsLayer from "./SensorsLayer.vue";
+import AircraftResult from "./AircraftResult.vue";
+import AircraftHistoryLayer from "./AircraftHistoryLayer.vue";
+import AircraftHistoryGroup from "./AircraftHistoryGroup.vue";
+import AircraftHistoryInterval from "./AircraftHistoryInterval.vue";
 import {
   aircraftStore,
   type AircraftSelectionData,
   pluginConfig,
-  type TrailColorOptions
+  type TrailColorOptions,
+  type HistoryInterval
 } from "./store";
 
 const ENTITY_TYPE = "jet1090_aircraft";
@@ -22,6 +27,7 @@ interface Jet1090FrontendConfig {
   trail_type: "line" | "curtain";
   trail_color: string | TrailColorOptions;
   trail_alpha: number;
+  search_channel?: string;
 }
 
 export interface Jet1090Aircraft {
@@ -47,7 +53,15 @@ export interface Jet1090Aircraft {
   count: number;
   timestamp?: number; // synthetic, added by frontend
 }
+
+interface BackendSearchResult {
+  state: Jet1090Aircraft;
+  score: number;
+}
+
 export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
+  const channel = config?.search_channel || "jet1090:search";
+
   if (config) {
     pluginConfig.showRouteLines = config.show_route_lines;
     pluginConfig.trailType = config.trail_type;
@@ -67,8 +81,111 @@ export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
   api.ui.registerWidget("jet1090-trail-layer", "MapOverlay", AircraftTrailLayer);
   api.ui.registerWidget("jet1090-route-layer", "MapOverlay", RouteLayer);
   api.ui.registerWidget("jet1090-sensors-layer", "MapOverlay", SensorsLayer);
+  api.ui.registerWidget("jet1090-history-layer", "MapOverlay", AircraftHistoryLayer);
 
   api.state.registerEntityType(ENTITY_TYPE);
+
+  api.search.registerProvider({
+    id: "aircraft",
+    name: "Aircraft (Live)",
+    search: async (query, signal) => {
+      if (query.length < 3) return [];
+      try {
+        const results = await api.realtime.request<BackendSearchResult[]>(
+          channel,
+          { query },
+          5000
+        );
+        return results.map(r => ({
+          id: `aircraft-${r.state.icao24}`,
+          component: AircraftResult,
+          props: {
+            registration: r.state.registration,
+            icao24: r.state.icao24,
+            callsign: r.state.callsign,
+            typecode: r.state.typecode
+          },
+          score: r.score,
+          onSelect: () => {
+            const entity: Entity = {
+              id: r.state.icao24,
+              type: ENTITY_TYPE,
+              state: r.state
+            };
+            api.state.selectEntity(entity);
+
+            if (r.state.latitude && r.state.longitude) {
+              api.map.getMapInstance().flyTo({
+                center: [r.state.longitude, r.state.latitude],
+                zoom: 10
+              });
+            }
+          }
+        }));
+      } catch (e) {
+        return [];
+      }
+    }
+  });
+
+  api.search.registerProvider({
+    id: "flights-history",
+    name: "Flights (History)",
+    search: async (query, signal) => {
+      if (query.length < 3) return [];
+      try {
+        const res = await fetch(`/jet1090/search?q=${encodeURIComponent(query)}`, {
+          signal
+        });
+        if (!res.ok) return [];
+        const intervals: HistoryInterval[] = await res.json();
+
+        const groups = new Map<string, HistoryInterval[]>();
+        for (const iv of intervals) {
+          const key = `${iv.icao24}|${iv.callsign || "Unknown"}`;
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key)!.push(iv);
+        }
+
+        const results: SearchResult[] = [];
+        for (const [key, groupIntervals] of groups) {
+          const [icao24, callsign] = key.split("|");
+
+          results.push({
+            id: `group-${key}`,
+            component: AircraftHistoryGroup,
+            props: {
+              icao24,
+              callsign
+            },
+            score: 80,
+            children: groupIntervals.map(f => ({
+              id: `flight-${f.icao24}-${f.start_ts}`,
+              component: AircraftHistoryInterval,
+              props: {
+                start_ts: f.start_ts,
+                end_ts: f.end_ts,
+                duration: f.duration
+              },
+              onSelect: () => {
+                aircraftStore.selectedHistoryInterval = f;
+                aircraftStore.historyVersion++;
+                if (f.lat && f.lon) {
+                  api.map.getMapInstance().flyTo({
+                    center: [f.lon, f.lat],
+                    zoom: 8
+                  });
+                }
+              }
+            }))
+          });
+        }
+        return results;
+      } catch {
+        return [];
+      }
+    }
+  });
 
   (async () => {
     try {

@@ -21,6 +21,7 @@ nav:
       - "plugins/ship162.md"
       - "plugins/weather.md"
       - "plugins/airports.md"
+      - "plugins/explore.md"
     - Examples:
       - "plugins/examples/citypair.md"
       - "plugins/examples/sensors.md"
@@ -84,11 +85,13 @@ plugins:
           # without installing the entire project
           paths:
             - packages/tangram_core/src
+            - packages/tangram_history/src
             - packages/tangram_jet1090/src
             - packages/tangram_weather/src
             - packages/tangram_globe/src
             - packages/tangram_system/src
             - packages/tangram_ship162/src
+            - packages/tangram_explore/src
           inventories:
             - https://docs.python.org/3/objects.inv
             - https://fastapi.tiangolo.com/objects.inv
@@ -123,6 +126,7 @@ markdown_extensions:
           case: lower
   - pymdownx.highlight:
       pygments_lang_class: true
+  - pymdownx.snippets
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid

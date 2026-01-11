@@ -27,7 +27,8 @@
     "./vite-plugin": "./src/tangram_core/vite-plugin-tangram.mjs",
     "./api": "./src/tangram_core/api.ts",
     "./types": "./src/tangram_core/types.d.ts",
-    "./colour": "./src/tangram_core/colour.ts"
+    "./utils": "./src/tangram_core/utils.ts",
+    "./components": "./src/tangram_core/components.ts"
   },
   "dependencies": {
     "@deck.gl/aggregation-layers": "^9.2.5",
@@ -47,6 +48,7 @@
     "font-awesome": "^4.7.0",
     "lit-html": "^3.3.2",
     "maplibre-gl": "^5.15.0",
+    "parquet-wasm": "^0.7.1",
     "phoenix": "^1.8.3",
     "pmtiles": "^4.3.2",
     "rs1090-wasm": "^0.4.14",
@@ -54,6 +56,7 @@
   },
   "devDependencies": {
     "@types/phoenix": "^1.6.7",
+    "vite": "^7.2.7",
     "vite-plugin-static-copy": "^3.1.4"
   }
 }

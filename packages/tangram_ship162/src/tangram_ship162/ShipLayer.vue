@@ -30,7 +30,7 @@
 import { computed, inject, onUnmounted, ref, watch, reactive, type Ref } from "vue";
 import { IconLayer, PolygonLayer } from "@deck.gl/layers";
 import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core/api";
-import { oklchToDeckGLColor } from "@open-aviation/tangram-core/colour";
+import { oklchToDeckGLColor } from "@open-aviation/tangram-core/utils";
 import type { Ship162Vessel } from ".";
 import type { PickingInfo } from "@deck.gl/core";
 

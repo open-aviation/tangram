@@ -9,6 +9,7 @@ use pyo3::{
 #[cfg(feature = "stubgen")]
 use pyo3_stub_gen::derive::*;
 
+use redis::AsyncCommands;
 use std::sync::Arc;
 use tangram_core::{
     bbox::BoundingBoxState,
@@ -50,6 +51,7 @@ pub struct ShipsConfig {
     pub history_optimize_target_file_size: u64,
     pub history_vacuum_interval_secs: u64,
     pub history_vacuum_retention_period_secs: Option<u64>,
+    pub search_channel: String,
 }
 
 #[cfg(feature = "pyo3")]
@@ -71,6 +73,7 @@ impl ShipsConfig {
         history_optimize_target_file_size: u64,
         history_vacuum_interval_secs: u64,
         history_vacuum_retention_period_secs: Option<u64>,
+        search_channel: String,
     ) -> Self {
         Self {
             redis_url,
@@ -85,6 +88,7 @@ impl ShipsConfig {
             history_optimize_target_file_size,
             history_vacuum_interval_secs,
             history_vacuum_retention_period_secs,
+            search_channel,
         }
     }
 }
@@ -122,6 +126,53 @@ async fn start_ship162_subscriber(
     }
     Ok(())
 }
+
+async fn start_search_subscriber(
+    redis_url: String,
+    search_channel: String,
+    state_vectors: Arc<Mutex<ShipStateVectors>>,
+) -> Result<()> {
+    let client = redis::Client::open(redis_url)?;
+    let mut conn = client.get_multiplexed_async_connection().await?;
+    let mut pubsub = client.get_async_pubsub().await?;
+
+    let (channel, event) = search_channel
+        .split_once(':')
+        .unwrap_or((&search_channel, "search"));
+
+    let topic = format!("from:{}:{}", channel, event);
+    pubsub.subscribe(&topic).await?;
+
+    info!("Ship162 search subscriber listening on '{}'", topic);
+
+    let mut stream = pubsub.on_message();
+    while let Some(msg) = stream.next().await {
+        let payload: String = msg.get_payload()?;
+        if let Ok(req) = serde_json::from_str::<serde_json::Value>(&payload) {
+            if let (Some(query), Some(request_id)) = (
+                req.get("query").and_then(|v| v.as_str()),
+                req.get("request_id").and_then(|v| v.as_str()),
+            ) {
+                let results = {
+                    let state = state_vectors.lock().await;
+                    state.search(query)
+                };
+
+                let response_topic = format!("to:{}:{}_result", channel, event);
+                let response = serde_json::json!({
+                    "request_id": request_id,
+                    "data": results
+                });
+
+                if let Ok(json) = serde_json::to_string(&response) {
+                    let _: Result<(), _> = conn.publish(response_topic, json).await;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 async fn _run_service(config: ShipsConfig) -> Result<()> {
     let bbox_state = Arc::new(Mutex::new(BoundingBoxState::new()));
     let bbox_subscriber_state = Arc::clone(&bbox_state);
@@ -166,6 +217,7 @@ async fn _run_service(config: ShipsConfig) -> Result<()> {
     });
 
     let ship162_subscriber_state = Arc::clone(&state_vectors);
+    let search_subscriber_state = Arc::clone(&state_vectors);
 
     let redis_url_clone2 = config.redis_url.clone();
     let ship162_subscriber_handle = tokio::spawn(async move {
@@ -178,6 +230,20 @@ async fn _run_service(config: ShipsConfig) -> Result<()> {
         {
             Ok(_) => info!("ship162 subscriber stopped normally"),
             Err(e) => error!("ship162 subscriber error: {}", e),
+        }
+    });
+
+    let redis_url_clone3 = config.redis_url.clone();
+    let search_subscriber_handle = tokio::spawn(async move {
+        match start_search_subscriber(
+            redis_url_clone3,
+            config.search_channel,
+            search_subscriber_state,
+        )
+        .await
+        {
+            Ok(_) => info!("Search subscriber stopped normally"),
+            Err(e) => error!("Search subscriber error: {}", e),
         }
     });
 
@@ -203,6 +269,9 @@ async fn _run_service(config: ShipsConfig) -> Result<()> {
         }
         res = ship162_subscriber_handle => {
             error!("ship162 subscriber task exited unexpectedly: {:?}", res);
+        }
+        res = search_subscriber_handle => {
+            error!("Search subscriber task exited unexpectedly: {:?}", res);
         }
         res = streaming_handle => {
             error!("Streaming task exited unexpectedly: {:?}", res);

@@ -69,3 +69,75 @@ export function oklchToDeckGLColor(
     a
   ];
 }
+
+export const formatTime = (ts: string) => {
+  const d = new Date(ts + "Z");
+  return (
+    d.toLocaleString("en-GB", {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }) + "Z"
+  );
+};
+
+export const formatDuration = (sec: number) => {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  return `${h}h ${m}m`;
+};
+
+export type Position3D = [number, number, number];
+export interface PathSegment<ColorT> {
+  path: Position3D[];
+  colors: ColorT[];
+  dashed: boolean;
+}
+
+export function* generateSegments<T, ColorT>(
+  data: Iterable<T>,
+  opts: {
+    getPosition: (d: T) => Position3D | null;
+    getTimestamp: (d: T) => number | null;
+    getColor: (d: T) => ColorT;
+    gapColor: ColorT;
+    maxGapSeconds: number;
+  }
+): Generator<PathSegment<ColorT>> {
+  let segment: PathSegment<ColorT> = { path: [], colors: [], dashed: false };
+  let lastT: number | null = null;
+  let lastPos: Position3D | null = null;
+
+  for (const d of data) {
+    const pos = opts.getPosition(d);
+    if (!pos) continue;
+
+    const t = opts.getTimestamp(d);
+
+    if (lastT !== null && t !== null && lastPos !== null) {
+      if (Math.abs(t - lastT) > opts.maxGapSeconds) {
+        if (segment.path.length > 1) {
+          yield segment;
+        }
+        yield {
+          path: [lastPos, pos],
+          colors: [opts.gapColor, opts.gapColor],
+          dashed: true
+        };
+        segment = { path: [], colors: [], dashed: false };
+      }
+    }
+
+    segment.path.push(pos);
+    segment.colors.push(opts.getColor(d));
+
+    lastT = t;
+    lastPos = pos;
+  }
+
+  if (segment.path.length > 1) {
+    yield segment;
+  }
+}

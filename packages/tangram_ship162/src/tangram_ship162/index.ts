@@ -1,16 +1,21 @@
 import { watch } from "vue";
-import type { TangramApi, Entity } from "@open-aviation/tangram-core/api";
+import type { TangramApi, Entity, SearchResult } from "@open-aviation/tangram-core/api";
 import ShipLayer from "./ShipLayer.vue";
 import ShipCountWidget from "./ShipCountWidget.vue";
 import ShipInfoWidget from "./ShipInfoWidget.vue";
 import ShipTrailLayer from "./ShipTrailLayer.vue";
-import { shipStore, type ShipSelectionData } from "./store";
+import ShipResult from "./ShipResult.vue";
+import ShipHistoryLayer from "./ShipHistoryLayer.vue";
+import ShipHistoryGroup from "./ShipHistoryGroup.vue";
+import ShipHistoryInterval from "./ShipHistoryInterval.vue";
+import { shipStore, type ShipSelectionData, type HistoryInterval } from "./store";
 
 const ENTITY_TYPE = "ship162_ship";
 
 interface Ship162FrontendConfig {
   topbar_order: number;
   sidebar_order: number;
+  search_channel?: string;
 }
 
 export interface MmsiInfo {
@@ -42,7 +47,14 @@ export interface Ship162Vessel {
   turn?: number;
 }
 
+interface BackendSearchResult {
+  state: Ship162Vessel;
+  score: number;
+}
+
 export function install(api: TangramApi, config?: Ship162FrontendConfig) {
+  const channel = config?.search_channel || "ship162:search";
+
   api.ui.registerWidget("ship162-count-widget", "TopBar", ShipCountWidget, {
     priority: config?.topbar_order
   });
@@ -53,7 +65,111 @@ export function install(api: TangramApi, config?: Ship162FrontendConfig) {
   });
   api.ui.registerWidget("ship162-ship-layer", "MapOverlay", ShipLayer);
   api.ui.registerWidget("ship162-trail-layer", "MapOverlay", ShipTrailLayer);
+  api.ui.registerWidget("ship162-history-layer", "MapOverlay", ShipHistoryLayer);
+
   api.state.registerEntityType(ENTITY_TYPE);
+
+  api.search.registerProvider({
+    id: "ships",
+    name: "Ships (Live)",
+    search: async (query, signal) => {
+      if (query.length < 3) return [];
+      try {
+        const results = await api.realtime.request<BackendSearchResult[]>(
+          channel,
+          { query },
+          5000
+        );
+        return results.map(r => ({
+          id: `ship-${r.state.mmsi}`,
+          component: ShipResult,
+          props: {
+            name: r.state.ship_name,
+            mmsi: r.state.mmsi.toString(),
+            callsign: r.state.callsign,
+            type: r.state.ship_type
+          },
+          score: r.score,
+          onSelect: () => {
+            const entity: Entity = {
+              id: r.state.mmsi.toString(),
+              type: ENTITY_TYPE,
+              state: r.state
+            };
+            api.state.selectEntity(entity);
+
+            if (r.state.latitude && r.state.longitude) {
+              api.map.getMapInstance().flyTo({
+                center: [r.state.longitude, r.state.latitude],
+                zoom: 10
+              });
+            }
+          }
+        }));
+      } catch {
+        return [];
+      }
+    }
+  });
+
+  api.search.registerProvider({
+    id: "ships-history",
+    name: "Ships (History)",
+    search: async (query, signal) => {
+      if (query.length < 3) return [];
+      try {
+        const res = await fetch(`/ship162/search?q=${encodeURIComponent(query)}`, {
+          signal
+        });
+        if (!res.ok) return [];
+        const intervals: HistoryInterval[] = await res.json();
+
+        const groups = new Map<string, HistoryInterval[]>();
+        for (const iv of intervals) {
+          const key = `${iv.mmsi}|${iv.ship_name || "Unknown"}`;
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key)!.push(iv);
+        }
+
+        const results: SearchResult[] = [];
+        for (const [key, groupIntervals] of groups) {
+          const [mmsi, name] = key.split("|");
+
+          results.push({
+            id: `group-${key}`,
+            component: ShipHistoryGroup,
+            props: {
+              mmsi,
+              name
+            },
+            score: 80,
+            children: groupIntervals.map(s => ({
+              id: `ship-${s.mmsi}-${s.start_ts}`,
+              component: ShipHistoryInterval,
+              props: {
+                start_ts: s.start_ts,
+                end_ts: s.end_ts,
+                duration: s.duration
+              },
+              onSelect: () => {
+                shipStore.selectedHistoryInterval = s;
+                shipStore.historyVersion++;
+                if (s.lat && s.lon) {
+                  api.map.getMapInstance().flyTo({
+                    center: [s.lon, s.lat],
+                    zoom: 10
+                  });
+                }
+              }
+            }))
+          });
+        }
+        return results;
+      } catch {
+        return [];
+      }
+    }
+  });
 
   (async () => {
     try {
