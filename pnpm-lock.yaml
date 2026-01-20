@@ -122,8 +122,8 @@ importers:
         specifier: ^7.2.7
         version: 7.3.1(@types/node@25.0.3)(jiti@2.6.1)
       vite-plugin-static-copy:
-        specifier: ^3.1.4
-        version: 3.1.4(vite@7.3.1(@types/node@25.0.3)(jiti@2.6.1))
+        specifier: ^3.1.5
+        version: 3.1.5(vite@7.3.1(@types/node@25.0.3)(jiti@2.6.1))
 
   packages/tangram_example:
     dependencies:
@@ -1905,8 +1905,8 @@ packages:
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
-  vite-plugin-static-copy@3.1.4:
-    resolution: {integrity: sha512-iCmr4GSw4eSnaB+G8zc2f4dxSuDjbkjwpuBLLGvQYR9IW7rnDzftnUjOH5p4RYR+d4GsiBqXRvzuFhs5bnzVyw==}
+  vite-plugin-static-copy@3.1.5:
+    resolution: {integrity: sha512-9pbZn9Vb+uUNg/Tr/f2MXmGvfSfLeWjscS4zTA3v+sWqKN+AjJ/ipTFwaqdopJkNkxG5DfgYrZXD80ljbNDxbg==}
     engines: {node: ^18.0.0 || >=20.0.0}
     peerDependencies:
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0
@@ -3741,7 +3741,7 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  vite-plugin-static-copy@3.1.4(vite@7.3.1(@types/node@25.0.3)(jiti@2.6.1)):
+  vite-plugin-static-copy@3.1.5(vite@7.3.1(@types/node@25.0.3)(jiti@2.6.1)):
     dependencies:
       chokidar: 3.6.0
       p-map: 7.0.4
