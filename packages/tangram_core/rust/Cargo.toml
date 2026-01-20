@@ -19,7 +19,7 @@ crate-type = ["cdylib", "rlib"]
 anyhow = "1.0"
 bytes = "1"
 futures = "0.3"
-redis = { version = "0.32", features = ["tokio-comp"] }
+redis = { version = "1.0.2", features = ["tokio-comp"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }

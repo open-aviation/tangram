@@ -256,8 +256,9 @@ async fn consume_stream_for_table(
     let consumer_name = format!("consumer-{}", Uuid::new_v4());
 
     let client = redis::Client::open(redis_url)?;
-    let mut conn = client.get_multiplexed_async_connection().await?;
-
+    // NOTE: redis 0.32..1.0 introduced a default response timeout of 500ms, we disable it because XREAD blocks for 5s
+    let redis_config = redis::AsyncConnectionConfig::new().set_response_timeout(None);
+    let mut conn = client.get_multiplexed_async_connection_with_config(&redis_config).await?;
     let _: Result<(), _> = conn
         .xgroup_create_mkstream(&stream_key, group_name, "0-0")
         .await;
@@ -289,7 +290,7 @@ async fn consume_stream_for_table(
                 for stream_id in stream_key_result.ids {
                     msg_ids_to_ack.push(stream_id.id.clone());
                     if let Some(payload_value) = stream_id.map.get("data") {
-                        let payload: Vec<u8> = match redis::from_redis_value(payload_value) {
+                        let payload: Vec<u8> = match redis::from_redis_value_ref(payload_value) {
                             Ok(p) => p,
                             Err(e) => {
                                 error!("failed to deserialize payload: {}", e);
