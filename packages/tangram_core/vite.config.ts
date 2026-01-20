@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, normalizePath } from "vite";
 import vue from "@vitejs/plugin-vue";
 import path from "path";
 import { viteStaticCopy } from "vite-plugin-static-copy";
@@ -20,6 +20,7 @@ const DECKGL_PACKAGES = [
 // - ./src/tangram_core/vite-plugin-tangram.mjs
 // - ../../tsconfig.json paths
 
+// NOTE: normalizePath required for windows: https://github.com/sapphi-red/vite-plugin-static-copy/blob/4746d00ce0644a96313be438738b8ca8066b6562/README.md?plain=1#L42-L55
 export default defineConfig({
   plugins: [
     vue(),
@@ -27,11 +28,22 @@ export default defineConfig({
       targets: [
         {
           src: [
-            path.resolve(__dirname, "node_modules/vue/dist/vue.esm-browser.prod.js"),
-            path.resolve(__dirname, "node_modules/maplibre-gl/dist/maplibre-gl.js"),
-            path.resolve(__dirname, "node_modules/maplibre-gl/dist/maplibre-gl.js.map"),
-            path.resolve(__dirname, "node_modules/lit-html/lit-html.js"),
-            path.resolve(__dirname, "node_modules/lit-html/lit-html.js.map"),
+            normalizePath(
+              path.resolve(__dirname, "node_modules/vue/dist/vue.esm-browser.prod.js")
+            ),
+            normalizePath(
+              path.resolve(__dirname, "node_modules/maplibre-gl/dist/maplibre-gl.js")
+            ),
+            normalizePath(
+              path.resolve(
+                __dirname,
+                "node_modules/maplibre-gl/dist/maplibre-gl.js.map"
+              )
+            ),
+            normalizePath(path.resolve(__dirname, "node_modules/lit-html/lit-html.js")),
+            normalizePath(
+              path.resolve(__dirname, "node_modules/lit-html/lit-html.js.map")
+            ),
             /*
              * HACK: Putting `rs1090` in the core would seem very strange, because `jet1090`
              * is the only consumer of it. However, this is necessary to work around
@@ -58,9 +70,18 @@ export default defineConfig({
              *
              * So we just copy the files over manually for now.
              */
-            path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm.js"),
-            path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm_bg.js"),
-            path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm_bg.wasm"),
+            normalizePath(
+              path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm.js")
+            ),
+            normalizePath(
+              path.resolve(__dirname, "node_modules/rs1090-wasm/web/rs1090_wasm_bg.js")
+            ),
+            normalizePath(
+              path.resolve(
+                __dirname,
+                "node_modules/rs1090-wasm/web/rs1090_wasm_bg.wasm"
+              )
+            ),
             /**
              * In tangram>=0.5, we will migrate most things to parquet/arrow so we are putting
              * `parquet-wasm` in the core for the forseeable future.
@@ -70,20 +91,28 @@ export default defineConfig({
              * - `apache-arrow`: Arrow.mjs internally fetches a bunch of mjs
              * We need to modify vite.lib-esm.config.ts to bundle these properly.
              */
-            path.resolve(__dirname, "node_modules/parquet-wasm/esm/parquet_wasm.js"),
-            path.resolve(
-              __dirname,
-              "node_modules/parquet-wasm/esm/parquet_wasm_bg.wasm"
+            normalizePath(
+              path.resolve(__dirname, "node_modules/parquet-wasm/esm/parquet_wasm.js")
             ),
-            path.resolve(
-              __dirname,
-              "node_modules/font-awesome/css/font-awesome.min.css"
+            normalizePath(
+              path.resolve(
+                __dirname,
+                "node_modules/parquet-wasm/esm/parquet_wasm_bg.wasm"
+              )
+            ),
+            normalizePath(
+              path.resolve(
+                __dirname,
+                "node_modules/font-awesome/css/font-awesome.min.css"
+              )
             )
           ],
           dest: "."
         },
         {
-          src: path.resolve(__dirname, "node_modules/font-awesome/fonts/*"),
+          src: normalizePath(
+            path.resolve(__dirname, "node_modules/font-awesome/fonts/*")
+          ),
           dest: "fonts"
         }
       ]
@@ -91,10 +120,10 @@ export default defineConfig({
   ],
   build: {
     sourcemap: true,
-    outDir: path.resolve(__dirname, "./dist-frontend"),
+    outDir: normalizePath(path.resolve(__dirname, "./dist-frontend")),
     emptyOutDir: false,
     rollupOptions: {
-      input: path.resolve(__dirname, "index.html"),
+      input: normalizePath(path.resolve(__dirname, "index.html")),
       external: [
         "vue",
         "maplibre",
