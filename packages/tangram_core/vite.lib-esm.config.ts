@@ -9,7 +9,7 @@
  * An alternative would be to use [`esbuild`](https://github.com/manzt/anywidget/issues/369#issuecomment-1792376003)
  * but we are already using Vite so this is more convenient.
  */
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, normalizePath, type Plugin } from "vite";
 import path from "path";
 
 const DECKGL_PACKAGES = [
@@ -55,7 +55,7 @@ export default defineConfig({
     "process.env.NODE_ENV": JSON.stringify("production")
   },
   build: {
-    outDir: path.resolve(__dirname, "./dist-frontend"),
+    outDir: normalizePath(path.resolve(__dirname, "./dist-frontend")),
     rollupOptions: {
       input: Object.fromEntries(
         DECKGL_PACKAGES.map(pkg => [
