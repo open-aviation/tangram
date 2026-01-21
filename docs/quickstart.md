@@ -199,7 +199,7 @@ Ensure you have the following installed:
 - [Rust](https://www.rust-lang.org/tools/install)
 - [Node](https://nodejs.org/) and [pnpm](https://pnpm.io/)
 
-To get things quickly installed:
+To get things quickly installed on a Unix-based system:
 
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -209,6 +209,16 @@ fnm install --latest
 npm install -g corepack
 corepack enable pnpm
 ```
+
+??? Windows support
+
+    Use of WSL is strongly recommended.
+
+    To build Rust code, you will need `link.exe`, which can be obtained via MSVC Build Tools. Alternatively, set the default to the GNU ABI.
+
+    You will also need [NASM](https://www.nasm.us/pub/nasm/releasebuilds/) and [CMake](https://cmake.org/download/) for the `aws-lc-rs` for JSON web token support in `tangram_core`.
+
+    Finally, to run Redis, the easiest option will be to run it in WSL, or Docker.
 
 ### Environment Setup
 

@@ -2,9 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
-    "python_full_version >= '3.12'",
-    "python_full_version == '3.11.*'",
-    "python_full_version < '3.11'",
+    "python_full_version >= '3.12' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and sys_platform == 'win32'",
+    "python_full_version == '3.11.*' and sys_platform != 'win32'",
+    "python_full_version == '3.11.*' and sys_platform == 'win32'",
+    "python_full_version < '3.11' and sys_platform != 'win32'",
+    "python_full_version < '3.11' and sys_platform == 'win32'",
 ]
 
 [manifest]
@@ -607,8 +610,8 @@ name = "eccodeslib"
 version = "2.44.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "eckitlib" },
-    { name = "fckitlib" },
+    { name = "eckitlib", marker = "sys_platform != 'win32'" },
+    { name = "fckitlib", marker = "sys_platform != 'win32'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f8/0c/2c5e335d1d8838d02a8de851ca405cd78a84a81fdc67e9ce63810aa07fdb/eccodeslib-2.44.1.8-cp310-cp310-macosx_13_0_arm64.whl", hash = "sha256:afbb97fcb1c5e5c894c1ba30deb17e050523965478d8e2cac067470bc9584242", size = 8927003, upload-time = "2025-12-09T07:57:55.979Z" },
@@ -701,7 +704,7 @@ name = "fckitlib"
 version = "0.14.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "eckitlib" },
+    { name = "eckitlib", marker = "sys_platform != 'win32'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6e/fa/9c245198ff109cf654909673a5b7171d711556bc5264002151a0e671d137/fckitlib-0.14.1.8-cp310-cp310-macosx_13_0_arm64.whl", hash = "sha256:f5ad6c433afe773c3c73cc510c679e7f97a623740721f4b3654308e71ec0c7d6", size = 411475, upload-time = "2025-12-09T07:58:04.78Z" },
@@ -880,7 +883,8 @@ name = "ipython"
 version = "8.37.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.11'",
+    "python_full_version < '3.11' and sys_platform != 'win32'",
+    "python_full_version < '3.11' and sys_platform == 'win32'",
 ]
 dependencies = [
     { name = "colorama", marker = "python_full_version < '3.11' and sys_platform == 'win32'" },
@@ -905,8 +909,10 @@ name = "ipython"
 version = "9.8.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12'",
-    "python_full_version == '3.11.*'",
+    "python_full_version >= '3.12' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and sys_platform == 'win32'",
+    "python_full_version == '3.11.*' and sys_platform != 'win32'",
+    "python_full_version == '3.11.*' and sys_platform == 'win32'",
 ]
 dependencies = [
     { name = "colorama", marker = "python_full_version >= '3.11' and sys_platform == 'win32'" },
@@ -1208,7 +1214,7 @@ wheels = [
 
 [package.optional-dependencies]
 patchelf = [
-    { name = "patchelf" },
+    { name = "patchelf", marker = "sys_platform != 'win32'" },
 ]
 
 [[package]]
@@ -1419,7 +1425,8 @@ name = "numpy"
 version = "2.2.6"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.11'",
+    "python_full_version < '3.11' and sys_platform != 'win32'",
+    "python_full_version < '3.11' and sys_platform == 'win32'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/76/21/7d2a95e4bba9dc13d043ee156a356c0a8f0c6309dff6b21b4d71a073b8a8/numpy-2.2.6.tar.gz", hash = "sha256:e29554e2bef54a90aa5cc07da6ce955accb83f21ab5de01a62c8478897b264fd", size = 20276440, upload-time = "2025-05-17T22:38:04.611Z" }
 wheels = [
@@ -1484,8 +1491,10 @@ name = "numpy"
 version = "2.3.5"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12'",
-    "python_full_version == '3.11.*'",
+    "python_full_version >= '3.12' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and sys_platform == 'win32'",
+    "python_full_version == '3.11.*' and sys_platform != 'win32'",
+    "python_full_version == '3.11.*' and sys_platform == 'win32'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/76/65/21b3bc86aac7b8f2862db1e808f1ea22b028e30a225a34a5ede9bf8678f2/numpy-2.3.5.tar.gz", hash = "sha256:784db1dcdab56bf0517743e746dfb0f885fc68d948aba86eeec2cba234bdf1c0", size = 20584950, upload-time = "2025-11-16T22:52:42.067Z" }
 wheels = [
@@ -1764,7 +1773,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -2629,12 +2638,14 @@ source = { virtual = "." }
 
 [package.dev-dependencies]
 build = [
-    { name = "maturin", extra = ["patchelf"] },
+    { name = "maturin" },
+    { name = "maturin", extra = ["patchelf"], marker = "sys_platform != 'win32'" },
 ]
 dev = [
     { name = "anyio" },
     { name = "ipykernel" },
-    { name = "maturin", extra = ["patchelf"] },
+    { name = "maturin" },
+    { name = "maturin", extra = ["patchelf"], marker = "sys_platform != 'win32'" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
@@ -2657,11 +2668,15 @@ typing = [
 [package.metadata]
 
 [package.metadata.requires-dev]
-build = [{ name = "maturin", extras = ["patchelf"], specifier = ">=1.9.3" }]
+build = [
+    { name = "maturin", marker = "sys_platform == 'win32'", specifier = ">=1.9.3" },
+    { name = "maturin", extras = ["patchelf"], marker = "sys_platform != 'win32'", specifier = ">=1.9.3" },
+]
 dev = [
     { name = "anyio", specifier = ">=4.8.0" },
     { name = "ipykernel", specifier = ">=6.29.5" },
-    { name = "maturin", extras = ["patchelf"], specifier = ">=1.9.3" },
+    { name = "maturin", marker = "sys_platform == 'win32'", specifier = ">=1.9.3" },
+    { name = "maturin", extras = ["patchelf"], marker = "sys_platform != 'win32'", specifier = ">=1.9.3" },
     { name = "mypy", specifier = ">=1.17.1" },
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "ruff", specifier = ">=0.12.7" },
@@ -2994,7 +3009,8 @@ name = "xarray"
 version = "2025.6.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.11'",
+    "python_full_version < '3.11' and sys_platform != 'win32'",
+    "python_full_version < '3.11' and sys_platform == 'win32'",
 ]
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -3011,8 +3027,10 @@ name = "xarray"
 version = "2025.12.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12'",
-    "python_full_version == '3.11.*'",
+    "python_full_version >= '3.12' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and sys_platform == 'win32'",
+    "python_full_version == '3.11.*' and sys_platform != 'win32'",
+    "python_full_version == '3.11.*' and sys_platform == 'win32'",
 ]
 dependencies = [
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
