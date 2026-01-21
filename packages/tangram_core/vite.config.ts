@@ -1,7 +1,8 @@
-import { defineConfig, normalizePath } from "vite";
+import { defineConfig, normalizePath, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import path from "path";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+import fs from "fs/promises";
 
 const DECKGL_PACKAGES = [
   "@deck.gl/core",
@@ -116,6 +117,11 @@ export default defineConfig({
           dest: "fonts"
         }
       ]
+    }),
+    copyToPythonPackagePlugin({
+      enabled: true,
+      pythonPackageDir: "src/tangram_core",
+      includePackageJson: true
     })
   ],
   build: {
@@ -135,3 +141,61 @@ export default defineConfig({
     }
   }
 });
+
+// required workaround for https://github.com/open-aviation/tangram/pull/99#issuecomment-3777038726
+function copyToPythonPackagePlugin(options: {
+  enabled?: boolean;
+  pythonPackageDir: string;
+  includePackageJson?: boolean;
+}): Plugin {
+  const projectRoot = __dirname;
+  const enabled = options.enabled ?? false;
+  const includePackageJson = options.includePackageJson ?? true;
+
+  return {
+    name: "tangram-python-package-sync",
+    apply: "build",
+    async writeBundle(outputOptions) {
+      if (!enabled) return;
+
+      const outDir = outputOptions.dir
+        ? path.resolve(projectRoot, outputOptions.dir)
+        : path.resolve(projectRoot, "dist-frontend");
+      const pythonPackageDir = path.resolve(projectRoot, options.pythonPackageDir);
+      const distDst = path.join(pythonPackageDir, "dist-frontend");
+
+      try {
+        await fs.stat(outDir);
+      } catch {
+        return;
+      }
+
+      await fs.rm(distDst, { recursive: true, force: true });
+      await copyDirRecursive(outDir, distDst);
+
+      if (includePackageJson) {
+        await fs.copyFile(
+          path.resolve(projectRoot, "package.json"),
+          path.join(pythonPackageDir, "package.json")
+        );
+      }
+    }
+  };
+}
+
+async function copyDirRecursive(src: string, dst: string): Promise<void> {
+  await fs.mkdir(dst, { recursive: true });
+  const entries = await fs.readdir(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const dstPath = path.join(dst, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyDirRecursive(srcPath, dstPath);
+    } else if (entry.isFile()) {
+      await fs.mkdir(path.dirname(dstPath), { recursive: true });
+      await fs.copyFile(srcPath, dstPath);
+    }
+  }
+}
