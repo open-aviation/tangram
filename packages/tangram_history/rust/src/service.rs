@@ -258,7 +258,9 @@ async fn consume_stream_for_table(
     let client = redis::Client::open(redis_url)?;
     // NOTE: redis 0.32..1.0 introduced a default response timeout of 500ms, we disable it because XREAD blocks for 5s
     let redis_config = redis::AsyncConnectionConfig::new().set_response_timeout(None);
-    let mut conn = client.get_multiplexed_async_connection_with_config(&redis_config).await?;
+    let mut conn = client
+        .get_multiplexed_async_connection_with_config(&redis_config)
+        .await?;
     let _: Result<(), _> = conn
         .xgroup_create_mkstream(&stream_key, group_name, "0-0")
         .await;

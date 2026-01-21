@@ -10,7 +10,7 @@
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.6.0",
     "eslint": "^9.39.2",
-    "eslint-plugin-vue": "^10.6.2",
+    "eslint-plugin-vue": "^10.7.0",
     "jiti": "^2.6.1",
     "prettier": "^3.8.0",
     "typescript": "^5.9.3",

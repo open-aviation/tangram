@@ -31,15 +31,15 @@
     "./components": "./src/tangram_core/components.ts"
   },
   "dependencies": {
-    "@deck.gl/aggregation-layers": "^9.2.5",
-    "@deck.gl/core": "^9.2.5",
+    "@deck.gl/aggregation-layers": "^9.2.6",
+    "@deck.gl/core": "^9.2.6",
     "@deck.gl/extensions": "^9.2.6",
-    "@deck.gl/geo-layers": "^9.2.5",
-    "@deck.gl/json": "^9.2.5",
-    "@deck.gl/layers": "^9.2.5",
+    "@deck.gl/geo-layers": "^9.2.6",
+    "@deck.gl/json": "^9.2.6",
+    "@deck.gl/layers": "^9.2.6",
     "@deck.gl/mapbox": "^9.2.6",
-    "@deck.gl/mesh-layers": "^9.2.5",
-    "@deck.gl/widgets": "^9.2.5",
+    "@deck.gl/mesh-layers": "^9.2.6",
+    "@deck.gl/widgets": "^9.2.6",
     "@fontsource/b612": "^5.2.7",
     "@fontsource/inconsolata": "^5.2.8",
     "@fontsource/roboto-condensed": "^5.2.8",
@@ -52,11 +52,11 @@
     "phoenix": "^1.8.3",
     "pmtiles": "^4.3.2",
     "rs1090-wasm": "^0.4.14",
-    "vue": "^3.5.26"
+    "vue": "^3.5.27"
   },
   "devDependencies": {
     "@types/phoenix": "^1.6.7",
-    "vite": "^7.2.7",
+    "vite": "^7.3.1",
     "vite-plugin-static-copy": "^3.1.5"
   }
 }
