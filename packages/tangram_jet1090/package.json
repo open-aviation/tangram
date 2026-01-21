@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@deck.gl/core": "^9.2.5",
-    "@deck.gl/extensions": "^9.2.5",
+    "@deck.gl/extensions": "^9.2.6",
     "@deck.gl/layers": "^9.2.5",
     "maplibre-gl": "^5.16.0",
     "rs1090-wasm": "^0.4.14",
