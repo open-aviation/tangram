@@ -15,7 +15,10 @@ dev = [
     { include-group = "typing" },
     { include-group = "lint" },
 ]
-build = ["maturin[patchelf]>=1.9.3"]
+build = [
+    "maturin[patchelf]>=1.9.3; platform_system != 'Windows'",
+    "maturin>=1.9.3; platform_system == 'Windows'",
+]
 test = ["pytest>=8.4.1", "anyio>=4.8.0"]
 lint = ["ruff>=0.12.7"]
 typing = ["mypy>=1.17.1"]

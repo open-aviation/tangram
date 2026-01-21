@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import urllib.parse
+import urllib.request
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -86,11 +87,17 @@ def get_distribution_path(dist_name: str) -> Path:
                 # url may point to a git or zip archive, but since we only care
                 # about local paths, we only handle the file:// scheme here
                 and url.startswith("file://")
-                and (
-                    path1 := Path(urllib.parse.unquote(urllib.parse.urlparse(url).path))
-                ).is_dir()
             ):
-                return path1
+                parsed = urllib.parse.urlparse(url)
+                if os.name == "nt":
+                    path_str = urllib.request.url2pathname(parsed.path)
+                    if parsed.netloc and parsed.netloc not in ("", "localhost"):
+                        path_str = f"//{parsed.netloc}{path_str}"
+                    path1 = Path(path_str)
+                else:
+                    path1 = Path(urllib.parse.unquote(parsed.path))
+                if path1.is_dir():
+                    return path1
     except (PackageNotFoundError, json.JSONDecodeError, FileNotFoundError):
         pass
 
