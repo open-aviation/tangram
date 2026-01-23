@@ -1829,6 +1829,7 @@ pip<span class="w"> </span>install<span class="w"> </span>tangram_core
 Install <a href="https://podman.io/docs/installation">podman</a> or <a href="https://docs.docker.com/engine/install/">docker</a> and run:</p>
 <div class="language-shell highlight"><pre><span></span><code>podman<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--rm<span class="w"> </span>-p<span class="w"> </span><span class="m">6379</span>:6379<span class="w"> </span>--name<span class="w"> </span>redis<span class="w"> </span>redis:8-alpine
 </code></pre></div>
+<p>On Windows, running podman/redis will require <a href="https://learn.microsoft.com/en-us/windows/wsl/install#install-wsl-command">WSL2</a>.</p>
 <p>To start tangram, run:</p>
 <div class="language-shell highlight"><pre><span></span><code>tangram<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>/path/to/your/tangram.toml
 </code></pre></div>
@@ -1936,13 +1937,31 @@ To extend <code>tangram</code>, start with the <a href="../plugins/backend/"><st
 <li><a href="https://www.rust-lang.org/tools/install">Rust</a></li>
 <li><a href="https://nodejs.org/">Node</a> and <a href="https://pnpm.io/">pnpm</a></li>
 </ul>
-<p>To get things quickly installed:</p>
+<p>To get things quickly installed on a Unix-based system:</p>
 <div class="language-sh highlight"><pre><span></span><code>curl<span class="w"> </span>-LsSf<span class="w"> </span>https://astral.sh/uv/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh
 curl<span class="w"> </span>--proto<span class="w"> </span><span class="s1">&#39;=https&#39;</span><span class="w"> </span>--tlsv1.2<span class="w"> </span>-sSf<span class="w"> </span>https://sh.rustup.rs<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh
 curl<span class="w"> </span>-fsSL<span class="w"> </span>https://fnm.vercel.app/install<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
 fnm<span class="w"> </span>install<span class="w"> </span>--latest
 npm<span class="w"> </span>install<span class="w"> </span>-g<span class="w"> </span>corepack
 corepack<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>pnpm
+</code></pre></div>
+<p>??? Windows support</p>
+<div class="language-text highlight"><pre><span></span><code>Use of WSL is strongly recommended.
+
+To build Rust code, you will need `link.exe`, which can be obtained via MSVC Build Tools. Alternatively, set the default to the GNU ABI.
+
+To build `tangram_core`, you will also need [NASM](https://www.nasm.us/pub/nasm/releasebuilds/) and [CMake](https://cmake.org/download/) for the `aws-lc-rs` for JSON web token. Alternatively, set `AWS_LC_SYS_PREBUILT_NASM=1` in the environment variables.
+
+To run `just` commands, use Git Bash.
+
+For Redis, use of podman is highly recommended.
+</code></pre></div>
+<p>??? Virtual Machine support</p>
+<div class="language-text highlight"><pre><span></span><code>Tangram requires WebGL 2.
+
+On Chromium, to force software rendering, go to `chrome://flags`, set `Override software rendering list` to `Enabled` and `ANGLE graphics backend` to OpenGL or D3D11.
+
+Otherwise, you will need to setup [GPU passthrough](https://juniorfox.net/article/gpu-passthrough-with-looking-glass).
 </code></pre></div>
 <h3 id="environment-setup">Environment Setup<a class="headerlink" href="#environment-setup" title="Permanent link">&para;</a></h3>
 <ol>
