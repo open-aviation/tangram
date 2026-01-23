@@ -1,6 +1,6 @@
 {
   "name": "@open-aviation/tangram-jet1090",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "main": "src/tangram_jet1090/index.ts",

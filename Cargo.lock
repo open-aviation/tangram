@@ -4671,7 +4671,7 @@ dependencies = [
 
 [[package]]
 name = "tangram_core_rs"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -4700,7 +4700,7 @@ dependencies = [
 
 [[package]]
 name = "tangram_history"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "arrow-array",
@@ -4728,7 +4728,7 @@ dependencies = [
 
 [[package]]
 name = "tangram_jet1090"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "arrow-array",
@@ -4753,7 +4753,7 @@ dependencies = [
 
 [[package]]
 name = "tangram_ship162"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "arrow-array",
