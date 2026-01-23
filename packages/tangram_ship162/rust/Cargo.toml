@@ -24,7 +24,7 @@ arrow-schema = "56.2.0"
 anyhow = "1.0"
 futures = "0.3"
 redis = { version = "1.0.2", features = ["tokio-comp"] }
-rs162 = { git = "https://github.com/xoolive/ship162", rev = "f5f9a26ae1f9d72d73a1d6e8c56ad7897e963c3a" }
+rs162 = { git = "https://github.com/xoolive/ship162", rev = "0cb1eac88716687cd9df2d129fa7a5abd66b0fa9" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }

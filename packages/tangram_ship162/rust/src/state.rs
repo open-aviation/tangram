@@ -17,7 +17,7 @@ use tracing::info;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShipStateVector {
     pub mmsi: u32,
-    pub lastseen: u64,
+    pub lastseen: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latitude: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -58,7 +58,7 @@ pub struct ShipStateVector {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TimedMessage {
-    pub timestamp: u64,
+    pub timestamp: f64,
     #[serde(flatten)]
     pub message: Message,
     #[serde(flatten)]
@@ -105,7 +105,7 @@ impl From<&TimedMessage> for ShipHistoryFrame {
         let message = &sentence.message;
         let mut frame = ShipHistoryFrame {
             mmsi: message.mmsi(),
-            timestamp: sentence.timestamp * 1_000_000,
+            timestamp: (sentence.timestamp * 1_000_000.0) as u64,
             latitude: None,
             longitude: None,
             ship_name: None,
@@ -364,7 +364,7 @@ impl ShipStateVectors {
 
         let vessel = self.ships.entry(mmsi).or_insert_with(|| ShipStateVector {
             mmsi,
-            lastseen: 0,
+            lastseen: 0.0,
             latitude: None,
             longitude: None,
             ship_name: None,
@@ -478,7 +478,7 @@ impl Identifiable for ShipStateVector {
 
 impl Tracked for ShipStateVector {
     fn lastseen(&self) -> u64 {
-        self.lastseen
+        self.lastseen as u64
     }
 }
 

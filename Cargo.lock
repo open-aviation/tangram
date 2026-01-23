@@ -4034,8 +4034,8 @@ dependencies = [
 
 [[package]]
 name = "rs162"
-version = "0.1.1"
-source = "git+https://github.com/xoolive/ship162?rev=f5f9a26ae1f9d72d73a1d6e8c56ad7897e963c3a#f5f9a26ae1f9d72d73a1d6e8c56ad7897e963c3a"
+version = "0.1.2"
+source = "git+https://github.com/xoolive/ship162?rev=0cb1eac88716687cd9df2d129fa7a5abd66b0fa9#0cb1eac88716687cd9df2d129fa7a5abd66b0fa9"
 dependencies = [
  "deku",
  "desperado",
