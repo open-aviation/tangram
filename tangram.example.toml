@@ -4,6 +4,7 @@ plugins = [
     # -- Core functionalities --
     "tangram_jet1090",
     "tangram_history",
+    "tangram_explore",
     # -- Extra functionalities --
     "tangram_system",
     "tangram_airports",

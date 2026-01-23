@@ -30,6 +30,7 @@ jobs:
           uv build --package tangram_system --out-dir dist
           uv build --package tangram_weather --out-dir dist
           uv build --package tangram_globe --out-dir dist
+          uv build --package tangram_explore --out-dir dist
       - uses: actions/upload-artifact@v6
         with:
           name: wheels-hatch
