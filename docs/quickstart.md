@@ -60,6 +60,8 @@ Install [podman](https://podman.io/docs/installation) or [docker](https://docs.d
 podman run -d --rm -p 6379:6379 --name redis redis:8-alpine
 ```
 
+On Windows, running podman/redis will require [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install#install-wsl-command).
+
 To start tangram, run:
 
 ```shell
@@ -216,9 +218,19 @@ corepack enable pnpm
 
     To build Rust code, you will need `link.exe`, which can be obtained via MSVC Build Tools. Alternatively, set the default to the GNU ABI.
 
-    You will also need [NASM](https://www.nasm.us/pub/nasm/releasebuilds/) and [CMake](https://cmake.org/download/) for the `aws-lc-rs` for JSON web token support in `tangram_core`.
+    To build `tangram_core`, you will also need [NASM](https://www.nasm.us/pub/nasm/releasebuilds/) and [CMake](https://cmake.org/download/) for the `aws-lc-rs` for JSON web token. Alternatively, set `AWS_LC_SYS_PREBUILT_NASM=1` in the environment variables.
 
-    Finally, to run Redis, the easiest option will be to run it in WSL, or Docker.
+    To run `just` commands, use Git Bash.
+
+    For Redis, use of podman is highly recommended.
+
+??? Virtual Machine support
+
+    Tangram requires WebGL 2.
+
+    On Chromium, to force software rendering, go to `chrome://flags`, set `Override software rendering list` to `Enabled` and `ANGLE graphics backend` to OpenGL or D3D11.
+
+    Otherwise, you will need to setup [GPU passthrough](https://juniorfox.net/article/gpu-passthrough-with-looking-glass).
 
 ### Environment Setup
 
