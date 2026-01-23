@@ -149,6 +149,11 @@ class Config:
         return config
 
 
+@dataclass(frozen=True)
+class ExposeField:
+    """Marker class for typing.Annotated to expose fields to the frontend."""
+
+
 #
 # when served over reverse proxies, we do not want to simply expose the entire
 # backend config to the frontend. the following structs are used to selectively

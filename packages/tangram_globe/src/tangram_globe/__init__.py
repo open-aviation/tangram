@@ -1,20 +1,16 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Annotated
 
 import tangram_core
+from tangram_core.config import ExposeField
 
 
 @dataclass
 class GlobeConfig(tangram_core.config.HasSidebarUiConfig):
-    topbar_order: int = 1000
-
-
-def transform_config(config_dict: dict[str, Any]) -> GlobeConfig:
-    from pydantic import TypeAdapter
-
-    return TypeAdapter(GlobeConfig).validate_python(config_dict)
+    topbar_order: Annotated[int, ExposeField()] = 1000
 
 
 plugin = tangram_core.Plugin(
-    frontend_path="dist-frontend", into_frontend_config_function=transform_config
+    frontend_path="dist-frontend",
+    config_class=GlobeConfig,
 )

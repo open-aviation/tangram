@@ -2,25 +2,20 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, NoReturn
+from typing import Annotated, NoReturn
 
 import orjson
 import psutil
 import redis.asyncio as redis
 import tangram_core
+from tangram_core.config import ExposeField
 
 log = logging.getLogger(__name__)
 
 
 @dataclass
 class SystemConfig(tangram_core.config.HasSidebarUiConfig):
-    topbar_order: int = 0
-
-
-def transform_config(config_dict: dict[str, Any]) -> SystemConfig:
-    from pydantic import TypeAdapter
-
-    return TypeAdapter(SystemConfig).validate_python(config_dict)
+    topbar_order: Annotated[int, ExposeField()] = 0
 
 
 def uptime(counter: int) -> dict[str, str]:
@@ -72,7 +67,8 @@ async def server_events(redis_client: redis.Redis) -> NoReturn:
 
 
 plugin = tangram_core.Plugin(
-    frontend_path="dist-frontend", into_frontend_config_function=transform_config
+    frontend_path="dist-frontend",
+    config_class=SystemConfig,
 )
 
 

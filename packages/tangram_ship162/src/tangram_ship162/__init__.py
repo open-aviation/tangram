@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Annotated
 
 import tangram_core
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import ORJSONResponse, Response
 from pydantic import TypeAdapter
+from tangram_core.config import ExposeField
 
 try:
     import polars as pl
@@ -171,7 +172,7 @@ class ShipsConfig(
     ship162_channel: str = "ship162"
     history_table_name: str = "ship162"
     history_control_channel: str = "history:control"
-    search_channel: str = "ship162:search"
+    search_channel: Annotated[str, ExposeField()] = "ship162:search"
     state_vector_expire: int = 600  # 10 minutes
     stream_interval_secs: float = 1.0
     log_level: str = "INFO"
@@ -181,32 +182,14 @@ class ShipsConfig(
     history_optimize_target_file_size: int = 134217728
     history_vacuum_interval_secs: int = 120
     history_vacuum_retention_period_secs: int | None = 120
-    topbar_order: int = 100
-    sidebar_order: int = 100
-
-
-@dataclass(frozen=True)
-class FrontendShipsConfig(
-    tangram_core.config.HasTopbarUiConfig, tangram_core.config.HasSidebarUiConfig
-):
-    topbar_order: int
-    sidebar_order: int
-    search_channel: str
-
-
-def transform_config(config_dict: dict[str, Any]) -> FrontendShipsConfig:
-    config = TypeAdapter(ShipsConfig).validate_python(config_dict)
-    return FrontendShipsConfig(
-        topbar_order=config.topbar_order,
-        sidebar_order=config.sidebar_order,
-        search_channel=config.search_channel,
-    )
+    topbar_order: Annotated[int, ExposeField()] = 100
+    sidebar_order: Annotated[int, ExposeField()] = 100
 
 
 plugin = tangram_core.Plugin(
     frontend_path="dist-frontend",
     routers=[router],
-    into_frontend_config_function=transform_config,
+    config_class=ShipsConfig,
 )
 
 

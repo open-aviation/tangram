@@ -23,6 +23,7 @@ from typing import (
     Callable,
     Iterable,
     TypeAlias,
+    get_type_hints,
 )
 
 import httpx
@@ -32,10 +33,12 @@ import uvicorn
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import TypeAdapter
 
 from .config import (
     CacheEntry,
     Config,
+    ExposeField,
     FrontendChannelConfig,
     FrontendConfig,
     IntoConfig,
@@ -220,6 +223,16 @@ def make_cache_route_handler(
     return cache_route_handler
 
 
+def extract_frontend_config(config_instance: Any, config_cls: type) -> dict[str, Any]:
+    hints = get_type_hints(config_cls, include_extras=True)
+    frontend_config = {}
+    for field_name, field_type in hints.items():
+        if hasattr(field_type, "__metadata__"):
+            if any(isinstance(m, ExposeField) for m in field_type.__metadata__):
+                frontend_config[field_name] = getattr(config_instance, field_name)
+    return frontend_config
+
+
 def create_app(
     backend_state: BackendState,
     loaded_plugins: Iterable[Plugin],
@@ -248,13 +261,26 @@ def create_app(
                     with plugin_json_path.open("rb") as f:
                         plugin_meta = json.load(f)
 
-                    conf_backend = backend_state.config.plugins.get(
-                        plugin.dist_name, {}
-                    )
-                    if to_frontend_conf := plugin.into_frontend_config_function:
-                        conf_frontend = to_frontend_conf(conf_backend)
+                    conf_dict = backend_state.config.plugins.get(plugin.dist_name, {})
+                    if plugin.config_class:
+                        conf_instance = TypeAdapter(
+                            plugin.config_class
+                        ).validate_python(conf_dict)
+                        conf_frontend = extract_frontend_config(
+                            conf_instance, plugin.config_class
+                        )
+                        if plugin.with_computed_fields is not None:
+                            conf_frontend.update(
+                                plugin.with_computed_fields(
+                                    backend_state, conf_instance
+                                )
+                            )
+                    elif plugin.with_computed_fields is not None:
+                        conf_frontend = plugin.with_computed_fields(
+                            backend_state, conf_dict
+                        )
                     else:
-                        conf_frontend = conf_backend
+                        conf_frontend = {}
 
                     plugin_meta["config"] = conf_frontend
                     frontend_plugins[plugin.dist_name] = plugin_meta

@@ -18,7 +18,9 @@ if TYPE_CHECKING:
     ServiceAsyncFunc: TypeAlias = Callable[[BackendState], Coroutine[Any, Any, None]]
     ServiceFunc: TypeAlias = ServiceAsyncFunc | Callable[[BackendState], None]
     Priority: TypeAlias = int
-    IntoFrontendConfigFunction: TypeAlias = Callable[[dict[str, Any]], Any]
+    WithComputedFieldsFunction: TypeAlias = Callable[
+        [BackendState, Any], dict[str, Any]
+    ]
     Lifespan: TypeAlias = Callable[
         [BackendState], AbstractAsyncContextManager[None, bool | None]
     ]
@@ -40,11 +42,15 @@ class Plugin:
     (editable) or package root (wheel).
     """
     routers: list[APIRouter] = field(default_factory=list)
-    into_frontend_config_function: IntoFrontendConfigFunction | None = None
-    """Function to parse plugin-scoped backend configuration (within the
-    `tangram.toml`) into a frontend-safe configuration object.
-
-    If not specified, the backend configuration dict is passed as-is."""
+    config_class: type | None = None
+    """The configuration class (dataclass or Pydantic model) for this plugin.
+    Fields annotated with `tangram_core.config.Expose()` will be exposed to the
+    frontend."""
+    with_computed_fields: WithComputedFieldsFunction | None = None
+    """Function to add additional dynamically computed fields to the frontend
+    configuration. It receives the backend state and the validated configuration object
+    (if `config_class` is set) or the raw dictionary, and should return a dictionary
+    of extra fields to merge."""
     lifespan: Lifespan | None = None
     """Async context manager for plugin initialization and teardown."""
     services: list[tuple[Priority, ServiceAsyncFunc]] = field(

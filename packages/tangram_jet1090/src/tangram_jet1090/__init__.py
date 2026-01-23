@@ -5,7 +5,7 @@ import sqlite3
 import zipfile
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import httpx
 import platformdirs
@@ -13,6 +13,7 @@ import tangram_core
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import ORJSONResponse, Response
 from pydantic import TypeAdapter
+from tangram_core.config import ExposeField
 
 if TYPE_CHECKING:
     from . import _planes
@@ -221,47 +222,13 @@ class TrailColorOptions:
 
 
 @dataclass(frozen=True)
-class FrontendPlanesConfig(
-    tangram_core.config.HasTopbarUiConfig, tangram_core.config.HasSidebarUiConfig
-):
-    show_route_lines: bool
-    topbar_order: int
-    sidebar_order: int
-    trail_type: Literal["line", "curtain"]
-    trail_color: str | TrailColorOptions = "#600000"
-    trail_alpha: float = 0.6
-    search_channel: str = "jet1090:search"
-
-
-def transform_config(config_dict: dict[str, Any]) -> FrontendPlanesConfig:
-    config = TypeAdapter(PlanesConfig).validate_python(config_dict)
-
-    return FrontendPlanesConfig(
-        show_route_lines=config.show_route_lines,
-        topbar_order=config.topbar_order,
-        sidebar_order=config.sidebar_order,
-        trail_type=config.trail_type,
-        trail_color=config.trail_color,
-        trail_alpha=config.trail_alpha,
-        search_channel=config.search_channel,
-    )
-
-
-plugin = tangram_core.Plugin(
-    frontend_path="dist-frontend",
-    routers=[router],
-    into_frontend_config_function=transform_config,
-)
-
-
-@dataclass(frozen=True)
 class PlanesConfig(
     tangram_core.config.HasTopbarUiConfig, tangram_core.config.HasSidebarUiConfig
 ):
     jet1090_channel: str = "jet1090"
     history_table_name: str = "jet1090"
     history_control_channel: str = "history:control"
-    search_channel: str = "jet1090:search"
+    search_channel: Annotated[str, ExposeField()] = "jet1090:search"
     state_vector_expire: int = 20
     stream_interval_secs: float = 1.0
     aircraft_db_url: str = (
@@ -270,18 +237,25 @@ class PlanesConfig(
     jet1090_url: str = "http://localhost:8080"
     path_cache: Path = Path(platformdirs.user_cache_dir("tangram_jet1090"))
     log_level: str = "INFO"
-    show_route_lines: bool = True
+    show_route_lines: Annotated[bool, ExposeField()] = True
     history_buffer_size: int = 100_000
     history_flush_interval_secs: int = 5
     history_optimize_interval_secs: int = 120
     history_optimize_target_file_size: int = 134217728
     history_vacuum_interval_secs: int = 120
     history_vacuum_retention_period_secs: int | None = 120
-    topbar_order: int = 50
-    sidebar_order: int = 50
-    trail_type: Literal["line", "curtain"] = "line"
-    trail_color: str | TrailColorOptions = "#600000"
-    trail_alpha: float = 0.6
+    topbar_order: Annotated[int, ExposeField()] = 50
+    sidebar_order: Annotated[int, ExposeField()] = 50
+    trail_type: Annotated[Literal["line", "curtain"], ExposeField()] = "line"
+    trail_color: Annotated[str | TrailColorOptions, ExposeField()] = "#600000"
+    trail_alpha: Annotated[float, ExposeField()] = 0.6
+
+
+plugin = tangram_core.Plugin(
+    frontend_path="dist-frontend",
+    routers=[router],
+    config_class=PlanesConfig,
+)
 
 
 async def get_aircraft_db(

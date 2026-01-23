@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from dataclasses import KW_ONLY, dataclass, field, fields, is_dataclass
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     AsyncGenerator,
     Literal,
@@ -20,6 +21,7 @@ import orjson
 import tangram_core
 from fastapi import APIRouter
 from fastapi.responses import Response
+from tangram_core.config import ExposeField
 
 if TYPE_CHECKING:
     from typing import TypeAlias
@@ -198,19 +200,13 @@ class Session:
 
 @dataclass
 class ExploreConfig:
-    enable_3d: Literal["inherit"] | bool = "inherit"
+    enable_3d: Annotated[Literal["inherit"] | bool, ExposeField()] = "inherit"
     """Whether to render scatter points in 3D"""
-
-
-def transform_config(config_dict: dict[str, Any]) -> ExploreConfig:
-    from pydantic import TypeAdapter
-
-    return TypeAdapter(ExploreConfig).validate_python(config_dict)
 
 
 plugin = tangram_core.Plugin(
     frontend_path="dist-frontend",
     routers=[router],
-    into_frontend_config_function=transform_config,
+    config_class=ExploreConfig,
     lifespan=lifespan,
 )
