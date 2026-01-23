@@ -13,10 +13,11 @@ use redis::AsyncCommands;
 use std::sync::Arc;
 use tangram_core::{
     bbox::BoundingBoxState,
+    shutdown::{abort_and_await, Shutdown},
     stream::{start_redis_subscriber, stream_statevectors, StreamConfig},
 };
 use tangram_history::{client::start_producer_service_components, HistoryProducerConfig};
-use tokio::sync::Mutex;
+use tokio::sync::{watch, Mutex};
 use tracing::{error, info};
 
 use crate::state::{ShipHistoryFrame, ShipStateVectors, TimedMessage};
@@ -97,6 +98,7 @@ async fn start_ship162_subscriber(
     redis_url: String,
     channel: String,
     state_vectors: Arc<Mutex<ShipStateVectors>>,
+    mut shutdown: watch::Receiver<bool>,
 ) -> Result<()> {
     let client = redis::Client::open(redis_url.clone()).context("Failed to create Redis client")?;
     let mut pubsub = client.get_async_pubsub().await?;
@@ -109,7 +111,23 @@ async fn start_ship162_subscriber(
 
     let mut stream = pubsub.on_message();
 
-    while let Some(msg) = stream.next().await {
+    loop {
+        if *shutdown.borrow() {
+            break;
+        }
+
+        let msg = tokio::select! {
+            msg = stream.next() => msg,
+            res = shutdown.changed() => {
+                let _ = res;
+                break;
+            }
+        };
+
+        let Some(msg) = msg else {
+            break;
+        };
+
         let payload: String = msg.get_payload()?;
         match serde_json::from_str::<TimedMessage>(&payload) {
             Ok(ship162_msg) => {
@@ -131,6 +149,7 @@ async fn start_search_subscriber(
     redis_url: String,
     search_channel: String,
     state_vectors: Arc<Mutex<ShipStateVectors>>,
+    mut shutdown: watch::Receiver<bool>,
 ) -> Result<()> {
     let client = redis::Client::open(redis_url)?;
     let mut conn = client.get_multiplexed_async_connection().await?;
@@ -146,7 +165,23 @@ async fn start_search_subscriber(
     info!("Ship162 search subscriber listening on '{}'", topic);
 
     let mut stream = pubsub.on_message();
-    while let Some(msg) = stream.next().await {
+    loop {
+        if *shutdown.borrow() {
+            break;
+        }
+
+        let msg = tokio::select! {
+            msg = stream.next() => msg,
+            res = shutdown.changed() => {
+                let _ = res;
+                break;
+            }
+        };
+
+        let Some(msg) = msg else {
+            break;
+        };
+
         let payload: String = msg.get_payload()?;
         if let Ok(req) = serde_json::from_str::<serde_json::Value>(&payload) {
             if let (Some(query), Some(request_id)) = (
@@ -174,12 +209,15 @@ async fn start_search_subscriber(
 }
 
 async fn _run_service(config: ShipsConfig) -> Result<()> {
+    let (shutdown, shutdown_rx) = Shutdown::new();
+
     let bbox_state = Arc::new(Mutex::new(BoundingBoxState::new()));
     let bbox_subscriber_state = Arc::clone(&bbox_state);
 
     let redis_url_clone1 = config.redis_url.clone();
-    let bbox_subscriber_handle = tokio::spawn(async move {
-        match start_redis_subscriber(redis_url_clone1, bbox_subscriber_state).await {
+    let bbox_shutdown = shutdown_rx;
+    let mut bbox_subscriber_handle = tokio::spawn(async move {
+        match start_redis_subscriber(redis_url_clone1, bbox_subscriber_state, bbox_shutdown).await {
             Ok(_) => info!("BoundingBox subscriber stopped normally"),
             Err(e) => error!("BoundingBox subscriber error: {}", e),
         }
@@ -220,11 +258,13 @@ async fn _run_service(config: ShipsConfig) -> Result<()> {
     let search_subscriber_state = Arc::clone(&state_vectors);
 
     let redis_url_clone2 = config.redis_url.clone();
-    let ship162_subscriber_handle = tokio::spawn(async move {
+    let ship162_shutdown = shutdown.subscribe();
+    let mut ship162_subscriber_handle = tokio::spawn(async move {
         match start_ship162_subscriber(
             redis_url_clone2,
             config.ship162_channel,
             ship162_subscriber_state,
+            ship162_shutdown,
         )
         .await
         {
@@ -234,11 +274,13 @@ async fn _run_service(config: ShipsConfig) -> Result<()> {
     });
 
     let redis_url_clone3 = config.redis_url.clone();
-    let search_subscriber_handle = tokio::spawn(async move {
+    let search_shutdown = shutdown.subscribe();
+    let mut search_subscriber_handle = tokio::spawn(async move {
         match start_search_subscriber(
             redis_url_clone3,
             config.search_channel,
             search_subscriber_state,
+            search_shutdown,
         )
         .await
         {
@@ -255,28 +297,35 @@ async fn _run_service(config: ShipsConfig) -> Result<()> {
         broadcast_channel_suffix: "new-ship162-data".to_string(),
     };
 
-    let streaming_handle =
-        tokio::spawn(
-            async move { stream_statevectors(stream_config, bbox_state, state_vectors).await },
-        );
+    let stream_shutdown = shutdown.subscribe();
+    let mut streaming_handle = tokio::spawn(async move {
+        stream_statevectors(stream_config, bbox_state, state_vectors, stream_shutdown).await
+    });
 
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             info!("shutting down");
         },
-        res = bbox_subscriber_handle => {
+        res = &mut bbox_subscriber_handle => {
             error!("BoundingBox subscriber task exited unexpectedly: {:?}", res);
         }
-        res = ship162_subscriber_handle => {
+        res = &mut ship162_subscriber_handle => {
             error!("ship162 subscriber task exited unexpectedly: {:?}", res);
         }
-        res = search_subscriber_handle => {
+        res = &mut search_subscriber_handle => {
             error!("Search subscriber task exited unexpectedly: {:?}", res);
         }
-        res = streaming_handle => {
+        res = &mut streaming_handle => {
             error!("Streaming task exited unexpectedly: {:?}", res);
         }
     }
+
+    shutdown.trigger();
+
+    abort_and_await(&mut bbox_subscriber_handle).await;
+    abort_and_await(&mut ship162_subscriber_handle).await;
+    abort_and_await(&mut search_subscriber_handle).await;
+    abort_and_await(&mut streaming_handle).await;
 
     Ok(())
 }

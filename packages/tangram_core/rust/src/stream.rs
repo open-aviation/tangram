@@ -7,7 +7,10 @@ use std::{
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tokio::{sync::Mutex, time};
+use tokio::{
+    sync::{watch, Mutex},
+    time,
+};
 use tracing::{debug, error, info};
 
 use crate::bbox::{is_within_bbox, BoundingBox, BoundingBoxMessage, BoundingBoxState};
@@ -49,6 +52,7 @@ struct ClientMessage {
 pub async fn start_redis_subscriber(
     redis_url: String,
     state: Arc<Mutex<BoundingBoxState>>,
+    mut shutdown: watch::Receiver<bool>,
 ) -> Result<()> {
     let client = redis::Client::open(redis_url.clone())
         .context("Failed to create Redis client for subscriber")?;
@@ -60,7 +64,23 @@ pub async fn start_redis_subscriber(
 
     let mut stream = pubsub.on_message();
 
-    while let Some(msg) = stream.next().await {
+    loop {
+        if *shutdown.borrow() {
+            break;
+        }
+
+        let msg = tokio::select! {
+            msg = stream.next() => msg,
+            res = shutdown.changed() => {
+                let _ = res;
+                break;
+            }
+        };
+
+        let Some(msg) = msg else {
+            break;
+        };
+
         let channel: String = msg.get_channel_name().to_string();
         let payload: String = msg.get_payload()?;
 
@@ -121,6 +141,7 @@ pub async fn stream_statevectors<S>(
     config: StreamConfig,
     bbox_state: Arc<Mutex<BoundingBoxState>>,
     state_vectors: Arc<Mutex<S>>,
+    mut shutdown: watch::Receiver<bool>,
 ) -> Result<()>
 where
     S: StateCollection + Send + 'static,
@@ -133,10 +154,20 @@ where
         .await
         .context("Failed to connect to Redis")?;
     loop {
+        if *shutdown.borrow() {
+            break;
+        }
+
         let clients = {
             let state = bbox_state.lock().await;
             if state.clients.is_empty() {
-                time::sleep(Duration::from_secs(1)).await;
+                tokio::select! {
+                    _ = time::sleep(Duration::from_secs(1)) => {}
+                    res = shutdown.changed() => {
+                        let _ = res;
+                        break;
+                    }
+                }
                 continue;
             }
             state.clients.clone()
@@ -201,6 +232,13 @@ where
             }
         }
 
-        time::sleep(Duration::from_secs_f64(config.stream_interval_secs)).await;
+        tokio::select! {
+            _ = time::sleep(Duration::from_secs_f64(config.stream_interval_secs)) => {}
+            res = shutdown.changed() => {
+                let _ = res;
+                break;
+            }
+        }
     }
+    Ok(())
 }
