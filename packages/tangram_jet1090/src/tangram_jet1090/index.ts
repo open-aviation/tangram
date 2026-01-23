@@ -282,9 +282,9 @@ async function subscribeToAircraftData(api: TangramApi, connectionId: string) {
           ) {
             const updated = entity.state;
             const last = data.trajectory[data.trajectory.length - 1];
-            const timestamp = updated.lastseen / 1_000;
+            const timestamp = updated.lastseen / 1_000_000;
 
-            if (!last || Math.abs((last.timestamp || 0) - timestamp) > 500) {
+            if (!last || Math.abs((last.timestamp || 0) - timestamp) > 0.5) {
               data.trajectory.push({
                 ...updated,
                 timestamp: timestamp

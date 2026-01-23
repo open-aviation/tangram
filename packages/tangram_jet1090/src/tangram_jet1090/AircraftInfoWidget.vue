@@ -230,7 +230,7 @@ const getChartData = (id: string): ChartData<"line"> => {
   if (metric === "altitude") {
     const data = traj.filter(item => item.altitude || item.selected_altitude);
     return {
-      labels: data.map(item => dayjs(item.timestamp!).format("HH:mm")),
+      labels: data.map(item => dayjs.unix(item.timestamp!).format("HH:mm")),
       datasets: [
         {
           label: "Barometric altitude",
@@ -259,7 +259,7 @@ const getChartData = (id: string): ChartData<"line"> => {
       item => item.groundspeed || item.ias || item.tas || item.mach
     );
     return {
-      labels: data.map(item => dayjs(item.timestamp!).format("HH:mm")),
+      labels: data.map(item => dayjs.unix(item.timestamp!).format("HH:mm")),
       datasets: [
         {
           label: "Ground speed",
@@ -308,7 +308,7 @@ const getChartData = (id: string): ChartData<"line"> => {
       item => item.vrate_barometric || item.vrate_inertial || item.vertical_rate
     );
     return {
-      labels: data.map(item => dayjs(item.timestamp!).format("HH:mm")),
+      labels: data.map(item => dayjs.unix(item.timestamp!).format("HH:mm")),
       datasets: [
         {
           label: "Vertical rate",
@@ -343,7 +343,7 @@ const getChartData = (id: string): ChartData<"line"> => {
     // track
     const data = traj.filter(item => item.track || item.heading || item.roll);
     return {
-      labels: data.map(item => dayjs(item.timestamp!).format("HH:mm")),
+      labels: data.map(item => dayjs.unix(item.timestamp!).format("HH:mm")),
       datasets: [
         {
           label: "Track",
