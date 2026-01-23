@@ -4717,6 +4717,7 @@ dependencies = [
  "redis",
  "serde",
  "serde_json",
+ "tangram_core_rs",
  "tokio",
  "tokio-stream",
  "tracing",

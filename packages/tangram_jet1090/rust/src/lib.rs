@@ -17,10 +17,11 @@ use std::{
 };
 use tangram_core::{
     bbox::BoundingBoxState,
+    shutdown::{abort_and_await, Shutdown},
     stream::{start_redis_subscriber, stream_statevectors, StreamConfig},
 };
 use tangram_history::{client::start_producer_service_components, HistoryProducerConfig};
-use tokio::sync::Mutex;
+use tokio::sync::{watch, Mutex};
 use tokio::time;
 use tracing::{debug, error, info};
 #[cfg(feature = "pyo3")]
@@ -104,6 +105,7 @@ async fn start_jet1090_subscriber(
     redis_url: String,
     channel: String,
     state_vectors: Arc<Mutex<StateVectors>>,
+    mut shutdown: watch::Receiver<bool>,
 ) -> Result<()> {
     let client = redis::Client::open(redis_url.clone())
         .context("Failed to create Redis client for Jet1090 subscriber")?;
@@ -117,7 +119,23 @@ async fn start_jet1090_subscriber(
 
     let mut stream = pubsub.on_message();
 
-    while let Some(msg) = stream.next().await {
+    loop {
+        if *shutdown.borrow() {
+            break;
+        }
+
+        let msg = tokio::select! {
+            msg = stream.next() => msg,
+            res = shutdown.changed() => {
+                let _ = res;
+                break;
+            }
+        };
+
+        let Some(msg) = msg else {
+            break;
+        };
+
         let payload: String = msg.get_payload()?;
         if !payload.contains(r#""17""#)
             && !payload.contains(r#""18""#)
@@ -149,6 +167,7 @@ async fn start_search_subscriber(
     redis_url: String,
     search_channel: String,
     state_vectors: Arc<Mutex<StateVectors>>,
+    mut shutdown: watch::Receiver<bool>,
 ) -> Result<()> {
     let client = redis::Client::open(redis_url)?;
     let mut conn = client.get_multiplexed_async_connection().await?;
@@ -164,7 +183,23 @@ async fn start_search_subscriber(
     info!("Jet1090 search subscriber listening on '{}'", topic);
 
     let mut stream = pubsub.on_message();
-    while let Some(msg) = stream.next().await {
+    loop {
+        if *shutdown.borrow() {
+            break;
+        }
+
+        let msg = tokio::select! {
+            msg = stream.next() => msg,
+            res = shutdown.changed() => {
+                let _ = res;
+                break;
+            }
+        };
+
+        let Some(msg) = msg else {
+            break;
+        };
+
         let payload: String = msg.get_payload()?;
         if let Ok(req) = serde_json::from_str::<serde_json::Value>(&payload) {
             if let (Some(query), Some(request_id)) = (
@@ -192,12 +227,15 @@ async fn start_search_subscriber(
 }
 
 async fn _run_service(config: PlanesConfig) -> Result<()> {
+    let (shutdown, shutdown_rx) = Shutdown::new();
+
     let bbox_state = Arc::new(Mutex::new(BoundingBoxState::new()));
     let bbox_subscriber_state = Arc::clone(&bbox_state);
 
     let redis_url_clone1 = config.redis_url.clone();
-    let bbox_subscriber_handle = tokio::spawn(async move {
-        match start_redis_subscriber(redis_url_clone1, bbox_subscriber_state).await {
+    let bbox_shutdown = shutdown_rx;
+    let mut bbox_subscriber_handle = tokio::spawn(async move {
+        match start_redis_subscriber(redis_url_clone1, bbox_subscriber_state, bbox_shutdown).await {
             Ok(_) => info!("BoundingBox subscriber stopped normally"),
             Err(e) => error!("BoundingBox subscriber error: {}", e),
         }
@@ -240,11 +278,13 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
     let state_vectors_cleanup = Arc::clone(&state_vectors);
 
     let redis_url_clone2 = config.redis_url.clone();
-    let jet1090_subscriber_handle = tokio::spawn(async move {
+    let jet1090_shutdown = shutdown.subscribe();
+    let mut jet1090_subscriber_handle = tokio::spawn(async move {
         match start_jet1090_subscriber(
             redis_url_clone2,
             config.jet1090_channel,
             jet1090_subscriber_state,
+            jet1090_shutdown,
         )
         .await
         {
@@ -254,11 +294,13 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
     });
 
     let redis_url_clone3 = config.redis_url.clone();
-    let search_subscriber_handle = tokio::spawn(async move {
+    let search_shutdown = shutdown.subscribe();
+    let mut search_subscriber_handle = tokio::spawn(async move {
         match start_search_subscriber(
             redis_url_clone3,
             config.search_channel,
             search_subscriber_state,
+            search_shutdown,
         )
         .await
         {
@@ -267,10 +309,20 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
         }
     });
 
-    let cleanup_handle = tokio::spawn(async move {
+    let mut cleanup_shutdown = shutdown.subscribe();
+    let mut cleanup_handle = tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(config.state_vector_expire as u64));
         loop {
-            interval.tick().await;
+            tokio::select! {
+                _ = interval.tick() => {}
+                res = cleanup_shutdown.changed() => {
+                    let _ = res;
+                    break;
+                }
+            }
+            if *cleanup_shutdown.borrow() {
+                break;
+            }
             let mut state = state_vectors_cleanup.lock().await;
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -296,31 +348,39 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
         broadcast_channel_suffix: "new-jet1090-data".to_string(),
     };
 
-    let streaming_handle =
-        tokio::spawn(
-            async move { stream_statevectors(stream_config, bbox_state, state_vectors).await },
-        );
+    let stream_shutdown = shutdown.subscribe();
+    let mut streaming_handle = tokio::spawn(async move {
+        stream_statevectors(stream_config, bbox_state, state_vectors, stream_shutdown).await
+    });
 
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             info!("shutting down");
         },
-        res = bbox_subscriber_handle => {
+        res = &mut bbox_subscriber_handle => {
             error!("BoundingBox subscriber task exited unexpectedly: {:?}", res);
         }
-        res = jet1090_subscriber_handle => {
+        res = &mut jet1090_subscriber_handle => {
             error!("Jet1090 subscriber task exited unexpectedly: {:?}", res);
         }
-        res = search_subscriber_handle => {
+        res = &mut search_subscriber_handle => {
             error!("Search subscriber task exited unexpectedly: {:?}", res);
         }
-        res = streaming_handle => {
+        res = &mut streaming_handle => {
             error!("Streaming task exited unexpectedly: {:?}", res);
         }
-        res = cleanup_handle => {
+        res = &mut cleanup_handle => {
             error!("Cleanup task exited unexpectedly: {:?}", res);
         }
     }
+
+    shutdown.trigger();
+
+    abort_and_await(&mut bbox_subscriber_handle).await;
+    abort_and_await(&mut jet1090_subscriber_handle).await;
+    abort_and_await(&mut search_subscriber_handle).await;
+    abort_and_await(&mut streaming_handle).await;
+    abort_and_await(&mut cleanup_handle).await;
 
     Ok(())
 }

@@ -15,7 +15,8 @@ use std::io::Cursor;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Mutex, RwLock};
+use tangram_core::shutdown::{abort_and_await, Shutdown};
+use tokio::sync::{watch, Mutex, RwLock};
 use tokio::time::{self, Instant};
 use tracing::{error, info};
 use uuid::Uuid;
@@ -61,6 +62,7 @@ async fn control_subscriber(
     base_path: String,
     redis_read_count: usize,
     redis_read_block_ms: usize,
+    mut shutdown: watch::Receiver<bool>,
 ) -> Result<()> {
     let client = redis::Client::open(redis_url.clone()).context("failed to create redis client")?;
     let mut conn = client.get_multiplexed_async_connection().await?;
@@ -69,7 +71,23 @@ async fn control_subscriber(
     info!("control subscriber listening on '{}'", channel);
 
     let mut stream = pubsub.on_message();
-    while let Some(msg) = stream.next().await {
+    loop {
+        if *shutdown.borrow() {
+            break;
+        }
+
+        let msg = tokio::select! {
+            msg = stream.next() => msg,
+            res = shutdown.changed() => {
+                let _ = res;
+                break;
+            }
+        };
+
+        let Some(msg) = msg else {
+            break;
+        };
+
         let payload: String = msg.get_payload()?;
         match serde_json::from_str::<ControlMessage>(&payload) {
             Ok(ControlMessage::Ping { sender }) => {
@@ -181,6 +199,7 @@ async fn control_subscriber(
                                     entry.insert(managed_table);
 
                                     info!("spawning new consumer task for table '{}'", table_name);
+                                    let shutdown_clone = shutdown.clone();
                                     tokio::spawn(consume_stream_for_table(
                                         redis_url.clone(),
                                         table_name.clone(),
@@ -188,6 +207,7 @@ async fn control_subscriber(
                                         maintenance_lock,
                                         redis_read_count,
                                         redis_read_block_ms,
+                                        shutdown_clone,
                                     ));
 
                                     let table_uri = table_arc.lock().await.table_uri();
@@ -250,6 +270,7 @@ async fn consume_stream_for_table(
     maintenance_lock: Arc<RwLock<()>>,
     redis_read_count: usize,
     redis_read_block_ms: usize,
+    mut shutdown: watch::Receiver<bool>,
 ) -> Result<()> {
     let stream_key = format!("history:ingest:{}", table_name);
     let group_name = "history_group";
@@ -275,13 +296,24 @@ async fn consume_stream_for_table(
     );
 
     loop {
+        if *shutdown.borrow() {
+            break;
+        }
+
         let opts = redis::streams::StreamReadOptions::default()
             .group(group_name, &consumer_name)
             .count(redis_read_count)
             .block(redis_read_block_ms);
 
-        let result: Option<redis::streams::StreamReadReply> =
-            conn.xread_options(&[&stream_key], &[">"], &opts).await?;
+        let stream_keys = [&stream_key];
+        let ids = [">"];
+        let result: Option<redis::streams::StreamReadReply> = tokio::select! {
+            result = conn.xread_options(&stream_keys, &ids, &opts) => result?,
+            res = shutdown.changed() => {
+                let _ = res;
+                break;
+            }
+        };
 
         if let Some(reply) = result {
             let mut batches = Vec::new();
@@ -354,11 +386,22 @@ async fn consume_stream_for_table(
             }
         }
     }
+    Ok(())
 }
-async fn maintenance_task(manager: Arc<ManagedTables>) {
+async fn maintenance_task(manager: Arc<ManagedTables>, mut shutdown: watch::Receiver<bool>) {
     let mut interval = time::interval(Duration::from_secs(5));
     loop {
-        interval.tick().await;
+        if *shutdown.borrow() {
+            break;
+        }
+
+        tokio::select! {
+            _ = interval.tick() => {}
+            res = shutdown.changed() => {
+                let _ = res;
+                break;
+            }
+        }
 
         for item in manager.iter() {
             let table_name = item.key();
@@ -433,10 +476,13 @@ pub struct IngestConfig {
 
 pub async fn start_ingest_service(config: IngestConfig) -> Result<()> {
     let manager: Arc<ManagedTables> = Arc::new(DashMap::new());
+    let (shutdown, shutdown_rx) = Shutdown::new();
 
     let client = redis::Client::open(config.redis_url.clone())?;
     let mut conn = client.get_multiplexed_async_connection().await?;
     let table_names: Vec<String> = conn.smembers("history:managed_tables").await?;
+
+    let mut ingest_handles = Vec::new();
 
     for table_name in table_names {
         let config_key = format!("history:config:{}", table_name);
@@ -514,14 +560,16 @@ pub async fn start_ingest_service(config: IngestConfig) -> Result<()> {
         let maintenance_lock = managed_table.maintenance_lock.clone();
         manager.insert(table_name.clone(), managed_table);
 
-        tokio::spawn(consume_stream_for_table(
+        let handle = tokio::spawn(consume_stream_for_table(
             config.redis_url.clone(),
             table_name,
             table_arc,
             maintenance_lock,
             config.redis_read_count,
             config.redis_read_block_ms,
+            shutdown_rx.clone(),
         ));
+        ingest_handles.push(handle);
     }
 
     let mut control_handle = tokio::spawn(control_subscriber(
@@ -531,23 +579,35 @@ pub async fn start_ingest_service(config: IngestConfig) -> Result<()> {
         config.base_path.clone(),
         config.redis_read_count,
         config.redis_read_block_ms,
+        shutdown_rx.clone(),
     ));
 
-    let mut maintenance_handle = tokio::spawn(maintenance_task(manager));
+    let mut maintenance_handle = tokio::spawn(maintenance_task(manager, shutdown_rx.clone()));
 
-    tokio::select! {
+    let shutdown_reason = tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             info!("shutdown signal received, terminating history service");
-            control_handle.abort();
-            maintenance_handle.abort();
+            "ctrl_c"
         },
         res = &mut control_handle => {
              error!("control subscriber task exited unexpectedly: {:?}", res);
+             "control_exited"
         },
         res = &mut maintenance_handle => {
              error!("maintenance task exited unexpectedly: {:?}", res);
+             "maintenance_exited"
         }
+    };
+
+    info!("shutdown initiated by {}", shutdown_reason);
+    shutdown.trigger();
+
+    for mut handle in ingest_handles {
+        abort_and_await(&mut handle).await;
     }
+
+    abort_and_await(&mut control_handle).await;
+    abort_and_await(&mut maintenance_handle).await;
 
     Ok(())
 }

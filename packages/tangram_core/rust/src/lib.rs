@@ -1,6 +1,7 @@
 pub mod bbox;
 #[cfg(feature = "channel")]
 pub mod channel;
+pub mod shutdown;
 pub mod stream;
 
 #[cfg(feature = "channel")]
