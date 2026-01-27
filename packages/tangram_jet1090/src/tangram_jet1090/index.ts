@@ -43,6 +43,8 @@ export interface Jet1090Aircraft {
   selected_altitude?: number;
   groundspeed?: number;
   vertical_rate?: number;
+  vrate_barometric?: number;
+  vrate_inertial?: number;
   track?: number;
   ias?: number;
   tas?: number;
