@@ -3,8 +3,9 @@ import { inject, onUnmounted, ref, watch, type Ref } from "vue";
 import { PathLayer } from "@deck.gl/layers";
 import { PathStyleExtension } from "@deck.gl/extensions";
 import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
-import { generateSegments } from "@open-aviation/tangram-core/utils";
+import { generateSegments, type PathSegment } from "@open-aviation/tangram-core/utils";
 import { shipStore } from "./store";
+import type { Ship162Vessel } from ".";
 import type { Layer } from "@deck.gl/core";
 
 const tangramApi = inject<TangramApi>("tangramApi");
@@ -18,12 +19,13 @@ const updateLayer = () => {
     layerDisposable.value = null;
   }
 
-  const allPaths: any[] = [];
+  type TrailColor = [number, number, number, number];
+  const allPaths: PathSegment<TrailColor>[] = [];
 
-  for (const [id, data] of shipStore.selected) {
+  for (const [, data] of shipStore.selected) {
     if (data.trajectory.length < 2) continue;
 
-    const segments = generateSegments(data.trajectory, {
+    const segments = generateSegments<Ship162Vessel, TrailColor>(data.trajectory, {
       getPosition: p =>
         p.latitude != null && p.longitude != null ? [p.longitude, p.latitude, 0] : null,
       getTimestamp: p => p.timestamp || null,

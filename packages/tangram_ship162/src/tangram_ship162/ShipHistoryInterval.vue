@@ -1,9 +1,9 @@
 <template>
   <div class="ship-interval">
     <div class="times">
-      <span>{{ formatTime(start_ts) }}</span>
+      <span>{{ formatTime(startTs) }}</span>
       <span class="arrow"> - </span>
-      <span>{{ formatTime(end_ts) }}</span>
+      <span>{{ formatTime(endTs) }}</span>
     </div>
     <div class="duration">{{ formatDuration(duration) }}</div>
   </div>
@@ -13,8 +13,8 @@
 import { formatTime, formatDuration } from "@open-aviation/tangram-core/utils";
 
 defineProps<{
-  start_ts: string;
-  end_ts: string;
+  startTs: string;
+  endTs: string;
   duration: number;
 }>();
 </script>

@@ -519,10 +519,13 @@ export class RealtimeApi {
         reject(new Error("request timeout"));
       }, timeoutMs);
 
-      const ref = channel.on(responseEvent, (msg: any) => {
-        if (msg.request_id === requestId) {
+      const ref = channel.on(responseEvent, (msg: unknown) => {
+        if (typeof msg !== "object" || msg === null) return;
+        const record = msg as Record<string, unknown>;
+        if (typeof record.request_id !== "string") return;
+        if (record.request_id === requestId) {
           cleanup();
-          resolve(msg.data as TRes);
+          resolve(record.data as TRes);
         }
       });
 

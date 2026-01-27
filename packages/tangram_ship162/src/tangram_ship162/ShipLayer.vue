@@ -34,16 +34,13 @@ import { oklchToDeckGLColor } from "@open-aviation/tangram-core/utils";
 import type { Ship162Vessel } from ".";
 import type { PickingInfo } from "@deck.gl/core";
 
-// Type alias to match internal use
-type ShipState = Ship162Vessel;
-
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
   throw new Error("assert: tangram api not provided");
 }
 
 const shipEntities = computed(
-  () => tangramApi.state.getEntitiesByType<ShipState>("ship162_ship").value
+  () => tangramApi.state.getEntitiesByType<Ship162Vessel>("ship162_ship").value
 );
 const activeEntities = computed(() => tangramApi.state.activeEntities.value);
 const layerDisposable: Ref<Disposable | null> = ref(null);
@@ -53,7 +50,7 @@ const zoom = computed(() => tangramApi.map.zoom.value);
 const tooltip = reactive<{
   x: number;
   y: number;
-  object: Entity<ShipState> | null;
+  object: Entity<Ship162Vessel> | null;
 }>({ x: 0, y: 0, object: null });
 
 const colors = {
@@ -70,7 +67,7 @@ const colors = {
   selected: oklchToDeckGLColor(0.7, 0.25, 20, 220) // bright red
 };
 
-const isStationary = (state: ShipState): boolean => {
+const isStationary = (state: Ship162Vessel): boolean => {
   if (state.speed !== undefined && state.speed < 1.0) return true;
   if (
     state.status === "At anchor" ||
@@ -82,7 +79,7 @@ const isStationary = (state: ShipState): boolean => {
 };
 
 const getIconColor = (
-  state: ShipState | undefined
+  state: Ship162Vessel | undefined
 ): [number, number, number, number] => {
   if (!state) return colors.default;
 
@@ -145,7 +142,7 @@ const rgbToHex = (r: number, g: number, b: number) =>
     .join("");
 
 const getShipIcon = (
-  state: ShipState,
+  state: Ship162Vessel,
   isSelected: boolean
 ): { url: string; id: string } => {
   const stationary = isStationary(state);
@@ -177,7 +174,7 @@ const getShipIcon = (
  * Returns a polygon in [lon, lat] format relative to ship's position.
  * This implementation matches the algorithm in AISCatcher's script.js.
  */
-const getShipHullPolygon = (state: ShipState): number[][] | null => {
+const getShipHullPolygon = (state: Ship162Vessel): number[][] | null => {
   const {
     to_bow,
     to_stern,
@@ -265,7 +262,7 @@ const getShipHullPolygon = (state: ShipState): number[][] | null => {
 };
 
 const onClick = (
-  info: PickingInfo<Entity<ShipState>>,
+  info: PickingInfo<Entity<Ship162Vessel>>,
   event: { srcEvent: { originalEvent: MouseEvent } }
 ) => {
   if (!info.object) return;
@@ -300,8 +297,8 @@ watch(
     const selectedIds = new Set(currentActiveEntities.keys());
 
     // Ship hull layer (only visible at high zoom)
-    const baseData: Entity<ShipState>[] = [];
-    const selectedData: Entity<ShipState>[] = [];
+    const baseData: Entity<Ship162Vessel>[] = [];
+    const selectedData: Entity<Ship162Vessel>[] = [];
     for (const d of entities.values()) {
       if (selectedIds.has(d.id)) {
         selectedData.push(d);
@@ -320,7 +317,7 @@ watch(
         .filter(({ polygon }) => polygon !== null);
 
       const hullLayer = new PolygonLayer<{
-        entity: Entity<ShipState>;
+        entity: Entity<Ship162Vessel>;
         polygon: number[][];
       }>({
         id: "ship-hull-layer",
@@ -344,9 +341,12 @@ watch(
         getLineWidth: 0.5,
         onClick: (info: PickingInfo, event: MjolnirEvent) => {
           if (!info.object) return;
-          const entity = (info.object as any).entity;
-          const mockInfo = { ...info, object: entity } as PickingInfo<
-            Entity<ShipState>
+          const hullData = info.object as {
+            entity: Entity<Ship162Vessel>;
+            polygon: number[][];
+          };
+          const mockInfo = { ...info, object: hullData.entity } as PickingInfo<
+            Entity<Ship162Vessel>
           >;
           onClick(mockInfo, event);
         },
@@ -362,7 +362,7 @@ watch(
     }
 
     // Icon layer (always visible, but smaller when hulls are shown)
-    const shipLayer = new IconLayer<Entity<ShipState>>({
+    const shipLayer = new IconLayer<Entity<Ship162Vessel>>({
       id: "ship-layer",
       data: allData,
       pickable: true,

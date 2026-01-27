@@ -73,6 +73,7 @@ export function install(api: TangramApi, config?: Ship162FrontendConfig) {
     id: "ships",
     name: "Ships (Live)",
     search: async (query, signal) => {
+      void signal;
       if (query.length < 3) return [];
       try {
         const results = await api.realtime.request<BackendSearchResult[]>(
@@ -147,8 +148,8 @@ export function install(api: TangramApi, config?: Ship162FrontendConfig) {
               id: `ship-${s.mmsi}-${s.start_ts}`,
               component: ShipHistoryInterval,
               props: {
-                start_ts: s.start_ts,
-                end_ts: s.end_ts,
+                startTs: s.start_ts,
+                endTs: s.end_ts,
                 duration: s.duration
               },
               onSelect: () => {

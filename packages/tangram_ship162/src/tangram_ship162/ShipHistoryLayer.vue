@@ -3,9 +3,15 @@ import { inject, onUnmounted, ref, watch, type Ref } from "vue";
 import { PathLayer } from "@deck.gl/layers";
 import { PathStyleExtension } from "@deck.gl/extensions";
 import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
-import { generateSegments } from "@open-aviation/tangram-core/utils";
+import { generateSegments, type PathSegment } from "@open-aviation/tangram-core/utils";
 import { shipStore } from "./store";
 import type { Layer } from "@deck.gl/core";
+
+interface ShipHistoryPoint {
+  longitude: number | null;
+  latitude: number | null;
+  timestamp: number;
+}
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) throw new Error("assert: tangram api not provided");
@@ -26,21 +32,27 @@ const updateLayer = async () => {
   const response = await fetch(
     `/ship162/history/${ship.mmsi}/${Math.floor(start_ts)}/${Math.floor(end_ts)}`
   );
-  const data = await response.json();
+  const data = (await response.json()) as ShipHistoryPoint[];
 
-  const segments = generateSegments(data, {
-    getPosition: (d: any) =>
+  const segments = generateSegments<ShipHistoryPoint, [number, number, number]>(data, {
+    getPosition: d =>
       Number.isFinite(d.longitude) && Number.isFinite(d.latitude)
-        ? [d.longitude, d.latitude, 0]
+        ? [d.longitude as number, d.latitude as number, 0]
         : null,
-    getTimestamp: (d: any) => new Date(d.timestamp).getTime() / 1000,
+    getTimestamp: d => {
+      const ts =
+        typeof d.timestamp === "string" ? Date.parse(d.timestamp) : d.timestamp;
+      return Number.isFinite(ts) ? ts / 1000 : null;
+    },
     getColor: () => [128, 0, 128],
     gapColor: [150, 150, 150],
     maxGapSeconds: 3600
   });
 
+  const layers: Layer[] = [];
+
   let idx = 0;
-  for (const segment of segments) {
+  for (const segment of segments as Iterable<PathSegment<[number, number, number]>>) {
     layers.push(
       new PathLayer({
         id: `ship-history-path-${idx++}`,

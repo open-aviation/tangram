@@ -91,6 +91,7 @@ export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
     id: "aircraft",
     name: "Aircraft (Live)",
     search: async (query, signal) => {
+      void signal;
       if (query.length < 3) return [];
       try {
         const results = await api.realtime.request<BackendSearchResult[]>(
@@ -124,7 +125,7 @@ export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
             }
           }
         }));
-      } catch (e) {
+      } catch {
         return [];
       }
     }
@@ -165,8 +166,8 @@ export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
               id: `flight-${f.icao24}-${f.start_ts}`,
               component: AircraftHistoryInterval,
               props: {
-                start_ts: f.start_ts,
-                end_ts: f.end_ts,
+                startTs: f.start_ts,
+                endTs: f.end_ts,
                 duration: f.duration
               },
               onSelect: () => {
