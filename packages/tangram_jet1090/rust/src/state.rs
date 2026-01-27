@@ -11,11 +11,16 @@ use pyo3::prelude::*;
 #[cfg(feature = "stubgen")]
 use pyo3_stub_gen::derive::*;
 use rs1090::data::patterns::aircraft_information;
+use rs1090::decode::bds::bds09::AirborneVelocitySubType::{AirspeedSubsonic, GroundSpeedDecoding};
+use rs1090::decode::bds::bds09::AirspeedType::{IAS, TAS};
+use rs1090::decode::bds::bds65::{
+    ADSBVersionAirborne, ADSBVersionSurface, AircraftOperationStatus,
+};
+use rs1090::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
 };
 use tangram_core::stream::{Identifiable, Positioned, StateCollection, Tracked};
 use tangram_history::client::{HistoryBuffer, HistoryFrame};
@@ -41,67 +46,6 @@ impl Aircraft {
             registration,
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-/// BDS40 message format
-pub struct BDS40Message {
-    #[serde(alias = "selected_mcp")]
-    pub selected_altitude: Option<u16>,
-    #[serde(flatten)]
-    pub extra: HashMap<String, serde_json::Value>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-/// BDS50 message format
-pub struct BDS50Message {
-    pub roll: Option<f64>,
-    pub track: Option<f64>,
-    pub groundspeed: Option<f64>,
-    #[serde(alias = "TAS")]
-    pub tas: Option<u16>,
-    #[serde(flatten)]
-    pub extra: HashMap<String, serde_json::Value>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-/// BDS60 message format
-pub struct BDS60Message {
-    #[serde(alias = "IAS")]
-    pub ias: Option<u16>,
-    #[serde(alias = "Mach")]
-    pub mach: Option<f64>,
-    pub heading: Option<f64>,
-    pub vrate_barometric: Option<i16>,
-    pub vrate_inertial: Option<i16>,
-    #[serde(flatten)]
-    pub extra: HashMap<String, serde_json::Value>,
-}
-
-/// Jet1090 message format
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Jet1090Message {
-    pub icao24: String,
-    pub df: String,
-    pub bds: Option<String>,
-    pub timestamp: f64,
-    pub callsign: Option<String>,
-    pub altitude: Option<u16>,
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
-    pub track: Option<f64>,
-    pub selected_altitude: Option<u16>,
-    pub groundspeed: Option<f64>,
-    pub vertical_rate: Option<i16>,
-    pub ias: Option<u16>,
-    pub tas: Option<u16>,
-    pub nacp: Option<u8>,
-    pub bds40: Option<BDS40Message>,
-    pub bds50: Option<BDS50Message>,
-    pub bds60: Option<BDS60Message>,
-    pub squawk: Option<String>,
-    #[serde(flatten)]
-    pub extra: HashMap<String, serde_json::Value>,
 }
 
 impl HistoryFrame for Jet1090HistoryFrame {
@@ -141,7 +85,7 @@ pub struct StateVector {
     pub longitude: Option<f64>,
     /// Barometric altitude in feet, expressed in ISA
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub altitude: Option<u16>,
+    pub altitude: Option<i32>,
     /// Altitude selected in the FMS
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selected_altitude: Option<u16>,
@@ -207,54 +151,222 @@ pub struct Jet1090HistoryFrame {
     pub squawk: Option<i16>,
 }
 
-impl From<&Jet1090Message> for Jet1090HistoryFrame {
-    fn from(msg: &Jet1090Message) -> Self {
-        let bds = msg.bds.clone().or_else(|| {
-            if msg.bds60.is_some() {
-                Some("60".to_string())
-            } else if msg.bds50.is_some() {
-                Some("50".to_string())
-            } else if msg.bds40.is_some() {
-                Some("40".to_string())
-            } else {
-                None
-            }
-        });
-
-        Self {
-            icao24: msg.icao24.clone(),
+impl From<&TimedMessage> for Jet1090HistoryFrame {
+    fn from(msg: &TimedMessage) -> Self {
+        let mut frame = Self {
+            icao24: "".to_string(),
             timestamp: (msg.timestamp * 1_000_000.0) as i64,
-            df: msg.df.parse().unwrap_or(0),
-            bds,
-            callsign: msg.callsign.clone(),
-            altitude: msg.altitude.map(|v| v as i32),
-            latitude: msg.latitude,
-            longitude: msg.longitude,
-            track: msg.track.or(msg.bds50.as_ref().and_then(|b| b.track)),
-            selected_altitude: msg.selected_altitude.map(|v| v as i32).or(msg
-                .bds40
-                .as_ref()
-                .and_then(|b| b.selected_altitude.map(|v| v as i32))),
-            groundspeed: msg
-                .groundspeed
-                .or(msg.bds50.as_ref().and_then(|b| b.groundspeed)),
-            vertical_rate: msg.vertical_rate,
-            ias: msg
-                .ias
-                .map(|v| v as i16)
-                .or(msg.bds60.as_ref().and_then(|b| b.ias.map(|v| v as i16))),
-            tas: msg
-                .tas
-                .map(|v| v as i16)
-                .or(msg.bds50.as_ref().and_then(|b| b.tas.map(|v| v as i16))),
-            mach: msg.bds60.as_ref().and_then(|b| b.mach),
-            roll: msg.bds50.as_ref().and_then(|b| b.roll),
-            heading: msg.bds60.as_ref().and_then(|b| b.heading),
-            vrate_barometric: msg.bds60.as_ref().and_then(|b| b.vrate_barometric),
-            vrate_inertial: msg.bds60.as_ref().and_then(|b| b.vrate_inertial),
-            nacp: msg.nacp.map(|v| v as i8),
-            squawk: msg.squawk.as_ref().and_then(|s| s.parse().ok()),
+            df: 0,
+            bds: None,
+            callsign: None,
+            altitude: None,
+            latitude: None,
+            longitude: None,
+            track: None,
+            selected_altitude: None,
+            groundspeed: None,
+            vertical_rate: None,
+            ias: None,
+            tas: None,
+            mach: None,
+            roll: None,
+            heading: None,
+            vrate_barometric: None,
+            vrate_inertial: None,
+            nacp: None,
+            squawk: None,
+        };
+
+        if let Some(message) = &msg.message {
+            if let Some(icao) = icao24(message) {
+                frame.icao24 = icao;
+            }
+            match &message.df {
+                ShortAirAirSurveillance { ac, .. } => {
+                    frame.df = 0;
+                    frame.altitude = ac.0;
+                }
+                SurveillanceAltitudeReply { ac, .. } => {
+                    frame.df = 4;
+                    frame.altitude = ac.0;
+                }
+                SurveillanceIdentityReply { id, .. } => {
+                    frame.df = 5;
+                    frame.squawk = Some(id.0 as i16);
+                }
+                AllCallReply { .. } => {
+                    frame.df = 11;
+                }
+                LongAirAirSurveillance { ac, .. } => {
+                    frame.df = 16;
+                    frame.altitude = ac.0;
+                }
+                ExtendedSquitterADSB(adsb) => {
+                    frame.df = 17;
+                    match &adsb.message {
+                        ME::BDS05 { inner: bds05, .. } => {
+                            frame.bds = Some("05".to_string());
+                            frame.latitude = bds05.latitude;
+                            frame.longitude = bds05.longitude;
+                            frame.altitude = bds05.alt;
+                        }
+                        ME::BDS06 { inner: bds06, .. } => {
+                            frame.bds = Some("06".to_string());
+                            frame.latitude = bds06.latitude;
+                            frame.longitude = bds06.longitude;
+                            frame.track = bds06.track;
+                            frame.groundspeed = bds06.groundspeed;
+                        }
+                        ME::BDS08 { inner: bds08, .. } => {
+                            frame.bds = Some("08".to_string());
+                            frame.callsign = Some(bds08.callsign.to_string());
+                        }
+                        ME::BDS09(bds09) => {
+                            frame.bds = Some("09".to_string());
+                            frame.vertical_rate = bds09.vertical_rate;
+                            match &bds09.velocity {
+                                GroundSpeedDecoding(spd) => {
+                                    frame.groundspeed = Some(spd.groundspeed);
+                                    frame.track = Some(spd.track)
+                                }
+                                AirspeedSubsonic(spd) => {
+                                    match spd.airspeed_type {
+                                        IAS => frame.ias = spd.airspeed.map(|v| v as i16),
+                                        TAS => frame.tas = spd.airspeed.map(|v| v as i16),
+                                    }
+                                    frame.heading = spd.heading;
+                                }
+                                _ => {}
+                            }
+                        }
+                        ME::BDS61(bds61) => {
+                            frame.bds = Some("61".to_string());
+                            frame.squawk = Some(bds61.squawk.0 as i16);
+                        }
+                        ME::BDS62(bds62) => {
+                            frame.bds = Some("62".to_string());
+                            frame.selected_altitude = bds62.selected_altitude.map(|v| v as i32);
+                            frame.nacp = Some(bds62.nac_p as i8);
+                        }
+                        ME::BDS65(bds65) => {
+                            frame.bds = Some("65".to_string());
+                            match bds65 {
+                                AircraftOperationStatus::Airborne(st) => {
+                                    match st.version {
+                                        rs1090::decode::bds::bds65::ADSBVersionAirborne::DOC9871AppendixB(v) => {
+                                            frame.nacp = Some(v.nac_p as i8)
+                                        }
+                                        rs1090::decode::bds::bds65::ADSBVersionAirborne::DOC9871AppendixC(v) => {
+                                            frame.nacp = Some(v.nac_p as i8)
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                AircraftOperationStatus::Surface(st) => {
+                                    match st.version {
+                                        rs1090::decode::bds::bds65::ADSBVersionSurface::DOC9871AppendixB(v) => {
+                                            frame.nacp = Some(v.nac_p as i8)
+                                        }
+                                        rs1090::decode::bds::bds65::ADSBVersionSurface::DOC9871AppendixC(v) => {
+                                            frame.nacp = Some(v.nac_p as i8)
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                ExtendedSquitterTisB { cf, .. } => {
+                    frame.df = 18;
+                    match &cf.me {
+                        ME::BDS05 { inner: bds05, .. } => {
+                            frame.bds = Some("05".to_string());
+                            frame.latitude = bds05.latitude;
+                            frame.longitude = bds05.longitude;
+                            frame.altitude = bds05.alt;
+                        }
+                        ME::BDS06 { inner: bds06, .. } => {
+                            frame.bds = Some("06".to_string());
+                            frame.latitude = bds06.latitude;
+                            frame.longitude = bds06.longitude;
+                            frame.track = bds06.track;
+                            frame.groundspeed = bds06.groundspeed;
+                        }
+                        ME::BDS08 { inner: bds08, .. } => {
+                            frame.bds = Some("08".to_string());
+                            frame.callsign = Some(bds08.callsign.to_string());
+                        }
+                        _ => {}
+                    }
+                }
+                ExtendedSquitterMilitary { .. } => frame.df = 19,
+                CommBAltitudeReply { bds, .. } => {
+                    frame.df = 20;
+                    if let Some(bds20) = &bds.bds20 {
+                        frame.bds = Some("20".to_string());
+                        frame.callsign = Some(bds20.callsign.to_string());
+                    }
+                    if let Some(bds40) = &bds.bds40 {
+                        frame.bds = Some("40".to_string());
+                        frame.selected_altitude = bds40.selected_altitude_mcp.map(|v| v as i32);
+                    }
+                    if let Some(bds50) = &bds.bds50 {
+                        frame.bds = Some("50".to_string());
+                        frame.roll = bds50.roll_angle;
+                        frame.track = bds50.track_angle;
+                        frame.groundspeed = bds50.groundspeed.map(|x| x as f64);
+                        frame.tas = bds50.true_airspeed.map(|v| v as i16);
+                    }
+                    if let Some(bds60) = &bds.bds60 {
+                        frame.bds = Some("60".to_string());
+                        frame.ias = bds60.indicated_airspeed.map(|v| v as i16);
+                        frame.mach = bds60.mach_number;
+                        frame.heading = bds60.magnetic_heading;
+                        if bds60.inertial_vertical_velocity.is_some() {
+                            frame.vrate_inertial = bds60.inertial_vertical_velocity;
+                        }
+                        if bds60.barometric_altitude_rate.is_some() {
+                            frame.vrate_barometric = bds60.barometric_altitude_rate;
+                        }
+                    }
+                }
+                CommBIdentityReply { bds, .. } => {
+                    frame.df = 21;
+                    if let Some(bds20) = &bds.bds20 {
+                        frame.bds = Some("20".to_string());
+                        frame.callsign = Some(bds20.callsign.to_string());
+                    }
+                    if let Some(bds40) = &bds.bds40 {
+                        frame.bds = Some("40".to_string());
+                        frame.selected_altitude = bds40.selected_altitude_mcp.map(|v| v as i32);
+                    }
+                    if let Some(bds50) = &bds.bds50 {
+                        frame.bds = Some("50".to_string());
+                        frame.roll = bds50.roll_angle;
+                        frame.track = bds50.track_angle;
+                        frame.groundspeed = bds50.groundspeed.map(|x| x as f64);
+                        frame.tas = bds50.true_airspeed.map(|v| v as i16);
+                    }
+                    if let Some(bds60) = &bds.bds60 {
+                        frame.bds = Some("60".to_string());
+                        frame.ias = bds60.indicated_airspeed.map(|v| v as i16);
+                        frame.mach = bds60.mach_number;
+                        frame.heading = bds60.magnetic_heading;
+                        if bds60.inertial_vertical_velocity.is_some() {
+                            frame.vrate_inertial = bds60.inertial_vertical_velocity;
+                        }
+                        if bds60.barometric_altitude_rate.is_some() {
+                            frame.vrate_barometric = bds60.barometric_altitude_rate;
+                        }
+                    }
+                }
+                CommDExtended { .. } => frame.df = 24,
+            }
         }
+        frame
     }
 }
 
@@ -400,6 +512,21 @@ pub struct StateVectors {
     history_buffer: Option<HistoryBuffer<Jet1090HistoryFrame>>,
 }
 
+fn icao24(msg: &Message) -> Option<String> {
+    match &msg.df {
+        ShortAirAirSurveillance { ap, .. } => Some(ap.to_string()),
+        SurveillanceAltitudeReply { ap, .. } => Some(ap.to_string()),
+        SurveillanceIdentityReply { ap, .. } => Some(ap.to_string()),
+        AllCallReply { icao, .. } => Some(icao.to_string()),
+        LongAirAirSurveillance { ap, .. } => Some(ap.to_string()),
+        ExtendedSquitterADSB(ADSB { icao24, .. }) => Some(icao24.to_string()),
+        ExtendedSquitterTisB { cf, .. } => Some(cf.aa.to_string()),
+        CommBAltitudeReply { ap, .. } => Some(ap.to_string()),
+        CommBIdentityReply { ap, .. } => Some(ap.to_string()),
+        _ => None,
+    }
+}
+
 impl StateVectors {
     pub fn new(
         expire: u16,
@@ -467,152 +594,197 @@ impl StateVectors {
             .collect()
     }
 
-    pub async fn add(&mut self, msg: &Jet1090Message) -> Result<()> {
-        if msg.df != "17" && msg.df != "18" && msg.df != "20" && msg.df != "21" {
+    pub async fn add(&mut self, msg: &TimedMessage) -> Result<()> {
+        let message = if let Some(m) = &msg.message {
+            m
+        } else {
             return Ok(());
-        }
+        };
 
-        let sv = self.aircraft.entry(msg.icao24.clone()).or_insert_with(|| {
-            let mut registration = match aircraft_information(&msg.icao24, None) {
-                Ok(aircraft_info) => aircraft_info.registration.clone(),
-                Err(_) => None,
-            };
+        if let Some(icao24) = icao24(message) {
+            let sv = self.aircraft.entry(icao24.clone()).or_insert_with(|| {
+                let mut registration = match aircraft_information(&icao24, None) {
+                    Ok(aircraft_info) => aircraft_info.registration.clone(),
+                    Err(_) => None,
+                };
 
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_micros() as u64;
+                let mut typecode = None;
 
-            let mut typecode = None;
+                if let Some(aircraft) = self.aircraft_db.get(&icao24) {
+                    typecode = aircraft.typecode.clone();
+                    registration = aircraft.registration.clone();
+                }
+                StateVector {
+                    icao24: icao24.clone(),
+                    firstseen: 0,
+                    lastseen: (msg.timestamp * 1_000_000.0) as u64,
+                    callsign: None,
+                    registration,
+                    typecode,
+                    squawk: None,
+                    latitude: None,
+                    longitude: None,
+                    altitude: None,
+                    selected_altitude: None,
+                    groundspeed: None,
+                    vertical_rate: None,
+                    track: None,
+                    ias: None,
+                    tas: None,
+                    mach: None,
+                    roll: None,
+                    heading: None,
+                    nacp: None,
+                    count: 0,
+                }
+            });
 
-            if let Some(aircraft) = self.aircraft_db.get(&msg.icao24) {
-                typecode = aircraft.typecode.clone();
-                registration = aircraft.registration.clone();
+            sv.count += 1;
+            if sv.firstseen == 0 {
+                sv.firstseen = (msg.timestamp * 1_000_000.0) as u64;
             }
-            StateVector {
-                icao24: msg.icao24.clone(),
-                firstseen: 0,
-                lastseen: now,
-                callsign: msg.callsign.clone(),
-                registration,
-                typecode,
-                squawk: None,
-                latitude: None,
-                longitude: None,
-                altitude: None,
-                selected_altitude: None,
-                groundspeed: None,
-                vertical_rate: None,
-                track: None,
-                ias: None,
-                tas: None,
-                mach: None,
-                roll: None,
-                heading: None,
-                nacp: None,
-                count: 0,
-            }
-        });
+            sv.lastseen = (msg.timestamp * 1_000_000.0) as u64;
 
-        sv.count += 1;
-        if sv.firstseen == 0 {
-            sv.firstseen = (msg.timestamp * 1_000_000.0) as u64;
-        }
-        sv.lastseen = (msg.timestamp * 1_000_000.0) as u64;
-        if msg.df == "18" {
-            sv.typecode = Some("GRND".to_string());
-        }
-        if let Some(altitude) = msg.altitude {
-            sv.altitude = Some(altitude);
-        }
-        if let Some(squawk) = &msg.squawk {
-            if let Ok(squawk_val) = squawk.parse::<u16>() {
-                sv.squawk = Some(squawk_val);
-            }
-        }
-        match &msg.bds {
-            Some(val) if val == "05" => {
-                if let Some(latitude) = msg.latitude {
-                    sv.latitude = Some(latitude);
+            match &message.df {
+                SurveillanceIdentityReply { id, .. } => {
+                    sv.squawk = Some(id.0);
                 }
-                if let Some(longitude) = msg.longitude {
-                    sv.longitude = Some(longitude);
+                SurveillanceAltitudeReply { ac, .. } => {
+                    sv.altitude = ac.0;
                 }
-            }
-            Some(val) if val == "06" => {
-                if let Some(latitude) = msg.latitude {
-                    sv.latitude = Some(latitude);
-                }
-                if let Some(longitude) = msg.longitude {
-                    sv.longitude = Some(longitude);
-                }
-                if let Some(groundspeed) = msg.groundspeed {
-                    sv.groundspeed = Some(groundspeed);
-                }
-                if let Some(track) = msg.track {
-                    sv.track = Some(track);
-                }
-            }
-            Some(val) if val == "08" => {
-                if let Some(callsign) = &msg.callsign {
-                    sv.callsign = Some(callsign.clone());
-                }
-            }
-            Some(val) if val == "09" => {
-                if let Some(groundspeed) = msg.groundspeed {
-                    sv.groundspeed = Some(groundspeed);
-                }
-                if let Some(track) = msg.track {
-                    sv.track = Some(track);
-                }
-                if let Some(vertical_rate) = msg.vertical_rate {
-                    sv.vertical_rate = Some(vertical_rate);
-                }
-                if let Some(ias) = msg.ias {
-                    sv.ias = Some(ias);
-                }
-                if let Some(tas) = msg.tas {
-                    sv.tas = Some(tas);
-                }
-            }
-            Some(val) if val == "61" => {
-                if let Some(squawk_str) = &msg.squawk {
-                    if let Ok(squawk_val) = squawk_str.parse::<u16>() {
-                        sv.squawk = Some(squawk_val);
+                ExtendedSquitterADSB(adsb) => match &adsb.message {
+                    ME::BDS05 { inner: bds05, .. } => {
+                        sv.latitude = bds05.latitude;
+                        sv.longitude = bds05.longitude;
+                        sv.altitude = bds05.alt;
+                    }
+                    ME::BDS06 { inner: bds06, .. } => {
+                        sv.latitude = bds06.latitude;
+                        sv.longitude = bds06.longitude;
+                        sv.track = bds06.track;
+                        sv.groundspeed = bds06.groundspeed;
+                        sv.altitude = None;
+                    }
+                    ME::BDS08 { inner: bds08, .. } => {
+                        if !bds08.callsign.contains("#") {
+                            sv.callsign = Some(bds08.callsign.to_string())
+                        }
+                    }
+                    ME::BDS09(bds09) => {
+                        sv.vertical_rate = bds09.vertical_rate;
+                        match &bds09.velocity {
+                            GroundSpeedDecoding(spd) => {
+                                sv.groundspeed = Some(spd.groundspeed);
+                                sv.track = Some(spd.track)
+                            }
+                            AirspeedSubsonic(spd) => {
+                                match spd.airspeed_type {
+                                    IAS => sv.ias = spd.airspeed,
+                                    TAS => sv.tas = spd.airspeed,
+                                }
+                                sv.heading = spd.heading;
+                            }
+                            _ => {}
+                        }
+                    }
+                    ME::BDS61(bds61) => {
+                        sv.squawk = Some(bds61.squawk.0);
+                    }
+                    ME::BDS62(bds62) => {
+                        sv.selected_altitude = bds62.selected_altitude;
+                        sv.nacp = Some(bds62.nac_p);
+                    }
+                    ME::BDS65(bds65) => match bds65 {
+                        AircraftOperationStatus::Airborne(st) => match st.version {
+                            ADSBVersionAirborne::DOC9871AppendixB(v) => sv.nacp = Some(v.nac_p),
+                            ADSBVersionAirborne::DOC9871AppendixC(v) => sv.nacp = Some(v.nac_p),
+                            _ => {}
+                        },
+                        AircraftOperationStatus::Surface(st) => match st.version {
+                            ADSBVersionSurface::DOC9871AppendixB(v) => sv.nacp = Some(v.nac_p),
+                            ADSBVersionSurface::DOC9871AppendixC(v) => sv.nacp = Some(v.nac_p),
+                            _ => {}
+                        },
+                        _ => {}
+                    },
+                    _ => {}
+                },
+                ExtendedSquitterTisB { cf, .. } => {
+                    sv.typecode = Some("GRND".to_string());
+                    match &cf.me {
+                        ME::BDS05 { inner: bds05, .. } => {
+                            sv.latitude = bds05.latitude;
+                            sv.longitude = bds05.longitude;
+                            sv.altitude = bds05.alt;
+                        }
+                        ME::BDS06 { inner: bds06, .. } => {
+                            sv.latitude = bds06.latitude;
+                            sv.longitude = bds06.longitude;
+                            sv.track = bds06.track;
+                            sv.groundspeed = bds06.groundspeed;
+                            sv.altitude = None;
+                        }
+                        ME::BDS08 { inner: bds08, .. } => {
+                            sv.callsign = Some(bds08.callsign.to_string())
+                        }
+                        _ => {}
                     }
                 }
-            }
-            Some(val) if val == "62" => {
-                if let Some(selected_altitude) = msg.selected_altitude {
-                    sv.selected_altitude = Some(selected_altitude);
+                CommBAltitudeReply { bds, .. } => {
+                    if let Some(bds20) = &bds.bds20 {
+                        if !bds20.callsign.contains("#") {
+                            sv.callsign = Some(bds20.callsign.to_string());
+                        }
+                    }
+                    if let Some(bds40) = &bds.bds40 {
+                        sv.selected_altitude = bds40.selected_altitude_mcp;
+                    }
+                    if let Some(bds50) = &bds.bds50 {
+                        sv.roll = bds50.roll_angle;
+                        sv.track = bds50.track_angle;
+                        sv.groundspeed = bds50.groundspeed.map(|x| x as f64);
+                        sv.tas = bds50.true_airspeed;
+                    }
+                    if let Some(bds60) = &bds.bds60 {
+                        sv.ias = bds60.indicated_airspeed;
+                        sv.mach = bds60.mach_number;
+                        sv.heading = bds60.magnetic_heading;
+                        if bds60.inertial_vertical_velocity.is_some() {
+                            sv.vertical_rate = bds60.inertial_vertical_velocity;
+                        }
+                    }
                 }
-            }
-            Some(val) if val == "65" => {
-                if let Some(nacp) = msg.nacp {
-                    sv.nacp = Some(nacp);
+                CommBIdentityReply { bds, .. } => {
+                    if let Some(bds20) = &bds.bds20 {
+                        if !bds20.callsign.contains("#") {
+                            sv.callsign = Some(bds20.callsign.to_string());
+                        }
+                    }
+                    if let Some(bds40) = &bds.bds40 {
+                        sv.selected_altitude = bds40.selected_altitude_mcp;
+                    }
+                    if let Some(bds50) = &bds.bds50 {
+                        sv.roll = bds50.roll_angle;
+                        sv.track = bds50.track_angle;
+                        sv.groundspeed = bds50.groundspeed.map(|x| x as f64);
+                        sv.tas = bds50.true_airspeed;
+                    }
+                    if let Some(bds60) = &bds.bds60 {
+                        sv.ias = bds60.indicated_airspeed;
+                        sv.mach = bds60.mach_number;
+                        sv.heading = bds60.magnetic_heading;
+                        if bds60.inertial_vertical_velocity.is_some() {
+                            sv.vertical_rate = bds60.inertial_vertical_velocity;
+                        }
+                    }
                 }
-            }
-            _ => {}
-        }
-        if let Some(bds40) = &msg.bds40 {
-            sv.selected_altitude = bds40.selected_altitude;
-        }
-        if let Some(bds50) = &msg.bds50 {
-            sv.roll = bds50.roll;
-            sv.track = bds50.track;
-            sv.groundspeed = bds50.groundspeed;
-            sv.tas = bds50.tas;
-        }
-        if let Some(bds60) = &msg.bds60 {
-            sv.ias = bds60.ias;
-            sv.mach = bds60.mach;
-            sv.heading = bds60.heading;
-            sv.vertical_rate = bds60.vrate_inertial;
-        }
+                _ => {}
+            };
 
-        let frame = Jet1090HistoryFrame::from(msg);
-        if let Some(buffer) = &self.history_buffer {
-            buffer.add(frame).await;
+            let frame = Jet1090HistoryFrame::from(msg);
+            if let Some(buffer) = &self.history_buffer {
+                buffer.add(frame).await;
+            }
         }
         Ok(())
     }

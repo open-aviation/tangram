@@ -10,6 +10,7 @@ use pyo3::{
 #[cfg(feature = "stubgen")]
 use pyo3_stub_gen::derive::*;
 use redis::AsyncCommands;
+use rs1090::prelude::TimedMessage;
 use std::{
     collections::BTreeMap,
     sync::Arc,
@@ -27,7 +28,7 @@ use tracing::{debug, error, info};
 #[cfg(feature = "pyo3")]
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-use crate::state::{Aircraft, Jet1090HistoryFrame, Jet1090Message, StateVectors};
+use crate::state::{Aircraft, Jet1090HistoryFrame, StateVectors};
 
 #[cfg(feature = "pyo3")]
 #[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
@@ -137,15 +138,7 @@ async fn start_jet1090_subscriber(
         };
 
         let payload: String = msg.get_payload()?;
-        if !payload.contains(r#""17""#)
-            && !payload.contains(r#""18""#)
-            && !payload.contains(r#""20""#)
-            && !payload.contains(r#""21""#)
-        {
-            continue;
-        }
-
-        match serde_json::from_str::<Jet1090Message>(&payload) {
+        match serde_json::from_str::<TimedMessage>(&payload) {
             Ok(jet1090_msg) => {
                 let mut state = state_vectors.lock().await;
                 if let Err(e) = state.add(&jet1090_msg).await {

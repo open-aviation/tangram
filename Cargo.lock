@@ -1651,7 +1651,6 @@ checksum = "3f68a0d2437e0caae2a1fa10ddeae9a62644520036a64ec70cffb586c6ff1d2a"
 dependencies = [
  "bitvec",
  "deku_derive",
- "log",
  "no_std_io2",
  "rustversion",
 ]
@@ -4007,9 +4006,8 @@ dependencies = [
 
 [[package]]
 name = "rs1090"
-version = "0.4.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "611bbec4f0dcc314f20430dfef15c06333bc17969c8441c7ebb898204198b438"
+version = "0.5.0"
+source = "git+https://github.com/xoolive/jet1090.git?rev=7258d2e2cdbee1de5173ea0e1d31b91c24a5be7d#7258d2e2cdbee1de5173ea0e1d31b91c24a5be7d"
 dependencies = [
  "ansi_term",
  "async-stream",
@@ -4018,7 +4016,6 @@ dependencies = [
  "futures-util",
  "hex",
  "libm",
- "log",
  "num-complex",
  "once_cell",
  "rayon",
