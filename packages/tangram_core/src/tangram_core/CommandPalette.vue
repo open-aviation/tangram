@@ -146,43 +146,42 @@ onUnmounted(() => {
 }
 
 .search-box {
-  background: white;
+  background: var(--t-bg);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  border: 1px solid var(--t-border);
 }
 
 .search-input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  border: none;
   outline: none;
   font-size: 14px;
   box-sizing: border-box;
-}
-
-.search-input:focus {
-  border-color: #666;
+  background: transparent;
+  color: var(--t-fg);
 }
 
 .results-list {
   margin: 4px 0 0 0;
   padding: 0;
   list-style: none;
-  background: white;
+  background: var(--t-bg);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   max-height: 400px;
   overflow-y: auto;
-  border: 1px solid #eee;
+  border: 1px solid var(--t-border);
 }
 
 .result-item {
   padding: 6px 12px;
   cursor: pointer;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid var(--t-border);
   transition: background-color 0.1s;
+  color: var(--t-fg);
 }
 
 .result-item:last-child {
@@ -191,10 +190,10 @@ onUnmounted(() => {
 
 .result-item.selected,
 .result-item:hover {
-  background-color: #f8f9fa;
+  background-color: var(--t-hover);
 }
 
 .is-child {
-  border-left: 2px solid #eee;
+  border-left: 2px solid var(--t-border);
 }
 </style>

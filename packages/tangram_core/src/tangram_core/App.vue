@@ -286,7 +286,8 @@ body {
 
 .navbar {
   min-height: 50px;
-  background: white;
+  background: var(--t-bg);
+  color: var(--t-fg);
   z-index: 500;
   width: 100%;
   box-sizing: border-box;
@@ -295,7 +296,7 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 1.5rem;
-  border-bottom: 1px solid #e7e7e7;
+  border-bottom: 1px solid var(--t-border);
 }
 
 .navbar-brand {
@@ -313,7 +314,7 @@ body {
   padding-bottom: 0.3125rem;
   font-size: 1.25rem;
   margin-bottom: 0;
-  color: black;
+  color: var(--t-fg);
 }
 
 .navbar-spacer {
@@ -337,42 +338,42 @@ body {
 }
 
 .sidebar-section {
-  background-color: rgba(255, 255, 255, 0.95);
-  color: #333;
+  background-color: var(--t-surface);
+  color: var(--t-fg);
   border-radius: 10px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   pointer-events: auto;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--t-border);
 }
 
 .sidebar-header {
   padding: 4px;
-  background-color: #f8f9fa;
+  background-color: var(--t-hover);
   cursor: pointer;
   user-select: none;
   display: flex;
   align-items: center;
   font-size: 14px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  color: #222;
+  border-bottom: 1px solid var(--t-border);
+  color: var(--t-fg);
   transition: background-color 0.2s ease;
 }
 
 .sidebar-header:hover {
-  background-color: #e9ecef;
+  filter: brightness(0.95);
 }
 
 .sidebar-body {
   padding: 0;
-  background-color: white;
+  background-color: var(--t-bg);
 }
 
 .caret {
   display: inline-block;
   margin-right: 8px;
   transition: transform 0.15s ease;
-  color: #666;
+  color: var(--t-fg);
   width: 16px;
   height: 16px;
 }
@@ -394,11 +395,14 @@ body {
 
 .loading-container {
   padding: 1.5rem;
+  background-color: var(--t-bg);
+  color: var(--t-fg);
 }
 
 .loading-detail {
   margin-top: 0.5rem;
-  color: #555;
+  color: var(--t-fg);
+  opacity: 0.7;
 }
 
 .map-controls {
@@ -415,8 +419,8 @@ body {
 .map-btn {
   width: 32px;
   height: 32px;
-  background: white;
-  border: 1px solid #ccc;
+  background: var(--t-bg);
+  border: 1px solid var(--t-border);
   border-radius: 10px;
   cursor: pointer;
   display: flex;
@@ -425,12 +429,13 @@ body {
   font-family: "B612", sans-serif;
   font-weight: bold;
   font-size: 12px;
+  color: var(--t-fg);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   padding: 2px;
 }
 
 .map-btn:hover {
-  background-color: #f0f0f0;
+  background-color: var(--t-hover);
 }
 
 .compass-icon {

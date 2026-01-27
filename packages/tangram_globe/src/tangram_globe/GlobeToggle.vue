@@ -35,19 +35,19 @@ const toggleGlobe = () => {
 
 <style scoped>
 .globe-toggle button {
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--t-bg);
+  border: 1px solid var(--t-border);
   border-radius: 4px;
   padding: 8px 12px;
   cursor: pointer;
   font-size: 16px;
   transition: all 0.2s ease;
-  color: #333;
+  color: var(--t-fg);
 }
 
 .globe-toggle button:hover {
-  background: #f5f5f5;
-  border-color: #bbb;
+  background: var(--t-hover);
+  border-color: var(--t-border);
 }
 
 .globe-toggle button.active {

@@ -419,8 +419,9 @@ onUnmounted(() => {
 <style>
 .deck-tooltip {
   position: absolute;
-  background: white;
-  color: black;
+  background: var(--t-bg) !important;
+  color: var(--t-fg) !important;
+  border: 1px solid var(--t-border);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 11px;

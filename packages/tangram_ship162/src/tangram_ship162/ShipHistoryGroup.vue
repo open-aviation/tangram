@@ -25,10 +25,12 @@ defineProps<{
   justify-content: space-between;
   font-weight: 500;
   font-size: 14px;
+  color: var(--t-fg);
 }
 .mmsi {
   font-family: monospace;
-  background: #f2cf5b;
+  background: var(--t-accent2);
+  color: var(--t-accent2-fg);
   padding: 0 4px;
   border-radius: 4px;
   font-size: 11px;

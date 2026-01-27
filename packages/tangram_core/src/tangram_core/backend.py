@@ -41,7 +41,9 @@ from .config import (
     ExposeField,
     FrontendChannelConfig,
     FrontendConfig,
+    FrontendThemeConfig,
     IntoConfig,
+    ThemeDefinition,
 )
 from .plugin import load_plugin, scan_plugins
 
@@ -233,6 +235,36 @@ def extract_frontend_config(config_instance: Any, config_cls: type) -> dict[str,
     return frontend_config
 
 
+DEFAULT_THEMES = {
+    "light": ThemeDefinition(
+        name="light",
+        background_color="#ffffff",
+        foreground_color="#000000",
+        surface_color="#f8f9fa",
+        border_color="#e7e7e7",
+        hover_color="#e9ecef",
+        accent1="oklch(0.5616 0.0895 251.64)",
+        accent1_foreground="#ffffff",
+        accent2="oklch(0.8021 0.11 92.43)",
+        accent2_foreground="#000000",
+        muted_color="#666666",
+    ),
+    "dark": ThemeDefinition(
+        name="dark",
+        background_color="#1a1a1a",
+        foreground_color="#e0e0e0",
+        surface_color="#2d2d2d",
+        border_color="#404040",
+        hover_color="#343434",
+        accent1="oklch(0.5059 0.0895 251.64)",
+        accent1_foreground="#ffffff",
+        accent2="oklch(0.5059 0.0895 93.53)",
+        accent2_foreground="#ffffff",
+        muted_color="#999999",
+    ),
+}
+
+
 def create_app(
     backend_state: BackendState,
     loaded_plugins: Iterable[Plugin],
@@ -304,9 +336,18 @@ def create_app(
             host = "localhost" if channel_cfg.host == "0.0.0.0" else channel_cfg.host
             channel_url = f"http://{host}:{channel_cfg.port}"
 
+        themes = list(DEFAULT_THEMES.values())
+        user_theme_names = {t.name for t in state.config.themes}
+        themes = [
+            t for t in themes if t.name not in user_theme_names
+        ] + state.config.themes
+
         return FrontendConfig(
             channel=FrontendChannelConfig(url=channel_url),
             map=state.config.map,
+            theme=FrontendThemeConfig(
+                active=state.config.core.theme, definitions=themes
+            ),
         )
 
     @app.get("/manifest.json")

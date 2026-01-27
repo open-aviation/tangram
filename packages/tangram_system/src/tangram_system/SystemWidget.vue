@@ -68,9 +68,13 @@ const local_time = computed(() => {
 
 <style scoped>
 #uptime {
-  color: #79706e;
+  color: var(--t-muted);
   font-size: 9pt;
   text-align: center;
+}
+
+.clock {
+  color: var(--t-fg);
 }
 
 .system-widget {
@@ -78,6 +82,6 @@ const local_time = computed(() => {
   flex-direction: column;
   align-items: center;
   padding: 1px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--t-border);
 }
 </style>

@@ -117,6 +117,10 @@ import { Line as LineChart } from "vue-chartjs";
 import type { Chart } from "chart.js";
 import CityPairWidget from "./CityPairWidget.vue";
 
+const getThemeColor = (varName: string) => {
+  return getComputedStyle(document.body).getPropertyValue(varName).trim();
+};
+
 type CorsairState = { x: number; y: number; draw?: boolean };
 type BlinkState = { lastX: number; until: number; phaseStart: number };
 type BlinkOptions = {
@@ -289,22 +293,23 @@ ChartJS.register(
 
 const PLUGINS = {
   tooltip: {
-    backgroundColor: "#f7f7f7",
-    borderColor: "#ddd",
+    backgroundColor: getThemeColor("--t-surface"),
+    borderColor: getThemeColor("--t-border"),
     borderWidth: 1,
-    titleColor: "#000",
-    bodyColor: "#000",
+    titleColor: getThemeColor("--t-fg"),
+    bodyColor: getThemeColor("--t-fg"),
     titleFont: { family: "B612", size: 10 },
     bodyFont: { family: "B612", size: 10 },
     mode: "nearest" as const,
     intersect: true
   },
   filler: { propagate: true },
-  corsair: { color: "black" },
+  corsair: { color: getThemeColor("--t-fg") },
   legend: {
     display: true,
     position: "top" as const,
     labels: {
+      color: getThemeColor("--t-fg"),
       font: { family: "B612", size: 10 },
       usePointStyle: true,
       pointStyle: "line" as const
@@ -314,6 +319,7 @@ const PLUGINS = {
 const X_SCALE = {
   type: "linear" as const,
   ticks: {
+    color: getThemeColor("--t-fg"),
     font: { family: "B612", size: 9 },
     autoSkip: true,
     maxTicksLimit: 7,
@@ -323,7 +329,7 @@ const X_SCALE = {
     callback: (value: number | string) => formatZuluTick(value)
   },
   border: { width: 0 },
-  grid: { display: true }
+  grid: { display: true, color: getThemeColor("--t-border") }
 };
 
 const tangramApi = inject<TangramApi>("tangramApi");
@@ -408,6 +414,8 @@ const getTimestampDomain = (data: Jet1090Aircraft[]) => {
 const getChartData = (id: string): ChartData<"line"> => {
   const traj = aircraftStore.selected.get(id)?.trajectory || [];
   const metric = getSelectedMetric(id);
+  const accent1 = getThemeColor("--t-accent1");
+  const accent2 = getThemeColor("--t-accent2");
 
   if (metric === "altitude") {
     const data = getMetricData(traj, metric);
@@ -420,8 +428,8 @@ const getChartData = (id: string): ChartData<"line"> => {
             item => item.timestamp,
             item => item.altitude
           ),
-          borderColor: "#4c78a8",
-          backgroundColor: "#9ecae9",
+          borderColor: accent1,
+          backgroundColor: `color-mix(in srgb, ${accent1}, transparent 70%)`,
           borderWidth: 2,
           order: 2,
           pointRadius: 0,
@@ -435,7 +443,7 @@ const getChartData = (id: string): ChartData<"line"> => {
             item => item.timestamp,
             item => item.selected_altitude
           ),
-          borderColor: "#f58518",
+          borderColor: accent2,
           borderWidth: 3,
           order: 1,
           spanGaps: true,
@@ -454,7 +462,7 @@ const getChartData = (id: string): ChartData<"line"> => {
             item => item.timestamp,
             item => item.groundspeed
           ),
-          borderColor: "#4c78a8",
+          borderColor: accent1,
           borderWidth: 2,
           pointRadius: 0.01,
           spanGaps: true,
@@ -468,7 +476,7 @@ const getChartData = (id: string): ChartData<"line"> => {
             item => item.timestamp,
             item => item.ias
           ),
-          borderColor: "#f58518",
+          borderColor: accent2,
           spanGaps: true,
           borderWidth: 2,
           pointRadius: 0.2,
@@ -516,7 +524,7 @@ const getChartData = (id: string): ChartData<"line"> => {
             item => item.timestamp,
             item => item.vertical_rate
           ),
-          borderColor: "#4c78a8",
+          borderColor: accent1,
           borderWidth: 1,
           pointRadius: 0.2,
           spanGaps: true,
@@ -532,8 +540,8 @@ const getChartData = (id: string): ChartData<"line"> => {
           ),
           borderWidth: 0.5,
           pointRadius: 1.5,
-          borderColor: "#f58518",
-          backgroundColor: "#f58518"
+          borderColor: accent2,
+          backgroundColor: accent2
         },
         {
           label: "Inertial",
@@ -563,7 +571,7 @@ const getChartData = (id: string): ChartData<"line"> => {
             item => item.track
           ),
           borderWidth: 2,
-          borderColor: "#4c78a8",
+          borderColor: accent1,
           pointRadius: 0.2,
           spanGaps: true,
           yAxisID: "bearing"
@@ -576,7 +584,7 @@ const getChartData = (id: string): ChartData<"line"> => {
             item => item.heading
           ),
           borderWidth: 2,
-          borderColor: "#f58518",
+          borderColor: accent2,
           pointRadius: 0.2,
           spanGaps: true,
           yAxisID: "bearing"
@@ -637,7 +645,7 @@ const getChartOptions = (id: string): ChartOptions<"line"> => {
         y: {
           border: { width: 0 },
           min: 0,
-          ticks: { font: { family: "B612", size: 9 } },
+          ticks: { font: { family: "B612", size: 9 }, color: getThemeColor("--t-fg") },
           grid: { display: false }
         },
         x: xScale
@@ -657,7 +665,7 @@ const getChartOptions = (id: string): ChartOptions<"line"> => {
           display: true,
           position: "left",
           min: 0,
-          ticks: { font: { family: "B612", size: 9 } },
+          ticks: { font: { family: "B612", size: 9 }, color: getThemeColor("--t-fg") },
           grid: { display: false }
         },
         mach: {
@@ -666,7 +674,7 @@ const getChartOptions = (id: string): ChartOptions<"line"> => {
           position: "right",
           min: 0,
           max: 1,
-          ticks: { font: { family: "B612", size: 9 } },
+          ticks: { font: { family: "B612", size: 9 }, color: getThemeColor("--t-fg") },
           grid: { drawOnChartArea: false }
         }
       },
@@ -682,7 +690,7 @@ const getChartOptions = (id: string): ChartOptions<"line"> => {
         x: xScale,
         y: {
           border: { width: 0 },
-          ticks: { font: { family: "B612", size: 9 } },
+          ticks: { font: { family: "B612", size: 9 }, color: getThemeColor("--t-fg") },
           grid: { display: false }
         }
       },
@@ -703,14 +711,14 @@ const getChartOptions = (id: string): ChartOptions<"line"> => {
           position: "left",
           min: 0,
           max: 360,
-          ticks: { font: { family: "B612", size: 9 } },
+          ticks: { font: { family: "B612", size: 9 }, color: getThemeColor("--t-fg") },
           grid: { display: false }
         },
         roll: {
           type: "linear",
           display: true,
           position: "right",
-          ticks: { font: { family: "B612", size: 9 } },
+          ticks: { font: { family: "B612", size: 9 }, color: getThemeColor("--t-fg") },
           grid: { drawOnChartArea: false }
         }
       },
@@ -739,13 +747,13 @@ watch(
 }
 
 .list-item {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--t-border);
   cursor: pointer;
-  background-color: white;
+  background-color: var(--t-bg);
 }
 
 .list-item:hover .header {
-  background-color: #f5f5f5;
+  background-color: var(--t-hover);
 }
 
 .header {
@@ -753,8 +761,8 @@ watch(
 }
 
 .expanded .header {
-  border-bottom: 1px solid #eee;
-  background-color: #f0f7ff;
+  border-bottom: 1px solid var(--t-border);
+  background-color: var(--t-surface);
 }
 
 .details-body {
@@ -785,23 +793,24 @@ watch(
   gap: 4px;
   font-family: "B612", monospace;
   font-size: 0.9em;
-  color: #333;
+  color: var(--t-fg);
 }
 
 .callsign {
   font-size: 1.2em;
   font-weight: normal;
+  color: var(--t-fg);
 }
 
 .no-data {
-  color: #888;
+  color: var(--t-muted);
   font-style: italic;
   font-size: 1em;
 }
 
 .registration {
   font-size: 0.9em;
-  color: #666;
+  color: var(--t-muted);
 }
 
 .chip {
@@ -812,34 +821,34 @@ watch(
 }
 
 .chip.blue {
-  background-color: #4c78a8;
-  color: white;
-  border: 1px solid #4c78a8;
+  background-color: var(--t-accent1);
+  color: var(--t-accent1-fg);
+  border: 1px solid var(--t-accent1);
 }
 
 .chip.yellow {
-  background-color: #f2cf5b;
-  color: black;
-  border: 1px solid #e0c050;
+  background-color: var(--t-accent2);
+  color: var(--t-accent2-fg);
+  border: 1px solid var(--t-accent2);
 }
 
 .icao24::before {
   content: "0x";
-  color: #79706e;
+  color: var(--t-muted);
   font-size: 95%;
 }
 
 .sub-row .right-group {
-  color: #666;
+  color: var(--t-muted);
 }
 
 .sep {
-  color: #aaa;
+  color: var(--t-muted);
   font-weight: normal;
 }
 
 .chart-container {
-  background: white;
+  background: var(--t-bg);
   height: 180px;
   width: auto;
   padding: 5px;
@@ -851,6 +860,9 @@ watch(
   margin-bottom: 10px;
   font-family: "Roboto Condensed", sans-serif;
   font-size: 10pt;
+  background-color: var(--t-bg);
+  color: var(--t-fg);
+  border: 1px solid var(--t-border);
 }
 
 .chart-container .chart {
@@ -861,7 +873,7 @@ watch(
 
 .no-data-msg {
   text-align: center;
-  color: #888;
+  color: var(--t-muted);
   font-style: italic;
   padding: 10px;
 }

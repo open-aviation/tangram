@@ -140,13 +140,13 @@ watch(
 }
 
 .list-item {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--t-border);
   cursor: pointer;
-  background-color: white;
+  background-color: var(--t-bg);
 }
 
 .list-item:hover .header {
-  background-color: #f5f5f5;
+  background-color: var(--t-hover);
 }
 
 .header {
@@ -154,8 +154,8 @@ watch(
 }
 
 .expanded .header {
-  border-bottom: 1px solid #eee;
-  background-color: #f0f7ff;
+  border-bottom: 1px solid var(--t-border);
+  background-color: var(--t-surface);
 }
 
 .details-body {
@@ -187,7 +187,7 @@ watch(
   gap: 4px;
   font-family: "B612", monospace;
   font-size: 0.9em;
-  color: #333;
+  color: var(--t-fg);
   white-space: nowrap;
 }
 
@@ -197,14 +197,14 @@ watch(
 }
 
 .no-data {
-  color: #888;
+  color: var(--t-muted);
   font-style: italic;
   font-size: 1em;
 }
 
 .destination {
   font-size: 0.9em;
-  color: #666;
+  color: var(--t-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -220,23 +220,23 @@ watch(
 }
 
 .chip.blue {
-  background-color: #4c78a8;
-  color: white;
-  border: 1px solid #4c78a8;
+  background-color: var(--t-accent1);
+  color: var(--t-accent1-fg);
+  border: 1px solid var(--t-accent1);
 }
 
 .chip.yellow {
-  background-color: #f2cf5b;
-  color: black;
-  border: 1px solid #e0c050;
+  background-color: var(--t-accent2);
+  color: var(--t-accent2-fg);
+  border: 1px solid var(--t-accent2);
 }
 
 .sub-row .right-group {
-  color: #666;
+  color: var(--t-muted);
 }
 
 .sep {
-  color: #aaa;
+  color: var(--t-muted);
   font-weight: normal;
 }
 
@@ -246,14 +246,15 @@ watch(
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: var(--t-fg);
 }
 
 .status-chip {
-  background-color: #eee;
+  background-color: var(--t-hover);
   padding: 2px 6px;
   border-radius: 10px;
   font-size: 0.9em;
-  color: #555;
+  color: var(--t-fg);
 }
 
 .details-table {
@@ -264,6 +265,7 @@ watch(
 .details-table td {
   padding: 1px 0;
   border: none;
+  color: var(--t-fg);
 }
 
 .details-table .label {
@@ -272,6 +274,6 @@ watch(
   padding-right: 10px;
   white-space: nowrap;
   width: 1%;
-  color: #555;
+  color: var(--t-muted);
 }
 </style>

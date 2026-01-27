@@ -94,10 +94,32 @@ class MapConfig:
 
 
 @dataclass
+class ThemeDefinition:
+    name: str
+    background_color: str
+    foreground_color: str
+    surface_color: str
+    border_color: str
+    hover_color: str
+    accent1: str
+    accent1_foreground: str
+    accent2: str
+    accent2_foreground: str
+    muted_color: str
+
+
+@dataclass
+class AdaptiveTheme:
+    light: str = "light"
+    dark: str = "dark"
+
+
+@dataclass
 class CoreConfig:
     redis_url: str = "redis://127.0.0.1:6379"
     plugins: list[str] = field(default_factory=list)
     log_level: str = "INFO"
+    theme: str | AdaptiveTheme = field(default_factory=AdaptiveTheme)
 
 
 @dataclass
@@ -131,6 +153,7 @@ class Config:
     map: MapConfig = field(default_factory=MapConfig)
     plugins: dict[str, Any] = field(default_factory=dict)
     """Mapping of plugin name to plugin-specific config."""
+    themes: list[ThemeDefinition] = field(default_factory=list)
     cache: CacheConfig = field(default_factory=CacheConfig)
 
     @classmethod
@@ -167,6 +190,13 @@ class FrontendChannelConfig:
 
 
 @dataclass
+class FrontendThemeConfig:
+    active: str | AdaptiveTheme
+    definitions: list[ThemeDefinition]
+
+
+@dataclass
 class FrontendConfig:
     channel: FrontendChannelConfig
     map: MapConfig
+    theme: FrontendThemeConfig

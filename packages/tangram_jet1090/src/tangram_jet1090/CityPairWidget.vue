@@ -162,11 +162,12 @@ watch(
 
 .airport .icao {
   font-size: 15pt;
+  color: var(--t-fg);
 }
 
 .airport .city {
   font-family: "Roboto Condensed", sans-serif;
-  color: #79706e;
+  color: var(--t-muted);
   font-size: 10pt;
 }
 
@@ -174,7 +175,7 @@ watch(
 .error {
   text-align: center;
   padding: 10px;
-  color: #79706e;
+  color: var(--t-muted);
   font-size: 0.9em;
 }
 </style>

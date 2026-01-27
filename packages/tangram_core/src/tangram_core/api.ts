@@ -42,9 +42,34 @@ export interface MapConfig {
   enable_3d: boolean;
 }
 
+export interface ThemeDefinition {
+  name: string;
+  background_color: string;
+  foreground_color: string;
+  surface_color: string;
+  border_color: string;
+  hover_color: string;
+  accent1: string;
+  accent1_foreground: string;
+  accent2: string;
+  accent2_foreground: string;
+  muted_color: string;
+}
+
+export interface AdaptiveTheme {
+  light: string;
+  dark: string;
+}
+
+export interface ThemeConfig {
+  active: string | AdaptiveTheme;
+  definitions: ThemeDefinition[];
+}
+
 export interface TangramConfig {
   channel: ChannelConfig;
   map: MapConfig;
+  theme: ThemeConfig;
 }
 
 export type EntityId = string;
@@ -609,7 +634,38 @@ export class TangramApi {
     this.state = new StateApi();
     this.search = new SearchApi();
 
+    this.applyTheme();
     this.setupViewUpdates();
+  }
+
+  private applyTheme() {
+    const { active, definitions } = this.config.theme;
+    const defMap = new Map(definitions.map(d => [d.name, d]));
+
+    const render = (name: string) => {
+      const theme = defMap.get(name);
+      if (!theme) return;
+      const root = document.documentElement;
+      root.style.setProperty("--t-bg", theme.background_color);
+      root.style.setProperty("--t-fg", theme.foreground_color);
+      root.style.setProperty("--t-surface", theme.surface_color);
+      root.style.setProperty("--t-border", theme.border_color);
+      root.style.setProperty("--t-hover", theme.hover_color);
+      root.style.setProperty("--t-accent1", theme.accent1);
+      root.style.setProperty("--t-accent1-fg", theme.accent1_foreground);
+      root.style.setProperty("--t-accent2", theme.accent2);
+      root.style.setProperty("--t-accent2-fg", theme.accent2_foreground);
+      root.style.setProperty("--t-muted", theme.muted_color);
+    };
+
+    if (typeof active === "string") {
+      render(active);
+    } else {
+      const media = window.matchMedia("(prefers-color-scheme: dark)");
+      const update = () => render(media.matches ? active.dark : active.light);
+      update();
+      media.addEventListener("change", update);
+    }
   }
 
   private setupViewUpdates() {

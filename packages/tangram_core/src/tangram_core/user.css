@@ -4,6 +4,8 @@ body,
   height: 100%;
   overflow: hidden;
   width: 100%;
+  background-color: var(--t-bg);
+  color: var(--t-fg);
 }
 
 #map {
@@ -21,7 +23,7 @@ div.form {
   float: right;
   clear: right;
   width: 300px;
-  border: 1px solid #bab0ac;
+  border: 1px solid var(--t-border);
   padding: 10px;
 }
 
@@ -41,12 +43,13 @@ span.monospace {
 table a:not(.btn),
 .table a:not(.btn) {
   text-decoration: none;
+  color: var(--t-fg);
 }
 
 a.flag {
   position: relative;
   cursor: pointer;
-  color: #2c3e50;
+  color: var(--t-fg);
 }
 
 a.flag:hover::after {
@@ -110,5 +113,5 @@ a.flag:hover::after {
 .form-container {
   max-width: 300px;
   padding: 10px;
-  background-color: white;
+  background-color: var(--t-bg);
 }

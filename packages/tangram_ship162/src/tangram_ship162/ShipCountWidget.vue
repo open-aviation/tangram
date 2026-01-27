@@ -30,10 +30,10 @@ const visibleCount = computed(
 <style scoped>
 #visible_ships_count {
   font-size: 1em;
-  color: #4c78a8;
+  color: var(--t-accent1);
 }
 #count_ships {
-  color: #79706e;
+  color: var(--t-muted);
   font-size: 9pt;
   text-align: center;
 }
@@ -42,9 +42,10 @@ const visibleCount = computed(
   flex-direction: column;
   align-items: center;
   padding: 1px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--t-border);
 }
 .count-display {
   text-align: center;
+  color: var(--t-fg);
 }
 </style>

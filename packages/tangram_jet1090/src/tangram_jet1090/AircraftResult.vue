@@ -34,6 +34,7 @@ defineProps<{
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: var(--t-fg);
 }
 .reg {
   font-weight: 500;
@@ -41,7 +42,7 @@ defineProps<{
 }
 .subtitle {
   font-size: 12px;
-  color: #666;
+  color: var(--t-muted);
 }
 .chips {
   display: flex;
@@ -54,11 +55,11 @@ defineProps<{
   font-size: 11px;
 }
 .blue {
-  background: #4c78a8;
-  color: white;
+  background: var(--t-accent1);
+  color: var(--t-accent1-fg);
 }
 .yellow {
-  background: #f2cf5b;
-  color: black;
+  background: var(--t-accent2);
+  color: var(--t-accent2-fg);
 }
 </style>
