@@ -1253,17 +1253,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#tangram_system.transform_config" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;transform_config
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#tangram_system.uptime" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1572,17 +1561,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#tangram_system.transform_config" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;transform_config
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#tangram_system.uptime" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1746,8 +1724,12 @@
   
       dataclass
    (tangram_core.Plugin)" href="../core/#tangram_core.Plugin">Plugin</a></span><span class="p">(</span>
-    <span class="n"><span title="tangram_core.Plugin(frontend_path)">frontend_path</span></span><span class="o">=</span><span class="s2">&quot;dist-frontend&quot;</span><span class="p">,</span>
-    <span class="n"><span title="tangram_core.Plugin(into_frontend_config_function)">into_frontend_config_function</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            transform_config (tangram_system.transform_config)" href="#tangram_system.transform_config">transform_config</a></span><span class="p">,</span>
+    <span class="n"><span title="tangram_core.Plugin(frontend_path)">frontend_path</span></span><span class="o">=</span><span class="s2">&quot;dist-frontend&quot;</span><span class="p">,</span> <span class="n"><span title="tangram_core.Plugin(config_class)">config_class</span></span><span class="o">=</span><span class="n"><a class="autorefs autorefs-internal" title="            SystemConfig
+
+
+  
+      dataclass
+   (tangram_system.SystemConfig)" href="#tangram_system.SystemConfig">SystemConfig</a></span>
 <span class="p">)</span>
 </code></pre></div>
 
@@ -1789,11 +1771,11 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SystemConfig</span><span class="p">(</span><span class="n">tangram_core</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">HasSidebarUiConfig</span><span class="p">):</span>
-    <span class="n">topbar_order</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">topbar_order</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">ExposeField</span><span class="p">()]</span> <span class="o">=</span> <span class="mi">0</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -1821,7 +1803,12 @@
   </span>
 
 <a href="#tangram_system.SystemConfig.topbar_order" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">topbar_order</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></span> <span class="o">=</span> <span class="mi">0</span>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">topbar_order</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Annotated" href="https://docs.python.org/3/library/typing.html#typing.Annotated">Annotated</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-internal" title="            ExposeField
+
+
+  
+      dataclass
+   (tangram_core.config.ExposeField)" href="../core/#tangram_core.config.ExposeField">ExposeField</a></span><span class="p">()]</span> <span class="o">=</span> <span class="mi">0</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -1863,7 +1850,14 @@
 
 
 <a href="#tangram_system.SystemConfig.__init__" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">__init__</span><span class="p">(</span><span class="n">topbar_order</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">__init__</span><span class="p">(</span>
+    <span class="n">topbar_order</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Annotated" href="https://docs.python.org/3/library/typing.html#typing.Annotated">Annotated</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-internal" title="            ExposeField
+
+
+  
+      dataclass
+   (tangram_core.config.ExposeField)" href="../core/#tangram_core.config.ExposeField">ExposeField</a></span><span class="p">()]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -1885,42 +1879,6 @@
 <div class="doc doc-object doc-function">
 
 
-<h3 id="tangram_system.transform_config" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">transform_config</span>
-
-
-<a href="#tangram_system.transform_config" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">transform_config</span><span class="p">(</span>
-    <span class="n">config_dict</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></span><span class="p">],</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="            SystemConfig
-
-
-  
-      dataclass
-   (tangram_system.SystemConfig)" href="#tangram_system.SystemConfig">SystemConfig</a></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span>
-<span class="normal">23</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">transform_config</span><span class="p">(</span><span class="n">config_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SystemConfig</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">TypeAdapter</span>
-
-    <span class="k">return</span> <span class="n">TypeAdapter</span><span class="p">(</span><span class="n">SystemConfig</span><span class="p">)</span><span class="o">.</span><span class="n">validate_python</span><span class="p">(</span><span class="n">config_dict</span><span class="p">)</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
 <h3 id="tangram_system.uptime" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">uptime</span>
 
@@ -1934,11 +1892,11 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">26</span>
-<span class="normal">27</span>
-<span class="normal">28</span>
-<span class="normal">29</span>
-<span class="normal">30</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">uptime</span><span class="p">(</span><span class="n">counter</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">uptime</span><span class="p">(</span><span class="n">counter</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
     <span class="k">return</span> <span class="p">{</span>
         <span class="s2">&quot;el&quot;</span><span class="p">:</span> <span class="s2">&quot;uptime&quot;</span><span class="p">,</span>
         <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">counter</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
@@ -1965,11 +1923,11 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">33</span>
-<span class="normal">34</span>
-<span class="normal">35</span>
-<span class="normal">36</span>
-<span class="normal">37</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">info_utc</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]:</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">info_utc</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]:</span>
     <span class="k">return</span> <span class="p">{</span>
         <span class="s2">&quot;el&quot;</span><span class="p">:</span> <span class="s2">&quot;info_utc&quot;</span><span class="p">,</span>
         <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">1000</span> <span class="o">*</span> <span class="nb">int</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()),</span>
@@ -1996,14 +1954,14 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">40</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
 <span class="normal">41</span>
-<span class="normal">42</span>
-<span class="normal">43</span>
-<span class="normal">44</span>
-<span class="normal">45</span>
-<span class="normal">46</span>
-<span class="normal">47</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cpu_load</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="normal">42</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cpu_load</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">load1</span><span class="p">,</span> <span class="n">_load5</span><span class="p">,</span> <span class="n">_load15</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">getloadavg</span><span class="p">()</span>
         <span class="n">cpu_count</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(</span><span class="n">logical</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">1</span>
@@ -2033,12 +1991,12 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">50</span>
-<span class="normal">51</span>
-<span class="normal">52</span>
-<span class="normal">53</span>
-<span class="normal">54</span>
-<span class="normal">55</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">ram_usage</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">ram_usage</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">mem</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span>
         <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;el&quot;</span><span class="p">:</span> <span class="s2">&quot;ram_usage&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mem</span><span class="o">.</span><span class="n">percent</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">%&quot;</span><span class="p">}</span>
@@ -2070,7 +2028,12 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">58</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
 <span class="normal">59</span>
 <span class="normal">60</span>
 <span class="normal">61</span>
@@ -2078,12 +2041,7 @@
 <span class="normal">63</span>
 <span class="normal">64</span>
 <span class="normal">65</span>
-<span class="normal">66</span>
-<span class="normal">67</span>
-<span class="normal">68</span>
-<span class="normal">69</span>
-<span class="normal">70</span>
-<span class="normal">71</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">server_events</span><span class="p">(</span><span class="n">redis_client</span><span class="p">:</span> <span class="n">redis</span><span class="o">.</span><span class="n">Redis</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NoReturn</span><span class="p">:</span>
+<span class="normal">66</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">server_events</span><span class="p">(</span><span class="n">redis_client</span><span class="p">:</span> <span class="n">redis</span><span class="o">.</span><span class="n">Redis</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NoReturn</span><span class="p">:</span>
     <span class="n">counter</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;serving system events...&quot;</span><span class="p">)</span>
 
@@ -2128,9 +2086,9 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_system/src/tangram_system/__init__.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">79</span>
-<span class="normal">80</span>
-<span class="normal">81</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@plugin</span><span class="o">.</span><span class="n">register_service</span><span class="p">()</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@plugin</span><span class="o">.</span><span class="n">register_service</span><span class="p">()</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_system</span><span class="p">(</span><span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">BackendState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="k">await</span> <span class="n">server_events</span><span class="p">(</span><span class="n">backend_state</span><span class="o">.</span><span class="n">redis_client</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
