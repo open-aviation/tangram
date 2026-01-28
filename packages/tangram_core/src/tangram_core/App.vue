@@ -181,6 +181,18 @@ watch(mapContainer, newEl => {
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol("pmtiles", protocol.tile);
 
+    if (typeof mapConfig.style === "string") {
+      const styles = mapConfig.styles as Array<string | maplibregl.StyleSpecification>;
+      const namedStyle = styles.find(
+        s =>
+          (typeof s === "string" && s === mapConfig.style) || // Url
+          (typeof s === "object" && s.name === mapConfig.style) // StyleSpecification
+      );
+      if (namedStyle !== undefined) {
+        mapConfig.style = namedStyle;
+      } // TODO: raise error if not found (we need a proper system for notifying users)
+    }
+
     if (typeof mapConfig.style === "object") {
       // If the style is an object, we need to ensure it has the correct structure
       // First we need to remove all None/null values from the style object

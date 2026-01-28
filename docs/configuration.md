@@ -34,6 +34,23 @@ port = 2347
 # WebSocket connections. Change this to a strong, unique secret.
 jwt_secret = "a-better-secret-than-this"
 
+[map]
+# The basemap style can be a URL, a path to a local JSON file (relative to this config or absolute),
+# or the id of a style defined in [[map.styles]].
+style = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+# style = "./my-custom-style.json"
+# style = "dark-matter"
+
+# You can define multiple map styles available to the application.
+[[map.styles]]
+name = "Dark Matter"
+id = "dark-matter"
+version = 8
+sources = { openmaptiles = { type = "vector", url = "https://d17gef4m69t9r4.cloudfront.net/planet.json" } }
+sprite = "https://openmaptiles.github.io/dark-matter-gl-style/sprite"
+glyphs = "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf"
+# ... layers ...
+
 [plugins.tangram_jet1090]  # (3)!
 # plugin-specific configuration is defined in its own table,
 # following the pattern `[plugins.<plugin_package_name>]`.

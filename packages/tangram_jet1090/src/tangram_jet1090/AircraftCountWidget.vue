@@ -31,7 +31,7 @@ const visibleCount = computed(
 <style scoped>
 #visible_count {
   font-size: 1em;
-  color: var(--t-accent1);
+  color: color-mix(in oklch, var(--t-accent1), var(--t-fg));
 }
 #plane_count {
   color: var(--t-fg);

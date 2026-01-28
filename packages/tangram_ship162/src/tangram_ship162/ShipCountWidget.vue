@@ -30,7 +30,7 @@ const visibleCount = computed(
 <style scoped>
 #visible_ships_count {
   font-size: 1em;
-  color: var(--t-accent1);
+  color: color-mix(in oklch, var(--t-accent1), var(--t-fg));
 }
 #count_ships {
   color: var(--t-muted);

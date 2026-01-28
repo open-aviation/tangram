@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
 import sys
+import urllib.parse
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
@@ -55,25 +57,29 @@ class UrlConfig:
     type: str = "vector"
 
 
-@dataclass
-class SourceSpecification:
-    carto: UrlConfig | None = None
-    protomaps: UrlConfig | None = None
+StyleName: TypeAlias = str
 
 
 @dataclass
 class StyleSpecification:
-    sources: SourceSpecification | None = None
+    name: StyleName | None = None
+    sources: dict[str, UrlConfig] | None = None
     glyphs: str = "https://cdn.protomaps.com/fonts/pbf/{fontstack}/{range}.pbf"
     layers: list[Any] | None = None
     version: Literal[8] = 8
 
 
+Url: TypeAlias = str
+
+
 @dataclass
 class MapConfig:
-    style: str | StyleSpecification = (
+    # users can specify local path in config file but it will be resolved in from_file
+    # and so the stored type cannot be Path
+    style: Url | StyleName | StyleSpecification = (
         "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
     )
+    styles: list[Url | StyleSpecification] = field(default_factory=list)
     attribution: str = (
         '&copy; <a href="https://www.openstreetmap.org/copyright">'
         "OpenStreetMap</a> contributors &copy; "
@@ -141,7 +147,7 @@ class CacheConfig:
 
 # do not use with dataclasses yet: it probably wont work for pydantic.TypeAdapter
 # stolen from typeshed. maybe we should apply it everywhere
-StrOrPathLike = str | bytes | PathLike[str] | PathLike[bytes]
+StrOrPathLike = str | PathLike[str]
 IntoConfig: TypeAlias = "Config | StrOrPathLike"
 
 
@@ -167,9 +173,35 @@ class Config:
         with open(config_path, "rb") as f:
             cfg_data = tomllib.load(f)
 
+        base_dir = Path(config_path).parent
+        map = cfg_data.setdefault("map", {})
+        if (s := map.get("style", None)) is not None:
+            map["style"] = try_resolve_local_style(base_dir, s, allow_style_name=True)
+        map["styles"] = [
+            try_resolve_local_style(base_dir, style, allow_style_name=False)
+            for style in map.get("styles", [])
+        ]
         config_adapter = TypeAdapter(cls)
         config = config_adapter.validate_python(cfg_data)
         return config
+
+
+def try_resolve_local_style(
+    base_dir: Path,
+    style: Url | StyleName | StyleSpecification,
+    *,
+    allow_style_name: bool,
+) -> Url | StyleSpecification:
+    if isinstance(style, str):
+        scheme = urllib.parse.urlparse(style).scheme
+        if scheme in ("http", "https"):
+            return style
+        if (p := (base_dir / style).resolve()).is_file():
+            with open(p, "rb") as f:
+                return json.load(f)
+        if not allow_style_name:
+            raise ValueError(f"expected '{style}' to be a valid URL or file path")
+    return style
 
 
 @dataclass(frozen=True)

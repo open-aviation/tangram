@@ -21,12 +21,16 @@ class NotImplementedError extends Error {
   }
 }
 
+export type Url = string;
+
 export interface ChannelConfig {
-  url: string;
+  url: Url;
 }
 
 export interface MapConfig {
-  style: string | StyleSpecification;
+  // style name (string) from the backend is resolved into StyleSpecification in App.vue.
+  style: Url | StyleSpecification;
+  styles: (Url | StyleSpecification)[];
   attribution: string;
   center_lat: number;
   center_lon: number;

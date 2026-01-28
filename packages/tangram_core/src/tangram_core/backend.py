@@ -406,7 +406,7 @@ class Runtime:
     """
 
     def __init__(self, config: IntoConfig | None = None) -> None:
-        if isinstance(config, (str, bytes, Path, os.PathLike)):
+        if isinstance(config, (str, Path, os.PathLike)):
             self.config = Config.from_file(config)
         else:
             self.config = config or Config()
