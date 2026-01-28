@@ -57,6 +57,6 @@
   "devDependencies": {
     "@types/phoenix": "^1.6.7",
     "vite": "^7.3.1",
-    "vite-plugin-static-copy": "^3.1.5"
+    "vite-plugin-static-copy": "^3.2.0"
   }
 }
