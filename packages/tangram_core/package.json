@@ -47,7 +47,7 @@
     "@vitejs/plugin-vue": "^6.0.3",
     "font-awesome": "^4.7.0",
     "lit-html": "^3.3.2",
-    "maplibre-gl": "^5.16.0",
+    "maplibre-gl": "^5.17.0",
     "parquet-wasm": "^0.7.1",
     "phoenix": "^1.8.3",
     "pmtiles": "^4.3.2",
