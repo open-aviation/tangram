@@ -23,8 +23,8 @@ function getGreatCirclePath(
 ): [number, number, number][] {
   const key = `${start[0]},${start[1]}-${end[0]},${end[1]}`;
 
-  const startAlt = !tangramApi.config.map.enable_3d ? 0 : start[2] || 0;
-  const endAlt = !tangramApi.config.map.enable_3d ? 0 : end[2] || 0;
+  const startAlt = !pluginConfig.enable3d ? 0 : start[2] || 0;
+  const endAlt = !pluginConfig.enable3d ? 0 : end[2] || 0;
 
   let flatPath: [number, number][] = [];
 
@@ -106,7 +106,7 @@ const updateLayer = () => {
     const currentPos: [number, number, number] = [
       state.longitude,
       state.latitude,
-      !tangramApi.config.map.enable_3d ? 0 : (state.altitude || 0) * 0.3048
+      !pluginConfig.enable3d ? 0 : (state.altitude || 0) * 0.3048
     ];
 
     const firstPoint = data.trajectory.find(
@@ -127,7 +127,7 @@ const updateLayer = () => {
       const firstPos: [number, number, number] = [
         firstPoint.longitude!,
         firstPoint.latitude!,
-        !tangramApi.config.map.enable_3d ? 0 : (firstPoint.altitude || 0) * 0.3048
+        !pluginConfig.enable3d ? 0 : (firstPoint.altitude || 0) * 0.3048
       ];
       paths.push({
         path: getGreatCirclePath(originPos, firstPos),
@@ -176,7 +176,14 @@ const updateLayer = () => {
   }
 };
 
-watch([() => aircraftStore.version, () => pluginConfig.showRouteLines], updateLayer);
+watch(
+  [
+    () => aircraftStore.version,
+    () => pluginConfig.showRouteLines,
+    () => pluginConfig.enable3d
+  ],
+  updateLayer
+);
 
 onUnmounted(() => {
   layerDisposable.value?.dispose();

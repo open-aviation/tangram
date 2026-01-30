@@ -2,12 +2,12 @@ from dataclasses import dataclass
 from typing import Annotated
 
 import tangram_core
-from tangram_core.config import ExposeField
+from tangram_core.config import FrontendMutable
 
 
 @dataclass
-class GlobeConfig(tangram_core.config.HasSidebarUiConfig):
-    topbar_order: Annotated[int, ExposeField()] = 1000
+class GlobeConfig:
+    enabled: Annotated[bool, FrontendMutable()] = False
 
 
 plugin = tangram_core.Plugin(

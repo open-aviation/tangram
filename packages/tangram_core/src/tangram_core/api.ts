@@ -13,6 +13,8 @@ import type { Map as MaplibreMap, LngLatBounds, StyleSpecification } from "mapli
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import type { Layer } from "@deck.gl/core";
 import { Socket, Channel } from "phoenix";
+import MapSettings from "./MapSettings.vue";
+import ThemeSettings from "./ThemeSettings.vue";
 
 class NotImplementedError extends Error {
   constructor(message = "this function is not yet implemented.") {
@@ -31,7 +33,6 @@ export interface MapConfig {
   // style name (string) from the backend is resolved into StyleSpecification in App.vue.
   style: Url | StyleSpecification;
   styles: (Url | StyleSpecification)[];
-  attribution: string;
   center_lat: number;
   center_lon: number;
   zoom: number;
@@ -43,21 +44,21 @@ export interface MapConfig {
   max_pitch: number;
   allow_pitch: boolean;
   allow_bearing: boolean;
-  enable_3d: boolean;
 }
 
 export interface ThemeDefinition {
   name: string;
-  background_color: string;
-  foreground_color: string;
-  surface_color: string;
-  border_color: string;
-  hover_color: string;
+  background: string;
+  foreground: string;
+  surface: string;
+  border: string;
+  hover: string;
   accent1: string;
   accent1_foreground: string;
   accent2: string;
   accent2_foreground: string;
-  muted_color: string;
+  muted: string;
+  error: string;
 }
 
 export interface AdaptiveTheme {
@@ -70,10 +71,15 @@ export interface ThemeConfig {
   definitions: ThemeDefinition[];
 }
 
+export interface CoreConfig {
+  theme: string | AdaptiveTheme;
+  themes: ThemeDefinition[];
+}
+
 export interface TangramConfig {
   channel: ChannelConfig;
   map: MapConfig;
-  theme: ThemeConfig;
+  core: CoreConfig;
 }
 
 export type EntityId = string;
@@ -141,6 +147,7 @@ export class UiApi {
     SideBar: [],
     MapOverlay: []
   });
+  private settingsWidgets = new Map<string, Component>();
 
   constructor(app: App) {
     this.app = app;
@@ -167,7 +174,7 @@ export class UiApi {
     };
 
     this.widgets[location].push(widget);
-    this.widgets[location].sort((a, b) => b.priority - a.priority);
+    this.sortWidgets(location);
 
     return {
       dispose: () => {
@@ -178,6 +185,18 @@ export class UiApi {
         }
       }
     };
+  }
+
+  public sortWidgets(location: WidgetLocation) {
+    this.widgets[location].sort((a, b) => b.priority - a.priority);
+  }
+
+  registerSettingsWidget(name: string, component: Component) {
+    this.settingsWidgets.set(name, component);
+  }
+
+  getSettingsWidget(name: string): Component | undefined {
+    return this.settingsWidgets.get(name);
   }
 }
 // NOTE: we use arrow functions to capture lexical `this` properly.
@@ -199,14 +218,21 @@ export class MapApi implements Disposable {
   readonly pitch = ref(0);
   readonly bearing = ref(0);
   readonly bounds: Ref<Readonly<LngLatBounds> | null> = ref(null);
+  readonly mapLayerVisibility = reactive<Record<string, boolean>>({});
+
+  readonly styleJson = shallowRef<StyleSpecification | null>(null);
 
   private updateState = () => {
     if (!this.map.value) return;
     const map = this.map.value;
-    this.center.value = map.getCenter();
-    this.zoom.value = map.getZoom();
-    this.pitch.value = map.getPitch();
-    this.bearing.value = map.getBearing();
+    const c = map.getCenter();
+    this.center.value = {
+      lng: parseFloat(c.lng.toFixed(5)),
+      lat: parseFloat(c.lat.toFixed(5))
+    };
+    this.zoom.value = parseFloat(map.getZoom().toFixed(2));
+    this.pitch.value = parseFloat(map.getPitch().toFixed(2));
+    this.bearing.value = parseFloat(map.getBearing().toFixed(2));
     (this.bounds as Ref).value = map.getBounds();
   };
 
@@ -239,14 +265,34 @@ export class MapApi implements Disposable {
     const onMapLoad = () => {
       this.updateState();
       this.map.value?.off("load", onMapLoad);
+      this.syncLayerState();
     };
     this.map.value.on("load", onMapLoad);
+    this.map.value.on("styledata", this.syncLayerState);
 
     this.map.value.on("moveend", this.updateState);
     this.map.value.on("zoomend", this.updateState);
     this.map.value.on("pitchend", this.updateState);
     this.map.value.on("rotateend", this.updateState);
   };
+
+  private syncLayerState = () => {
+    const map = this.map.value;
+    if (!map) return;
+    const style = map.getStyle();
+    if (!style) return;
+    this.styleJson.value = style;
+    for (const l of style.layers) {
+      if (this.mapLayerVisibility[l.id] === undefined) {
+        this.mapLayerVisibility[l.id] = l.layout?.visibility !== "none";
+      }
+    }
+  };
+
+  setMapLayerVisibility(id: string, visible: boolean) {
+    this.map.value?.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+    this.mapLayerVisibility[id] = visible;
+  }
 
   dispose = () => {
     this.map.value?.remove();
@@ -617,6 +663,18 @@ export class SearchApi {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type JsonSchema = any;
+
+export interface PluginSettings {
+  values: Record<string, any>;
+  schema: JsonSchema;
+  errors: Record<string, string>;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Manifest = any;
+
 export class TangramApi {
   readonly time: TimeApi;
   readonly ui: UiApi;
@@ -625,41 +683,49 @@ export class TangramApi {
   readonly realtime: RealtimeApi;
   readonly search: SearchApi;
   readonly config: TangramConfig;
+  // TODO: maybe its better to have plugins store their own reactive plugin settings...
+  readonly settings = reactive<Record<string, PluginSettings>>({});
+  readonly manifest: Manifest;
+  readonly app: App;
 
-  private constructor(
-    private app: App,
-    config: TangramConfig
-  ) {
+  private constructor(app: App, config: TangramConfig, manifest: Manifest) {
     this.config = config;
+    this.manifest = manifest;
     this.realtime = new RealtimeApi(config);
-    this.ui = new UiApi(this.app);
+    this.ui = new UiApi(app);
     this.time = new TimeApi();
     this.map = new MapApi(this);
     this.state = new StateApi();
     this.search = new SearchApi();
 
+    this.app = app;
+    this.ui.registerSettingsWidget("map-settings", MapSettings);
+    this.ui.registerSettingsWidget("theme-settings", ThemeSettings);
+
     this.applyTheme();
     this.setupViewUpdates();
+    this.setupSettingsWatchers();
   }
 
   private applyTheme() {
-    const { active, definitions } = this.config.theme;
-    const defMap = new Map(definitions.map(d => [d.name, d]));
+    const active = this.config.core.theme;
+    const definitionMap = new Map(this.config.core.themes.map(d => [d.name, d]));
 
     const render = (name: string) => {
-      const theme = defMap.get(name);
+      const theme = definitionMap.get(name);
       if (!theme) return;
       const root = document.documentElement;
-      root.style.setProperty("--t-bg", theme.background_color);
-      root.style.setProperty("--t-fg", theme.foreground_color);
-      root.style.setProperty("--t-surface", theme.surface_color);
-      root.style.setProperty("--t-border", theme.border_color);
-      root.style.setProperty("--t-hover", theme.hover_color);
+      root.style.setProperty("--t-bg", theme.background);
+      root.style.setProperty("--t-fg", theme.foreground);
+      root.style.setProperty("--t-surface", theme.surface);
+      root.style.setProperty("--t-border", theme.border);
+      root.style.setProperty("--t-hover", theme.hover);
       root.style.setProperty("--t-accent1", theme.accent1);
       root.style.setProperty("--t-accent1-fg", theme.accent1_foreground);
       root.style.setProperty("--t-accent2", theme.accent2);
       root.style.setProperty("--t-accent2-fg", theme.accent2_foreground);
-      root.style.setProperty("--t-muted", theme.muted_color);
+      root.style.setProperty("--t-muted", theme.muted);
+      root.style.setProperty("--t-error", theme.error);
     };
 
     if (typeof active === "string") {
@@ -670,6 +736,129 @@ export class TangramApi {
       update();
       media.addEventListener("change", update);
     }
+  }
+
+  private setupSettingsWatchers() {
+    watch(
+      () => this.settings.tangram_core?.values,
+      newValues => {
+        if (!newValues) return;
+
+        const core = newValues.core as CoreConfig | undefined;
+        const mapVals = newValues.map as MapConfig | undefined;
+
+        if (core) {
+          if (core.theme) this.config.core.theme = core.theme;
+          if (core.themes) this.config.core.themes = core.themes;
+          this.applyTheme();
+        }
+
+        const map = this.map.map.value;
+        if (map && mapVals) {
+          if (mapVals.style && mapVals.style !== this.config.map.style) {
+            this.config.map.style = mapVals.style;
+            map.setStyle(mapVals.style);
+          }
+          if (
+            mapVals.zoom !== undefined &&
+            Math.abs(map.getZoom() - mapVals.zoom) > 0.01
+          )
+            map.setZoom(mapVals.zoom);
+          if (
+            mapVals.pitch !== undefined &&
+            Math.abs(map.getPitch() - mapVals.pitch) > 0.01
+          )
+            map.setPitch(mapVals.pitch);
+          if (
+            mapVals.bearing !== undefined &&
+            Math.abs(map.getBearing() - mapVals.bearing) > 0.01
+          )
+            map.setBearing(mapVals.bearing);
+          if (mapVals.min_zoom !== undefined) map.setMinZoom(mapVals.min_zoom);
+          if (mapVals.max_zoom !== undefined) map.setMaxZoom(mapVals.max_zoom);
+          if (mapVals.max_pitch !== undefined) map.setMaxPitch(mapVals.max_pitch);
+          if (mapVals.allow_pitch !== undefined) {
+            if (mapVals.allow_pitch) map.dragRotate.enable();
+            else map.dragRotate.disable();
+          }
+
+          Object.assign(this.config.map, {
+            zoom: mapVals.zoom,
+            pitch: mapVals.pitch,
+            bearing: mapVals.bearing,
+            min_zoom: mapVals.min_zoom,
+            max_zoom: mapVals.max_zoom,
+            max_pitch: mapVals.max_pitch,
+            allow_pitch: mapVals.allow_pitch,
+            allow_bearing: mapVals.allow_bearing
+          });
+        }
+      },
+      { deep: true }
+    );
+
+    watch(
+      () => this.map.center.value,
+      newCenter => {
+        if (this.settings.tangram_core && this.settings.tangram_core.values.map) {
+          this.settings.tangram_core.values.map.center_lat = newCenter.lat;
+          this.settings.tangram_core.values.map.center_lon = newCenter.lng;
+        }
+      }
+    );
+    watch(
+      () => this.map.zoom.value,
+      v => {
+        if (this.settings.tangram_core && this.settings.tangram_core.values.map)
+          this.settings.tangram_core.values.map.zoom = v;
+      }
+    );
+    watch(
+      () => this.map.pitch.value,
+      v => {
+        if (this.settings.tangram_core && this.settings.tangram_core.values.map)
+          this.settings.tangram_core.values.map.pitch = v;
+      }
+    );
+    watch(
+      () => this.map.bearing.value,
+      v => {
+        if (this.settings.tangram_core && this.settings.tangram_core.values.map)
+          this.settings.tangram_core.values.map.bearing = v;
+      }
+    );
+
+    watch(
+      () => this.settings,
+      () => {
+        for (const [pName, pSettings] of Object.entries(this.settings)) {
+          const tOrder = pSettings.values.topbar_order;
+          const sOrder = pSettings.values.sidebar_order;
+
+          if (tOrder !== undefined || sOrder !== undefined) {
+            const pluginSuffix = pName.startsWith("tangram_") ? pName.slice(8) : pName;
+
+            const applyOrder = (
+              location: "TopBar" | "SideBar",
+              order: number | undefined
+            ) => {
+              if (order === undefined) return;
+              const widgets = this.ui.widgets[location];
+              for (const w of widgets) {
+                if (w.id.includes(pluginSuffix)) {
+                  w.priority = order;
+                }
+              }
+              this.ui.sortWidgets(location);
+            };
+
+            applyOrder("TopBar", tOrder);
+            applyOrder("SideBar", sOrder);
+          }
+        }
+      },
+      { deep: true }
+    );
   }
 
   private setupViewUpdates() {
@@ -702,11 +891,21 @@ export class TangramApi {
   }
 
   public static async create(app: App): Promise<TangramApi> {
-    const config: TangramConfig = await fetch("/config").then(res => {
-      if (!res.ok) throw new Error("failed to fetch `/config`!");
-      return res.json();
-    });
-    return new TangramApi(app, config);
+    const manifest = await fetch("/manifest.json").then(res => res.json());
+    const core = manifest.core;
+    if (!core) throw new Error("core configuration missing in manifest");
+
+    const config: TangramConfig = core.config;
+
+    const api = new TangramApi(app, config, manifest);
+
+    api.settings["tangram_core"] = {
+      values: reactive({ ...config }),
+      schema: core.config_json_schema || {},
+      errors: reactive({})
+    };
+
+    return api;
   }
 
   getVueApp(): App {

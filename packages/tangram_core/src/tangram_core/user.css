@@ -14,104 +14,23 @@ body,
   width: auto;
 }
 
-
 #chart {
   border: none;
-}
-
-div.form {
-  float: right;
-  clear: right;
-  width: 300px;
-  border: 1px solid var(--t-border);
-  padding: 10px;
 }
 
 body {
   font-family: "B612", sans-serif;
 }
 
-span.monospace {
-  font-family: "B612", sans-serif;
-  font-size: 85%;
+/* get rid of ugly up/down arrows on inputs */
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+  margin: 0;
 }
 
-.smaller td {
-  font-size: 95%;
-}
-
-table a:not(.btn),
-.table a:not(.btn) {
-  text-decoration: none;
-  color: var(--t-fg);
-}
-
-a.flag {
-  position: relative;
-  cursor: pointer;
-  color: var(--t-fg);
-}
-
-a.flag:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 1.7em;
-  left: 0.5em;
-  border: 1px #18bc9c solid;
-  border-radius: 5px;
-  padding: 4px;
-  color: whitesmoke;
-  background-color: #18bc9c;
-  text-align: center;
-  font-size: 90%;
-  width: max-content;
-  z-index: 1;
-}
-
-.w20pc {
-  width: 20%;
-}
-
-.center {
-  margin-top: 20px;
-  margin-left: auto;
-  margin-right: auto;
-  /* max-width: 1000px; */
-}
-
-.copyright_label {
-  display: inline;
-  padding: 0.2em 0.6em 0.3em;
-  font-size: 75%;
-  font-weight: 400;
-  line-height: 1;
-  color: #fff;
-  text-align: center;
-  white-space: nowrap;
-  vertical-align: baseline;
-  border-radius: 0.25em;
-  position: absolute;
-  bottom: 0;
-  z-index: 1;
-}
-
-.turb_selected {
-  stroke: red;
-  stroke-width: 15px;
-  z-index: -1;
-}
-
-.form-popup {
-  display: none;
-  position: fixed;
-  bottom: 0;
-  right: 15px;
-  border: 3px solid #f1f1f1;
-  z-index: 9;
-}
-
-.form-container {
-  max-width: 300px;
-  padding: 10px;
-  background-color: var(--t-bg);
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }

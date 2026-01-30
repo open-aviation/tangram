@@ -1,4 +1,5 @@
-import type { TangramApi } from "./api";
+import { reactive } from "vue";
+import type { TangramApi, JsonSchema } from "./api";
 
 type PluginProgressStage = "manifest" | "plugin" | "done";
 type PluginProgress = {
@@ -6,23 +7,30 @@ type PluginProgress = {
   pluginName?: string;
 };
 
-export type PluginConfig = unknown; // to be casted by each plugin who consume it
+export type PluginConfig = Record<string, any>;
 
 export async function loadPlugins(
   tangramApi: TangramApi,
   onProgress?: (progress: PluginProgress) => void
 ) {
   onProgress?.({ stage: "manifest" });
-  const manifest = await fetch("/manifest.json").then(res => res.json());
-
-  for (const [pluginName, meta] of Object.entries(manifest.plugins)) {
+  for (const [pluginName, meta] of Object.entries(tangramApi.manifest.plugins)) {
     const pluginMeta = meta as {
       main: string;
       style?: string;
       config?: PluginConfig;
+      config_json_schema?: JsonSchema;
     };
 
     onProgress?.({ stage: "plugin", pluginName });
+
+    if (pluginMeta.config) {
+      tangramApi.settings[pluginName] = {
+        values: reactive({ ...pluginMeta.config }),
+        schema: pluginMeta.config_json_schema || {},
+        errors: reactive({})
+      };
+    }
 
     if (pluginMeta.style) {
       const link = document.createElement("link");
@@ -31,12 +39,17 @@ export async function loadPlugins(
       document.head.appendChild(link);
     }
 
+    if (!pluginMeta.main) continue;
+
     const entryPointUrl = `/plugins/${pluginName}/${pluginMeta.main}`;
 
     try {
       const pluginModule = await import(/* @vite-ignore */ entryPointUrl);
       if (pluginModule.install) {
-        pluginModule.install(tangramApi, pluginMeta.config);
+        pluginModule.install(
+          tangramApi,
+          tangramApi.settings[pluginName]?.values ?? pluginMeta.config
+        );
       }
     } catch (e) {
       console.error(`failed to load plugin "${pluginName}":`, e);

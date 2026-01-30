@@ -23,7 +23,7 @@ const updateLayer = () => {
     trailType: pluginConfig.trailType,
     trailColor: pluginConfig.trailColor,
     trailAlpha: pluginConfig.trailAlpha,
-    enable3d: tangramApi.config.map.enable_3d
+    enable3d: pluginConfig.enable3d
   };
 
   const allSegments: PathSegment<Color>[] = [];
@@ -70,7 +70,8 @@ watch(
     () => aircraftStore.version,
     () => pluginConfig.trailType,
     () => pluginConfig.trailColor,
-    () => pluginConfig.trailAlpha
+    () => pluginConfig.trailAlpha,
+    () => pluginConfig.enable3d
   ],
   updateLayer,
   { deep: true }

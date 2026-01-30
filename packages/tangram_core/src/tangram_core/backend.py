@@ -6,10 +6,11 @@ import json
 import logging
 import os
 import re
+import traceback
 import urllib.parse
 import urllib.request
 from contextlib import AsyncExitStack, asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from functools import partial
 from importlib.metadata import Distribution, PackageNotFoundError
@@ -23,7 +24,6 @@ from typing import (
     Callable,
     Iterable,
     TypeAlias,
-    get_type_hints,
 )
 
 import httpx
@@ -33,17 +33,17 @@ import uvicorn
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from .config import (
     CacheEntry,
     Config,
-    ExposeField,
     FrontendChannelConfig,
     FrontendConfig,
-    FrontendThemeConfig,
     IntoConfig,
     ThemeDefinition,
+    parse_frontend_config,
+    to_frontend_manifest,
 )
 from .plugin import load_plugin, scan_plugins
 
@@ -59,6 +59,7 @@ class BackendState:
     redis_client: redis.Redis
     http_client: httpx.AsyncClient
     config: Config
+    loaded_plugins: dict[str, Plugin] = field(default_factory=dict)
 
     @property
     def base_url(self) -> str:
@@ -225,44 +226,54 @@ def make_cache_route_handler(
     return cache_route_handler
 
 
-def extract_frontend_config(config_instance: Any, config_cls: type) -> dict[str, Any]:
-    hints = get_type_hints(config_cls, include_extras=True)
-    frontend_config = {}
-    for field_name, field_type in hints.items():
-        if hasattr(field_type, "__metadata__"):
-            if any(isinstance(m, ExposeField) for m in field_type.__metadata__):
-                frontend_config[field_name] = getattr(config_instance, field_name)
-    return frontend_config
-
-
-DEFAULT_THEMES = {
-    "light": ThemeDefinition(
+DEFAULT_THEMES = (
+    ThemeDefinition(
         name="light",
-        background_color="#ffffff",
-        foreground_color="#000000",
-        surface_color="#f8f9fa",
-        border_color="#e7e7e7",
-        hover_color="#e9ecef",
+        background="#ffffff",
+        foreground="#000000",
+        surface="#f8f9fa",
+        border="#e7e7e7",
+        hover="#e9ecef",
         accent1="oklch(0.5616 0.0895 251.64)",
         accent1_foreground="#ffffff",
         accent2="oklch(0.8021 0.11 92.43)",
         accent2_foreground="#000000",
-        muted_color="#666666",
+        muted="#666666",
+        error="#8e1b27",
     ),
-    "dark": ThemeDefinition(
+    ThemeDefinition(
         name="dark",
-        background_color="#1a1a1a",
-        foreground_color="#e0e0e0",
-        surface_color="#2d2d2d",
-        border_color="#404040",
-        hover_color="#343434",
+        background="#1a1a1a",
+        foreground="#e0e0e0",
+        surface="#2d2d2d",
+        border="#404040",
+        hover="#343434",
         accent1="oklch(0.5059 0.0895 251.64)",
         accent1_foreground="#ffffff",
         accent2="oklch(0.5059 0.0895 93.53)",
         accent2_foreground="#ffffff",
-        muted_color="#999999",
+        muted="#999999",
+        error="#844d53",
     ),
-}
+)
+
+
+def core_into_frontend_config(config: Config) -> FrontendConfig:
+    if config.channel.public_url:
+        channel_url = config.channel.public_url
+    else:
+        host = "localhost" if config.channel.host == "0.0.0.0" else config.channel.host
+        channel_url = f"http://{host}:{config.channel.port}"
+    frontend_channel = FrontendChannelConfig(url=channel_url)
+
+    user_theme_names = {t.name for t in config.core.themes}
+    merged_themes = [
+        t for t in DEFAULT_THEMES if t.name not in user_theme_names
+    ] + config.core.themes
+
+    frontend_core = replace(config.core, themes=merged_themes)
+
+    return FrontendConfig(core=frontend_core, map=config.map, channel=frontend_channel)
 
 
 def create_app(
@@ -275,9 +286,14 @@ def create_app(
         ),
         default_response_class=ORJSONResponse,
     )
-    frontend_plugins = {}
 
+    frontend_config_instance = core_into_frontend_config(backend_state.config)
+    frontend_adapter = TypeAdapter(FrontendConfig)
+    manifest_core = to_frontend_manifest(frontend_adapter, frontend_config_instance)
+
+    manifest_plugins = {}
     for plugin in loaded_plugins:
+        backend_state.loaded_plugins[plugin.dist_name] = plugin
         for router in plugin.routers:
             app.include_router(router)
 
@@ -294,65 +310,69 @@ def create_app(
                         plugin_meta = json.load(f)
 
                     conf_dict = backend_state.config.plugins.get(plugin.dist_name, {})
-                    if plugin.config_class:
-                        conf_instance = TypeAdapter(
-                            plugin.config_class
-                        ).validate_python(conf_dict)
-                        conf_frontend = extract_frontend_config(
-                            conf_instance, plugin.config_class
-                        )
+                    # TODO when we have with_computed_fields we need to update the
+                    # schema as well, so the current way of spreading into is incorrect
+                    full_config = {}
+                    schema = {}
+
+                    if (adapter := plugin.adapter()) is not None:
+                        conf_instance = adapter.validate_python(conf_dict)
+                        frontend_manifest = to_frontend_manifest(adapter, conf_instance)
+                        full_config = frontend_manifest["config"]
+                        schema = frontend_manifest["config_json_schema"]
+
                         if plugin.with_computed_fields is not None:
-                            conf_frontend.update(
+                            full_config.update(
                                 plugin.with_computed_fields(
                                     backend_state, conf_instance
                                 )
                             )
                     elif plugin.with_computed_fields is not None:
-                        conf_frontend = plugin.with_computed_fields(
-                            backend_state, conf_dict
+                        full_config.update(
+                            plugin.with_computed_fields(backend_state, conf_dict)
                         )
-                    else:
-                        conf_frontend = {}
 
-                    plugin_meta["config"] = conf_frontend
-                    frontend_plugins[plugin.dist_name] = plugin_meta
+                    plugin_meta["config"] = full_config
+                    plugin_meta["config_json_schema"] = schema
+                    manifest_plugins[plugin.dist_name] = plugin_meta
                 except Exception as e:
+                    trace = traceback.format_exc()
                     logger.error(
-                        f"failed to read plugin.json for {plugin.dist_name}: {e}"
+                        "failed to read plugin.json for %s: %s\n%s",
+                        plugin.dist_name,
+                        e,
+                        trace,
                     )
 
-    # unlike v0.1 which uses `process.env`, v0.2 *compiles* the js so we no
-    # no longer have access to it, so we selectively forward the config.
-    @app.get("/config")
-    async def get_frontend_config(
+    @app.post("/settings/validate/{plugin_name}")
+    async def validate_settings(
+        plugin_name: str,
+        data: dict,
         state: Annotated[BackendState, Depends(get_state)],
-    ) -> FrontendConfig:
-        channel_cfg = state.config.channel
-        if channel_cfg.public_url:
-            channel_url = channel_cfg.public_url
-        else:
-            # for local/non-proxied setups, user must set a reachable host.
-            # '0.0.0.0' is for listening, not connecting.
-            host = "localhost" if channel_cfg.host == "0.0.0.0" else channel_cfg.host
-            channel_url = f"http://{host}:{channel_cfg.port}"
-
-        themes = list(DEFAULT_THEMES.values())
-        user_theme_names = {t.name for t in state.config.themes}
-        themes = [
-            t for t in themes if t.name not in user_theme_names
-        ] + state.config.themes
-
-        return FrontendConfig(
-            channel=FrontendChannelConfig(url=channel_url),
-            map=state.config.map,
-            theme=FrontendThemeConfig(
-                active=state.config.core.theme, definitions=themes
-            ),
-        )
+    ) -> dict:
+        SUCCESS = {"success": True, "errors": {}}
+        try:
+            if plugin_name == "tangram_core":
+                _ = parse_frontend_config(frontend_adapter, data)
+                return SUCCESS
+            plugin = state.loaded_plugins.get(plugin_name)
+            assert plugin is not None, f"plugin {plugin_name} not found"
+            backend_adapter = plugin.adapter()
+            assert backend_adapter is not None, f"plugin {plugin_name} has no adapter"
+            _ = parse_frontend_config(backend_adapter, data)
+            return SUCCESS
+        except ValidationError as e:
+            errs = {
+                ".".join(str(loc) for loc in err["loc"]): err["msg"]
+                for err in e.errors()
+            }
+            return {"success": False, "errors": errs}
 
     @app.get("/manifest.json")
     async def get_manifest() -> ORJSONResponse:
-        return ORJSONResponse(content={"plugins": frontend_plugins})
+        return ORJSONResponse(
+            content={"core": manifest_core, "plugins": manifest_plugins}
+        )
 
     # Cache mechanism - MUST be registered BEFORE the catch-all frontend mount
     for cache_entry in backend_state.config.cache.entries:

@@ -15,7 +15,7 @@ const ENTITY_TYPE = "ship162_ship";
 interface Ship162FrontendConfig {
   topbar_order: number;
   sidebar_order: number;
-  search_channel?: string;
+  search_channel: string;
 }
 
 export interface MmsiInfo {

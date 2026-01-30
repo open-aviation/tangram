@@ -20,6 +20,7 @@
         v-for="widget in tangramApi.ui.widgets.TopBar"
         :key="widget.id"
       />
+      <SettingsMenu />
     </div>
 
     <div ref="mapContainer" class="map-container">
@@ -94,6 +95,8 @@ import { loadPlugins } from "./plugin";
 import { layers, namedFlavor } from "@protomaps/basemaps";
 import * as pmtiles from "pmtiles";
 import CommandPalette from "./CommandPalette.vue";
+import SettingsMenu from "./SettingsMenu.vue";
+import MapLayerSettings from "./MapLayerSettings.vue";
 
 type ApiState = "loading" | "ready" | "error";
 
@@ -157,6 +160,7 @@ onMounted(async () => {
   try {
     const api = await TangramApi.create(app);
     app.provide("tangramApi", api);
+    api.ui.registerSettingsWidget("map-layers", MapLayerSettings);
     await loadPlugins(api, progress => {
       if (progress.stage === "manifest") {
         loadingMessage.value = "fetching plugin manifest";
@@ -174,7 +178,7 @@ onMounted(async () => {
   }
 });
 
-watch(mapContainer, newEl => {
+watch(mapContainer, async newEl => {
   if (newEl && tangramApi.value && !mapInstance) {
     const mapConfig = tangramApi.value.config.map;
 
@@ -191,6 +195,11 @@ watch(mapContainer, newEl => {
       if (namedStyle !== undefined) {
         mapConfig.style = namedStyle;
       } // TODO: raise error if not found (we need a proper system for notifying users)
+    }
+
+    if (typeof mapConfig.style === "string") {
+      const res = await fetch(mapConfig.style);
+      mapConfig.style = await res.json();
     }
 
     if (typeof mapConfig.style === "object") {
@@ -300,7 +309,7 @@ body {
   min-height: 50px;
   background: var(--t-bg);
   color: var(--t-fg);
-  z-index: 500;
+  z-index: 3000;
   width: 100%;
   box-sizing: border-box;
   padding: 0.5rem 1rem;

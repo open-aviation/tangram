@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 from fastapi import APIRouter
 
 if TYPE_CHECKING:
+    from pydantic import TypeAdapter
+
     from .backend import BackendState
 
     ServiceAsyncFunc: TypeAlias = Callable[[BackendState], Coroutine[Any, Any, None]]
@@ -46,6 +48,9 @@ class Plugin:
     """The configuration class (dataclass or Pydantic model) for this plugin.
     Fields annotated with `tangram_core.config.Expose()` will be exposed to the
     frontend."""
+    # TODO: instead of with_computed_field make it into_frontend_config since some
+    # plugins might want to rewrite the entire config rather than just add new ones
+    # unused for now
     with_computed_fields: WithComputedFieldsFunction | None = None
     """Function to add additional dynamically computed fields to the frontend
     configuration. It receives the backend state and the validated configuration object
@@ -82,6 +87,25 @@ class Plugin:
             return func
 
         return decorator
+
+    # HACK: so lru_cache on adapter works.
+    # since we have mutable fields (routers, register_service, dist_name on init)
+    # its difficult to make this class frozen,
+    # so maybe we should implement __eq__ and __hash__ ourselves?
+    __hash__ = object.__hash__
+
+    @functools.lru_cache
+    def adapter(self) -> TypeAdapter | None:
+        """Returns a cached Pydantic TypeAdapter for the plugin's configuration class.
+
+        Avoids expensive rebuilds on every validation request, such as those from the
+        settings UI.
+        """
+        from pydantic import TypeAdapter
+
+        if self.config_class:
+            return TypeAdapter(self.config_class)
+        return None
 
 
 def scan_plugins() -> importlib.metadata.EntryPoints:

@@ -41,7 +41,7 @@ const updateLayer = async () => {
     trailType: pluginConfig.trailType,
     trailColor: pluginConfig.trailColor,
     trailAlpha: pluginConfig.trailAlpha,
-    enable3d: tangramApi.config.map.enable_3d
+    enable3d: pluginConfig.enable3d
   };
 
   const prevAlt = { value: null as number | null };
@@ -67,7 +67,8 @@ watch(
     () => aircraftStore.historyVersion,
     () => pluginConfig.trailType,
     () => pluginConfig.trailColor,
-    () => pluginConfig.trailAlpha
+    () => pluginConfig.trailAlpha,
+    () => pluginConfig.enable3d
   ],
   updateLayer,
   { deep: true }

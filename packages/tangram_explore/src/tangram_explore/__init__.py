@@ -21,7 +21,7 @@ import orjson
 import tangram_core
 from fastapi import APIRouter
 from fastapi.responses import Response
-from tangram_core.config import ExposeField
+from tangram_core.config import FrontendMutable
 
 if TYPE_CHECKING:
     from typing import TypeAlias
@@ -200,7 +200,7 @@ class Session:
 
 @dataclass
 class ExploreConfig:
-    enable_3d: Annotated[Literal["inherit"] | bool, ExposeField()] = "inherit"
+    enable_3d: Annotated[Literal["inherit", True, False], FrontendMutable()] = "inherit"
     """Whether to render scatter points in 3D"""
 
 

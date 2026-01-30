@@ -24,6 +24,7 @@ import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core
 import { html, svg, render } from "lit-html";
 import { get_image_object, type IconProps } from "./PlanePath";
 import type { Jet1090Aircraft } from ".";
+import { pluginConfig } from "./store";
 
 const FEET_TO_METERS = 0.3048;
 const tangramApi = inject<TangramApi>("tangramApi");
@@ -122,8 +123,13 @@ const onClick = (
 };
 
 watch(
-  [aircraftEntities, activeEntities, () => tangramApi.map.isReady.value],
-  ([entities, currentActiveEntities, isMapReady]) => {
+  [
+    aircraftEntities,
+    activeEntities,
+    () => tangramApi.map.isReady.value,
+    () => pluginConfig.enable3d
+  ],
+  ([entities, currentActiveEntities, isMapReady, enable3d]) => {
     if (!entities || !isMapReady) return;
 
     const baseData = [];
@@ -160,7 +166,7 @@ watch(
       getPosition: d => [
         d.state.longitude!,
         d.state.latitude!,
-        !tangramApi.config.map.enable_3d ? 0 : (d.state.altitude || 0) * FEET_TO_METERS
+        !enable3d ? 0 : (d.state.altitude || 0) * FEET_TO_METERS
       ],
       getAngle: (d: Entity<Jet1090Aircraft>) => {
         const iconProps = get_image_object(d.state.typecode || null) as IconProps;
@@ -177,7 +183,8 @@ watch(
         }
       },
       updateTriggers: {
-        getIcon: Array.from(currentActiveEntities.keys()).sort().join(",")
+        getIcon: Array.from(currentActiveEntities.keys()).sort().join(","),
+        getPosition: [enable3d]
       },
       // required for globe: https://github.com/visgl/deck.gl/issues/9777#issuecomment-3628393899
       parameters: {

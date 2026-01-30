@@ -27,7 +27,8 @@ interface Jet1090FrontendConfig {
   trail_type: "line" | "curtain";
   trail_color: string | TrailColorOptions;
   trail_alpha: number;
-  search_channel?: string;
+  search_channel: string;
+  enable_3d: boolean;
 }
 
 export interface Jet1090Aircraft {
@@ -65,10 +66,34 @@ export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
   const channel = config?.search_channel || "jet1090:search";
 
   if (config) {
-    pluginConfig.showRouteLines = config.show_route_lines;
-    pluginConfig.trailType = config.trail_type;
-    pluginConfig.trailColor = config.trail_color;
-    pluginConfig.trailAlpha = config.trail_alpha;
+    watch(
+      () => config.show_route_lines,
+      v => (pluginConfig.showRouteLines = v),
+      { immediate: true }
+    );
+    watch(
+      () => config.trail_type,
+      v => {
+        pluginConfig.trailType = v;
+        aircraftStore.version++;
+      },
+      { immediate: true }
+    );
+    watch(
+      () => config.trail_color,
+      v => (pluginConfig.trailColor = v),
+      { immediate: true, deep: true }
+    );
+    watch(
+      () => config.trail_alpha,
+      v => (pluginConfig.trailAlpha = v),
+      { immediate: true }
+    );
+    watch(
+      () => config.enable_3d,
+      v => (pluginConfig.enable3d = v),
+      { immediate: true }
+    );
   }
 
   api.ui.registerWidget("jet1090-count-widget", "TopBar", AircraftCountWidget, {

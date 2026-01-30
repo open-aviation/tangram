@@ -47,5 +47,6 @@ export const pluginConfig = reactive({
   showRouteLines: true,
   trailType: "line" as "line" | "curtain",
   trailColor: "#600000" as string | TrailColorOptions,
-  trailAlpha: 0.6
+  trailAlpha: 0.6,
+  enable3d: true
 });

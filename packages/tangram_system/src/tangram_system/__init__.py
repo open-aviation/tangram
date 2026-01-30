@@ -8,14 +8,14 @@ import orjson
 import psutil
 import redis.asyncio as redis
 import tangram_core
-from tangram_core.config import ExposeField
+from tangram_core.config import FrontendMutable
 
 log = logging.getLogger(__name__)
 
 
 @dataclass
 class SystemConfig(tangram_core.config.HasSidebarUiConfig):
-    topbar_order: Annotated[int, ExposeField()] = 0
+    topbar_order: Annotated[int, FrontendMutable()] = 0
 
 
 def uptime(counter: int) -> dict[str, str]:
