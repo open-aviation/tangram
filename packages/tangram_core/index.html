@@ -34,4 +34,39 @@
     <div id="app"></div>
     <script type="module" src="/src/tangram_core/main.ts"></script>
   </body>
+  <style>
+    /* the theming happens later in js and so we avoid a flash of unstyled content */
+    :root {
+      --t-bg: #ffffff;
+      --t-fg: #000000;
+      --t-surface: #f8f9fa;
+      --t-border: #e7e7e7;
+      --t-hover: #e9ecef;
+      --t-accent1: oklch(0.5616 0.0895 251.64);
+      --t-accent1-fg: #ffffff;
+      --t-accent2: oklch(0.8021 0.11 92.43);
+      --t-accent2-fg: #000000;
+      --t-muted: #666666;
+      --t-error: #8e1b27;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --t-bg: #1a1a1a;
+        --t-fg: #e0e0e0;
+        --t-surface: #2d2d2d;
+        --t-border: #404040;
+        --t-hover: #343434;
+        --t-accent1: oklch(0.5059 0.0895 251.64);
+        --t-accent1-fg: #ffffff;
+        --t-accent2: oklch(0.5059 0.0895 93.53);
+        --t-accent2-fg: #ffffff;
+        --t-muted: #999999;
+        --t-error: #844d53;
+      }
+    }
+    body {
+      background-color: var(--t-bg);
+      color: var(--t-fg);
+    }
+  </style>
 </html>

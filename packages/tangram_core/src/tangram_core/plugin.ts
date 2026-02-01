@@ -14,47 +14,51 @@ export async function loadPlugins(
   onProgress?: (progress: PluginProgress) => void
 ) {
   onProgress?.({ stage: "manifest" });
-  for (const [pluginName, meta] of Object.entries(tangramApi.manifest.plugins)) {
-    const pluginMeta = meta as {
-      main: string;
-      style?: string;
-      config?: PluginConfig;
-      config_json_schema?: JsonSchema;
-    };
 
-    onProgress?.({ stage: "plugin", pluginName });
-
-    if (pluginMeta.config) {
-      tangramApi.settings[pluginName] = {
-        values: reactive({ ...pluginMeta.config }),
-        schema: pluginMeta.config_json_schema || {},
-        errors: reactive({})
+  const loadPromises = Object.entries(tangramApi.manifest.plugins).map(
+    async ([pluginName, meta]) => {
+      const pluginMeta = meta as {
+        main: string;
+        style?: string;
+        config?: PluginConfig;
+        config_json_schema?: JsonSchema;
       };
-    }
 
-    if (pluginMeta.style) {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = `/plugins/${pluginName}/${pluginMeta.style}`;
-      document.head.appendChild(link);
-    }
+      onProgress?.({ stage: "plugin", pluginName });
 
-    if (!pluginMeta.main) continue;
-
-    const entryPointUrl = `/plugins/${pluginName}/${pluginMeta.main}`;
-
-    try {
-      const pluginModule = await import(/* @vite-ignore */ entryPointUrl);
-      if (pluginModule.install) {
-        pluginModule.install(
-          tangramApi,
-          tangramApi.settings[pluginName]?.values ?? pluginMeta.config
-        );
+      if (pluginMeta.config) {
+        tangramApi.settings[pluginName] = {
+          values: reactive({ ...pluginMeta.config }),
+          schema: pluginMeta.config_json_schema || {},
+          errors: reactive({})
+        };
       }
-    } catch (e) {
-      console.error(`failed to load plugin "${pluginName}":`, e);
-    }
-  }
 
+      if (pluginMeta.style) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = `/plugins/${pluginName}/${pluginMeta.style}`;
+        document.head.appendChild(link);
+      }
+
+      if (!pluginMeta.main) return;
+
+      const entryPointUrl = `/plugins/${pluginName}/${pluginMeta.main}`;
+
+      try {
+        const pluginModule = await import(/* @vite-ignore */ entryPointUrl);
+        if (pluginModule.install) {
+          pluginModule.install(
+            tangramApi,
+            tangramApi.settings[pluginName]?.values ?? pluginMeta.config
+          );
+        }
+      } catch (e) {
+        console.error(`failed to load plugin "${pluginName}":`, e);
+      }
+    }
+  );
+
+  await Promise.all(loadPromises);
   onProgress?.({ stage: "done" });
 }

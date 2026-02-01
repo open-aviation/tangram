@@ -1,12 +1,5 @@
 <template>
-  <div v-if="apiState === 'loading'" class="loading-container">
-    <div>initialising tangram…</div>
-    <div v-if="loadingMessage" class="loading-detail">{{ loadingMessage }}</div>
-  </div>
-  <div v-else-if="apiState === 'error'">
-    error: could not connect to the tangram backend.
-  </div>
-  <div v-else-if="apiState === 'ready' && tangramApi" class="main-container">
+  <div class="main-container">
     <div class="navbar" role="navigation">
       <div class="navbar-brand">
         <img src="/favicon.png" alt="tangram" class="navbar-logo" />
@@ -15,73 +8,83 @@
 
       <div class="navbar-spacer"></div>
 
-      <component
-        :is="widget.id"
-        v-for="widget in tangramApi.ui.widgets.TopBar"
-        :key="widget.id"
-      />
-      <SettingsMenu />
+      <template v-if="tangramApi">
+        <component
+          :is="widget.id"
+          v-for="widget in tangramApi.ui.widgets.TopBar"
+          :key="widget.id"
+        />
+        <SettingsMenu />
+      </template>
+      <div v-else class="loading-indicator">
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+      </div>
     </div>
 
     <div ref="mapContainer" class="map-container">
-      <CommandPalette />
-      <div v-if="visibleSidebarWidgets.length > 0" class="sidebar-container">
-        <div
-          v-for="widget in visibleSidebarWidgets"
-          :key="widget.id"
-          class="sidebar-section"
-        >
-          <div class="sidebar-header" @click="toggleSection(widget)">
-            <svg
-              class="caret"
-              :class="{ open: !widget.isCollapsed }"
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-            >
-              <path d="M8 5v14l11-7z" fill="currentColor" />
-            </svg>
-            {{ widget.title || widget.id }}
-          </div>
-          <div v-show="!widget.isCollapsed" class="sidebar-body">
-            <component :is="widget.id" />
+      <template v-if="tangramApi">
+        <CommandPalette />
+        <div v-if="visibleSidebarWidgets.length > 0" class="sidebar-container">
+          <div
+            v-for="widget in visibleSidebarWidgets"
+            :key="widget.id"
+            class="sidebar-section"
+          >
+            <div class="sidebar-header" @click="toggleSection(widget)">
+              <svg
+                class="caret"
+                :class="{ open: !widget.isCollapsed }"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+              >
+                <path d="M8 5v14l11-7z" fill="currentColor" />
+              </svg>
+              {{ widget.title || widget.id }}
+            </div>
+            <div v-show="!widget.isCollapsed" class="sidebar-body">
+              <component :is="widget.id" />
+            </div>
           </div>
         </div>
-      </div>
-      <component
-        :is="widget.id"
-        v-for="widget in tangramApi.ui.widgets.MapOverlay"
-        :key="widget.id"
-      />
-      <div v-if="tangramApi && tangramApi.map.isReady" class="map-controls">
-        <button
-          v-if="
-            tangramApi.config.map.allow_bearing &&
-            Math.abs(tangramApi.map.bearing) > 0.1
-          "
-          class="map-btn"
-          title="Reset Bearing (North)"
-          @click="resetBearing"
-        >
-          <svg
-            viewBox="0 0 100 100"
-            class="compass-icon"
-            :style="{ transform: `rotate(${-tangramApi.map.bearing}deg)` }"
+        <component
+          :is="widget.id"
+          v-for="widget in tangramApi.ui.widgets.MapOverlay"
+          :key="widget.id"
+        />
+        <div v-if="tangramApi.map.isReady" class="map-controls">
+          <button
+            v-if="
+              tangramApi.config.map.allow_bearing &&
+              Math.abs(tangramApi.map.bearing) > 0.1
+            "
+            class="map-btn"
+            title="Reset Bearing (North)"
+            @click="resetBearing"
           >
-            <path d="M50 15 L65 50 L50 50 Z" fill="#e74c3c" />
-            <path d="M50 15 L35 50 L50 50 Z" fill="#c0392b" />
-            <path d="M50 85 L65 50 L50 50 Z" fill="#ecf0f1" />
-            <path d="M50 85 L35 50 L50 50 Z" fill="#bdc3c7" />
-          </svg>
-        </button>
-        <button
-          v-if="tangramApi.config.map.allow_pitch && tangramApi.map.pitch > 0.1"
-          class="map-btn"
-          title="Reset Pitch (2D)"
-          @click="resetPitch"
-        >
-          2D
-        </button>
+            <svg
+              viewBox="0 0 100 100"
+              class="compass-icon"
+              :style="{ transform: `rotate(${-tangramApi.map.bearing}deg)` }"
+            >
+              <path d="M50 15 L65 50 L50 50 Z" fill="#e74c3c" />
+              <path d="M50 15 L35 50 L50 50 Z" fill="#c0392b" />
+              <path d="M50 85 L65 50 L50 50 Z" fill="#ecf0f1" />
+              <path d="M50 85 L35 50 L50 50 Z" fill="#bdc3c7" />
+            </svg>
+          </button>
+          <button
+            v-if="tangramApi.config.map.allow_pitch && tangramApi.map.pitch > 0.1"
+            class="map-btn"
+            title="Reset Pitch (2D)"
+            @click="resetPitch"
+          >
+            2D
+          </button>
+        </div>
+      </template>
+      <div v-else-if="apiState === 'error'" class="error-overlay">
+        error: could not connect to backend
       </div>
     </div>
   </div>
@@ -161,7 +164,11 @@ onMounted(async () => {
     const api = await TangramApi.create(app);
     app.provide("tangramApi", api);
     api.ui.registerSettingsWidget("map-layers", MapLayerSettings);
-    await loadPlugins(api, progress => {
+
+    tangramApi.value = api;
+    apiState.value = "ready";
+
+    loadPlugins(api, progress => {
       if (progress.stage === "manifest") {
         loadingMessage.value = "fetching plugin manifest";
       } else if (progress.stage === "plugin" && progress.pluginName) {
@@ -169,18 +176,18 @@ onMounted(async () => {
       } else if (progress.stage === "done") {
         loadingMessage.value = "starting user interface";
       }
+    }).catch(e => {
+      console.error("failed to load plugins:", e);
     });
-    tangramApi.value = api;
-    apiState.value = "ready";
   } catch (e) {
     console.error("failed to initialise tangram api:", e);
     apiState.value = "error";
   }
 });
 
-watch(mapContainer, async newEl => {
-  if (newEl && tangramApi.value && !mapInstance) {
-    const mapConfig = tangramApi.value.config.map;
+watch([mapContainer, tangramApi], async ([newEl, api]) => {
+  if (newEl && api && !mapInstance) {
+    const mapConfig = api.config.map;
 
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol("pmtiles", protocol.tile);
@@ -260,7 +267,7 @@ watch(mapContainer, async newEl => {
       pitchWithRotate: mapConfig.allow_pitch
     });
 
-    tangramApi.value.map.initialize(mapInstance);
+    api.map.initialize(mapInstance);
   }
 });
 
@@ -296,6 +303,29 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--t-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--t-muted);
 }
 
 .main-container {
@@ -414,16 +444,20 @@ body {
   display: none !important;
 }
 
-.loading-container {
-  padding: 1.5rem;
-  background-color: var(--t-bg);
-  color: var(--t-fg);
+.loading-indicator {
+  color: var(--t-muted);
 }
 
-.loading-detail {
-  margin-top: 0.5rem;
-  color: var(--t-fg);
-  opacity: 0.7;
+.error-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--t-bg);
+  padding: 1rem;
+  border: 1px solid var(--t-border);
+  border-radius: 8px;
+  color: var(--t-error);
 }
 
 .map-controls {

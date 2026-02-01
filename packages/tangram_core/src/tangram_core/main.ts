@@ -21,8 +21,10 @@ import init, { run } from "rs1090-wasm";
 // until we figure out how to make one plugin share dependencies with another
 // plugin, we will have to forcefully initialise `rs1090` here.
 // See: https://github.com/open-aviation/tangram/issues/46
-(async () => {
-  await init("/rs1090_wasm_bg.wasm");
-  run();
-  createApp(App).mount("#app");
-})();
+// On slower networks, it is possible that the plugin is rendered before rs1090
+// is available, leading to runtime errors. But we ignore that for now.
+init("/rs1090_wasm_bg.wasm")
+  .then(() => run())
+  .catch(e => console.error("failed to load rs1090 wasm", e));
+
+createApp(App).mount("#app");
