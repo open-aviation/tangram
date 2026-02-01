@@ -245,6 +245,7 @@ class PlanesConfig:
     history_optimize_target_file_size: int = 134217728
     history_vacuum_interval_secs: int = 120
     history_vacuum_retention_period_secs: int | None = 120
+    history_checkpoint_interval: int = 10
     topbar_order: int = 50
     sidebar_order: int = 50
     trail_type: Literal["line", "curtain"] = "line"
@@ -371,6 +372,7 @@ async def run_planes(backend_state: tangram_core.BackendState) -> None:
         history_optimize_target_file_size=config_planes.history_optimize_target_file_size,
         history_vacuum_interval_secs=config_planes.history_vacuum_interval_secs,
         history_vacuum_retention_period_secs=config_planes.history_vacuum_retention_period_secs,
+        history_checkpoint_interval=config_planes.history_checkpoint_interval,
         search_channel=config_planes.search_channel,
     )
     await _planes.run_planes(rust_config)

@@ -7,7 +7,7 @@ use deltalake::arrow::ipc::reader::{FileReader, StreamReader};
 use deltalake::kernel::engine::arrow_conversion::TryIntoKernel;
 use deltalake::kernel::StructField;
 use deltalake::operations::create::CreateBuilder;
-use deltalake::{DeltaTable, DeltaTableBuilder, DeltaTableError};
+use deltalake::{checkpoints, DeltaTable, DeltaTableBuilder, DeltaTableError};
 use futures::StreamExt;
 use redis::AsyncCommands;
 use std::collections::HashMap;
@@ -16,9 +16,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tangram_core::shutdown::{abort_and_await, Shutdown};
-use tokio::sync::{watch, Mutex, RwLock};
+use tokio::sync::{watch, Mutex, Semaphore};
 use tokio::time::{self, Instant};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 fn decode_schema(base64_schema: &str) -> Result<Arc<ArrowSchema>> {
@@ -36,25 +36,21 @@ pub struct MaintenanceConfig {
     pub vacuum_retention_period_secs: Option<u64>,
 }
 
+#[derive(Clone)]
 struct ManagedTable {
-    table: Arc<Mutex<DeltaTable>>,
+    table_url: String,
     maintenance_config: MaintenanceConfig,
     last_optimize: Arc<Mutex<Instant>>,
     last_vacuum: Arc<Mutex<Instant>>,
-    maintenance_lock: Arc<RwLock<()>>,
+    // ensure we don't spawn overlapping maintenance tasks for the same table
+    optimize_lock: Arc<Semaphore>,
+    vacuum_lock: Arc<Semaphore>,
 }
 
 /// Central state of the history service.
-///
-/// This enables multiple `consume_stream_for_table` tasks for different tables
-/// to run concurrently without blocking each other.
 type ManagedTables = DashMap<String, ManagedTable>;
 
 /// Listens for commands to manage tables.
-/// On table registration, vacant is used to ensure only one consumer task
-/// is spawned per table, even if multiple registration requests arrive.
-/// Table metadata is persisted in redis with `SADD` and `HSET` so the service
-/// can recover its state on resume consumption.
 async fn control_subscriber(
     redis_url: String,
     channel: String,
@@ -107,6 +103,7 @@ async fn control_subscriber(
                 optimize_target_file_size,
                 vacuum_interval_secs,
                 vacuum_retention_period_secs,
+                checkpoint_interval,
             })) => {
                 let response_channel = format!("{}:response:{}", channel, sender_id);
                 let response = if let Ok(arrow_schema) = decode_schema(&schema) {
@@ -134,6 +131,7 @@ async fn control_subscriber(
                             "vacuum_retention_period_secs",
                             serde_json::to_string(&vacuum_retention_period_secs)?,
                         ),
+                        ("checkpoint_interval", checkpoint_interval.to_string()),
                     ];
                     let _: Result<(), _> = conn.hset_multiple(&config_key, &config_values).await;
                     let _: Result<(), _> = conn.sadd("history:managed_tables", &table_name).await;
@@ -141,83 +139,82 @@ async fn control_subscriber(
                     match manager.entry(table_name.clone()) {
                         dashmap::mapref::entry::Entry::Occupied(entry) => {
                             info!("table '{}' already registered, sending ack", table_name);
-                            let table_arc = entry.get().table.clone();
-                            let table_uri = table_arc.lock().await.table_url().to_string();
+                            let table_url = entry.get().table_url.clone();
                             let redis_key = format!("tangram:history:table_uri:{}", table_name);
-                            let _: Result<(), _> = conn.set(&redis_key, &table_uri).await;
+                            let _: Result<(), _> = conn.set(&redis_key, &table_url).await;
                             ControlResponse::TableRegistered {
                                 request_id: sender_id,
                                 table_name,
-                                table_uri,
+                                table_uri: table_url,
                             }
                         }
                         dashmap::mapref::entry::Entry::Vacant(entry) => {
                             let table_path = PathBuf::from(&base_path).join(&table_name);
                             tokio::fs::create_dir_all(&table_path).await?;
-                            let table_uri = table_path
-                                .to_str()
-                                .ok_or_else(|| anyhow!("invalid table path"))?
-                                .to_string();
-                            let table_url = url::Url::from_directory_path(&table_path)
-                                .map_err(|_| {
-                                    DeltaTableError::InvalidTableLocation(table_uri.to_string())
-                                })
-                                .unwrap();
 
-                            let table_result = match DeltaTableBuilder::from_url(table_url)?
-                                .load()
-                                .await
-                            {
-                                Ok(table) => Ok(table),
-                                Err(DeltaTableError::NotATable(_)) => {
-                                    info!("table '{}' not found, creating.", table_name);
-                                    let columns: Vec<StructField> = arrow_schema
-                                        .fields()
-                                        .iter()
-                                        .map(|f| f.as_ref().try_into_kernel())
-                                        .collect::<Result<Vec<_>, _>>()?;
-                                    CreateBuilder::new()
-                                        .with_location(table_uri)
-                                        .with_columns(columns)
-                                        .with_partition_columns(partition_columns.iter().cloned())
-                                        .await
-                                }
-                                Err(err) => Err(err),
-                            };
+                            let table_url_obj = url::Url::from_directory_path(&table_path)
+                                .map_err(|_| {
+                                    anyhow!("Failed to convert table path to URL: {:?}", table_path)
+                                })?;
+                            let table_url_str = table_url_obj.to_string();
+
+                            let table_result =
+                                match DeltaTableBuilder::from_url(table_url_obj.clone())?
+                                    .load()
+                                    .await
+                                {
+                                    Ok(table) => Ok(table),
+                                    Err(DeltaTableError::NotATable(_)) => {
+                                        info!("table '{}' not found, creating.", table_name);
+                                        let columns: Vec<StructField> = arrow_schema
+                                            .fields()
+                                            .iter()
+                                            .map(|f| f.as_ref().try_into_kernel())
+                                            .collect::<Result<Vec<_>, _>>()?;
+                                        CreateBuilder::new()
+                                            .with_location(table_url_str.clone())
+                                            .with_columns(columns)
+                                            .with_partition_columns(
+                                                partition_columns.iter().cloned(),
+                                            )
+                                            .await
+                                    }
+                                    Err(err) => Err(err),
+                                };
 
                             match table_result {
                                 Ok(table) => {
-                                    let table_arc = Arc::new(Mutex::new(table));
                                     let managed_table = ManagedTable {
-                                        table: table_arc.clone(),
+                                        table_url: table_url_str.clone(),
                                         maintenance_config,
                                         last_optimize: Arc::new(Mutex::new(Instant::now())),
                                         last_vacuum: Arc::new(Mutex::new(Instant::now())),
-                                        maintenance_lock: Arc::new(RwLock::new(())),
+                                        optimize_lock: Arc::new(Semaphore::new(1)),
+                                        vacuum_lock: Arc::new(Semaphore::new(1)),
                                     };
-                                    let maintenance_lock = managed_table.maintenance_lock.clone();
                                     entry.insert(managed_table);
 
                                     info!("spawning new consumer task for table '{}'", table_name);
                                     let shutdown_clone = shutdown.clone();
+
                                     tokio::spawn(consume_stream_for_table(
                                         redis_url.clone(),
                                         table_name.clone(),
-                                        table_arc.clone(),
-                                        maintenance_lock,
+                                        table,
+                                        checkpoint_interval,
                                         redis_read_count,
                                         redis_read_block_ms,
                                         shutdown_clone,
                                     ));
 
-                                    let table_uri = table_arc.lock().await.table_url().to_string();
                                     let redis_key =
                                         format!("tangram:history:table_uri:{}", table_name);
-                                    let _: Result<(), _> = conn.set(&redis_key, &table_uri).await;
+                                    let _: Result<(), _> =
+                                        conn.set(&redis_key, &table_url_str).await;
                                     ControlResponse::TableRegistered {
                                         request_id: sender_id,
                                         table_name,
-                                        table_uri,
+                                        table_uri: table_url_str,
                                     }
                                 }
                                 Err(e) => {
@@ -251,23 +248,11 @@ async fn control_subscriber(
     Ok(())
 }
 
-/// A long-running, "dumb writer" task, one per table.
-///
-/// Tts sole responsibility is to read from a redis stream and write to a delta
-/// table.
-///
-/// - redis acts as the buffer. if this task is slow, messages queue up in the
-///   redis stream's pending entries list, making the system more robust and
-///   stateless.
-/// - `xreadgroup` ensures each message is processed once.
-/// - `xack` is called on both success and failure, a "best-effort" strategy
-///   that accepts data loss to prevent a poison pill message from halting the
-///   entire pipeline.
 async fn consume_stream_for_table(
     redis_url: String,
     table_name: String,
-    table: Arc<Mutex<DeltaTable>>,
-    maintenance_lock: Arc<RwLock<()>>,
+    mut table: DeltaTable,
+    checkpoint_interval: u64,
     redis_read_count: usize,
     redis_read_block_ms: usize,
     mut shutdown: watch::Receiver<bool>,
@@ -357,20 +342,33 @@ async fn consume_stream_for_table(
                     batches.len(),
                     table_name
                 );
-                let _guard = maintenance_lock.read().await;
-                let local_table = table.lock().await.clone();
-                match local_table.write(batches).await {
+
+                match table.clone().write(batches).await {
                     Ok(new_table) => {
-                        let mut table_lock = table.lock().await;
-                        *table_lock = new_table;
+                        table = new_table;
+
+                        if let Some(version) = table.version() {
+                            if version >= 0 && (version as u64).is_multiple_of(checkpoint_interval)
+                            {
+                                if let Err(e) = checkpoints::create_checkpoint(&table, None).await {
+                                    error!("failed to create checkpoint for table '{}' at version {}: {}", table_name, version, e);
+                                } else {
+                                    info!(
+                                        "created checkpoint for table '{}' at version {}",
+                                        table_name, version
+                                    );
+                                }
+                            }
+                        }
                     }
                     Err(e) => {
                         // swallow the error and proceed to ack, accepting data loss
-                        // TODO: reprocessing strategy?
+                        // delta-rs handles commit retries internally, so if we get here it's likely fatal/storage related
                         error!(
                             "failed to write to table '{}', dropping messages: {}",
                             table_name, e
                         );
+                        let _ = table.update_state().await;
                     }
                 }
             }
@@ -388,6 +386,89 @@ async fn consume_stream_for_table(
     }
     Ok(())
 }
+
+async fn perform_maintenance(table_name: String, managed_table: ManagedTable) {
+    let _optimize_permit = match managed_table.optimize_lock.try_acquire() {
+        Ok(permit) => permit,
+        Err(_) => {
+            return;
+        }
+    };
+
+    let needs_optimize = {
+        managed_table.last_optimize.lock().await.elapsed()
+            >= managed_table.maintenance_config.optimize_interval
+    };
+
+    let table_url = match url::Url::parse(&managed_table.table_url) {
+        Ok(u) => u,
+        Err(e) => {
+            error!("invalid table URL for {}: {}", table_name, e);
+            return;
+        }
+    };
+
+    if needs_optimize {
+        if let Ok(builder) = DeltaTableBuilder::from_url(table_url.clone()) {
+            if let Ok(maintenance_table) = builder.load().await {
+                info!("running optimize for table {}", table_name);
+                match maintenance_table
+                    .optimize()
+                    .with_target_size(managed_table.maintenance_config.optimize_target_file_size)
+                    .await
+                {
+                    Ok(_) => {
+                        *managed_table.last_optimize.lock().await = Instant::now();
+                        info!("optimize successful for table {}", table_name);
+                    }
+                    Err(e) => error!("optimize failed for table {}: {}", table_name, e),
+                }
+            }
+        }
+    }
+    drop(_optimize_permit);
+
+    let _vacuum_permit = match managed_table.vacuum_lock.try_acquire() {
+        Ok(permit) => permit,
+        Err(_) => return,
+    };
+
+    let needs_vacuum = {
+        managed_table.last_vacuum.lock().await.elapsed()
+            >= managed_table.maintenance_config.vacuum_interval
+    };
+
+    if needs_vacuum {
+        if let Ok(builder) = DeltaTableBuilder::from_url(table_url) {
+            if let Ok(maintenance_table) = builder.load().await {
+                info!("running vacuum for table {}", table_name);
+                let mut builder = maintenance_table
+                    .vacuum()
+                    .with_enforce_retention_duration(false);
+                if let Some(secs) = managed_table
+                    .maintenance_config
+                    .vacuum_retention_period_secs
+                {
+                    builder = builder.with_retention_period(chrono::Duration::seconds(secs as i64));
+                }
+                match builder.await {
+                    Ok((new_table, _)) => {
+                        *managed_table.last_vacuum.lock().await = Instant::now();
+                        info!("vacuum successful for table {}", table_name);
+
+                        if let Err(e) = checkpoints::cleanup_metadata(&new_table, None).await {
+                            warn!("failed to cleanup metadata for table {}: {}", table_name, e);
+                        } else {
+                            info!("cleanup metadata successful for table {}", table_name);
+                        }
+                    }
+                    Err(e) => error!("vacuum failed for table {}: {}", table_name, e),
+                }
+            }
+        }
+    }
+}
+
 async fn maintenance_task(manager: Arc<ManagedTables>, mut shutdown: watch::Receiver<bool>) {
     let mut interval = time::interval(Duration::from_secs(5));
     loop {
@@ -402,63 +483,13 @@ async fn maintenance_task(manager: Arc<ManagedTables>, mut shutdown: watch::Rece
                 break;
             }
         }
+        let tables: Vec<(String, ManagedTable)> = manager
+            .iter()
+            .map(|r| (r.key().clone(), r.value().clone()))
+            .collect();
 
-        for item in manager.iter() {
-            let table_name = item.key();
-            let managed_table = item.value();
-
-            let needs_optimize = {
-                managed_table.last_optimize.lock().await.elapsed()
-                    >= managed_table.maintenance_config.optimize_interval
-            };
-
-            if needs_optimize {
-                info!("running optimize for table {}", table_name);
-                let _guard = managed_table.maintenance_lock.write().await;
-                let table_clone = managed_table.table.lock().await.clone();
-                match table_clone
-                    .optimize()
-                    .with_target_size(managed_table.maintenance_config.optimize_target_file_size)
-                    .await
-                {
-                    Ok((new_table, _)) => {
-                        let mut table_lock = managed_table.table.lock().await;
-                        *table_lock = new_table;
-                        *managed_table.last_optimize.lock().await = Instant::now();
-                        info!("optimize successful for table {}", table_name);
-                    }
-                    Err(e) => error!("optimize failed for table {}: {}", table_name, e),
-                }
-            }
-
-            let needs_vacuum = {
-                managed_table.last_vacuum.lock().await.elapsed()
-                    >= managed_table.maintenance_config.vacuum_interval
-            };
-
-            if needs_vacuum {
-                info!("running vacuum for table {}", table_name);
-                let _guard = managed_table.maintenance_lock.write().await;
-                let table_clone = managed_table.table.lock().await.clone();
-                // by default the minimum data retention is 7 days to prevent accidental data loss
-                // but since we're writing frequently we want more aggressive purging of small files
-                let mut builder = table_clone.vacuum().with_enforce_retention_duration(false);
-                if let Some(secs) = managed_table
-                    .maintenance_config
-                    .vacuum_retention_period_secs
-                {
-                    builder = builder.with_retention_period(chrono::Duration::seconds(secs as i64));
-                }
-                match builder.await {
-                    Ok((new_table, _)) => {
-                        let mut table_lock = managed_table.table.lock().await;
-                        *table_lock = new_table;
-                        *managed_table.last_vacuum.lock().await = Instant::now();
-                        info!("vacuum successful for table {}", table_name);
-                    }
-                    Err(e) => error!("vacuum failed for table {}: {}", table_name, e),
-                }
-            }
+        for (table_name, managed_table) in tables {
+            tokio::spawn(perform_maintenance(table_name, managed_table));
         }
     }
 }
@@ -485,6 +516,12 @@ pub async fn start_ingest_service(config: IngestConfig) -> Result<()> {
     for table_name in table_names {
         let config_key = format!("history:config:{}", table_name);
         let redis_config: HashMap<String, String> = conn.hgetall(&config_key).await?;
+
+        // If config is missing, skip this table instead of crashing
+        if redis_config.is_empty() {
+            warn!("config missing for table '{}', skipping", table_name);
+            continue;
+        }
 
         let schema_b64 = redis_config
             .get("schema")
@@ -520,17 +557,23 @@ pub async fn start_ingest_service(config: IngestConfig) -> Result<()> {
             )?,
         };
 
+        let checkpoint_interval: u64 = redis_config
+            .get("checkpoint_interval")
+            .unwrap_or(&"10".to_string())
+            .parse()
+            .unwrap_or(10);
+
         let table_path = PathBuf::from(&config.base_path).join(&table_name);
         tokio::fs::create_dir_all(&table_path).await?;
-        let table_uri = table_path
-            .to_str()
-            .ok_or_else(|| anyhow!("invalid table path"))?
-            .to_string();
-        let table_url = url::Url::from_directory_path(&table_path)
-            .map_err(|_| DeltaTableError::InvalidTableLocation(table_uri.to_string()))
-            .unwrap();
 
-        let table = match DeltaTableBuilder::from_url(table_url)?.load().await {
+        let table_url_obj = url::Url::from_directory_path(&table_path)
+            .map_err(|_| anyhow!("invalid table path: {:?}", table_path))?;
+        let table_url_str = table_url_obj.to_string();
+
+        let table = match DeltaTableBuilder::from_url(table_url_obj.clone())?
+            .load()
+            .await
+        {
             Ok(table) => table,
             Err(DeltaTableError::NotATable(_)) => {
                 let columns: Vec<StructField> = arrow_schema
@@ -539,7 +582,7 @@ pub async fn start_ingest_service(config: IngestConfig) -> Result<()> {
                     .map(|f| f.as_ref().try_into_kernel())
                     .collect::<Result<Vec<_>, _>>()?;
                 CreateBuilder::new()
-                    .with_location(table_uri)
+                    .with_location(table_url_str.clone())
                     .with_columns(columns)
                     .with_partition_columns(partition_columns)
                     .await?
@@ -547,22 +590,21 @@ pub async fn start_ingest_service(config: IngestConfig) -> Result<()> {
             Err(err) => return Err(err.into()),
         };
 
-        let table_arc = Arc::new(Mutex::new(table));
         let managed_table = ManagedTable {
-            table: table_arc.clone(),
+            table_url: table_url_str,
             maintenance_config,
             last_optimize: Arc::new(Mutex::new(Instant::now())),
             last_vacuum: Arc::new(Mutex::new(Instant::now())),
-            maintenance_lock: Arc::new(RwLock::new(())),
+            optimize_lock: Arc::new(Semaphore::new(1)),
+            vacuum_lock: Arc::new(Semaphore::new(1)),
         };
-        let maintenance_lock = managed_table.maintenance_lock.clone();
         manager.insert(table_name.clone(), managed_table);
 
         let handle = tokio::spawn(consume_stream_for_table(
             config.redis_url.clone(),
             table_name,
-            table_arc,
-            maintenance_lock,
+            table,
+            checkpoint_interval,
             config.redis_read_count,
             config.redis_read_block_ms,
             shutdown_rx.clone(),

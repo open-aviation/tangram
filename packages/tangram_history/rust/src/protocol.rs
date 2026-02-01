@@ -39,4 +39,5 @@ pub struct RegisterTable {
     pub optimize_target_file_size: u64,
     pub vacuum_interval_secs: u64,
     pub vacuum_retention_period_secs: Option<u64>,
+    pub checkpoint_interval: u64,
 }

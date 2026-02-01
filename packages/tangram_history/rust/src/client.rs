@@ -28,6 +28,7 @@ pub struct HistoryClientConfig {
     pub optimize_target_file_size: u64,
     pub vacuum_interval_secs: u64,
     pub vacuum_retention_period_secs: Option<u64>,
+    pub checkpoint_interval: u64,
 }
 
 /// Core of the "smart batcher" client, buffers history frames in-memory before
@@ -120,6 +121,7 @@ pub async fn register_history_table<T: HistoryFrame>(
         "optimize_target_file_size": config.optimize_target_file_size,
         "vacuum_interval_secs": config.vacuum_interval_secs,
         "vacuum_retention_period_secs": config.vacuum_retention_period_secs,
+        "checkpoint_interval": config.checkpoint_interval,
     });
 
     let mut conn = client.get_multiplexed_async_connection().await?;
@@ -239,6 +241,7 @@ pub async fn start_producer_service_components<T: HistoryFrame>(
         optimize_target_file_size: history_config.optimize_target_file_size,
         vacuum_interval_secs: history_config.vacuum_interval_secs,
         vacuum_retention_period_secs: history_config.vacuum_retention_period_secs,
+        checkpoint_interval: history_config.checkpoint_interval,
     };
 
     for attempt in 1..=3 {

@@ -58,6 +58,7 @@ pub struct PlanesConfig {
     pub history_optimize_target_file_size: u64,
     pub history_vacuum_interval_secs: u64,
     pub history_vacuum_retention_period_secs: Option<u64>,
+    pub history_checkpoint_interval: u64,
     pub search_channel: String,
 }
 
@@ -81,6 +82,7 @@ impl PlanesConfig {
         history_optimize_target_file_size: u64,
         history_vacuum_interval_secs: u64,
         history_vacuum_retention_period_secs: Option<u64>,
+        history_checkpoint_interval: u64,
         search_channel: String,
     ) -> Self {
         Self {
@@ -97,6 +99,7 @@ impl PlanesConfig {
             history_optimize_target_file_size,
             history_vacuum_interval_secs,
             history_vacuum_retention_period_secs,
+            history_checkpoint_interval,
             search_channel,
         }
     }
@@ -251,6 +254,7 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
             optimize_target_file_size: history_config_clone.history_optimize_target_file_size,
             vacuum_interval_secs: history_config_clone.history_vacuum_interval_secs,
             vacuum_retention_period_secs: history_config_clone.history_vacuum_retention_period_secs,
+            checkpoint_interval: history_config_clone.history_checkpoint_interval,
         };
 
         if let Ok(Some(buffer)) = start_producer_service_components::<Jet1090HistoryFrame>(
