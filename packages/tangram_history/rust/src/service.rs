@@ -7,7 +7,7 @@ use deltalake::arrow::ipc::reader::{FileReader, StreamReader};
 use deltalake::kernel::engine::arrow_conversion::TryIntoKernel;
 use deltalake::kernel::StructField;
 use deltalake::operations::create::CreateBuilder;
-use deltalake::{DeltaOps, DeltaTable, DeltaTableBuilder, DeltaTableError};
+use deltalake::{DeltaTable, DeltaTableBuilder, DeltaTableError};
 use futures::StreamExt;
 use redis::AsyncCommands;
 use std::collections::HashMap;
@@ -142,7 +142,7 @@ async fn control_subscriber(
                         dashmap::mapref::entry::Entry::Occupied(entry) => {
                             info!("table '{}' already registered, sending ack", table_name);
                             let table_arc = entry.get().table.clone();
-                            let table_uri = table_arc.lock().await.table_uri();
+                            let table_uri = table_arc.lock().await.table_url().to_string();
                             let redis_key = format!("tangram:history:table_uri:{}", table_name);
                             let _: Result<(), _> = conn.set(&redis_key, &table_uri).await;
                             ControlResponse::TableRegistered {
@@ -164,7 +164,7 @@ async fn control_subscriber(
                                 })
                                 .unwrap();
 
-                            let table_result = match DeltaTableBuilder::from_uri(table_url)?
+                            let table_result = match DeltaTableBuilder::from_url(table_url)?
                                 .load()
                                 .await
                             {
@@ -210,7 +210,7 @@ async fn control_subscriber(
                                         shutdown_clone,
                                     ));
 
-                                    let table_uri = table_arc.lock().await.table_uri();
+                                    let table_uri = table_arc.lock().await.table_url().to_string();
                                     let redis_key =
                                         format!("tangram:history:table_uri:{}", table_name);
                                     let _: Result<(), _> = conn.set(&redis_key, &table_uri).await;
@@ -359,7 +359,7 @@ async fn consume_stream_for_table(
                 );
                 let _guard = maintenance_lock.read().await;
                 let local_table = table.lock().await.clone();
-                match DeltaOps(local_table).write(batches).await {
+                match local_table.write(batches).await {
                     Ok(new_table) => {
                         let mut table_lock = table.lock().await;
                         *table_lock = new_table;
@@ -416,7 +416,7 @@ async fn maintenance_task(manager: Arc<ManagedTables>, mut shutdown: watch::Rece
                 info!("running optimize for table {}", table_name);
                 let _guard = managed_table.maintenance_lock.write().await;
                 let table_clone = managed_table.table.lock().await.clone();
-                match DeltaOps(table_clone)
+                match table_clone
                     .optimize()
                     .with_target_size(managed_table.maintenance_config.optimize_target_file_size)
                     .await
@@ -442,9 +442,7 @@ async fn maintenance_task(manager: Arc<ManagedTables>, mut shutdown: watch::Rece
                 let table_clone = managed_table.table.lock().await.clone();
                 // by default the minimum data retention is 7 days to prevent accidental data loss
                 // but since we're writing frequently we want more aggressive purging of small files
-                let mut builder = DeltaOps(table_clone)
-                    .vacuum()
-                    .with_enforce_retention_duration(false);
+                let mut builder = table_clone.vacuum().with_enforce_retention_duration(false);
                 if let Some(secs) = managed_table
                     .maintenance_config
                     .vacuum_retention_period_secs
@@ -532,7 +530,7 @@ pub async fn start_ingest_service(config: IngestConfig) -> Result<()> {
             .map_err(|_| DeltaTableError::InvalidTableLocation(table_uri.to_string()))
             .unwrap();
 
-        let table = match DeltaTableBuilder::from_uri(table_url)?.load().await {
+        let table = match DeltaTableBuilder::from_url(table_url)?.load().await {
             Ok(table) => table,
             Err(DeltaTableError::NotATable(_)) => {
                 let columns: Vec<StructField> = arrow_schema
