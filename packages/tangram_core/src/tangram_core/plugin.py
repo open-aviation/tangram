@@ -20,9 +20,7 @@ if TYPE_CHECKING:
     ServiceAsyncFunc: TypeAlias = Callable[[BackendState], Coroutine[Any, Any, None]]
     ServiceFunc: TypeAlias = ServiceAsyncFunc | Callable[[BackendState], None]
     Priority: TypeAlias = int
-    WithComputedFieldsFunction: TypeAlias = Callable[
-        [BackendState, Any], dict[str, Any]
-    ]
+    IntoFrontendConfigFunction: TypeAlias = Callable[[Any], Any]
     Lifespan: TypeAlias = Callable[
         [BackendState], AbstractAsyncContextManager[None, bool | None]
     ]
@@ -48,14 +46,13 @@ class Plugin:
     """The configuration class (dataclass or Pydantic model) for this plugin.
     Fields annotated with `tangram_core.config.Expose()` will be exposed to the
     frontend."""
-    # TODO: instead of with_computed_field make it into_frontend_config since some
-    # plugins might want to rewrite the entire config rather than just add new ones
-    # unused for now
-    with_computed_fields: WithComputedFieldsFunction | None = None
-    """Function to add additional dynamically computed fields to the frontend
-    configuration. It receives the backend state and the validated configuration object
-    (if `config_class` is set) or the raw dictionary, and should return a dictionary
-    of extra fields to merge."""
+    frontend_config_class: type | None = None
+    """The configuration class for the frontend. If set, it will be used to
+    generate the frontend schema and validate settings updates."""
+    into_frontend_config_function: IntoFrontendConfigFunction | None = None
+    """Function to transform the backend configuration into the frontend
+    configuration. It receives the validated backend configuration object and
+    should return an instance of `frontend_config_class`."""
     lifespan: Lifespan | None = None
     """Async context manager for plugin initialization and teardown."""
     services: list[tuple[Priority, ServiceAsyncFunc]] = field(
@@ -105,6 +102,16 @@ class Plugin:
 
         if self.config_class:
             return TypeAdapter(self.config_class)
+        return None
+
+    @functools.lru_cache
+    def frontend_adapter(self) -> TypeAdapter | None:
+        """Returns a cached Pydantic TypeAdapter for the plugin's frontend
+        configuration class."""
+        from pydantic import TypeAdapter
+
+        if self.frontend_config_class:
+            return TypeAdapter(self.frontend_config_class)
         return None
 
 

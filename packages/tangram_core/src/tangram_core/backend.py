@@ -317,20 +317,26 @@ def create_app(
 
                     if (adapter := plugin.adapter()) is not None:
                         conf_instance = adapter.validate_python(conf_dict)
-                        frontend_manifest = to_frontend_manifest(adapter, conf_instance)
+
+                        if (
+                            plugin.frontend_config_class
+                            and plugin.into_frontend_config_function
+                        ):
+                            frontend_instance = plugin.into_frontend_config_function(
+                                conf_instance
+                            )
+                            frontend_adapter_ = plugin.frontend_adapter()
+                            assert frontend_adapter_ is not None
+                            frontend_manifest = to_frontend_manifest(
+                                frontend_adapter_, frontend_instance
+                            )
+                        else:
+                            frontend_manifest = to_frontend_manifest(
+                                adapter, conf_instance
+                            )
+
                         full_config = frontend_manifest["config"]
                         schema = frontend_manifest["config_json_schema"]
-
-                        if plugin.with_computed_fields is not None:
-                            full_config.update(
-                                plugin.with_computed_fields(
-                                    backend_state, conf_instance
-                                )
-                            )
-                    elif plugin.with_computed_fields is not None:
-                        full_config.update(
-                            plugin.with_computed_fields(backend_state, conf_dict)
-                        )
 
                     plugin_meta["config"] = full_config
                     plugin_meta["config_json_schema"] = schema
@@ -357,6 +363,12 @@ def create_app(
                 return SUCCESS
             plugin = state.loaded_plugins.get(plugin_name)
             assert plugin is not None, f"plugin {plugin_name} not found"
+
+            if plugin.frontend_config_class:
+                if (frontend_adapter_ := plugin.frontend_adapter()) is not None:
+                    frontend_adapter_.validate_python(data)
+                return SUCCESS
+
             backend_adapter = plugin.adapter()
             assert backend_adapter is not None, f"plugin {plugin_name} has no adapter"
             _ = parse_frontend_config(backend_adapter, data)
