@@ -6,11 +6,10 @@ import json
 import logging
 import os
 import re
-import traceback
 import urllib.parse
 import urllib.request
 from contextlib import AsyncExitStack, asynccontextmanager
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from functools import partial
 from importlib.metadata import Distribution, PackageNotFoundError
@@ -40,6 +39,7 @@ from .config import (
     Config,
     FrontendChannelConfig,
     FrontendConfig,
+    FrontendCoreConfig,
     IntoConfig,
     ThemeDefinition,
     parse_frontend_config,
@@ -271,7 +271,7 @@ def core_into_frontend_config(config: Config) -> FrontendConfig:
         t for t in DEFAULT_THEMES if t.name not in user_theme_names
     ] + config.core.themes
 
-    frontend_core = replace(config.core, themes=merged_themes)
+    frontend_core = FrontendCoreConfig(theme=config.core.theme, themes=merged_themes)
 
     return FrontendConfig(core=frontend_core, map=config.map, channel=frontend_channel)
 
@@ -297,58 +297,43 @@ def create_app(
         for router in plugin.routers:
             app.include_router(router)
 
-        if (frontend_path_resolved := resolve_frontend(plugin)) is not None:
-            app.mount(
-                f"/plugins/{plugin.dist_name}",
-                StaticFiles(directory=str(frontend_path_resolved)),
-                name=plugin.dist_name,
+        if (frontend_path_resolved := resolve_frontend(plugin)) is None:
+            continue
+        app.mount(
+            f"/plugins/{plugin.dist_name}",
+            StaticFiles(directory=str(frontend_path_resolved)),
+            name=plugin.dist_name,
+        )
+        if not (plugin_json_path := frontend_path_resolved / "plugin.json").exists():
+            continue
+        with plugin_json_path.open("rb") as f:
+            plugin_meta = json.load(f)
+
+        manifest_plugins[plugin.dist_name] = plugin_meta
+
+        # NOTE: on the js side the `config` and `config_json_schema` keys
+        # may be missing if the plugin does not configure them properly
+        conf_dict = backend_state.config.plugins.get(plugin.dist_name, {})
+        if (backend_adapter := plugin.adapter()) is None:
+            continue
+        conf_instance = backend_adapter.validate_python(conf_dict)
+        if not plugin.frontend_config_class:
+            continue
+        if plugin.into_frontend_config_function is None:
+            logger.warning(
+                f"expected `into_frontend_config_function` for"
+                f" plugin {plugin.dist_name} but it is None. "
+                "Frontend config will be empty!"
             )
-            plugin_json_path = frontend_path_resolved / "plugin.json"
-            if plugin_json_path.exists():
-                try:
-                    with plugin_json_path.open("rb") as f:
-                        plugin_meta = json.load(f)
-
-                    conf_dict = backend_state.config.plugins.get(plugin.dist_name, {})
-                    # TODO when we have with_computed_fields we need to update the
-                    # schema as well, so the current way of spreading into is incorrect
-                    full_config = {}
-                    schema = {}
-
-                    if (adapter := plugin.adapter()) is not None:
-                        conf_instance = adapter.validate_python(conf_dict)
-
-                        if (
-                            plugin.frontend_config_class
-                            and plugin.into_frontend_config_function
-                        ):
-                            frontend_instance = plugin.into_frontend_config_function(
-                                conf_instance
-                            )
-                            frontend_adapter_ = plugin.frontend_adapter()
-                            assert frontend_adapter_ is not None
-                            frontend_manifest = to_frontend_manifest(
-                                frontend_adapter_, frontend_instance
-                            )
-                        else:
-                            frontend_manifest = to_frontend_manifest(
-                                adapter, conf_instance
-                            )
-
-                        full_config = frontend_manifest["config"]
-                        schema = frontend_manifest["config_json_schema"]
-
-                    plugin_meta["config"] = full_config
-                    plugin_meta["config_json_schema"] = schema
-                    manifest_plugins[plugin.dist_name] = plugin_meta
-                except Exception as e:
-                    trace = traceback.format_exc()
-                    logger.error(
-                        "failed to read plugin.json for %s: %s\n%s",
-                        plugin.dist_name,
-                        e,
-                        trace,
-                    )
+            continue
+        frontend_instance = plugin.into_frontend_config_function(conf_instance)
+        frontend_adapter_ = plugin.frontend_adapter()
+        assert frontend_adapter_ is not None
+        frontend_manifest = to_frontend_manifest(frontend_adapter_, frontend_instance)
+        manifest_plugins[plugin.dist_name] = {
+            **plugin_meta,
+            **frontend_manifest,
+        }
 
     @app.post("/settings/validate/{plugin_name}")
     async def validate_settings(
@@ -369,9 +354,8 @@ def create_app(
                     frontend_adapter_.validate_python(data)
                 return SUCCESS
 
-            backend_adapter = plugin.adapter()
-            assert backend_adapter is not None, f"plugin {plugin_name} has no adapter"
-            _ = parse_frontend_config(backend_adapter, data)
+            # if no frontend config defined, validation always succeeds because
+            # nothing to validate against
             return SUCCESS
         except ValidationError as e:
             errs = {

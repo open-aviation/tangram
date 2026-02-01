@@ -11,7 +11,6 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    ClassVar,
     Literal,
     Protocol,
     TypeAlias,
@@ -25,7 +24,7 @@ from annotated_types import Ge, Le
 # we still want to support alternative ways of defining configs, such as stdlib
 # dataclasses and typeddict. so we avoid direct pydantic imports in this file.
 if TYPE_CHECKING:
-    from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler, TypeAdapter
+    from pydantic import GetJsonSchemaHandler, TypeAdapter
     from pydantic.json_schema import JsonSchemaValue
     from pydantic_core import CoreSchema
 
@@ -150,9 +149,9 @@ class AdaptiveTheme:
 
 @dataclass
 class CoreConfig:
-    redis_url: Annotated[str, BackendInternal()] = "redis://127.0.0.1:6379"
-    plugins: Annotated[list[str], BackendInternal()] = field(default_factory=list)
-    log_level: Annotated[str, BackendInternal()] = "INFO"
+    redis_url: str = "redis://127.0.0.1:6379"
+    plugins: list[str] = field(default_factory=list)
+    log_level: str = "INFO"
     theme: Annotated[str | AdaptiveTheme, FrontendMutable(widget="theme-settings")] = (
         field(default_factory=AdaptiveTheme)
     )
@@ -187,18 +186,12 @@ IntoConfig: TypeAlias = "Config | StrOrPathLike"
 @dataclass
 class Config:
     core: CoreConfig = field(default_factory=CoreConfig)
-    server: Annotated[ServerConfig, BackendInternal()] = field(
-        default_factory=ServerConfig
-    )
-    channel: Annotated[ChannelConfig, BackendInternal()] = field(
-        default_factory=ChannelConfig
-    )
+    server: ServerConfig = field(default_factory=ServerConfig)
+    channel: ChannelConfig = field(default_factory=ChannelConfig)
     map: MapConfig = field(default_factory=MapConfig)
     plugins: dict[str, Any] = field(default_factory=dict)
     """Mapping of plugin name to plugin-specific config."""
-    cache: Annotated[CacheConfig, BackendInternal()] = field(
-        default_factory=CacheConfig
-    )
+    cache: CacheConfig = field(default_factory=CacheConfig)
 
     @classmethod
     def from_file(cls, config_path: StrOrPathLike) -> Config:
@@ -252,127 +245,36 @@ def try_resolve_local_style(
 
 
 @dataclass
+class FrontendCoreConfig:
+    theme: Annotated[str | AdaptiveTheme, FrontendMutable(widget="theme-settings")] = (
+        field(default_factory=AdaptiveTheme)
+    )
+    themes: Annotated[
+        list[ThemeDefinition], FrontendMutable(widget="theme-settings")
+    ] = field(default_factory=list)
+
+
+@dataclass
 class FrontendChannelConfig:
     url: str
 
 
 @dataclass
 class FrontendConfig:
-    core: CoreConfig
+    core: FrontendCoreConfig
     map: MapConfig
     channel: FrontendChannelConfig
 
 
 #
-# typing.Annotated markers and backend <-> frontend logic
+# typing.Annotated markers
 #
-
-
-# TODO: test thoroughly tested with complex structures like list[X|Y] or algebraic types
-@dataclass(frozen=True)
-class BackendInternal:
-    """Marker to exclude a field from being serialized to the frontend.
-
-    Lifecycle of a config whose field(s) are annotated with this:
-
-    1. `tangram.toml` -> backend config: field should be validated strictly
-    2. backend -> frontend serialization:
-        a. set the field to `_SENTINEL_REDACTED`
-        b. then call `remove_redacted_fields` to strip them out
-    3. frontend -> backend deserialization: ensure field is missing
-    """
-
-    # values to be passed into context during (de)serialization
-    _CTX_KEY: ClassVar[str] = "tangram_backend_internal"
-    REDACT: ClassVar = object()  # for case 2a
-    VERIFY_MISSING: ClassVar = object()  # for case 3
-
-    _SENTINEL_REDACTED: ClassVar = object()
-    _SENTINEL_MISSING: ClassVar = object()
-    # TODO: thoroughly test whether X | None = None or other defaults are affected
-    # TODO: verify TypedDict NotRequired fields still work
-
-    def __get_pydantic_json_schema__(
-        self, _core_schema: CoreSchema, _handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        from pydantic_core import PydanticOmit
-
-        raise PydanticOmit
-
-    def __get_pydantic_core_schema__(
-        self, source_type: Any, handler: GetCoreSchemaHandler
-    ) -> CoreSchema:
-        from pydantic import ValidationInfo
-        from pydantic_core import core_schema
-
-        original_schema = handler(source_type)
-
-        def validate(
-            value: Any,
-            handler: core_schema.ValidatorFunctionWrapHandler,
-            info: ValidationInfo,
-        ) -> Any:
-            if value is self._SENTINEL_MISSING:
-                if info.context and (
-                    info.context.get(self._CTX_KEY) == self.VERIFY_MISSING
-                ):
-                    return None  # case 3: frontend should not have this field present
-                raise ValueError("Field required")  # case 1
-
-            if info.context and info.context.get(self._CTX_KEY) == self.VERIFY_MISSING:
-                raise ValueError(
-                    "Security: This internal field must not be present in the request."
-                )
-
-            return handler(value)  # case 1: standard type validation
-
-        def serialize(value: Any, info: ValidationInfo) -> Any:
-            if info.context and info.context.get(self._CTX_KEY) == self.REDACT:
-                return self._SENTINEL_REDACTED  # case 2
-            return value
-
-        # set default so case 3 doesn't throw false positive on missing private field
-        return core_schema.with_default_schema(
-            schema=core_schema.with_info_wrap_validator_function(
-                function=validate,
-                schema=original_schema,
-                serialization=core_schema.plain_serializer_function_ser_schema(
-                    function=serialize,
-                    info_arg=True,
-                    return_schema=core_schema.any_schema(),
-                    when_used="always",
-                ),
-            ),
-            default=self._SENTINEL_MISSING,
-            validate_default=True,
-        )
-
-    @classmethod
-    def remove_redacted_fields(cls, obj: dict[str, Any]) -> dict[str, Any]:
-        if isinstance(obj, dict):
-            return {
-                k: cls.remove_redacted_fields(v)
-                for k, v in obj.items()
-                if v is not cls._SENTINEL_REDACTED
-            }
-        elif isinstance(obj, list):
-            return [
-                cls.remove_redacted_fields(item)
-                for item in obj
-                if item is not cls._SENTINEL_REDACTED
-            ]
-        # TODO what about other container types? does pydantic.dump_python produce them?
-        return obj
-
-    # the split redact-then-remove approach above seems weird because annotating
-    # `pydantic.Field(exclude=True)` does the exact same thing: hiding in model_dump.
-    # but, when it comes to validation we need to have two cases: validate exists on
-    # tangram.toml load, but validate missing on frontend-submitted config.
 
 
 @dataclass(frozen=True)
 class FrontendMutable:
-    """Marker to expose a field to the frontend and allow modification."""
+    """Marker to allow a particular field in a frontend configuration to be mutated
+    in the settings page."""
 
     # TODO maybe in the future we can merge the two
     kind: Literal["color"] | None = None
@@ -398,19 +300,13 @@ class FrontendData(TypedDict):
     config_json_schema: dict[str, Any]
 
 
-def to_frontend_manifest(adapter: TypeAdapter, backend_cfg: Any) -> FrontendData:
-    """Serialises a configuration for the frontend with internal fields removed."""
-    config_redacted = adapter.dump_python(
-        backend_cfg, context={BackendInternal._CTX_KEY: BackendInternal.REDACT}
-    )
-    config_cleaned = BackendInternal.remove_redacted_fields(config_redacted)
+def to_frontend_manifest(adapter: TypeAdapter, frontend_cfg: Any) -> FrontendData:
+    """Serialises a frontend configuration."""
+    config_dump = adapter.dump_python(frontend_cfg)
     config_json_schema = adapter.json_schema()
-    return {"config": config_cleaned, "config_json_schema": config_json_schema}
+    return {"config": config_dump, "config_json_schema": config_json_schema}
 
 
 def parse_frontend_config(adapter: TypeAdapter, frontend_cfg: Any) -> Any:
-    """Deserialises and validates frontend-submitted config data, ensuring no internal
-    fields are present."""
-    return adapter.validate_python(
-        frontend_cfg, context={BackendInternal._CTX_KEY: BackendInternal.VERIFY_MISSING}
-    )
+    """Deserialises and validates frontend-submitted config data."""
+    return adapter.validate_python(frontend_cfg)

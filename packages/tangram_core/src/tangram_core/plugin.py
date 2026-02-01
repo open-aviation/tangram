@@ -43,16 +43,22 @@ class Plugin:
     """
     routers: list[APIRouter] = field(default_factory=list)
     config_class: type | None = None
-    """The configuration class (dataclass or Pydantic model) for this plugin.
-    Fields annotated with `tangram_core.config.Expose()` will be exposed to the
-    frontend."""
+    """The **backend** configuration class (dataclass, TypedDict or Pydantic model)
+    for the plugin."""
     frontend_config_class: type | None = None
-    """The configuration class for the frontend. If set, it will be used to
-    generate the frontend schema and validate settings updates."""
+    """The **frontend** configuration class for the plugin. If set, it will be used to
+    generate the frontend schema and validate settings updates.
+    Fields should be annotated with [tangram_core.config.FrontendMutable][] if they
+    are allowed to be modified from the frontend settings UI.
+    """
     into_frontend_config_function: IntoFrontendConfigFunction | None = None
     """Function to transform the backend configuration into the frontend
     configuration. It receives the validated backend configuration object and
-    should return an instance of `frontend_config_class`."""
+    should return an instance of `frontend_config_class`.
+    Useful if the user wants to hide sensitive fields (e.g. API keys) from the frontend
+    or dynamically compute certain fields.
+    Required if `frontend_config_class` is set.
+    """
     lifespan: Lifespan | None = None
     """Async context manager for plugin initialization and teardown."""
     services: list[tuple[Priority, ServiceAsyncFunc]] = field(

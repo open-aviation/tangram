@@ -200,13 +200,26 @@ class Session:
 
 @dataclass
 class ExploreConfig:
-    enable_3d: Annotated[Literal["inherit", True, False], FrontendMutable()] = "inherit"
+    enable_3d: Literal["inherit"] | bool = "inherit"
+
+
+@dataclass
+class ExploreFrontendConfig:
+    # NOTE: this is a limitation on the settings page: enums are not properly rendered
+    # in the dropdown so we have to "flatten" the enum ourselves.
+    enable_3d: Annotated[Literal["inherit", True, False], FrontendMutable()]
     """Whether to render scatter points in 3D"""
+
+
+def into_frontend(config: ExploreConfig) -> ExploreFrontendConfig:
+    return ExploreFrontendConfig(enable_3d=config.enable_3d)
 
 
 plugin = tangram_core.Plugin(
     frontend_path="dist-frontend",
     routers=[router],
     config_class=ExploreConfig,
+    frontend_config_class=ExploreFrontendConfig,
+    into_frontend_config_function=into_frontend,
     lifespan=lifespan,
 )

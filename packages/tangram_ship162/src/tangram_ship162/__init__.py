@@ -8,7 +8,7 @@ import tangram_core
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import ORJSONResponse, Response
 from pydantic import TypeAdapter
-from tangram_core.config import BackendInternal, FrontendMutable
+from tangram_core.config import FrontendMutable
 
 try:
     import polars as pl
@@ -166,30 +166,47 @@ async def get_history_slice(
 
 
 @dataclass(frozen=True)
-class ShipsConfig(
+class ShipsConfig:
+    ship162_channel: str = "ship162"
+    history_table_name: str = "ship162"
+    history_control_channel: str = "history:control"
+    search_channel: str = "ship162:search"
+    state_vector_expire: int = 600  # 10 minutes
+    stream_interval_secs: float = 1.0
+    log_level: str = "INFO"
+    history_buffer_size: int = 100_000
+    history_flush_interval_secs: int = 5
+    history_optimize_interval_secs: int = 120
+    history_optimize_target_file_size: int = 134217728
+    history_vacuum_interval_secs: int = 120
+    history_vacuum_retention_period_secs: int | None = 120
+    topbar_order: int = 100
+    sidebar_order: int = 100
+
+
+@dataclass(frozen=True)
+class ShipsFrontendConfig(
     tangram_core.config.HasTopbarUiConfig, tangram_core.config.HasSidebarUiConfig
 ):
-    ship162_channel: Annotated[str, BackendInternal()] = "ship162"
-    history_table_name: Annotated[str, BackendInternal()] = "ship162"
-    history_control_channel: Annotated[str, BackendInternal()] = "history:control"
-    search_channel: str = "ship162:search"
-    state_vector_expire: Annotated[int, BackendInternal()] = 600  # 10 minutes
-    stream_interval_secs: Annotated[float, BackendInternal()] = 1.0
-    log_level: Annotated[str, BackendInternal()] = "INFO"
-    history_buffer_size: Annotated[int, BackendInternal()] = 100_000
-    history_flush_interval_secs: Annotated[int, BackendInternal()] = 5
-    history_optimize_interval_secs: Annotated[int, BackendInternal()] = 120
-    history_optimize_target_file_size: Annotated[int, BackendInternal()] = 134217728
-    history_vacuum_interval_secs: Annotated[int, BackendInternal()] = 120
-    history_vacuum_retention_period_secs: Annotated[int | None, BackendInternal()] = 120
-    topbar_order: Annotated[int, FrontendMutable()] = 100
-    sidebar_order: Annotated[int, FrontendMutable()] = 100
+    search_channel: str
+    topbar_order: Annotated[int, FrontendMutable()]
+    sidebar_order: Annotated[int, FrontendMutable()]
+
+
+def into_frontend(config: ShipsConfig) -> ShipsFrontendConfig:
+    return ShipsFrontendConfig(
+        search_channel=config.search_channel,
+        topbar_order=config.topbar_order,
+        sidebar_order=config.sidebar_order,
+    )
 
 
 plugin = tangram_core.Plugin(
     frontend_path="dist-frontend",
     routers=[router],
     config_class=ShipsConfig,
+    frontend_config_class=ShipsFrontendConfig,
+    into_frontend_config_function=into_frontend,
 )
 
 

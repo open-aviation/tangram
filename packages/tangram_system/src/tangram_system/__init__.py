@@ -14,8 +14,17 @@ log = logging.getLogger(__name__)
 
 
 @dataclass
-class SystemConfig(tangram_core.config.HasSidebarUiConfig):
-    topbar_order: Annotated[int, FrontendMutable()] = 0
+class SystemConfig:
+    topbar_order: int = 0
+
+
+@dataclass
+class SystemFrontendConfig(tangram_core.config.HasTopbarUiConfig):
+    topbar_order: Annotated[int, FrontendMutable()]
+
+
+def into_frontend(config: SystemConfig) -> SystemFrontendConfig:
+    return SystemFrontendConfig(topbar_order=config.topbar_order)
 
 
 def uptime(counter: int) -> dict[str, str]:
@@ -69,6 +78,8 @@ async def server_events(redis_client: redis.Redis) -> NoReturn:
 plugin = tangram_core.Plugin(
     frontend_path="dist-frontend",
     config_class=SystemConfig,
+    frontend_config_class=SystemFrontendConfig,
+    into_frontend_config_function=into_frontend,
 )
 
 

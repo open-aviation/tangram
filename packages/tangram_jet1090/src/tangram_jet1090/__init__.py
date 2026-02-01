@@ -14,7 +14,7 @@ from annotated_types import Ge, Le
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import ORJSONResponse, Response
 from pydantic import TypeAdapter
-from tangram_core.config import BackendInternal, FrontendMutable
+from tangram_core.config import FrontendMutable
 
 if TYPE_CHECKING:
     from . import _planes
@@ -214,7 +214,6 @@ async def get_sensors_data(
         raise HTTPException(status_code=502, detail=str(e))
 
 
-# TODO once we use isqx, split this it up into tagged unions by_attribute
 @dataclass(frozen=True)
 class TrailColorOptions:
     by_attribute: Annotated[
@@ -226,44 +225,67 @@ class TrailColorOptions:
 
 
 @dataclass(frozen=True)
-class PlanesConfig(
-    tangram_core.config.HasTopbarUiConfig, tangram_core.config.HasSidebarUiConfig
-):
-    jet1090_channel: Annotated[str, BackendInternal()] = "jet1090"
-    history_table_name: Annotated[str, BackendInternal()] = "jet1090"
-    history_control_channel: Annotated[str, BackendInternal()] = "history:control"
+class PlanesConfig:
+    jet1090_channel: str = "jet1090"
+    history_table_name: str = "jet1090"
+    history_control_channel: str = "history:control"
     search_channel: str = "jet1090:search"
-    state_vector_expire: Annotated[int, BackendInternal()] = 20
-    stream_interval_secs: Annotated[float, BackendInternal()] = 1.0
-    aircraft_db_url: Annotated[str, BackendInternal()] = (
+    state_vector_expire: int = 20
+    stream_interval_secs: float = 1.0
+    aircraft_db_url: str = (
         "https://jetvision.de/resources/sqb_databases/basestation.zip"
     )
-    jet1090_url: Annotated[str, BackendInternal()] = "http://localhost:8080"
-    path_cache: Annotated[Path, BackendInternal()] = Path(
-        platformdirs.user_cache_dir("tangram_jet1090")
+    jet1090_url: str = "http://localhost:8080"
+    path_cache: Path = Path(platformdirs.user_cache_dir("tangram_jet1090"))
+    log_level: str = "INFO"
+    show_route_lines: bool = True
+    history_buffer_size: int = 100_000
+    history_flush_interval_secs: int = 5
+    history_optimize_interval_secs: int = 120
+    history_optimize_target_file_size: int = 134217728
+    history_vacuum_interval_secs: int = 120
+    history_vacuum_retention_period_secs: int | None = 120
+    topbar_order: int = 50
+    sidebar_order: int = 50
+    trail_type: Literal["line", "curtain"] = "line"
+    trail_color: str | TrailColorOptions = "#600000"
+    trail_alpha: float = 0.6
+    enable_3d: bool = True
+
+
+@dataclass(frozen=True)
+class PlanesFrontendConfig(
+    tangram_core.config.HasTopbarUiConfig, tangram_core.config.HasSidebarUiConfig
+):
+    search_channel: str
+    show_route_lines: Annotated[bool, FrontendMutable()]
+    topbar_order: Annotated[int, FrontendMutable()]
+    sidebar_order: Annotated[int, FrontendMutable()]
+    trail_type: Annotated[Literal["line", "curtain"], FrontendMutable()]
+    trail_color: Annotated[str, FrontendMutable(kind="color")] | TrailColorOptions
+    trail_alpha: Annotated[float, Ge(0), Le(1), FrontendMutable()]
+    enable_3d: Annotated[bool, FrontendMutable()]
+
+
+def into_frontend(config: PlanesConfig) -> PlanesFrontendConfig:
+    return PlanesFrontendConfig(
+        search_channel=config.search_channel,
+        show_route_lines=config.show_route_lines,
+        topbar_order=config.topbar_order,
+        sidebar_order=config.sidebar_order,
+        trail_type=config.trail_type,
+        trail_color=config.trail_color,
+        trail_alpha=config.trail_alpha,
+        enable_3d=config.enable_3d,
     )
-    log_level: Annotated[str, BackendInternal()] = "INFO"
-    show_route_lines: Annotated[bool, FrontendMutable()] = True
-    history_buffer_size: Annotated[int, BackendInternal()] = 100_000
-    history_flush_interval_secs: Annotated[int, BackendInternal()] = 5
-    history_optimize_interval_secs: Annotated[int, BackendInternal()] = 120
-    history_optimize_target_file_size: Annotated[int, BackendInternal()] = 134217728
-    history_vacuum_interval_secs: Annotated[int, BackendInternal()] = 120
-    history_vacuum_retention_period_secs: Annotated[int | None, BackendInternal()] = 120
-    topbar_order: Annotated[int, FrontendMutable()] = 50
-    sidebar_order: Annotated[int, FrontendMutable()] = 50
-    trail_type: Annotated[Literal["line", "curtain"], FrontendMutable()] = "line"
-    trail_color: Annotated[str, FrontendMutable(kind="color")] | TrailColorOptions = (
-        "#600000"
-    )
-    trail_alpha: Annotated[float, Ge(0), Le(1), FrontendMutable()] = 0.6
-    enable_3d: Annotated[bool, FrontendMutable()] = True
 
 
 plugin = tangram_core.Plugin(
     frontend_path="dist-frontend",
     routers=[router],
     config_class=PlanesConfig,
+    frontend_config_class=PlanesFrontendConfig,
+    into_frontend_config_function=into_frontend,
 )
 
 
