@@ -4,6 +4,140 @@
 import builtins
 import typing
 
+class ControlMessage:
+    @staticmethod
+    def from_json_bytes(data: bytes) -> ControlMessage: ...
+    def to_json_bytes(self) -> bytes: ...
+    @typing.final
+    class Ping(ControlMessage):
+        __match_args__ = ("sender",)
+        @property
+        def sender(self) -> builtins.str: ...
+        def __new__(cls, sender: builtins.str) -> ControlMessage.Ping: ...
+    
+    @typing.final
+    class RegisterTable(ControlMessage):
+        __match_args__ = ("_0",)
+        @property
+        def _0(self) -> RegisterTable: ...
+        def __new__(cls, _0: RegisterTable) -> ControlMessage.RegisterTable: ...
+        def __len__(self) -> builtins.int: ...
+        def __getitem__(self, key: builtins.int) -> typing.Any: ...
+    
+    @typing.final
+    class ListTables(ControlMessage):
+        __match_args__ = ("sender_id",)
+        @property
+        def sender_id(self) -> builtins.str: ...
+        def __new__(cls, sender_id: builtins.str) -> ControlMessage.ListTables: ...
+    
+    @typing.final
+    class DeleteRows(ControlMessage):
+        r"""
+        Deletes rows in a table using with a specified predicate.
+        
+        **WARNING**:
+        
+        The current implementation uses raw string formatting to query row counts and previews, with
+        the following SQL operations disallowed
+        
+        - [DDL](https://docs.rs/datafusion/latest/datafusion/logical_expr/enum.DdlStatement.html)
+        - [DML](https://docs.rs/datafusion/latest/datafusion/logical_expr/struct.DmlStatement.html)
+        - [Statements](https://docs.rs/datafusion/latest/datafusion/logical_expr/enum.Statement.html)
+        
+        It may be prone to SQL injection.
+        """
+        __match_args__ = ("sender_id", "table_name", "predicate", "dry_run",)
+        @property
+        def sender_id(self) -> builtins.str: ...
+        @property
+        def table_name(self) -> builtins.str: ...
+        @property
+        def predicate(self) -> builtins.str:
+            r"""
+            The predicate expression, which must have Boolean type
+            
+            See: <https://docs.rs/datafusion/latest/datafusion/logical_expr/enum.Expr.html>
+            """
+        @property
+        def dry_run(self) -> builtins.bool: ...
+        def __new__(cls, sender_id: builtins.str, table_name: builtins.str, predicate: builtins.str, dry_run: builtins.bool) -> ControlMessage.DeleteRows: ...
+    
+
+class ControlResponse:
+    @staticmethod
+    def from_json_bytes(data: bytes) -> ControlResponse: ...
+    def to_json_bytes(self) -> bytes: ...
+    @typing.final
+    class TableRegistered(ControlResponse):
+        __match_args__ = ("request_id", "table_name", "table_uri",)
+        @property
+        def request_id(self) -> builtins.str: ...
+        @property
+        def table_name(self) -> builtins.str: ...
+        @property
+        def table_uri(self) -> builtins.str: ...
+        def __new__(cls, request_id: builtins.str, table_name: builtins.str, table_uri: builtins.str) -> ControlResponse.TableRegistered: ...
+    
+    @typing.final
+    class RegistrationFailed(ControlResponse):
+        __match_args__ = ("request_id", "table_name", "error",)
+        @property
+        def request_id(self) -> builtins.str: ...
+        @property
+        def table_name(self) -> builtins.str: ...
+        @property
+        def error(self) -> builtins.str: ...
+        def __new__(cls, request_id: builtins.str, table_name: builtins.str, error: builtins.str) -> ControlResponse.RegistrationFailed: ...
+    
+    @typing.final
+    class Pong(ControlResponse):
+        __match_args__ = ("sender",)
+        @property
+        def sender(self) -> builtins.str: ...
+        def __new__(cls, sender: builtins.str) -> ControlResponse.Pong: ...
+    
+    @typing.final
+    class TableList(ControlResponse):
+        __match_args__ = ("request_id", "tables",)
+        @property
+        def request_id(self) -> builtins.str: ...
+        @property
+        def tables(self) -> builtins.list[TableInfo]: ...
+        def __new__(cls, request_id: builtins.str, tables: typing.Sequence[TableInfo]) -> ControlResponse.TableList: ...
+    
+    @typing.final
+    class DeleteOutput(ControlResponse):
+        r"""
+        Successful delete response with affected row count and optional preview.
+        """
+        __match_args__ = ("request_id", "dry_run", "affected_rows", "preview",)
+        @property
+        def request_id(self) -> builtins.str: ...
+        @property
+        def dry_run(self) -> builtins.bool: ...
+        @property
+        def affected_rows(self) -> builtins.int: ...
+        @property
+        def preview(self) -> typing.Optional[builtins.str]:
+            r"""
+            JSON string of RecordBatch
+            """
+        def __new__(cls, request_id: builtins.str, dry_run: builtins.bool, affected_rows: builtins.int, preview: typing.Optional[builtins.str]) -> ControlResponse.DeleteOutput: ...
+    
+    @typing.final
+    class CommandFailed(ControlResponse):
+        r"""
+        Returned when a control command fails; contains the error message.
+        """
+        __match_args__ = ("request_id", "error",)
+        @property
+        def request_id(self) -> builtins.str: ...
+        @property
+        def error(self) -> builtins.str: ...
+        def __new__(cls, request_id: builtins.str, error: builtins.str) -> ControlResponse.CommandFailed: ...
+    
+
 @typing.final
 class HistoryConfig:
     @property
@@ -28,7 +162,103 @@ class HistoryConfig:
     def redis_read_block_ms(self, value: builtins.int) -> None: ...
     def __new__(cls, redis_url: builtins.str, control_channel: builtins.str, base_path: builtins.str, redis_read_count: builtins.int, redis_read_block_ms: builtins.int) -> HistoryConfig: ...
 
+@typing.final
+class RegisterTable:
+    @property
+    def sender_id(self) -> builtins.str: ...
+    @sender_id.setter
+    def sender_id(self, value: builtins.str) -> None: ...
+    @property
+    def table_name(self) -> builtins.str: ...
+    @table_name.setter
+    def table_name(self, value: builtins.str) -> None: ...
+    @property
+    def schema(self) -> builtins.str:
+        r"""
+        Base64 encoded arrow ipc schema format
+        """
+    @schema.setter
+    def schema(self, value: builtins.str) -> None:
+        r"""
+        Base64 encoded arrow ipc schema format
+        """
+    @property
+    def partition_columns(self) -> builtins.list[builtins.str]: ...
+    @partition_columns.setter
+    def partition_columns(self, value: builtins.list[builtins.str]) -> None: ...
+    @property
+    def optimize_interval_secs(self) -> builtins.int: ...
+    @optimize_interval_secs.setter
+    def optimize_interval_secs(self, value: builtins.int) -> None: ...
+    @property
+    def optimize_target_file_size(self) -> builtins.int: ...
+    @optimize_target_file_size.setter
+    def optimize_target_file_size(self, value: builtins.int) -> None: ...
+    @property
+    def vacuum_interval_secs(self) -> builtins.int: ...
+    @vacuum_interval_secs.setter
+    def vacuum_interval_secs(self, value: builtins.int) -> None: ...
+    @property
+    def vacuum_retention_period_secs(self) -> typing.Optional[builtins.int]: ...
+    @vacuum_retention_period_secs.setter
+    def vacuum_retention_period_secs(self, value: typing.Optional[builtins.int]) -> None: ...
+    @property
+    def checkpoint_interval(self) -> builtins.int: ...
+    @checkpoint_interval.setter
+    def checkpoint_interval(self, value: builtins.int) -> None: ...
+    @staticmethod
+    def from_json_bytes(data: bytes) -> RegisterTable: ...
+    def to_json_bytes(self) -> bytes: ...
+
+@typing.final
+class TableInfo:
+    @property
+    def name(self) -> builtins.str: ...
+    @name.setter
+    def name(self, value: builtins.str) -> None: ...
+    @property
+    def uri(self) -> builtins.str: ...
+    @uri.setter
+    def uri(self, value: builtins.str) -> None: ...
+    @property
+    def version(self) -> builtins.int: ...
+    @version.setter
+    def version(self, value: builtins.int) -> None: ...
+    @property
+    def schema(self) -> builtins.str:
+        r"""
+        Serialised JSON schema
+        """
+    @schema.setter
+    def schema(self, value: builtins.str) -> None:
+        r"""
+        Serialised JSON schema
+        """
+    @staticmethod
+    def from_json_bytes(data: bytes) -> TableInfo: ...
+    def to_json_bytes(self) -> bytes: ...
+
+def delete_rows_offline(base_path: builtins.str, table_name: builtins.str, predicate: builtins.str, dry_run: builtins.bool) -> ControlResponse:
+    r"""
+    Delete rows from a history table stored on disk.
+    
+    :raises OSError: if the table does not exist or filesystem access fails.
+    :return: ControlResponse.DeleteOutput on success, ControlResponse.CommandFailed on failure.
+    """
+
 def init_tracing_stderr(filter_str: builtins.str) -> None: ...
 
-def run_history(config: HistoryConfig) -> typing.Any: ...
+def list_tables_offline(base_path: builtins.str) -> builtins.list[TableInfo]:
+    r"""
+    List history tables by inspecting the on-disk Delta Lake directory.
+    
+    :raises OSError: if the table does not exist or filesystem access fails.
+    """
+
+def run_history(config: HistoryConfig) -> typing.Any:
+    r"""
+    Start the history ingest service.
+    
+    :raises RuntimeError: if the service fails to start or crashes.
+    """
 

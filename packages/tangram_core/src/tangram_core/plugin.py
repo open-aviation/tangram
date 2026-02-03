@@ -14,6 +14,7 @@ from fastapi import APIRouter
 
 if TYPE_CHECKING:
     from pydantic import TypeAdapter
+    from typer import Typer
 
     from .backend import BackendState
 
@@ -64,6 +65,8 @@ class Plugin:
     services: list[tuple[Priority, ServiceAsyncFunc]] = field(
         default_factory=list, init=False
     )
+    get_typer: Callable[[], Typer] | None = None
+    """A function that returns the subcommands which will later be registered."""
     dist_name: str = field(init=False)
     """Name of the distribution (package) that provided this plugin, populated
     automatically during loading.

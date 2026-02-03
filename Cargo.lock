@@ -4715,6 +4715,7 @@ dependencies = [
  "anyhow",
  "arrow-array",
  "arrow-ipc",
+ "arrow-json",
  "arrow-schema",
  "base64",
  "chrono",

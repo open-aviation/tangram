@@ -1,22 +1,24 @@
 import logging
-from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-import platformdirs
 import tangram_core
 from pydantic import TypeAdapter
 
+from .config import HistoryConfig
+
+if TYPE_CHECKING:
+    from typer import Typer
+
 log = logging.getLogger(__name__)
-plugin = tangram_core.Plugin()
 
 
-@dataclass(frozen=True)
-class HistoryConfig:
-    control_channel: str = "history:control"
-    base_path: Path = Path(platformdirs.user_cache_dir("tangram_history"))
-    log_level: str = "INFO"
-    redis_read_count: int = 1000
-    redis_read_block_ms: int = 5000
+def get_typer() -> Typer:
+    from .cli import app
+
+    return app
+
+
+plugin = tangram_core.Plugin(get_typer=get_typer)
 
 
 @plugin.register_service()

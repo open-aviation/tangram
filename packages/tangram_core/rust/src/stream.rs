@@ -71,10 +71,7 @@ pub async fn start_redis_subscriber(
 
         let msg = tokio::select! {
             msg = stream.next() => msg,
-            res = shutdown.changed() => {
-                let _ = res;
-                break;
-            }
+            _ = shutdown.changed() => break,
         };
 
         let Some(msg) = msg else {
@@ -234,10 +231,7 @@ where
 
         tokio::select! {
             _ = time::sleep(Duration::from_secs_f64(config.stream_interval_secs)) => {}
-            res = shutdown.changed() => {
-                let _ = res;
-                break;
-            }
+            _ = shutdown.changed() => break,
         }
     }
     Ok(())

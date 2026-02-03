@@ -121,10 +121,7 @@ async fn start_ship162_subscriber(
 
         let msg = tokio::select! {
             msg = stream.next() => msg,
-            res = shutdown.changed() => {
-                let _ = res;
-                break;
-            }
+            _ = shutdown.changed() => break,
         };
 
         let Some(msg) = msg else {
@@ -175,10 +172,7 @@ async fn start_search_subscriber(
 
         let msg = tokio::select! {
             msg = stream.next() => msg,
-            res = shutdown.changed() => {
-                let _ = res;
-                break;
-            }
+            _ = shutdown.changed() => break,
         };
 
         let Some(msg) = msg else {

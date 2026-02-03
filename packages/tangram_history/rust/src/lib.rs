@@ -5,7 +5,7 @@ pub mod protocol;
 mod service;
 
 #[cfg(feature = "server")]
-use service::{start_ingest_service, IngestConfig};
+use service::{perform_actual_delete, perform_dry_run_delete, start_ingest_service, IngestConfig};
 
 #[cfg(all(feature = "pyo3", feature = "server"))]
 use pyo3::exceptions::PyRuntimeError;
@@ -18,6 +18,13 @@ use pyo3_stub_gen::derive::*;
 #[cfg(feature = "pyo3")]
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
+#[cfg(feature = "server")]
+use std::path::PathBuf;
+
+#[cfg(feature = "pyo3")]
+#[cfg(feature = "server")]
+use crate::protocol::{ControlResponse, TableInfo};
+
 #[cfg(feature = "pyo3")]
 #[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
@@ -27,6 +34,116 @@ fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
         .with(fmt::layer().with_writer(std::io::stderr))
         .try_init()
         .map_err(|e| PyOSError::new_err(e.to_string()))
+}
+
+#[cfg(feature = "server")]
+#[cfg(feature = "pyo3")]
+#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
+#[pyfunction]
+/// List history tables by inspecting the on-disk Delta Lake directory.
+///
+/// :raises OSError: if the table does not exist or filesystem access fails.
+fn list_tables_offline(base_path: String) -> PyResult<Vec<TableInfo>> {
+    use deltalake::DeltaTableBuilder;
+    use protocol::TableInfo;
+    use tokio::runtime::Runtime;
+
+    let rt = Runtime::new().map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    rt.block_on(async {
+        let mut tables = Vec::new();
+        let path = PathBuf::from(&base_path);
+
+        if !path.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut entries = tokio::fs::read_dir(path)
+            .await
+            .map_err(|e| PyOSError::new_err(e.to_string()))?;
+
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| PyOSError::new_err(e.to_string()))?
+        {
+            if !entry
+                .file_type()
+                .await
+                .map_err(|e| PyOSError::new_err(e.to_string()))?
+                .is_dir()
+            {
+                continue;
+            }
+            let table_name = entry.file_name().to_string_lossy().to_string();
+            let table_path = entry.path();
+            let table_url = url::Url::from_directory_path(table_path)
+                .map_err(|_| PyOSError::new_err("Invalid table path"))?;
+
+            if let Ok(builder) = DeltaTableBuilder::from_url(table_url.clone()) {
+                if let Ok(table) = builder.load().await {
+                    if let Ok(snapshot) = table.snapshot() {
+                        let schema_json = serde_json::to_value(snapshot.schema())
+                            .unwrap_or(serde_json::Value::String("schema_error".to_string()));
+                        tables.push(TableInfo {
+                            name: table_name,
+                            uri: table_url.to_string(),
+                            version: table.version().unwrap_or(-1),
+                            schema: schema_json.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+        Ok(tables)
+    })
+}
+
+#[cfg(feature = "server")]
+#[cfg(feature = "pyo3")]
+#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
+#[pyfunction]
+/// Delete rows from a history table stored on disk.
+///
+/// :raises OSError: if the table does not exist or filesystem access fails.
+/// :return: ControlResponse.DeleteOutput on success, ControlResponse.CommandFailed on failure.
+fn delete_rows_offline(
+    base_path: String,
+    table_name: String,
+    predicate: String,
+    dry_run: bool,
+) -> PyResult<ControlResponse> {
+    use deltalake::DeltaTableBuilder;
+    use tokio::runtime::Runtime;
+    use uuid::Uuid;
+
+    let rt = Runtime::new().map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    rt.block_on(async {
+        let table_path = PathBuf::from(&base_path).join(&table_name);
+        if !table_path.exists() {
+            return Err(PyOSError::new_err(format!(
+                "table {} not found at {:?}",
+                table_name, table_path
+            )));
+        }
+
+        let table_url = url::Url::from_directory_path(table_path)
+            .map_err(|_| PyOSError::new_err("Invalid table path"))?;
+
+        let table = DeltaTableBuilder::from_url(table_url)
+            .map_err(|e| PyOSError::new_err(e.to_string()))?
+            .load()
+            .await
+            .map_err(|e| PyOSError::new_err(e.to_string()))?;
+
+        let sender_id = Uuid::new_v4().to_string();
+        let response = if dry_run {
+            perform_dry_run_delete(sender_id, table, predicate).await
+        } else {
+            perform_actual_delete(sender_id, table, predicate).await
+        };
+
+        Ok(response)
+    })
 }
 
 #[cfg(feature = "server")]
@@ -102,6 +219,9 @@ async fn _run_service(config: IngestConfig) -> anyhow::Result<()> {
 #[cfg(feature = "pyo3")]
 #[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
+/// Start the history ingest service.
+///
+/// :raises RuntimeError: if the service fails to start or crashes.
 fn run_history(py: Python<'_>, config: HistoryConfig) -> PyResult<Bound<'_, PyAny>> {
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
         let ingest_config = IngestConfig {
@@ -121,9 +241,16 @@ fn run_history(py: Python<'_>, config: HistoryConfig) -> PyResult<Bound<'_, PyAn
 #[pymodule]
 fn _history(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(init_tracing_stderr, m)?)?;
+    m.add_class::<protocol::ControlMessage>()?;
+    m.add_class::<protocol::ControlResponse>()?;
+    m.add_class::<protocol::TableInfo>()?;
+    m.add_class::<protocol::RegisterTable>()?;
+
     #[cfg(feature = "server")]
     {
         m.add_function(wrap_pyfunction!(run_history, m)?)?;
+        m.add_function(wrap_pyfunction!(list_tables_offline, m)?)?;
+        m.add_function(wrap_pyfunction!(delete_rows_offline, m)?)?;
         m.add_class::<HistoryConfig>()?;
     }
     Ok(())

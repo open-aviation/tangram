@@ -92,6 +92,7 @@ def list_plugins(
     table.add_column("frontend")
     table.add_column("routers")
     table.add_column("services")
+    table.add_column("commands")
 
     enabled_plugins: list[str] | None = None
     if config_path and config_path.is_file():
@@ -107,12 +108,12 @@ def list_plugins(
         )
 
         if not load_this_plugin:
-            table.add_row(plugin_str, "[cyan]available[/cyan]", "?", "?", "?")
+            table.add_row(plugin_str, "[cyan]available[/cyan]", "?", "?", "?", "?")
             continue
 
         if (plugin := load_plugin(entry_point)) is None:
             status_str = "[red]load failed[/red]"
-            table.add_row(plugin_str, status_str, "!", "!", "!")
+            table.add_row(plugin_str, status_str, "!", "!", "!", "!")
             continue
         status = (
             "enabled"
@@ -130,6 +131,7 @@ def list_plugins(
         status_str = f"[green]{status}[/green]"
         router_prefixes = [func.prefix for func in plugin.routers]
         service_names = [func.__name__ for _, func in plugin.services]
+        commands = "yes" if plugin.get_typer else ""
 
         table.add_row(
             plugin_str,
@@ -137,6 +139,7 @@ def list_plugins(
             frontend_str,
             "\n".join(router_prefixes),
             "\n".join(service_names),
+            commands,
         )
 
     stderr.print(table)
@@ -151,11 +154,6 @@ def get_path_size(path: Path | Traversable) -> int:
         elif item.is_dir():
             total_size += get_path_size(item)
     return total_size
-
-
-@app.command()
-def init() -> None:
-    raise NotImplementedError
 
 
 #
@@ -326,6 +324,34 @@ def set_plugin_version(
             if updated_rs_ws:
                 run_command(["cargo", "check", "--workspace"], cwd)
 
+
+def load_plugin_commands() -> None:
+    from typer.models import DefaultPlaceholder
+
+    from .plugin import load_plugin, scan_plugins
+
+    for entry_point in scan_plugins():
+        if (plugin := load_plugin(entry_point)) is None or plugin.get_typer is None:
+            continue
+
+        plugin_typer = plugin.get_typer()
+        name = plugin_typer.info.name
+        if isinstance(name, DefaultPlaceholder):
+            raise ValueError(
+                f"expected the Typer app in plugin '{entry_point.name}' to specify a "
+                "name explicitly, but it was not set"
+            )
+        app.add_typer(
+            plugin_typer,
+            help=f"Commands for the '{plugin.dist_name}' plugin.",
+            name=name,
+        )
+
+
+try:
+    load_plugin_commands()
+except ImportError:
+    pass
 
 if __name__ == "__main__":
     app()
