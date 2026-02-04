@@ -44,7 +44,7 @@
     "@fontsource/inconsolata": "^5.2.8",
     "@fontsource/roboto-condensed": "^5.2.8",
     "@protomaps/basemaps": "^5.7.0",
-    "@vitejs/plugin-vue": "^6.0.3",
+    "@vitejs/plugin-vue": "^6.0.4",
     "font-awesome": "^4.7.0",
     "lit-html": "^3.3.2",
     "maplibre-gl": "^5.17.0",
