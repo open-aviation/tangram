@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "tangram_jet1090"
-version = "0.3.0"
+version = "0.4.0"
 description = "Mode S and ADS-B data integration plugin for tangram"
 license = "AGPL-3.0"
 readme = "readme.md"
