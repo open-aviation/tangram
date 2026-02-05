@@ -151,15 +151,22 @@ function copyToPythonPackagePlugin(options: {
   const projectRoot = __dirname;
   const enabled = options.enabled ?? false;
   const includePackageJson = options.includePackageJson ?? true;
+  let resolvedOutDir: string | undefined;
 
   return {
     name: "tangram-python-package-sync",
     apply: "build",
-    async writeBundle(outputOptions) {
+    enforce: "post",
+    configResolved(config) {
+      resolvedOutDir = config.build.outDir;
+    },
+    async closeBundle() {
       if (!enabled) return;
 
-      const outDir = outputOptions.dir
-        ? path.resolve(projectRoot, outputOptions.dir)
+      const outDir = resolvedOutDir
+        ? path.isAbsolute(resolvedOutDir)
+          ? resolvedOutDir
+          : path.resolve(projectRoot, resolvedOutDir)
         : path.resolve(projectRoot, "dist-frontend");
       const pythonPackageDir = path.resolve(projectRoot, options.pythonPackageDir);
       const distDst = path.join(pythonPackageDir, "dist-frontend");

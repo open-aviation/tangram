@@ -30,6 +30,7 @@ export function tangramPlugin(options = {}) {
   const projectRoot = process.cwd();
   const copyToPythonPackage = options.copyToPythonPackage ?? false;
   const includePackageJson = options.includePackageJson ?? true;
+  let resolvedOutDir;
   /** @type {{ name: string; main: string; }} */
   let pkg;
   let entryFileName;
@@ -101,11 +102,17 @@ export function tangramPlugin(options = {}) {
   const pythonPackageSync = {
     name: "tangram-python-package-sync",
     apply: "build",
-    async writeBundle(outputOptions) {
+    enforce: "post",
+    configResolved(config) {
+      resolvedOutDir = config.build.outDir;
+    },
+    async closeBundle() {
       if (!copyToPythonPackage) return;
 
-      const outDir = outputOptions.dir
-        ? path.resolve(projectRoot, outputOptions.dir)
+      const outDir = resolvedOutDir
+        ? path.isAbsolute(resolvedOutDir)
+          ? resolvedOutDir
+          : path.resolve(projectRoot, resolvedOutDir)
         : path.resolve(projectRoot, "dist-frontend");
       const pythonPackageDir = options.pythonPackageDir
         ? path.resolve(projectRoot, options.pythonPackageDir)
