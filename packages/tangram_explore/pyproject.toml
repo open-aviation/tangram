@@ -1,6 +1,6 @@
 [project]
 name = "tangram-explore"
-version = "0.4.0"
+version = "0.4.1"
 description = "Tangram plugin for exploring any Arrow-backed dataframe"
 readme = "readme.md"
 requires-python = ">=3.10"

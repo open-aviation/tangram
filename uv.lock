@@ -2452,7 +2452,7 @@ wheels = [
 
 [[package]]
 name = "tangram-airports"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/tangram_airports" }
 dependencies = [
     { name = "tangram-core" },
@@ -2463,7 +2463,7 @@ requires-dist = [{ name = "tangram-core", editable = "packages/tangram_core" }]
 
 [[package]]
 name = "tangram-core"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/tangram_core" }
 dependencies = [
     { name = "fastapi" },
@@ -2503,7 +2503,7 @@ requires-dist = [{ name = "tangram-core", editable = "packages/tangram_core" }]
 
 [[package]]
 name = "tangram-explore"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/tangram_explore" }
 dependencies = [
     { name = "arro3-core" },
@@ -2527,7 +2527,7 @@ provides-extras = ["polars"]
 
 [[package]]
 name = "tangram-globe"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/tangram_globe" }
 dependencies = [
     { name = "tangram-core" },
@@ -2538,7 +2538,7 @@ requires-dist = [{ name = "tangram-core", editable = "packages/tangram_core" }]
 
 [[package]]
 name = "tangram-history"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/tangram_history" }
 dependencies = [
     { name = "tangram-core" },
@@ -2549,7 +2549,7 @@ requires-dist = [{ name = "tangram-core", editable = "packages/tangram_core" }]
 
 [[package]]
 name = "tangram-jet1090"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/tangram_jet1090" }
 dependencies = [
     { name = "tangram-core" },
@@ -2569,7 +2569,7 @@ provides-extras = ["history"]
 
 [[package]]
 name = "tangram-ship162"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/tangram_ship162" }
 dependencies = [
     { name = "tangram-core" },
@@ -2589,7 +2589,7 @@ provides-extras = ["history"]
 
 [[package]]
 name = "tangram-system"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/tangram_system" }
 dependencies = [
     { name = "psutil" },
@@ -2604,7 +2604,7 @@ requires-dist = [
 
 [[package]]
 name = "tangram-weather"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/tangram_weather" }
 dependencies = [
     { name = "cfgrib" },
