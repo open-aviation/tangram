@@ -26,7 +26,8 @@ export interface MmsiInfo {
 
 export interface Ship162Vessel {
   mmsi: string;
-  timestamp: number;
+  timestamp?: number;
+  lastseen?: number;
   latitude?: number;
   longitude?: number;
   ship_name?: string;
@@ -266,9 +267,9 @@ async function subscribeToShipData(api: TangramApi, connectionId: string) {
           ) {
             const updated = entity.state;
             const last = data.trajectory[data.trajectory.length - 1];
-            const timestamp = updated.timestamp;
+            const timestamp = updated.lastseen ?? updated.timestamp ?? 0;
 
-            if (!last || Math.abs(last.timestamp - timestamp) > 0.5) {
+            if (!last || Math.abs((last.timestamp ?? 0) - timestamp) > 0.5) {
               data.trajectory.push({
                 ...updated,
                 timestamp: timestamp
