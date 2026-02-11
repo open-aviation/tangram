@@ -128,7 +128,7 @@
             :definitions="definitions"
             :errors="errors"
             :parent-path="`${currentPath}[${idx}]`"
-            @update:model-value="v => updateArrayItem(idx, v)"
+            @update:model-value="v => updateArrayItem(idx as number, v)"
             @change="$emit('change')"
           />
         </div>
@@ -144,14 +144,15 @@
 
 <script setup lang="ts">
 import { computed, inject, ref, watch } from "vue";
-import type { TangramApi } from "./api";
+import type { TangramApi, JsonSchema } from "./api";
 import ColorPicker from "./ColorPicker.vue";
 
 const props = defineProps<{
   fieldKey?: string;
-  schema: any;
+  schema: JsonSchema;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   modelValue: any;
-  definitions?: any;
+  definitions?: Record<string, JsonSchema>;
   errors?: Record<string, string>;
   parentPath?: string;
   // if true, we skip the label/header because the union selector acts as header
@@ -161,10 +162,10 @@ const props = defineProps<{
 const emit = defineEmits(["update:modelValue", "change"]);
 const api = inject<TangramApi>("tangramApi");
 
-const resolveRef = (s: any): any => {
+const resolveRef = (s: JsonSchema): JsonSchema => {
   if (s && s.$ref && props.definitions) {
     const key = s.$ref.split("/").pop();
-    return props.definitions[key] || s;
+    if (key && props.definitions[key]) return props.definitions[key];
   }
   return s || {};
 };
@@ -174,14 +175,14 @@ const isVisible = computed(() => {
   if (props.isUnionMember) return true; // always show if we are the body of a union selection
   return checkVisibility(resolvedBaseSchema.value);
 });
-function checkVisibility(s: any): boolean {
+function checkVisibility(s: JsonSchema): boolean {
   s = resolveRef(s);
   if (s.tangram_mutable || s.tangram_widget) return true;
   if (s.type === "object" && s.properties) {
-    return Object.values(s.properties).some((p: any) => checkVisibility(p));
+    return Object.values(s.properties).some((p: JsonSchema) => checkVisibility(p));
   }
-  if (s.type === "array" && s.items) return checkVisibility(s.items);
-  if (s.anyOf) return s.anyOf.some((sub: any) => checkVisibility(sub));
+  if (s.type === "array" && s.items) return checkVisibility(s.items as JsonSchema);
+  if (s.anyOf) return s.anyOf.some((sub: JsonSchema) => checkVisibility(sub));
   return false;
 }
 
@@ -189,12 +190,14 @@ function checkVisibility(s: any): boolean {
 const isUnion = computed(() => !!resolvedBaseSchema.value.anyOf);
 const unionOptions = computed(() => {
   if (!isUnion.value) return [];
-  return resolvedBaseSchema.value.anyOf.map((sub: any, idx: number) => {
-    const r = resolveRef(sub);
-    let label = r.title || r.type || `Option ${idx + 1}`;
-    if (r.const !== undefined) label = String(r.const);
-    return { label, schema: sub, index: idx };
-  });
+  return (resolvedBaseSchema.value.anyOf as JsonSchema[]).map(
+    (sub: JsonSchema, idx: number) => {
+      const r = resolveRef(sub);
+      let label = (r.title as string) || (r.type as string) || `Option ${idx + 1}`;
+      if (r.const !== undefined) label = String(r.const);
+      return { label, schema: sub, index: idx };
+    }
+  );
 });
 
 const selectedUnionIndex = ref(0);
@@ -203,14 +206,15 @@ watch(
   val => {
     if (!isUnion.value) return;
     // heuristic for now
-    const idx = unionOptions.value.findIndex((opt: any) => {
+    const idx = unionOptions.value.findIndex((opt: { schema: JsonSchema }) => {
       const s = resolveRef(opt.schema);
       if (s.const !== undefined) return s.const === val;
       if (s.type === "null") return val === null;
-      if (s.type === typeof val) {
+      const valType = typeof val;
+      if (s.type === (valType as string)) {
         if (s.type === "object" && val !== null && !Array.isArray(val)) return true;
-        if (s.type === "array" && Array.isArray(val)) return true;
-        if (s.type !== "object" && s.type !== "array") return true;
+        if (Array.isArray(val) && (s.type as string) === "array") return true;
+        if (s.type !== "object" && (s.type as string) !== "array") return true;
       }
       return false;
     });
@@ -227,7 +231,7 @@ const effectiveSchema = computed(() => {
 });
 
 const isComplex = computed(() => isSchemaComplex(effectiveSchema.value));
-function isSchemaComplex(s: any): boolean {
+function isSchemaComplex(s: JsonSchema): boolean {
   s = resolveRef(s);
   if (s.tangram_widget) return false;
   // widgets handle their own layout, treated as block but not "nested" in this component's sense
@@ -240,7 +244,7 @@ function isSchemaComplex(s: any): boolean {
 
 const label = computed(() => {
   if (props.isUnionMember) return ""; // handled by parent selector
-  return resolvedBaseSchema.value.title || props.fieldKey || "Field";
+  return (resolvedBaseSchema.value.title as string) || props.fieldKey || "Field";
 });
 const currentPath = computed(() => {
   if (!props.fieldKey) return props.parentPath || "";
@@ -249,12 +253,13 @@ const currentPath = computed(() => {
 const errorMessage = computed(() => props.errors?.[currentPath.value]);
 
 const renderList = computed(() => {
-  const propsMap = effectiveSchema.value.properties || {};
+  const propsMap =
+    (effectiveSchema.value.properties as Record<string, JsonSchema>) || {};
   const list: {
     type: "widget" | "field";
     key: string;
     widget?: string;
-    schema: any;
+    schema: JsonSchema;
   }[] = [];
   const seenWidgets = new Set<string>();
 
@@ -263,9 +268,9 @@ const renderList = computed(() => {
 
     const r = resolveRef(subSchema);
     if (r.tangram_widget) {
-      if (seenWidgets.has(r.tangram_widget)) continue;
-      seenWidgets.add(r.tangram_widget);
-      list.push({ type: "widget", key, widget: r.tangram_widget, schema: r });
+      if (seenWidgets.has(r.tangram_widget as string)) continue;
+      seenWidgets.add(r.tangram_widget as string);
+      list.push({ type: "widget", key, widget: r.tangram_widget as string, schema: r });
     } else {
       list.push({ type: "field", key, schema: subSchema });
     }
@@ -273,17 +278,20 @@ const renderList = computed(() => {
   return list;
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const updateValue = (val: any) => {
   emit("update:modelValue", val);
   emit("change");
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const updateNested = (key: string, val: any) => {
   const newVal = { ...props.modelValue, [key]: val };
   emit("update:modelValue", newVal);
   emit("change");
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const updateArrayItem = (idx: number, val: any) => {
   const arr = [...(props.modelValue || [])];
   arr[idx] = val;
@@ -300,7 +308,8 @@ const onUnionChange = (e: Event) => {
   updateValue(defaultVal);
 };
 
-function getDefaultValue(s: any): any {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getDefaultValue(s: JsonSchema): any {
   s = resolveRef(s);
   if (s.default !== undefined) return s.default;
   if (s.const !== undefined) return s.const;

@@ -663,10 +663,28 @@ export class SearchApi {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type JsonSchema = any;
+export type JsonSchema = {
+  type?: string | string[];
+  properties?: Record<string, JsonSchema>;
+  items?: JsonSchema | JsonSchema[];
+  anyOf?: JsonSchema[];
+  allOf?: JsonSchema[];
+  oneOf?: JsonSchema[];
+  $ref?: string;
+  $defs?: Record<string, JsonSchema>;
+  title?: string;
+  description?: string;
+  default?: unknown;
+  const?: unknown;
+  enum?: unknown[];
+  tangram_mutable?: boolean;
+  tangram_widget?: string;
+  tangram_kind?: string;
+  [key: string]: unknown;
+};
 
 export interface PluginSettings {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   values: Record<string, any>;
   schema: JsonSchema;
   errors: Record<string, string>;

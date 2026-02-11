@@ -54,35 +54,49 @@
 
 <script setup lang="ts">
 import { ref, inject, computed } from "vue";
-import type { TangramApi } from "./api";
+import type { TangramApi, JsonSchema } from "./api";
 import SettingsField from "./SettingsField.vue";
 
 const api = inject<TangramApi>("tangramApi")!;
 const isOpen = ref(false);
 
-const resolveRef = (schema: any, definitions: any) => {
+const resolveRef = (
+  schema: JsonSchema,
+  definitions: Record<string, JsonSchema> | undefined
+): JsonSchema => {
   if (schema.$ref && definitions) {
     const key = schema.$ref.split("/").pop();
-    return definitions[key] || schema;
+    if (key && definitions[key]) return definitions[key];
   }
   return schema;
 };
 
-const isSchemaVisible = (schema: any, definitions: any): boolean => {
+const isSchemaVisible = (
+  schema: JsonSchema,
+  definitions: Record<string, JsonSchema> | undefined
+): boolean => {
   const s = resolveRef(schema, definitions);
   if (s.tangram_mutable || s.tangram_widget) return true;
 
   if (s.type === "object" && s.properties) {
-    return Object.values(s.properties).some(p => isSchemaVisible(p, definitions));
+    return Object.values(s.properties).some((p: JsonSchema) =>
+      isSchemaVisible(p, definitions)
+    );
   }
 
   if (s.type === "array" && s.items) {
-    return isSchemaVisible(s.items, definitions);
+    return isSchemaVisible(s.items as JsonSchema, definitions);
   }
 
   // do we need to handle intersection/union?
-  if (s.allOf) return s.allOf.some((sub: any) => isSchemaVisible(sub, definitions));
-  if (s.anyOf) return s.anyOf.some((sub: any) => isSchemaVisible(sub, definitions));
+  if (s.allOf)
+    return (s.allOf as JsonSchema[]).some((sub: JsonSchema) =>
+      isSchemaVisible(sub, definitions)
+    );
+  if (s.anyOf)
+    return (s.anyOf as JsonSchema[]).some((sub: JsonSchema) =>
+      isSchemaVisible(sub, definitions)
+    );
 
   return false;
 };
@@ -91,8 +105,9 @@ const visiblePluginNames = computed(() => {
   return Object.keys(api.settings).filter(name => {
     const plugin = api.settings[name];
     if (!plugin.schema || !plugin.schema.properties) return false;
-    return Object.values(plugin.schema.properties).some(p =>
-      isSchemaVisible(p, plugin.schema.$defs)
+    return Object.values(plugin.schema.properties as Record<string, JsonSchema>).some(
+      (p: JsonSchema) =>
+        isSchemaVisible(p, plugin.schema.$defs as Record<string, JsonSchema>)
     );
   });
 });
@@ -101,13 +116,13 @@ interface RenderItem {
   type: "widget" | "field";
   key: string;
   widget?: string;
-  schema: any;
+  schema: JsonSchema;
 }
 
 const getRenderList = (pluginName: string): RenderItem[] => {
   const plugin = api.settings[pluginName];
-  const props = plugin.schema.properties || {};
-  const defs = plugin.schema.$defs;
+  const props = (plugin.schema.properties as Record<string, JsonSchema>) || {};
+  const defs = plugin.schema.$defs as Record<string, JsonSchema>;
   const list: RenderItem[] = [];
   const seenWidgets = new Set<string>();
 
@@ -116,12 +131,12 @@ const getRenderList = (pluginName: string): RenderItem[] => {
 
     const resolved = resolveRef(schema, defs);
     if (resolved.tangram_widget) {
-      if (seenWidgets.has(resolved.tangram_widget)) continue;
-      seenWidgets.add(resolved.tangram_widget);
+      if (seenWidgets.has(resolved.tangram_widget as string)) continue;
+      seenWidgets.add(resolved.tangram_widget as string);
       list.push({
         type: "widget",
         key,
-        widget: resolved.tangram_widget,
+        widget: resolved.tangram_widget as string,
         schema: resolved
       });
     } else {
@@ -139,7 +154,7 @@ const getPluginValue = (pluginName: string, key: string) => {
   return api.settings[pluginName].values[key];
 };
 
-const setPluginValue = (pluginName: string, key: string, val: any) => {
+const setPluginValue = (pluginName: string, key: string, val: unknown) => {
   api.settings[pluginName].values[key] = val;
   triggerValidation(pluginName);
 };

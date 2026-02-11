@@ -7,6 +7,7 @@ type PluginProgress = {
   pluginName?: string;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type PluginConfig = Record<string, any>;
 
 export async function loadPlugins(

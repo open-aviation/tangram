@@ -54,7 +54,7 @@ import { computed, inject, onMounted } from "vue";
 import type { TangramApi } from "./api";
 
 const props = defineProps<{
-  modelValue: any;
+  modelValue: unknown;
 }>();
 
 const emit = defineEmits(["update:modelValue"]);
@@ -66,16 +66,19 @@ const availableStyles = computed(() => {
 
 const styleOptions = computed(() => {
   const uniqueOpts = new Map();
-  availableStyles.value.forEach((s: any, idx: number) => {
+  availableStyles.value.forEach((s: unknown, idx: number) => {
     const val = typeof s === "object" && s !== null ? JSON.stringify(s) : s;
-    if (!uniqueOpts.has(val)) {
-      uniqueOpts.set(val, {
+    if (typeof val !== "string" && val !== null && val !== undefined) return;
+    const strVal = String(val);
+
+    if (!uniqueOpts.has(strVal)) {
+      uniqueOpts.set(strVal, {
         label: getStyleLabel(s, idx),
         value: s
       });
     }
   });
-  return Array.from(uniqueOpts.values());
+  return Array.from(uniqueOpts.values()) as { label: string; value: unknown }[];
 });
 
 onMounted(() => {
@@ -84,7 +87,7 @@ onMounted(() => {
       ? JSON.stringify(props.modelValue)
       : props.modelValue;
 
-  const exists = styleOptions.value.some((o: any) => {
+  const exists = styleOptions.value.some((o: { value: unknown }) => {
     const optVal =
       typeof o.value === "object" && o.value !== null
         ? JSON.stringify(o.value)
@@ -93,7 +96,7 @@ onMounted(() => {
   });
 
   if (!exists && props.modelValue) {
-    api.settings.tangram_core.values.map.styles.push(props.modelValue);
+    (api.settings.tangram_core.values.map.styles as unknown[]).push(props.modelValue);
   }
 });
 
@@ -108,8 +111,9 @@ const mapLayers = computed(() => {
   > = {};
 
   if (!style.layers) return layers;
-  style.layers.forEach((l: any) => {
-    const paint = l.paint || {};
+  style.layers.forEach(l => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const paint = (l.paint || {}) as any;
     let color = undefined;
     if (paint["fill-color"]) color = paint["fill-color"];
     else if (paint["line-color"]) color = paint["line-color"];
@@ -123,13 +127,13 @@ const mapLayers = computed(() => {
       visible: visibility[l.id] ?? l.layout?.visibility !== "none",
       type: l.type,
       color,
-      filter: l.filter ? JSON.stringify(l.filter) : undefined
+      filter: l?.filter ? JSON.stringify(l.filter) : undefined
     };
   });
   return layers;
 });
 
-function getStyleLabel(style: any, idx?: number): string {
+function getStyleLabel(style: unknown, idx?: number): string {
   if (typeof style === "string") {
     try {
       const url = new URL(style);
@@ -145,7 +149,10 @@ function getStyleLabel(style: any, idx?: number): string {
       return parts[parts.length - 1] || style;
     }
   }
-  return style.name || (idx !== undefined ? `Style ${idx + 1}` : "Unnamed Style");
+  return (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (style as any)?.name || (idx !== undefined ? `Style ${idx + 1}` : "Unnamed Style")
+  );
 }
 
 const onStyleChange = (e: Event) => {
