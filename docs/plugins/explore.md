@@ -20,9 +20,7 @@ To enable this plugin, add `"tangram_explore"` to the `plugins` list in your `ta
 plugins = ["tangram_explore"]
 
 [plugins.tangram_explore]
-# Whether to render scatter points in 3D. 
-# "inherit" (default) uses the map's global 3D setting.
-enable_3d = "inherit" 
+enable_3d = true
 ```
 
 See [`tangram_explore.ExploreConfig`][] for more information.

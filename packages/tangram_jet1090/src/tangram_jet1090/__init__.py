@@ -251,7 +251,7 @@ class PlanesConfig:
     trail_type: Literal["line", "curtain"] = "line"
     trail_color: str | TrailColorOptions = "#600000"
     trail_alpha: float = 0.6
-    enable_3d: bool = True
+    enable_3d: bool = False
 
 
 @dataclass(frozen=True)

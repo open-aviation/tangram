@@ -200,14 +200,12 @@ class Session:
 
 @dataclass
 class ExploreConfig:
-    enable_3d: Literal["inherit"] | bool = "inherit"
+    enable_3d: bool = False
 
 
 @dataclass
 class ExploreFrontendConfig:
-    # NOTE: this is a limitation on the settings page: enums are not properly rendered
-    # in the dropdown so we have to "flatten" the enum ourselves.
-    enable_3d: Annotated[Literal["inherit", True, False], FrontendMutable()]
+    enable_3d: Annotated[bool, FrontendMutable()]
     """Whether to render scatter points in 3D"""
 
 

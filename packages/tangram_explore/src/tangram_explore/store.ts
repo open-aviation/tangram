@@ -35,7 +35,7 @@ export interface LayerEntry {
 export const layers = shallowRef<LayerEntry[]>([]);
 
 export const pluginConfig = reactive({
-  enable_3d: "inherit" as boolean | "inherit"
+  enable_3d: false
 });
 
 export function addLayer(

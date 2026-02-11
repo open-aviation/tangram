@@ -15,10 +15,7 @@ const hoverInfo = reactive({
   layerLabel: ""
 });
 
-const enable3d = computed(() => {
-  if (pluginConfig.enable_3d === "inherit") return api.config.map.enable_3d;
-  return !!pluginConfig.enable_3d;
-});
+const enable3d = computed(() => !!pluginConfig.enable_3d);
 
 watch(
   [layers, enable3d],

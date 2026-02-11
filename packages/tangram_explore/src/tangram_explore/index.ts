@@ -72,10 +72,7 @@ async function syncLayers() {
   }
 }
 
-export async function install(
-  api: TangramApi,
-  config?: { enable_3d?: boolean | "inherit" }
-) {
+export async function install(api: TangramApi, config?: { enable_3d?: boolean }) {
   if (config) {
     if (config.enable_3d !== undefined) pluginConfig.enable_3d = config.enable_3d;
   }
