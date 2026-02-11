@@ -358,8 +358,6 @@
     
       
         
-          
-        
       
         
       
@@ -379,9 +377,8 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../../architecture/" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -395,14 +392,8 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
@@ -415,6 +406,32 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -464,8 +481,6 @@
     
       
         
-          
-        
       
         
       
@@ -491,9 +506,8 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -507,14 +521,8 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
@@ -527,6 +535,32 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -734,6 +768,17 @@
     <span class="md-ellipsis">
       
         Redis Events
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
       
     </span>
   </a>
@@ -1100,6 +1145,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1264,6 +1313,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/history/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/explore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/weather/" class="md-nav__link">
         
   
@@ -1367,6 +1472,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1416,6 +1532,21 @@
 </tr>
 </tbody>
 </table>
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
+<p>To enable this plugin, add <code>"tangram_system"</code> to the <code>plugins</code> list in your <code>tangram.toml</code>.</p>
+<div class="language-toml highlight"><span class="filename">tangram.toml</span><pre><span></span><code><span class="k">[core]</span>
+<span class="n">plugins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tangram_system&quot;</span><span class="p">]</span>
+
+<span class="k">[plugins.tangram_system]</span>
+<span class="c1"># UI positioning</span>
+<span class="n">topbar_order</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<p>See <a class="autorefs autorefs-internal" title="            SystemConfig
+
+
+  
+      dataclass
+  " href="../../api/system/#tangram_system.SystemConfig"><code>tangram_system.SystemConfig</code></a> for more information.</p>
 
 
 

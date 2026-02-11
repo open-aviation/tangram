@@ -16,7 +16,7 @@
         <link rel="prev" href="../quickstart/">
       
       
-        <link rel="next" href="../architecture/">
+        <link rel="next" href="../architecture/overview/">
       
       
         
@@ -398,6 +398,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#plugin-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -415,8 +426,6 @@
     
     
       
-        
-          
         
       
         
@@ -437,9 +446,8 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../architecture/" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -453,14 +461,8 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
@@ -473,6 +475,32 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -520,8 +548,6 @@
     
       
         
-          
-        
       
         
       
@@ -547,9 +573,8 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../plugins/" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -563,14 +588,8 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
@@ -583,6 +602,32 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1085,6 +1130,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1249,6 +1298,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../api/history/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/explore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../api/weather/" class="md-nav__link">
         
   
@@ -1341,6 +1446,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#plugin-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1409,21 +1525,6 @@
 <span class="n">sprite</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://openmaptiles.github.io/dark-matter-gl-style/sprite&quot;</span>
 <span class="n">glyphs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf&quot;</span>
 <span class="c1"># ... layers ...</span>
-
-<span class="k">[plugins.tangram_jet1090]</span><span class="w">  </span><span class="c1"># (3)!</span>
-<span class="c1"># plugin-specific configuration is defined in its own table,</span>
-<span class="c1"># following the pattern `[plugins.&lt;plugin_package_name&gt;]`.</span>
-<span class="c1"># The structure of this table is defined by the plugin itself.</span>
-<span class="n">jet1090_channel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;jet1090&quot;</span>
-<span class="n">state_vector_expire</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span>
-<span class="c1"># UI positioning</span>
-<span class="c1"># widgets with higher priority are displayed first (left-to-right or top-to-bottom).</span>
-<span class="n">topbar_order</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50</span><span class="w">  </span><span class="c1"># (4)!</span>
-<span class="n">sidebar_order</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50</span><span class="w">  </span><span class="c1"># (5)!</span>
-
-<span class="k">[plugins.tangram_ship162]</span>
-<span class="n">topbar_order</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="w">  </span><span class="c1"># will appear to the left of jet1090 (100 &gt; 50)</span>
-<span class="n">sidebar_order</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span>
 </code></pre></div>
 <ol>
 <li>See <a class="autorefs autorefs-internal" title="            CoreConfig
@@ -1444,9 +1545,18 @@
   
       dataclass
   " href="../api/core/#tangram_core.config.ChannelConfig"><code>tangram_core.config.ChannelConfig</code></a></li>
-<li>See <a class="autorefs autorefs-internal" title="            HasTopbarUiConfig" href="../api/core/#tangram_core.config.HasTopbarUiConfig"><code>tangram_core.config.HasTopbarUiConfig</code></a></li>
-<li>See <a class="autorefs autorefs-internal" title="            HasSidebarUiConfig" href="../api/core/#tangram_core.config.HasSidebarUiConfig"><code>tangram_core.config.HasSidebarUiConfig</code></a></li>
 </ol>
+<h2 id="plugin-configuration">Plugin Configuration<a class="headerlink" href="#plugin-configuration" title="Permanent link">&para;</a></h2>
+<p>Plugin-specific configuration is defined in its own table, following the pattern <code>[plugins.&lt;plugin_package_name&gt;]</code>.</p>
+<p>For details on each plugin's available settings, refer to their respective documentation:</p>
+<ul>
+<li><a href="../plugins/jet1090/#configuration"><code>tangram_jet1090</code></a></li>
+<li><a href="../plugins/ship162/#configuration"><code>tangram_ship162</code></a></li>
+<li><a href="../plugins/history/#configuration"><code>tangram_history</code></a></li>
+<li><a href="../plugins/explore/#configuration"><code>tangram_explore</code></a></li>
+<li><a href="../plugins/system/#configuration"><code>tangram_system</code></a></li>
+<li><a href="../plugins/airports/#configuration"><code>tangram_airports</code></a></li>
+</ul>
 
 
 
@@ -1499,13 +1609,13 @@
         
         
           
-          <a href="../architecture/" class="md-footer__link md-footer__link--next" aria-label="Next: Architecture of the tangram framework">
+          <a href="../architecture/overview/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Architecture of the tangram framework
+                Overview
               </div>
             </div>
             <div class="md-footer__button md-icon">

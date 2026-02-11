@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://mode-s.org/tangram/plugins/backend/">
       
       
-        <link rel="prev" href="../">
+        <link rel="prev" href="../overview/">
       
       
         <link rel="next" href="../frontend/">
@@ -358,8 +358,6 @@
     
       
         
-          
-        
       
         
       
@@ -379,9 +377,8 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../../architecture/" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -395,14 +392,8 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
@@ -415,6 +406,32 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -464,8 +481,6 @@
     
       
         
-          
-        
       
         
       
@@ -491,9 +506,8 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -507,14 +521,8 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
@@ -527,6 +535,32 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1194,6 +1228,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1338,6 +1376,62 @@
     
   
     Ship162
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/history/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/explore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explore
   
 
     
@@ -1644,16 +1738,20 @@
       dataclass
   " href="../../api/core/#tangram_core.BackendState"><code>tangram_core.BackendState</code></a> object, which provides access to core components like the Redis client.</p>
 <div class="language-py highlight"><span class="filename">src/my_plugin/__init__.py</span><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">orjson</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">tangram_core</span>
 
 <span class="n">plugin</span> <span class="o">=</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">Plugin</span><span class="p">()</span>
 
-<span class="hll"><span class="nd">@plugin</span><span class="o">.</span><span class="n">register_service</span><span class="p">()</span>
-</span><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_periodic_task</span><span class="p">(</span><span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">BackendState</span><span class="p">):</span>
+<span class="nd">@plugin</span><span class="o">.</span><span class="n">register_service</span><span class="p">()</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_periodic_task</span><span class="p">(</span><span class="n">backend_state</span><span class="p">:</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">BackendState</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A background service that publishes a message every 10 seconds.&quot;&quot;&quot;</span>
     <span class="n">redis_client</span> <span class="o">=</span> <span class="n">backend_state</span><span class="o">.</span><span class="n">redis_client</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;my-plugin:status&quot;</span><span class="p">,</span> <span class="s2">&quot;alive&quot;</span><span class="p">)</span>
+        <span class="c1"># messages for the frontend MUST be JSON-encoded and </span>
+        <span class="c1"># prefixed with &#39;to:&lt;topic&gt;:&lt;event&gt;&#39;</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="n">orjson</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;alive&quot;</span><span class="p">,</span> <span class="s2">&quot;timestamp&quot;</span><span class="p">:</span> <span class="mi">123456789</span><span class="p">})</span>
+        <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;to:my-plugin:update&quot;</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
         <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="inter-component-communication-with-redis">Inter-Component Communication with Redis<a class="headerlink" href="#inter-component-communication-with-redis" title="Permanent link">&para;</a></h2>
@@ -1785,7 +1883,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: Plugins">
+          <a href="../overview/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1795,7 +1893,7 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Plugins
+                Overview
               </div>
             </div>
           </a>

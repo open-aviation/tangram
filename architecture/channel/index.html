@@ -13,10 +13,10 @@
         <link rel="canonical" href="https://mode-s.org/tangram/architecture/channel/">
       
       
-        <link rel="prev" href="../">
+        <link rel="prev" href="../overview/">
       
       
-        <link rel="next" href="../../plugins/">
+        <link rel="next" href="../../plugins/overview/">
       
       
         
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#channel-websocket-communication-service" class="md-skip">
+        <a href="#channel-websocket-bridge" class="md-skip">
           Skip to content
         </a>
       
@@ -360,8 +360,6 @@
     
       
         
-          
-        
       
         
       
@@ -381,9 +379,8 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -397,14 +394,8 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
@@ -417,6 +408,32 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -490,17 +507,6 @@
     <span class="md-ellipsis">
       
         Overview
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Features
       
     </span>
   </a>
@@ -689,8 +695,6 @@
     
       
         
-          
-        
       
         
       
@@ -716,9 +720,8 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../../plugins/" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -732,14 +735,8 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
@@ -752,6 +749,32 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plugins/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1254,6 +1277,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1418,6 +1445,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/history/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/explore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/weather/" class="md-nav__link">
         
   
@@ -1504,17 +1587,6 @@
     <span class="md-ellipsis">
       
         Overview
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Features
       
     </span>
   </a>
@@ -1697,24 +1769,23 @@
   
 
 
-<h1 id="channel-websocket-communication-service">Channel: WebSocket Communication Service<a class="headerlink" href="#channel-websocket-communication-service" title="Permanent link">&para;</a></h1>
-<p>The Channel component is a Rust implementation that provides real-time bidirectional communication for Tangram using WebSockets. It implements a subset of the <a href="https://hexdocs.pm/phoenix/channels.html">Phoenix Channels protocol</a>, enabling seamless integration with both the frontend and backend components through Redis pub/sub messaging.</p>
+<h1 id="channel-websocket-bridge">Channel: WebSocket Bridge<a class="headerlink" href="#channel-websocket-bridge" title="Permanent link">&para;</a></h1>
+<p>The Channel service is a high-performance Rust component that bridges the gap between the frontend (WebSocket) and backend (Redis). It implements a subset of the <a href="https://hexdocs.pm/phoenix/channels.html">Phoenix Channels protocol</a>, allowing the frontend to subscribe to data streams without needing a direct Redis connection.</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Channel serves as the central communication hub in Tangram, connecting the frontend visualization with the backend processing plugins. It manages WebSocket connections, handles client authentication, and facilitates the bidirectional flow of data through Redis.</p>
-<h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
+<p>Channel acts as a translation layer:</p>
 <ul>
-<li><strong>Channel-based Communication</strong>: Supports multiple named channels that clients can join and leave</li>
-<li><strong>Redis Integration</strong>: Uses Redis pub/sub for message distribution between components</li>
-<li><strong>JWT Authentication</strong>: Secures channel access with JSON Web Tokens</li>
-<li><strong>Presence Tracking</strong>: Tracks and broadcasts client presence information</li>
+<li><strong>Downstream</strong>: Subscribes to Redis <code>to:&lt;topic&gt;:*</code> patterns and pushes data to browser WebSockets.</li>
+<li><strong>Upstream</strong>: Re-publishes browser commands to Redis <code>from:&lt;topic&gt;:&lt;event&gt;</code>.</li>
+<li>Supports multiple named channels that clients can join and leave</li>
+<li>Secures channel access with JSON Web Tokens</li>
+<li>Tracks and broadcasts client presence information</li>
 </ul>
 <h2 id="communication-flow">Communication Flow<a class="headerlink" href="#communication-flow" title="Permanent link">&para;</a></h2>
 <h3 id="backend-to-frontend">Backend to Frontend<a class="headerlink" href="#backend-to-frontend" title="Permanent link">&para;</a></h3>
 <ol>
-<li>Backend plugins publish messages to Redis topics in the format <code>to:&lt;channel&gt;:&lt;event&gt;</code></li>
-<li>Channel subscribes to these Redis topics and listens for messages</li>
-<li>When a message is received, Channel forwards it to all WebSocket clients connected to the specified channel</li>
-<li>Clients receive the message and can update their visualizations in real-time</li>
+<li>Backend plugins publish messages to Redis topics in the format <code>to:&lt;topic&gt;:&lt;event&gt;</code>.</li>
+<li>Channel subscribes to Redis using <code>PSUBSCRIBE to:&lt;topic&gt;:*</code>.</li>
+<li>When a message arrives, Channel forwards it to all WebSocket clients joined to that topic.</li>
 </ol>
 <pre class="mermaid"><code>sequenceDiagram
     participant P as Backend Plugin
@@ -1882,7 +1953,7 @@ redis-cli<span class="w"> </span>publish<span class="w"> </span><span class="s2"
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: Architecture of the tangram framework">
+          <a href="../overview/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1892,20 +1963,20 @@ redis-cli<span class="w"> </span>publish<span class="w"> </span><span class="s2"
                 Previous
               </span>
               <div class="md-ellipsis">
-                Architecture of the tangram framework
+                Overview
               </div>
             </div>
           </a>
         
         
           
-          <a href="../../plugins/" class="md-footer__link md-footer__link--next" aria-label="Next: Plugins">
+          <a href="../../plugins/overview/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Plugins
+                Overview
               </div>
             </div>
             <div class="md-footer__button md-icon">

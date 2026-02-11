@@ -623,8 +623,6 @@
     
       
         
-          
-        
       
         
       
@@ -644,9 +642,8 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../architecture/" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -660,14 +657,8 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
@@ -680,6 +671,32 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -727,8 +744,6 @@
     
       
         
-          
-        
       
         
       
@@ -754,9 +769,8 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../plugins/" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
@@ -770,14 +784,8 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
@@ -790,6 +798,32 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1292,6 +1326,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1436,6 +1474,62 @@
     
   
     Ship162
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/history/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/explore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explore
   
 
     
@@ -1789,7 +1883,7 @@
 <h3 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h3>
 <p>Ensure you have the following installed:</p>
 <ul>
-<li>redis 8 or above (via <a href="https://podman.io/docs/installation">podman</a>/<a href="https://docs.docker.com/engine/install/">docker</a> or system-installed version)</li>
+<li>redis 5 or above (via <a href="https://podman.io/docs/installation">podman</a>/<a href="https://docs.docker.com/engine/install/">docker</a> or system-installed version)</li>
 <li>Python 3.10 or above</li>
 </ul>
 <h3 id="1-install-the-tangram-core">1. Install the <code>tangram</code> core<a class="headerlink" href="#1-install-the-tangram-core" title="Permanent link">&para;</a></h3>
@@ -1863,16 +1957,17 @@ pip<span class="w"> </span>install<span class="w"> </span>tangram_system
 <h4 id="3-restart-the-server">3. Restart the server<a class="headerlink" href="#3-restart-the-server" title="Permanent link">&para;</a></h4>
 <p>Stop the running <code>tangram serve</code> process (<kbd>Ctrl</kbd> + <kbd>C</kbd>) and start it again. The web interface will now include the system monitoring widget.</p>
 <h3 id="example-2-add-live-aircraft-data"><em>Example 2: add live aircraft data</em><a class="headerlink" href="#example-2-add-live-aircraft-data" title="Permanent link">&para;</a></h3>
-<p>To display live flight data, you need the <code>tangram_jet1090</code> plugin. This plugin is more advanced, as it requires an external data source.</p>
+<p>To display live flight data, you need the <code>tangram_jet1090</code> plugin. This plugin acts as a bridge: it collects decoded aircraft states from Redis and serves them to the frontend. It requires an external data source (like the <code>jet1090</code> tool) to decode raw radio messages and push them to Redis.</p>
 <h4 id="1-run-the-jet1090-service">1. Run the <code>jet1090</code> service<a class="headerlink" href="#1-run-the-jet1090-service" title="Permanent link">&para;</a></h4>
 <p>The plugin needs a running <code>jet1090</code> instance to receive Mode S/ADS-B data. The easiest way to run one is with a container.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="install-pre-built-binaries" name="__tabbed_3" type="radio" /><input id="podmandocker" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="install-pre-built-binaries">Install pre-built binaries</label><label for="podmandocker">Podman/Docker</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>Follow instructions on the <a href="https://mode-s.org/jet1090/install/#install-prebuilt-binaries">jet1090 documentation</a> to install <code>jet1090</code> on your system (Shell script, Powershell or Homebrew).</p>
-<p>Then run it with:</p>
+<p>Then run it in a separate terminal:</p>
 <div class="language-shell highlight"><pre><span></span><code><span class="c1"># connects to a public feed.</span>
 jet1090<span class="w"> </span>--redis-url<span class="w"> </span>redis://127.0.0.1:6379<span class="w"> </span>ws://feedme.mode-s.org:9876/40128@EHRD
+--interactive
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -1881,6 +1976,7 @@ podman<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </sp
 --network<span class="o">=</span>host<span class="w"> </span><span class="se">\</span>
 ghcr.io/xoolive/jet1090:latest<span class="w"> </span><span class="se">\</span>
 jet1090<span class="w"> </span>--redis-url<span class="w"> </span>redis://127.0.0.1:6379<span class="w"> </span>ws://feedme.mode-s.org:9876/40128@EHRD
+--interactive
 </code></pre></div>
 </div>
 </div>
@@ -2016,7 +2112,7 @@ packages
 <p>The application will be available at <code>http://localhost:2346</code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Frontend Development</p>
-<p>Hot Module Replacement (HMR) for frontend plugins is not supported. To see changes to frontend components, you must re-run <code>pnpm build</code> and restart the <code>tangram serve</code> process.
+<p>Hot Module Replacement (HMR) for frontend plugins is not supported. To build or modify frontend components, you must have <code>node</code> and <code>pnpm</code> installed. Re-run <code>pnpm build</code> and restart <code>tangram serve</code> to see changes.
 If you made changes to Rust code, you may need to re-run <code>uv</code> with the <code>--force-reinstall</code> or <code>--reinstall-package</code> flag.</p>
 </div>
 <p>To build the documentation:</p>
