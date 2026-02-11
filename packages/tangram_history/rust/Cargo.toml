@@ -28,7 +28,7 @@ uuid = { version = "1", features = ["v4"] }
 
 # client feature
 arrow-array = { version = "57.2.0", optional = true }
-arrow-schema = { version = "57.2.0", optional = true }
+arrow-schema = { version = "57.3.0", optional = true }
 arrow-ipc = { version = "57.2.0", optional = true }
 
 # server feature

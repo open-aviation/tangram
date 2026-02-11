@@ -19,7 +19,7 @@ tangram_history = { path = "../../tangram_history/rust", default-features = fals
     "client",
 ] }
 arrow-array = "57.2.0"
-arrow-schema = "57.2.0"
+arrow-schema = "57.3.0"
 
 anyhow = "1.0"
 futures = "0.3"
