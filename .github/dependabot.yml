@@ -18,7 +18,7 @@ updates:
       # tangram_{jet1090|ship162} ---> tangram_history ---> deltalake-core ---> arrow
       #             \_______________________________________________________/
       - dependency-name: "arrow-*"
-        update-types: ["version-update:semver-major"]
+        update-types: ["version-update:semver-major", "version-update:semver-patch", "version-update:semver-minor"]
       # regression in https://redirect.github.com/Jij-Inc/pyo3-stub-gen/pull/345
       - dependency-name: "pyo3-stub-gen"
         versions: [">=0.17"]
