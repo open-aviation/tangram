@@ -13,3 +13,11 @@ This is a frontend-only plugin that requires no additional backend configuration
 ## Configuration
 
 To enable this plugin, add `"tangram_airports"` to the `plugins` list in your `tangram.toml` file:
+
+```toml title="tangram.toml"
+[core]
+plugins = [
+    # ... other plugins
+    "tangram_airports"
+]
+```

@@ -10,7 +10,7 @@
 
 Ensure you have the following installed:
 
-- redis 8 or above (via [podman](https://podman.io/docs/installation)/[docker](https://docs.docker.com/engine/install/) or system-installed version)
+- redis 5 or above (via [podman](https://podman.io/docs/installation)/[docker](https://docs.docker.com/engine/install/) or system-installed version)
 - Python 3.10 or above
 
 ### 1. Install the `tangram` core
@@ -110,7 +110,7 @@ Stop the running `tangram serve` process (<kbd>Ctrl</kbd> + <kbd>C</kbd>) and st
 
 ### _Example 2: add live aircraft data_
 
-To display live flight data, you need the `tangram_jet1090` plugin. This plugin is more advanced, as it requires an external data source.
+To display live flight data, you need the `tangram_jet1090` plugin. This plugin acts as a bridge: it collects decoded aircraft states from Redis and serves them to the frontend. It requires an external data source (like the `jet1090` tool) to decode raw radio messages and push them to Redis.
 
 #### 1. Run the `jet1090` service
 
@@ -120,11 +120,12 @@ The plugin needs a running `jet1090` instance to receive Mode S/ADS-B data. The 
 
     Follow instructions on the [jet1090 documentation](https://mode-s.org/jet1090/install/#install-prebuilt-binaries) to install `jet1090` on your system (Shell script, Powershell or Homebrew).
 
-    Then run it with:
+    Then run it in a separate terminal:
 
     ```shell
     # connects to a public feed.
     jet1090 --redis-url redis://127.0.0.1:6379 ws://feedme.mode-s.org:9876/40128@EHRD
+    --interactive
     ```
 
 === "Podman/Docker"
@@ -135,6 +136,7 @@ The plugin needs a running `jet1090` instance to receive Mode S/ADS-B data. The 
     --network=host \
     ghcr.io/xoolive/jet1090:latest \
     jet1090 --redis-url redis://127.0.0.1:6379 ws://feedme.mode-s.org:9876/40128@EHRD
+    --interactive
     ```
 
 Use your own receiver feed URL if you have one. See [jet1090 documentation](https://mode-s.org/jet1090/sources/)
@@ -303,7 +305,7 @@ The application will be available at `http://localhost:2346`.
 
 !!! note "Frontend Development"
 
-    Hot Module Replacement (HMR) for frontend plugins is not supported. To see changes to frontend components, you must re-run `pnpm build` and restart the `tangram serve` process.
+    Hot Module Replacement (HMR) for frontend plugins is not supported. To build or modify frontend components, you must have `node` and `pnpm` installed. Re-run `pnpm build` and restart `tangram serve` to see changes.
     If you made changes to Rust code, you may need to re-run `uv` with the `--force-reinstall` or `--reinstall-package` flag.
 
 To build the documentation:

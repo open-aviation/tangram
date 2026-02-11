@@ -15,3 +15,18 @@ The `tangram_system` plugin provides a background service that monitors and broa
 | Direction | Channel                 | Event/Command | Payload                                                 |
 | :-------- | :---------------------- | :------------ | :------------------------------------------------------ |
 | Output    | `to:system:update-node` | `PUBLISH`     | `{"el": "uptime" \| "cpu_load" \| ..., "value": "..."}` |
+
+## Configuration
+
+To enable this plugin, add `"tangram_system"` to the `plugins` list in your `tangram.toml`.
+
+```toml title="tangram.toml"
+[core]
+plugins = ["tangram_system"]
+
+[plugins.tangram_system]
+# UI positioning
+topbar_order = 0
+```
+
+See [`tangram_system.SystemConfig`][] for more information.

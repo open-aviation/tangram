@@ -50,25 +50,21 @@ sources = { openmaptiles = { type = "vector", url = "https://d17gef4m69t9r4.clou
 sprite = "https://openmaptiles.github.io/dark-matter-gl-style/sprite"
 glyphs = "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf"
 # ... layers ...
-
-[plugins.tangram_jet1090]  # (3)!
-# plugin-specific configuration is defined in its own table,
-# following the pattern `[plugins.<plugin_package_name>]`.
-# The structure of this table is defined by the plugin itself.
-jet1090_channel = "jet1090"
-state_vector_expire = 20
-# UI positioning
-# widgets with higher priority are displayed first (left-to-right or top-to-bottom).
-topbar_order = 50  # (4)!
-sidebar_order = 50  # (5)!
-
-[plugins.tangram_ship162]
-topbar_order = 100  # will appear to the left of jet1090 (100 > 50)
-sidebar_order = 100
 ```
 
 1. See [`tangram_core.config.CoreConfig`][].
 2. See [`tangram_core.config.ServerConfig`][]
 3. See [`tangram_core.config.ChannelConfig`][]
-4. See [`tangram_core.config.HasTopbarUiConfig`][]
-5. See [`tangram_core.config.HasSidebarUiConfig`][]
+
+## Plugin Configuration
+
+Plugin-specific configuration is defined in its own table, following the pattern `[plugins.<plugin_package_name>]`.
+
+For details on each plugin's available settings, refer to their respective documentation:
+
+- [`tangram_jet1090`](plugins/jet1090.md#configuration)
+- [`tangram_ship162`](plugins/ship162.md#configuration)
+- [`tangram_history`](plugins/history.md#configuration)
+- [`tangram_explore`](plugins/explore.md#configuration)
+- [`tangram_system`](plugins/system.md#configuration)
+- [`tangram_airports`](plugins/airports.md#configuration)

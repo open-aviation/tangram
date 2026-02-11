@@ -67,8 +67,9 @@ To run persistent background tasks, use the [`@plugin.register_service` decorato
 
 The service function receives a [`tangram_core.BackendState`][] object, which provides access to core components like the Redis client.
 
-```py title="src/my_plugin/__init__.py" hl_lines="6"
+```py title="src/my_plugin/__init__.py"
 import asyncio
+import orjson
 import tangram_core
 
 plugin = tangram_core.Plugin()
@@ -78,7 +79,10 @@ async def run_periodic_task(backend_state: tangram_core.BackendState):
     """A background service that publishes a message every 10 seconds."""
     redis_client = backend_state.redis_client
     while True:
-        await redis_client.publish("my-plugin:status", "alive")
+        # messages for the frontend MUST be JSON-encoded and 
+        # prefixed with 'to:<topic>:<event>'
+        payload = orjson.dumps({"status": "alive", "timestamp": 123456789})
+        await redis_client.publish("to:my-plugin:update", payload)
         await asyncio.sleep(10)
 ```
 

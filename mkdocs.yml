@@ -8,10 +8,10 @@ nav:
   - Quickstart: "quickstart.md"
   - Configuration: "configuration.md"
   - Architecture:
-    - "architecture/index.md"
+    - Overview: "architecture/overview.md"
     - channel: "architecture/channel.md"
   - Plugins:
-    - "plugins/index.md"
+    - Overview: "plugins/overview.md"
     - "plugins/backend.md"
     - "plugins/frontend.md"
     - Built-in:
@@ -29,9 +29,10 @@ nav:
   - API Reference:
     - "api/core.md"
     - "api/system.md"
-    # for some reason history is not detected by mkdocstrings, so we exclude it
     - "api/jet1090.md"
     - "api/ship162.md"
+    - "api/history.md"
+    - "api/explore.md"
     - "api/weather.md"
   - Contribute: "contribute.md"
 

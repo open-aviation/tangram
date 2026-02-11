@@ -1,26 +1,24 @@
-# Channel: WebSocket Communication Service
+# Channel: WebSocket Bridge
 
-The Channel component is a Rust implementation that provides real-time bidirectional communication for Tangram using WebSockets. It implements a subset of the [Phoenix Channels protocol](https://hexdocs.pm/phoenix/channels.html), enabling seamless integration with both the frontend and backend components through Redis pub/sub messaging.
+The Channel service is a high-performance Rust component that bridges the gap between the frontend (WebSocket) and backend (Redis). It implements a subset of the [Phoenix Channels protocol](https://hexdocs.pm/phoenix/channels.html), allowing the frontend to subscribe to data streams without needing a direct Redis connection.
 
 ## Overview
 
-Channel serves as the central communication hub in Tangram, connecting the frontend visualization with the backend processing plugins. It manages WebSocket connections, handles client authentication, and facilitates the bidirectional flow of data through Redis.
+Channel acts as a translation layer:
 
-## Key Features
-
-- **Channel-based Communication**: Supports multiple named channels that clients can join and leave
-- **Redis Integration**: Uses Redis pub/sub for message distribution between components
-- **JWT Authentication**: Secures channel access with JSON Web Tokens
-- **Presence Tracking**: Tracks and broadcasts client presence information
+- **Downstream**: Subscribes to Redis `to:<topic>:*` patterns and pushes data to browser WebSockets.
+- **Upstream**: Re-publishes browser commands to Redis `from:<topic>:<event>`.
+- Supports multiple named channels that clients can join and leave
+- Secures channel access with JSON Web Tokens
+- Tracks and broadcasts client presence information
 
 ## Communication Flow
 
 ### Backend to Frontend
 
-1. Backend plugins publish messages to Redis topics in the format `to:<channel>:<event>`
-2. Channel subscribes to these Redis topics and listens for messages
-3. When a message is received, Channel forwards it to all WebSocket clients connected to the specified channel
-4. Clients receive the message and can update their visualizations in real-time
+1. Backend plugins publish messages to Redis topics in the format `to:<topic>:<event>`.
+2. Channel subscribes to Redis using `PSUBSCRIBE to:<topic>:*`.
+3. When a message arrives, Channel forwards it to all WebSocket clients joined to that topic.
 
 ```mermaid
 sequenceDiagram

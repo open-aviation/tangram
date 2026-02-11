@@ -59,3 +59,5 @@ history_table_name = "ship162"
 history_flush_interval_secs = 5
 history_buffer_size = 100000
 ```
+
+See [`tangram_ship162.ShipsConfig`][] for all available options.

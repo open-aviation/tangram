@@ -74,8 +74,10 @@ history_flush_interval_secs = 5
 # ... other history settings for this table
 ```
 
+See [`tangram_history.HistoryConfig`][] for all available options.
+
 !!! warning
 
     Note that the [Delta Lake protocol](https://github.com/delta-io/delta/blob/master/PROTOCOL.md#primitive-types) only supports a subset of [Parquet primitive types](https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#numeric-types).
 
-    Notably, **unsigned integers are not supported** and will be implicitly downcasted!
+    Notably, **unsigned integers are not supported**. To avoid data loss or unexpected wrap-around, ensure your producers use signed integer types (e.g., `i32`, `i64`) when defining schemas and generating Arrow record batches.
