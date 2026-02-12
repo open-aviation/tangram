@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, ref, watch } from "vue";
+import { computed, inject, ref, watch, onUnmounted } from "vue";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
 import { airport_information } from "rs1090-wasm";
 import { aircraftStore } from "./store";
@@ -31,14 +31,19 @@ if (!tangramApi) {
   throw new Error("assert: tangram api not provided");
 }
 
+const selectedId = ref<string | null>(null);
+const selectionDisposable = tangramApi.selection.onChanged(map => {
+  const set = map.get("jet1090_aircraft");
+  if (set && set.size === 1) {
+    selectedId.value = set.values().next().value;
+  } else {
+    selectedId.value = null;
+  }
+});
+
 const targetId = computed(() => {
   if (props.icao24) return props.icao24;
-  const active = tangramApi.state.activeEntities.value;
-  if (active.size === 1) {
-    const [id, entity] = active.entries().next().value;
-    if (entity.type === "jet1090_aircraft") return id;
-  }
-  return null;
+  return selectedId.value;
 });
 
 const routeInfo = computed(() => {
@@ -134,7 +139,9 @@ watch(
   targetId,
   newId => {
     if (newId) {
-      const entity = tangramApi.state.activeEntities.value.get(newId);
+      const entity = tangramApi.state
+        .getEntitiesByType<Jet1090Aircraft>("jet1090_aircraft")
+        .value.get(newId);
       const state = entity?.state as Jet1090Aircraft;
       if (state?.callsign) {
         fetchRouteData(newId, state.callsign);
@@ -143,6 +150,10 @@ watch(
   },
   { immediate: true }
 );
+
+onUnmounted(() => {
+  selectionDisposable.dispose();
+});
 </script>
 
 <style scoped>

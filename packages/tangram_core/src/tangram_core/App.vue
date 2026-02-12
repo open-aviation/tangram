@@ -93,7 +93,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, getCurrentInstance, ref, watch, computed } from "vue";
 import maplibregl from "maplibre-gl";
-import { TangramApi, type WidgetEntry } from "./api";
+import { TangramApi, type WidgetEntry, type SelectionMap } from "./api";
 import { loadPlugins } from "./plugin";
 import { layers, namedFlavor } from "@protomaps/basemaps";
 import * as pmtiles from "pmtiles";
@@ -108,18 +108,12 @@ const apiState = ref<ApiState>("loading");
 const loadingMessage = ref<string>("");
 const tangramApi = ref<TangramApi | null>(null);
 const mapContainer = ref<HTMLElement | null>(null);
+const selectedMap = ref<SelectionMap>(new Map());
 let mapInstance: maplibregl.Map | undefined = undefined;
 
 const visibleSidebarWidgets = computed((): WidgetEntry[] => {
   if (!tangramApi.value) return [];
-  const activeEntities = tangramApi.value.state.activeEntities;
-
-  const activeTypes = new Set<string>();
-  if (activeEntities) {
-    for (const entity of activeEntities.values()) {
-      activeTypes.add(entity.type);
-    }
-  }
+  const activeTypes = new Set<string>(selectedMap.value.keys());
 
   return tangramApi.value.ui.widgets.SideBar.filter(widget => {
     if (!widget.relevantFor) return true;
@@ -135,29 +129,22 @@ const toggleSection = (widget: WidgetEntry) => {
   widget.isCollapsed = !widget.isCollapsed;
 };
 
-watch(
-  () => tangramApi.value?.state.activeEntities.value,
-  newEntities => {
-    if (!tangramApi.value || !newEntities) return;
+watch(selectedMap, map => {
+  if (!tangramApi.value) return;
 
-    const activeTypes = new Set<string>();
-    for (const entity of newEntities.values()) {
-      activeTypes.add(entity.type);
-    }
+  const activeTypes = new Set(map.keys());
 
-    for (const widget of tangramApi.value.ui.widgets.SideBar) {
-      if (widget.relevantFor) {
-        const widgetTypes = Array.isArray(widget.relevantFor)
-          ? widget.relevantFor
-          : [widget.relevantFor];
-        if (widgetTypes.some(t => activeTypes.has(t))) {
-          widget.isCollapsed = false;
-        }
+  for (const widget of tangramApi.value.ui.widgets.SideBar) {
+    if (widget.relevantFor) {
+      const widgetTypes = Array.isArray(widget.relevantFor)
+        ? widget.relevantFor
+        : [widget.relevantFor];
+      if (widgetTypes.some(t => activeTypes.has(t))) {
+        widget.isCollapsed = false;
       }
     }
-  },
-  { deep: true }
-);
+  }
+});
 
 onMounted(async () => {
   try {
@@ -167,6 +154,11 @@ onMounted(async () => {
 
     tangramApi.value = api;
     apiState.value = "ready";
+
+    selectedMap.value = api.selection.map;
+    api.selection.onChanged(map => {
+      selectedMap.value = map;
+    });
 
     loadPlugins(api, progress => {
       if (progress.stage === "manifest") {
@@ -250,7 +242,6 @@ watch([mapContainer, tangramApi], async ([newEl, api]) => {
       mapConfig.style = styleObject;
     }
 
-    // @ts-expect-error TS2589: Type instantiation is excessively deep and possibly infinite
     mapInstance = new maplibregl.Map({
       container: newEl,
       style: mapConfig.style,

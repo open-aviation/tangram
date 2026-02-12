@@ -9,8 +9,8 @@
       <div class="typecode">{{ tooltip.object.state.typecode }}</div>
       <div class="registration">{{ tooltip.object.state.registration }}</div>
       <div class="icao24">{{ tooltip.object.state.icao24 }}</div>
-      <div v-if="tooltip.object.state.altitude > 0" class="altitude">
-        FL{{ Math.round(tooltip.object.state.altitude / 1000) * 10 }}
+      <div v-if="(tooltip.object.state.altitude ?? 0) > 0" class="altitude">
+        FL{{ Math.round(((tooltip.object.state.altitude ?? 0) / 1000) * 10) }}
       </div>
     </div>
   </div>
@@ -35,7 +35,11 @@ if (!tangramApi) {
 const aircraftEntities = computed(
   () => tangramApi.state.getEntitiesByType<Jet1090Aircraft>("jet1090_aircraft").value
 );
-const activeEntities = computed(() => tangramApi.state.activeEntities.value);
+const selectedIds = ref<Set<string>>(new Set());
+const selectionDisposable = tangramApi.selection.onChanged(map => {
+  selectedIds.value = map.get("jet1090_aircraft") || new Set();
+});
+
 const layerDisposable: Ref<Disposable | null> = ref(null);
 
 const tooltip = reactive<{
@@ -103,21 +107,19 @@ const createAircraftSvgDataURL = (typecode: string, isSelected: boolean): string
   return dataUrl;
 };
 
-const onClick = (
-  info: PickingInfo<Entity<Jet1090Aircraft>>,
-  event: { srcEvent: { originalEvent: MouseEvent } }
-) => {
+const onClick = (info: PickingInfo<Entity<Jet1090Aircraft>>, event: any) => {
   if (!info.object) return;
-  const srcEvent = event.srcEvent.originalEvent;
+  const srcEvent: MouseEvent =
+    event?.srcEvent?.originalEvent ?? event?.srcEvent ?? event?.sourceEvent ?? event;
   const exclusive = !srcEvent.ctrlKey && !srcEvent.altKey && !srcEvent.metaKey;
 
   if (exclusive) {
-    tangramApi.state.selectEntity(info.object, true);
+    tangramApi.selection.selectEntity(info.object, true);
   } else {
-    if (tangramApi.state.activeEntities.value.has(info.object.id)) {
-      tangramApi.state.deselectEntity(info.object.id);
+    if (selectedIds.value.has(info.object.id)) {
+      tangramApi.selection.deselect({ id: info.object.id, type: "jet1090_aircraft" });
     } else {
-      tangramApi.state.selectEntity(info.object, false);
+      tangramApi.selection.selectEntity(info.object, false);
     }
   }
 };
@@ -125,17 +127,17 @@ const onClick = (
 watch(
   [
     aircraftEntities,
-    activeEntities,
+    selectedIds,
     () => tangramApi.map.isReady.value,
     () => pluginConfig.enable3d
   ],
-  ([entities, currentActiveEntities, isMapReady, enable3d]) => {
+  ([entities, currentSelectedIds, isMapReady, enable3d]) => {
     if (!entities || !isMapReady) return;
 
     const baseData = [];
     const selectedData = [];
     for (const d of entities.values()) {
-      if (currentActiveEntities.has(d.id)) {
+      if (currentSelectedIds.has(d.id)) {
         selectedData.push(d);
       } else {
         baseData.push(d);
@@ -152,7 +154,7 @@ watch(
       getSize: 32,
       getIcon: d => {
         const typecode = d.state.typecode || "A320";
-        const isSelected = currentActiveEntities.has(d.id);
+        const isSelected = currentSelectedIds.has(d.id);
         const iconId = `${typecode}-${isSelected}`;
         return {
           url: createAircraftSvgDataURL(typecode, isSelected),
@@ -183,7 +185,7 @@ watch(
         }
       },
       updateTriggers: {
-        getIcon: Array.from(currentActiveEntities.keys()).sort().join(","),
+        getIcon: Array.from(currentSelectedIds).sort().join(","),
         getPosition: [enable3d]
       },
       // required for globe: https://github.com/visgl/deck.gl/issues/9777#issuecomment-3628393899
@@ -200,6 +202,7 @@ watch(
 
 onUnmounted(() => {
   layerDisposable.value?.dispose();
+  selectionDisposable.dispose();
 });
 </script>
 

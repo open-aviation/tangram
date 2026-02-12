@@ -92,7 +92,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, reactive, watch } from "vue";
+import { computed, inject, reactive, ref, watch, onUnmounted } from "vue";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
 import type { Jet1090Aircraft } from ".";
 import { aircraftStore } from "./store";
@@ -337,11 +337,24 @@ if (!tangramApi) throw new Error("assert: tangram api not provided");
 
 const expandedIds = reactive(new Set<string>());
 const selectedMetrics = reactive(new Map<string, string>());
+const selectedAircraftIds = ref<Set<string>>(new Set());
+
+const selectionDisposable = tangramApi.selection.onChanged(map => {
+  selectedAircraftIds.value = map.get("jet1090_aircraft") || new Set<string>();
+});
+
+onUnmounted(() => {
+  selectionDisposable.dispose();
+});
 
 const aircraftList = computed(() => {
   const list = [];
-  for (const [id, entity] of tangramApi.state.activeEntities.value) {
-    if (entity.type === "jet1090_aircraft") {
+  const entities =
+    tangramApi.state.getEntitiesByType<Jet1090Aircraft>("jet1090_aircraft").value;
+
+  for (const id of selectedAircraftIds.value) {
+    const entity = entities.get(id);
+    if (entity) {
       list.push({ id, state: entity.state as Jet1090Aircraft });
     }
   }

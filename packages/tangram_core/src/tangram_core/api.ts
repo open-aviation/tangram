@@ -88,6 +88,357 @@ export interface Disposable {
   dispose(): void;
 }
 
+/**
+ * A stable cross-plugin identifier for an entity.
+ *
+ * `id` alone is not globally unique (e.g. different entity types may use
+ * overlapping identifier spaces), so we always pair it with a `type`.
+ */
+export interface EntityKey {
+  /** The stable identifier within the type, e.g. aircraft `icao24` or ship `mmsi` */
+  id: EntityId;
+  /**
+   * A plugin-defined entity kind, e.g. "jet1090_aircraft" or "ship162_ship".
+   *
+   * This is part of the cross-plugin contract. It should be stable.
+   */
+  type: string;
+}
+
+/** Map of the entity type to the selected ids */
+export type SelectionMap = ReadonlyMap<string, ReadonlySet<EntityId>>;
+
+export interface SelectionChangedPayload {
+  selection: SelectionMap;
+}
+
+export interface TrajectoryInitPayload {
+  key: EntityKey;
+  /**
+   * Intentionally plugin-agnostic; providers may publish any point structure.
+   *
+   * Assumption: the schema does not change.
+   */
+  points: unknown[];
+  source?: string;
+}
+
+export interface TrajectoryAppendPayload {
+  key: EntityKey;
+  points: unknown[];
+  source?: string;
+}
+
+/**
+ * Envelope received by providers for `TrajectoryApi.TOPIC_GET`.
+ */
+export interface TrajectoryGetRequest {
+  request_id: string; // injected by BusApi.request()
+  key: EntityKey;
+}
+
+/** Data payload returned by a trajectory provider. */
+export interface TrajectoryGetResult {
+  key: EntityKey;
+  points: unknown[];
+  source?: string;
+}
+
+/** Generic response envelope emitted on `${topic}:result`. */
+export interface BusResultEnvelope<T> {
+  request_id: string;
+  data: T;
+}
+
+/**
+ * A small, plugin-agnostic frontend pubsub bus built on `EventTarget`.
+ *
+ * - decouple plugins (no direct imports or hardcoded HTTP routes)
+ * - make communication patterns mirror the backend's pubsub (Redis), but
+ *   with nicer ergonomics for the frontend
+ *
+ * Assumptions:
+ *
+ * - topics are stringly-typed; tangram_core exports canonical topic constants
+ *   for shared protocols.
+ * - payload schemas are stable per topic+version. If a payload schema must change,
+ *   introduce a new topic (or suffix with a version) rather than mutating in place
+ */
+export class BusApi {
+  private target = new EventTarget();
+
+  subscribe<T>(
+    topic: string,
+    handler: (payload: T) => void,
+    opts: { signal?: AbortSignal } = {}
+  ): Disposable {
+    const listener = (evt: Event) => {
+      const ce = evt as CustomEvent;
+      handler(ce.detail as T);
+    };
+    this.target.addEventListener(topic, listener as EventListener);
+
+    const dispose = () => {
+      this.target.removeEventListener(topic, listener as EventListener);
+    };
+
+    if (opts.signal) {
+      if (opts.signal.aborted) {
+        dispose();
+      } else {
+        opts.signal.addEventListener("abort", dispose, { once: true });
+      }
+    }
+
+    return { dispose };
+  }
+
+  publish<T>(topic: string, payload: T, opts: { async?: boolean } = {}): void {
+    const dispatch = () => {
+      this.target.dispatchEvent(new CustomEvent(topic, { detail: payload }));
+    };
+    if (opts.async) {
+      queueMicrotask(dispatch);
+    } else {
+      dispatch();
+    }
+  }
+
+  /**
+   * Request/response helper.
+   *
+   * - publishes the request on `topic` with an injected `request_id`.
+   * - waits for exactly one matching response on `${topic}:result`.
+   */
+  request<TReq extends Record<string, unknown>, TRes>(
+    topic: string,
+    payload: TReq,
+    opts: { timeoutMs?: number; signal?: AbortSignal } = {}
+  ): Promise<TRes> {
+    const timeoutMs = opts.timeoutMs ?? 5000;
+    const request_id = crypto.randomUUID();
+    const responseTopic = `${topic}:result`;
+
+    return new Promise<TRes>((resolve, reject) => {
+      let done = false;
+
+      const cleanup = (dispose: () => void, timer?: ReturnType<typeof setTimeout>) => {
+        if (done) return;
+        done = true;
+        dispose();
+        if (timer) clearTimeout(timer);
+      };
+
+      const timer = setTimeout(() => {
+        cleanup(() => disposable.dispose());
+        reject(new Error("request timeout"));
+      }, timeoutMs);
+
+      const disposable = this.subscribe<BusResultEnvelope<TRes>>(
+        responseTopic,
+        msg => {
+          if (msg && msg.request_id === request_id) {
+            cleanup(() => disposable.dispose(), timer);
+            resolve(msg.data);
+          }
+        },
+        { signal: opts.signal }
+      );
+
+      if (opts.signal) {
+        if (opts.signal.aborted) {
+          cleanup(() => disposable.dispose(), timer);
+          reject(new Error("request aborted"));
+          return;
+        }
+        opts.signal.addEventListener(
+          "abort",
+          () => {
+            cleanup(() => disposable.dispose(), timer);
+            reject(new Error("request aborted"));
+          },
+          { once: true }
+        );
+      }
+
+      this.publish(topic, { ...payload, request_id } as TReq & { request_id: string });
+    });
+  }
+}
+
+export class TrajectoryApi {
+  /** Initialise/replace the current trajectory snapshot for an entity. */
+  static readonly TOPIC_INIT = "tangram:trajectory:init";
+  /** Append new points to an entity trajectory (append-only log). */
+  static readonly TOPIC_APPEND = "tangram:trajectory:append";
+  /** Request a trajectory snapshot for an entity. */
+  static readonly TOPIC_GET = "tangram:trajectory:get";
+
+  private byKey = new Map<string, ShallowRef<unknown[]>>();
+  private bus: BusApi;
+
+  constructor(bus: BusApi) {
+    this.bus = bus;
+
+    this.bus.subscribe<TrajectoryInitPayload>(TrajectoryApi.TOPIC_INIT, p => {
+      const ref = this.get(p.key);
+      ref.value = Array.isArray(p.points) ? [...p.points] : [];
+    });
+
+    this.bus.subscribe<TrajectoryAppendPayload>(TrajectoryApi.TOPIC_APPEND, p => {
+      const ref = this.get(p.key);
+      const next = Array.isArray(p.points) ? p.points : [];
+      if (next.length === 0) return;
+      ref.value = [...ref.value, ...next];
+    });
+  }
+
+  private keyToString(key: EntityKey): string {
+    return `${key.type}:${key.id}`;
+  }
+
+  /**
+   * Returns a reactive snapshot of the trajectory for a given entity.
+   * The array is replaced on updates (append-only).
+   *
+   * Assumptions:
+   * - Append-only log: providers only ever append points for a given `EntityKey`.
+   * - Stable point schema: the structure of each point is producer-defined, but
+   *   must remain stable for consumers. If it needs to change, publish to a new
+   *   topic/version.
+   * - Consumers should treat the returned array as immutable snapshots.
+   */
+  get(key: EntityKey): ShallowRef<unknown[]> {
+    const k = this.keyToString(key);
+    let r = this.byKey.get(k);
+    if (!r) {
+      r = shallowRef<unknown[]>([]);
+      this.byKey.set(k, r);
+    }
+    return r;
+  }
+}
+
+export class SelectionApi {
+  static readonly TOPIC_CHANGED = "tangram:selection:changed";
+
+  private _map = shallowRef<SelectionMap>(new Map());
+
+  public get map(): SelectionMap {
+    return this._map.value;
+  }
+
+  // for immutability
+  private cloneMap(
+    source: SelectionMap | Map<string, Set<string>>
+  ): Map<string, Set<string>> {
+    const next = new Map<string, Set<string>>();
+    for (const [k, v] of source) {
+      next.set(k, new Set(v));
+    }
+    return next;
+  }
+
+  private areMapsEqual(a: SelectionMap, b: SelectionMap): boolean {
+    if (a.size !== b.size) return false;
+    for (const [type, idsA] of a) {
+      const idsB = b.get(type);
+      if (!idsB || idsB.size !== idsA.size) return false;
+      for (const id of idsA) {
+        if (!idsB.has(id)) return false;
+      }
+    }
+    return true;
+  }
+
+  private update(
+    next: Map<string, Set<string>>,
+    opts: { publish?: boolean } = {}
+  ): boolean {
+    if (this.areMapsEqual(this._map.value, next)) return false;
+
+    this._map.value = next;
+    if (opts.publish) {
+      this.publish();
+    }
+    return true;
+  }
+
+  constructor(private bus: BusApi) {
+    // keep the internal store in sync with the bus.
+    // (allows selection to be driven externally, if needed.)
+    this.bus.subscribe<SelectionChangedPayload>(SelectionApi.TOPIC_CHANGED, payload => {
+      // reconstruct Maps/Sets if payload crosses serialization boundaries (e.g. JSON),
+      // but assuming in-memory BusApi preserves Map instances for now.
+      // if payload.selection is a Map, use it. If it's something else, we might need parsing.
+      if (payload?.selection instanceof Map) {
+        this.update(payload.selection as Map<string, Set<string>>, { publish: false });
+      }
+    });
+    this.publish(); // initial baseline so early subscribers never see `undefined`
+  }
+
+  /**
+   * Subscribe to selection changes.
+   *
+   * The handler is invoked immediately with the current selection.
+   */
+  onChanged(handler: (selection: SelectionMap) => void): Disposable {
+    handler(this._map.value);
+    return this.bus.subscribe<SelectionChangedPayload>(
+      SelectionApi.TOPIC_CHANGED,
+      payload => {
+        handler(payload.selection);
+      }
+    );
+  }
+
+  private publish(): void {
+    this.bus.publish<SelectionChangedPayload>(SelectionApi.TOPIC_CHANGED, {
+      selection: this._map.value
+    });
+  }
+
+  has(key: EntityKey): boolean {
+    return this._map.value.get(key.type)?.has(key.id) ?? false;
+  }
+
+  selectEntity(entity: Entity, exclusive: boolean = true): void {
+    this.select({ id: entity.id, type: entity.type }, exclusive);
+  }
+
+  select(key: EntityKey, exclusive: boolean = true): void {
+    const next = exclusive
+      ? new Map<string, Set<string>>()
+      : this.cloneMap(this._map.value);
+
+    let set = next.get(key.type);
+    if (!set) {
+      set = new Set();
+      next.set(key.type, set);
+    }
+    set.add(key.id);
+
+    this.update(next, { publish: true });
+  }
+
+  deselect(key: EntityKey): void {
+    const next = this.cloneMap(this._map.value);
+    const set = next.get(key.type);
+    if (set) {
+      set.delete(key.id);
+      if (set.size === 0) {
+        next.delete(key.type);
+      }
+      this.update(next, { publish: true });
+    }
+  }
+
+  clear(): void {
+    this.update(new Map(), { publish: true });
+  }
+}
+
 export interface Entity<TState extends EntityState = EntityState> {
   readonly id: EntityId;
   readonly type: string;
@@ -248,7 +599,7 @@ export class MapApi implements Disposable {
       },
       onClick: info => {
         if (!info.object) {
-          this.tangramApi.state.clearSelection();
+          this.tangramApi.selection.clear();
         }
       }
     });
@@ -340,7 +691,7 @@ export class StateApi {
   readonly entitiesByType: Map<string, ShallowRef<Map<EntityId, Entity>>> = new Map();
   readonly totalCounts: Ref<ReadonlyMap<string, number>> = ref(new Map());
 
-  readonly activeEntities = shallowRef<Map<EntityId, Entity>>(new Map());
+  constructor() {}
 
   registerEntityType = (type: string): void => {
     if (!this.entitiesByType.has(type)) {
@@ -369,46 +720,6 @@ export class StateApi {
       newMap.set(entity.id, entity);
     }
     bucket.value = newMap;
-
-    const currentActive = new Map(this.activeEntities.value);
-    let changed = false;
-    for (const [id, entity] of currentActive) {
-      if (entity.type === type) {
-        const fresh = newMap.get(id);
-        if (fresh) {
-          currentActive.set(id, fresh);
-          changed = true;
-        }
-      }
-    }
-    if (changed) {
-      this.activeEntities.value = currentActive;
-    }
-  };
-
-  selectEntity = (entity: Entity, exclusive: boolean = true): void => {
-    if (exclusive) {
-      const newMap = new Map();
-      newMap.set(entity.id, entity);
-      this.activeEntities.value = newMap;
-    } else {
-      const newMap = new Map(this.activeEntities.value);
-      newMap.set(entity.id, entity);
-      this.activeEntities.value = newMap;
-    }
-  };
-
-  deselectEntity = (entityId: EntityId): void => {
-    const newMap = new Map(this.activeEntities.value);
-    if (newMap.delete(entityId)) {
-      this.activeEntities.value = newMap;
-    }
-  };
-
-  clearSelection = (): void => {
-    if (this.activeEntities.value.size > 0) {
-      this.activeEntities.value = new Map();
-    }
   };
 
   setTotalCount = (type: string, count: number): void => {
@@ -569,7 +880,10 @@ export class RealtimeApi {
     return { dispose: () => channel.off(event, ref) };
   }
 
-  async publish<T>(topic: string, payload: T): Promise<void> {
+  async publish<T extends Record<string, unknown>>(
+    topic: string,
+    payload: T
+  ): Promise<void> {
     const [channelTopic, event] = this.parseTopicEvent(topic);
     const channel = await this.getChannel(channelTopic);
     channel.push(event, payload);
@@ -698,6 +1012,9 @@ export class TangramApi {
   readonly ui: UiApi;
   readonly map: MapApi;
   readonly state: StateApi;
+  readonly bus: BusApi;
+  readonly trajectory: TrajectoryApi;
+  readonly selection: SelectionApi;
   readonly realtime: RealtimeApi;
   readonly search: SearchApi;
   readonly config: TangramConfig;
@@ -709,11 +1026,14 @@ export class TangramApi {
   private constructor(app: App, config: TangramConfig, manifest: Manifest) {
     this.config = config;
     this.manifest = manifest;
+    this.bus = new BusApi();
     this.realtime = new RealtimeApi(config);
     this.ui = new UiApi(app);
     this.time = new TimeApi();
     this.map = new MapApi(this);
     this.state = new StateApi();
+    this.trajectory = new TrajectoryApi(this.bus);
+    this.selection = new SelectionApi(this.bus);
     this.search = new SearchApi();
 
     this.app = app;
@@ -886,12 +1206,12 @@ export class TangramApi {
       const bounds = this.map.bounds.value;
       if (!bounds) return;
 
-      const selectedEntities = Array.from(this.state.activeEntities.value.values()).map(
-        e => ({
-          id: e.id,
-          typeName: e.type
-        })
-      );
+      const selectedEntities: { id: string; typeName: string }[] = [];
+      for (const [type, ids] of this.selection.map) {
+        for (const id of ids) {
+          selectedEntities.push({ id, typeName: type });
+        }
+      }
 
       const payload = {
         connectionId: connId,
@@ -905,7 +1225,7 @@ export class TangramApi {
     };
 
     watch(this.map.bounds, updateView, { deep: true });
-    watch(this.state.activeEntities, updateView, { deep: true });
+    watch(() => this.selection.map, updateView, { deep: true });
   }
 
   public static async create(app: App): Promise<TangramApi> {

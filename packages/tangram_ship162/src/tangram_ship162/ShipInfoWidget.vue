@@ -73,9 +73,8 @@
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
-import { computed, inject, reactive, watch } from "vue";
+import { computed, inject, reactive, ref, watch, onUnmounted } from "vue";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
 import type { Ship162Vessel } from ".";
 
@@ -85,11 +84,20 @@ if (!tangramApi) {
 }
 
 const expandedIds = reactive(new Set<string>());
+const selectedIds = ref<Set<string>>(new Set());
+
+const selectionDisposable = tangramApi.selection.onChanged(map => {
+  selectedIds.value = map.get("ship162_ship") || new Set();
+});
 
 const shipList = computed(() => {
   const list = [];
-  for (const [id, entity] of tangramApi.state.activeEntities.value) {
-    if (entity.type === "ship162_ship") {
+  const entities =
+    tangramApi.state.getEntitiesByType<Ship162Vessel>("ship162_ship").value;
+
+  for (const id of selectedIds.value) {
+    const entity = entities.get(id);
+    if (entity) {
       list.push({ id, state: entity.state as Ship162Vessel });
     }
   }
@@ -129,6 +137,10 @@ watch(
     }
   }
 );
+
+onUnmounted(() => {
+  selectionDisposable.dispose();
+});
 </script>
 
 <style scoped>

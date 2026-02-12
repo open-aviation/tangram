@@ -1,5 +1,11 @@
-import { watch } from "vue";
 import type { TangramApi, Entity, SearchResult } from "@open-aviation/tangram-core/api";
+import {
+  TrajectoryApi,
+  type BusResultEnvelope,
+  type TrajectoryGetRequest,
+  type TrajectoryGetResult,
+  type SelectionMap
+} from "@open-aviation/tangram-core/api";
 import ShipLayer from "./ShipLayer.vue";
 import ShipCountWidget from "./ShipCountWidget.vue";
 import ShipInfoWidget from "./ShipInfoWidget.vue";
@@ -11,6 +17,9 @@ import ShipHistoryInterval from "./ShipHistoryInterval.vue";
 import { shipStore, type ShipSelectionData, type HistoryInterval } from "./store";
 
 const ENTITY_TYPE = "ship162_ship";
+
+// deduplicate trajectory backfill fetches across multiple consumers.
+const trajectoryFetches = new Map<string, Promise<unknown[]>>();
 
 interface Ship162FrontendConfig {
   topbar_order: number;
@@ -98,7 +107,7 @@ export function install(api: TangramApi, config?: Ship162FrontendConfig) {
               type: ENTITY_TYPE,
               state: r.state
             };
-            api.state.selectEntity(entity);
+            api.selection.selectEntity(entity, true);
 
             if (r.state.latitude && r.state.longitude) {
               api.map.getMapInstance().flyTo({
@@ -182,43 +191,99 @@ export function install(api: TangramApi, config?: Ship162FrontendConfig) {
     }
   })();
 
-  watch(
-    () => api.state.activeEntities.value,
-    async newEntities => {
-      const currentIds = new Set<string>();
-      for (const [id, entity] of newEntities) {
-        if (entity.type === ENTITY_TYPE) {
-          currentIds.add(id);
-        }
-      }
+  const handleSelectionChanged = (selection: SelectionMap) => {
+    const currentIds = selection.get(ENTITY_TYPE) || new Set<string>();
 
-      for (const id of shipStore.selected.keys()) {
-        if (!currentIds.has(id)) {
-          shipStore.selected.delete(id);
-        }
+    for (const id of shipStore.selected.keys()) {
+      if (!currentIds.has(id)) {
+        shipStore.selected.delete(id);
       }
-
-      for (const id of currentIds) {
-        if (!shipStore.selected.has(id)) {
-          const selectionData: ShipSelectionData = {
-            trajectory: [],
-            loading: true,
-            error: null
-          };
-          shipStore.selected.set(id, selectionData);
-          fetchTrajectory(id);
-        }
-      }
-      shipStore.version++;
     }
-  );
+
+    for (const id of currentIds) {
+      if (!shipStore.selected.has(id)) {
+        const selectionData: ShipSelectionData = {
+          trajectory: [],
+          loading: true,
+          error: null
+        };
+        shipStore.selected.set(id, selectionData);
+        void ensureTrajectory(api, id);
+      }
+    }
+    shipStore.version++;
+  };
+
+  api.selection.onChanged(handleSelectionChanged);
+
+  api.bus.subscribe<TrajectoryGetRequest>(TrajectoryApi.TOPIC_GET, async req => {
+    if (req.key.type !== ENTITY_TYPE) return;
+
+    const id = req.key.id;
+    if (!shipStore.selected.has(id)) {
+      const selectionData: ShipSelectionData = {
+        trajectory: [],
+        loading: true,
+        error: null
+      };
+      shipStore.selected.set(id, selectionData);
+    }
+
+    const points = await ensureTrajectory(api, id);
+
+    api.bus.publish<BusResultEnvelope<TrajectoryGetResult>>(
+      `${TrajectoryApi.TOPIC_GET}:result`,
+      {
+        request_id: req.request_id,
+        data: { key: req.key, points, source: "tangram_ship162" }
+      }
+    );
+  });
 }
 
-async function fetchTrajectory(mmsi: string) {
+async function ensureTrajectory(api: TangramApi, mmsi: string): Promise<unknown[]> {
+  const existing = api.trajectory.get({ id: mmsi, type: ENTITY_TYPE }).value;
+  if (existing.length > 0) {
+    const entry = shipStore.selected.get(mmsi);
+    if (entry) {
+      const next = existing as Ship162Vessel[];
+      const changed =
+        entry.loading !== false ||
+        entry.error !== null ||
+        entry.trajectory.length !== next.length;
+
+      entry.loading = false;
+      entry.error = null;
+      entry.trajectory = [...next];
+
+      if (changed) {
+        shipStore.version++;
+      }
+    }
+    return existing;
+  }
+
+  const inFlight = trajectoryFetches.get(mmsi);
+  if (inFlight) return inFlight;
+
+  const cached = shipStore.selected.get(mmsi)?.trajectory;
+  if (cached && cached.length > 0) return cached;
+
+  const p = fetchTrajectory(api, mmsi).finally(() => trajectoryFetches.delete(mmsi));
+  trajectoryFetches.set(mmsi, p);
+  return p;
+}
+
+async function fetchTrajectory(api: TangramApi, mmsi: string): Promise<unknown[]> {
   const data = shipStore.selected.get(mmsi);
-  if (!data) return;
+  if (!data) return [];
+
+  const shared = api.trajectory.get({ id: mmsi, type: ENTITY_TYPE }).value;
+  if (shared.length > 0) return shared;
+  if (data.trajectory.length > 0 && data.loading === false) return data.trajectory;
 
   try {
+    data.loading = true;
     const response = await fetch(`/ship162/data/${mmsi}`);
     if (!response.ok) throw new Error("Failed to fetch trajectory");
     const trajData = await response.json();
@@ -227,6 +292,14 @@ async function fetchTrajectory(mmsi: string) {
       const currentData = shipStore.selected.get(mmsi)!;
       currentData.trajectory = [...trajData, ...currentData.trajectory];
       shipStore.version++;
+
+      api.bus.publish(TrajectoryApi.TOPIC_INIT, {
+        key: { id: mmsi, type: ENTITY_TYPE },
+        points: currentData.trajectory,
+        source: "tangram_ship162"
+      });
+
+      return currentData.trajectory;
     }
   } catch (err: unknown) {
     if (shipStore.selected.has(mmsi)) {
@@ -237,6 +310,8 @@ async function fetchTrajectory(mmsi: string) {
       shipStore.selected.get(mmsi)!.loading = false;
     }
   }
+
+  return shipStore.selected.get(mmsi)?.trajectory ?? [];
 }
 
 async function subscribeToShipData(api: TangramApi, connectionId: string) {
@@ -270,9 +345,15 @@ async function subscribeToShipData(api: TangramApi, connectionId: string) {
             const timestamp = updated.lastseen ?? updated.timestamp ?? 0;
 
             if (!last || Math.abs((last.timestamp ?? 0) - timestamp) > 0.5) {
-              data.trajectory.push({
+              const point = {
                 ...updated,
                 timestamp: timestamp
+              };
+              data.trajectory.push(point);
+              api.bus.publish(TrajectoryApi.TOPIC_APPEND, {
+                key: { id, type: ENTITY_TYPE },
+                points: [point],
+                source: "tangram_ship162"
               });
               hasUpdates = true;
             }

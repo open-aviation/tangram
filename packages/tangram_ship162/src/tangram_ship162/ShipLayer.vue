@@ -42,7 +42,11 @@ if (!tangramApi) {
 const shipEntities = computed(
   () => tangramApi.state.getEntitiesByType<Ship162Vessel>("ship162_ship").value
 );
-const activeEntities = computed(() => tangramApi.state.activeEntities.value);
+const selectedIds = ref<ReadonlySet<string>>(new Set());
+const selectionDisposable = tangramApi.selection.onChanged(map => {
+  selectedIds.value = map.get("ship162_ship") || new Set();
+});
+
 const layerDisposable: Ref<Disposable | null> = ref(null);
 const hullLayerDisposable: Ref<Disposable | null> = ref(null);
 const zoom = computed(() => tangramApi.map.zoom.value);
@@ -186,8 +190,15 @@ const getShipHullPolygon = (state: Ship162Vessel): number[][] | null => {
     heading
   } = state;
 
-  // Check if we have all required dimension data
-  if (!to_bow || !to_stern || !to_port || !to_starboard) {
+  // Check if we have all required dimension + position data
+  if (
+    to_bow == null ||
+    to_stern == null ||
+    to_port == null ||
+    to_starboard == null ||
+    latitude == null ||
+    longitude == null
+  ) {
     return null;
   }
 
@@ -203,7 +214,7 @@ const getShipHullPolygon = (state: Ship162Vessel): number[][] | null => {
     }
   }
 
-  const coordinate = [longitude, latitude];
+  const coordinate: [number, number] = [longitude, latitude];
 
   // Calculate offset for 1 meter in lat/lon at this position
   // This matches aiscatcher.js's calcOffset1M
@@ -227,7 +238,10 @@ const getShipHullPolygon = (state: Ship162Vessel): number[][] | null => {
 
   // deltaNorth: [deltaLat, deltaLon] for 1m north
   // deltaEast: [deltaLat, deltaLon] for 1m east (perpendicular to north)
-  const deltaNorth = [(lat2 * radInv - coordinate[1]) / 100, (deltaLon * radInv) / 100];
+  const deltaNorth: [number, number] = [
+    (lat2 * radInv - coordinate[1]) / 100,
+    (deltaLon * radInv) / 100
+  ];
   // Perpendicular vector for east (rotate by +90deg)
   const rheadingEast = ((finalHeading + 90 + 360) % 360) * rad;
   const sinLat2East = sinLat * cos100R + cosLat * sin100R * Math.cos(rheadingEast);
@@ -236,13 +250,17 @@ const getShipHullPolygon = (state: Ship162Vessel): number[][] | null => {
     Math.sin(rheadingEast) * sin100R * cosLat,
     cos100R - sinLat * sinLat2East
   );
-  const deltaEast = [
+  const deltaEast: [number, number] = [
     (lat2East * radInv - coordinate[1]) / 100,
     (deltaLonEast * radInv) / 100
   ];
 
   // Move function: [lon + delta[1] * distance, lat + delta[0] * distance]
-  const calcMove = (coord: number[], delta: number[], distance: number): number[] => {
+  const calcMove = (
+    coord: [number, number],
+    delta: [number, number],
+    distance: number
+  ): [number, number] => {
     return [coord[0] + delta[1] * distance, coord[1] + delta[0] * distance];
   };
 
@@ -261,28 +279,51 @@ const getShipHullPolygon = (state: Ship162Vessel): number[][] | null => {
   return [A, B, C, D, E, A];
 };
 
-const onClick = (
-  info: PickingInfo<Entity<Ship162Vessel>>,
-  event: { srcEvent: { originalEvent: MouseEvent } }
-) => {
+const getModifierKeys = (
+  event: unknown
+): { ctrlKey: boolean; altKey: boolean; metaKey: boolean } => {
+  const base = { ctrlKey: false, altKey: false, metaKey: false };
+  if (typeof event !== "object" || event === null) return base;
+
+  const e1 =
+    (
+      event as {
+        srcEvent?: { originalEvent?: unknown } | unknown;
+        sourceEvent?: unknown;
+      }
+    ).srcEvent && typeof (event as { srcEvent?: unknown }).srcEvent === "object"
+      ? ((event as { srcEvent?: { originalEvent?: unknown } }).srcEvent
+          ?.originalEvent ?? (event as { srcEvent?: unknown }).srcEvent)
+      : ((event as { sourceEvent?: unknown }).sourceEvent ?? event);
+
+  if (typeof e1 !== "object" || e1 === null) return base;
+  const maybe = e1 as Partial<{ ctrlKey: boolean; altKey: boolean; metaKey: boolean }>;
+  return {
+    ctrlKey: !!maybe.ctrlKey,
+    altKey: !!maybe.altKey,
+    metaKey: !!maybe.metaKey
+  };
+};
+
+const onClick = (info: PickingInfo<Entity<Ship162Vessel>>, event: unknown) => {
   if (!info.object) return;
-  const srcEvent = event.srcEvent.originalEvent;
-  const exclusive = !srcEvent.ctrlKey && !srcEvent.altKey && !srcEvent.metaKey;
+  const mods = getModifierKeys(event);
+  const exclusive = !mods.ctrlKey && !mods.altKey && !mods.metaKey;
 
   if (exclusive) {
-    tangramApi.state.selectEntity(info.object, true);
+    tangramApi.selection.selectEntity(info.object, true);
   } else {
-    if (tangramApi.state.activeEntities.value.has(info.object.id)) {
-      tangramApi.state.deselectEntity(info.object.id);
+    if (selectedIds.value.has(info.object.id)) {
+      tangramApi.selection.deselect({ id: info.object.id, type: "ship162_ship" });
     } else {
-      tangramApi.state.selectEntity(info.object, false);
+      tangramApi.selection.selectEntity(info.object, false);
     }
   }
 };
 
 watch(
-  [shipEntities, activeEntities, () => tangramApi.map.isReady.value, zoom],
-  ([entities, currentActiveEntities, isMapReady, currentZoom]) => {
+  [shipEntities, selectedIds, () => tangramApi.map.isReady.value, zoom],
+  ([entities, currentSelectedIds, isMapReady, currentZoom]) => {
     if (!entities || !isMapReady) return;
 
     if (layerDisposable.value) layerDisposable.value.dispose();
@@ -294,13 +335,12 @@ watch(
     // added a 0.9 factor because it looked slightly too large
     const sizeScale = 0.9 * Math.min(Math.max(0.5, Math.pow(2, currentZoom - 10)), 2);
     const showHulls = currentZoom >= 12;
-    const selectedIds = new Set(currentActiveEntities.keys());
 
     // Ship hull layer (only visible at high zoom)
     const baseData: Entity<Ship162Vessel>[] = [];
     const selectedData: Entity<Ship162Vessel>[] = [];
     for (const d of entities.values()) {
-      if (selectedIds.has(d.id)) {
+      if (currentSelectedIds.has(d.id)) {
         selectedData.push(d);
       } else {
         baseData.push(d);
@@ -329,17 +369,17 @@ watch(
         lineWidthMinPixels: 1,
         getPolygon: d => d.polygon,
         getFillColor: d => {
-          return selectedIds.has(d.entity.id)
+          return currentSelectedIds.has(d.entity.id)
             ? colors.selected
             : getIconColor(d.entity.state);
         },
         getLineColor: d => {
-          return selectedIds.has(d.entity.id)
+          return currentSelectedIds.has(d.entity.id)
             ? colors.selected
             : getIconColor(d.entity.state);
         },
         getLineWidth: 0.5,
-        onClick: (info: PickingInfo, event: MjolnirEvent) => {
+        onClick: (info: PickingInfo, event: unknown) => {
           if (!info.object) return;
           const hullData = info.object as {
             entity: Entity<Ship162Vessel>;
@@ -351,7 +391,7 @@ watch(
           onClick(mockInfo, event);
         },
         updateTriggers: {
-          getFillColor: [currentActiveEntities]
+          getFillColor: [currentSelectedIds]
         }
       });
 
@@ -368,7 +408,7 @@ watch(
       pickable: true,
       billboard: false,
       getIcon: d => {
-        const { url, id } = getShipIcon(d.state, selectedIds.has(d.id));
+        const { url, id } = getShipIcon(d.state, currentSelectedIds.has(d.id));
         return {
           url,
           id,
@@ -396,7 +436,7 @@ watch(
         }
       },
       updateTriggers: {
-        getIcon: Array.from(currentActiveEntities.keys()).sort().join(","),
+        getIcon: Array.from(currentSelectedIds).sort().join(","),
         sizeScale: [showHulls]
       },
       // required for globe: https://github.com/visgl/deck.gl/issues/9777#issuecomment-3628393899
@@ -413,6 +453,7 @@ watch(
 onUnmounted(() => {
   layerDisposable.value?.dispose();
   hullLayerDisposable.value?.dispose();
+  selectionDisposable.dispose();
 });
 </script>
 
