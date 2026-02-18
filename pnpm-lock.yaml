@@ -31,7 +31,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^7.3.1
-        version: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)
+        version: 7.3.1(@types/node@25.2.3)(jiti@2.6.1)
 
   packages/tangram_airports:
     dependencies:
@@ -58,8 +58,8 @@ importers:
         specifier: ^9.2.6
         version: 9.2.6(@deck.gl/core@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))
       '@deck.gl/geo-layers':
-        specifier: ^9.2.6
-        version: 9.2.6(@deck.gl/core@9.2.6)(@deck.gl/extensions@9.2.6(@deck.gl/core@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6))))(@deck.gl/layers@9.2.6(@deck.gl/core@9.2.6)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6))))(@deck.gl/mesh-layers@9.2.6(@deck.gl/core@9.2.6)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/gltf@9.2.6(@luma.gl/constants@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@loaders.gl/core@4.3.4)(@luma.gl/constants@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))
+        specifier: ^9.2.8
+        version: 9.2.8(@deck.gl/core@9.2.6)(@deck.gl/extensions@9.2.6(@deck.gl/core@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6))))(@deck.gl/layers@9.2.6(@deck.gl/core@9.2.6)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6))))(@deck.gl/mesh-layers@9.2.6(@deck.gl/core@9.2.6)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/gltf@9.2.6(@luma.gl/constants@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@loaders.gl/core@4.3.4)(@luma.gl/constants@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))
       '@deck.gl/json':
         specifier: ^9.2.6
         version: 9.2.6(@deck.gl/core@9.2.6)
@@ -89,7 +89,7 @@ importers:
         version: 5.7.0
       '@vitejs/plugin-vue':
         specifier: ^6.0.4
-        version: 6.0.4(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1))(vue@3.5.28(typescript@5.9.3))
+        version: 6.0.4(vite@7.3.1(@types/node@25.2.3)(jiti@2.6.1))(vue@3.5.28(typescript@5.9.3))
       font-awesome:
         specifier: ^4.7.0
         version: 4.7.0
@@ -120,10 +120,10 @@ importers:
         version: 1.6.7
       vite:
         specifier: ^7.3.1
-        version: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)
+        version: 7.3.1(@types/node@25.2.3)(jiti@2.6.1)
       vite-plugin-static-copy:
         specifier: ^3.2.0
-        version: 3.2.0(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1))
+        version: 3.2.0(vite@7.3.1(@types/node@25.2.3)(jiti@2.6.1))
 
   packages/tangram_example:
     dependencies:
@@ -286,14 +286,14 @@ packages:
       '@luma.gl/core': ~9.2.6
       '@luma.gl/engine': ~9.2.6
 
-  '@deck.gl/geo-layers@9.2.6':
-    resolution: {integrity: sha512-Js42GcAlzH5vHWHdg/eKSmFvx1TWlhW+d6p8Y+67/iHpcCXmx/CBmpsr1ZsQ8XYc+GY8NDAmkHe5KECDJsJiDg==}
+  '@deck.gl/geo-layers@9.2.8':
+    resolution: {integrity: sha512-WEiPbDM6bqXityfFGplsKNTpYKzfUyj/mpnQpaNJ5qJ6Cl2W7SDnP+0K/UisbZ8m8eXYCiiu+ykb4+YwvOFc8g==}
     peerDependencies:
       '@deck.gl/core': ~9.2.0
       '@deck.gl/extensions': ~9.2.0
       '@deck.gl/layers': ~9.2.0
       '@deck.gl/mesh-layers': ~9.2.0
-      '@loaders.gl/core': ^4.2.0
+      '@loaders.gl/core': ^4.3.4
       '@luma.gl/core': ~9.2.6
       '@luma.gl/engine': ~9.2.6
 
@@ -956,8 +956,8 @@ packages:
   '@types/node@24.10.9':
     resolution: {integrity: sha512-ne4A0IpG3+2ETuREInjPNhUGis1SFjv1d5asp8MzEAGtOZeTeHVDOYqOgqfhvseqg/iXty2hjBf1zAOb7RNiNw==}
 
-  '@types/node@25.0.9':
-    resolution: {integrity: sha512-/rpCXHlCWeqClNBwUhDcusJxXYDjZTyE8v5oTO7WbL8eij2nKhUeU89/6xgjU7N4/Vh3He0BtyhJdQbDyhiXAw==}
+  '@types/node@25.2.3':
+    resolution: {integrity: sha512-m0jEgYlYz+mDJZ2+F4v8D1AyQb+QzsNqRuI7xg1VQX/KlKS0qT9r1Mo16yo5F/MtifXFgaofIFsdFMox2SxIbQ==}
 
   '@types/offscreencanvas@2019.7.3':
     resolution: {integrity: sha512-ieXiYmgSRXUDeOntE1InxjWyvEelZGP63M+cGuquuRLuIKKT1osnkXjxev9B7d1nXSug5vpunx+gNlbVxMlC9A==}
@@ -2067,7 +2067,7 @@ snapshots:
       '@luma.gl/shadertools': 9.2.6(@luma.gl/core@9.2.6)
       '@math.gl/core': 4.1.0
 
-  '@deck.gl/geo-layers@9.2.6(@deck.gl/core@9.2.6)(@deck.gl/extensions@9.2.6(@deck.gl/core@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6))))(@deck.gl/layers@9.2.6(@deck.gl/core@9.2.6)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6))))(@deck.gl/mesh-layers@9.2.6(@deck.gl/core@9.2.6)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/gltf@9.2.6(@luma.gl/constants@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@loaders.gl/core@4.3.4)(@luma.gl/constants@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))':
+  '@deck.gl/geo-layers@9.2.8(@deck.gl/core@9.2.6)(@deck.gl/extensions@9.2.6(@deck.gl/core@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6))))(@deck.gl/layers@9.2.6(@deck.gl/core@9.2.6)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6))))(@deck.gl/mesh-layers@9.2.6(@deck.gl/core@9.2.6)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/gltf@9.2.6(@luma.gl/constants@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))(@loaders.gl/core@4.3.4)(@luma.gl/constants@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))':
     dependencies:
       '@deck.gl/core': 9.2.6
       '@deck.gl/extensions': 9.2.6(@deck.gl/core@9.2.6)(@luma.gl/core@9.2.6)(@luma.gl/engine@9.2.6(@luma.gl/core@9.2.6)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.2.6)))
@@ -2720,7 +2720,7 @@ snapshots:
 
   '@types/brotli@1.3.4':
     dependencies:
-      '@types/node': 25.0.9
+      '@types/node': 25.2.3
 
   '@types/command-line-args@5.2.3': {}
 
@@ -2738,7 +2738,7 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
-  '@types/node@25.0.9':
+  '@types/node@25.2.3':
     dependencies:
       undici-types: 7.16.0
 
@@ -2845,10 +2845,10 @@ snapshots:
       '@typescript-eslint/types': 8.53.1
       eslint-visitor-keys: 4.2.1
 
-  '@vitejs/plugin-vue@6.0.4(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1))(vue@3.5.28(typescript@5.9.3))':
+  '@vitejs/plugin-vue@6.0.4(vite@7.3.1(@types/node@25.2.3)(jiti@2.6.1))(vue@3.5.28(typescript@5.9.3))':
     dependencies:
       '@rolldown/pluginutils': 1.0.0-rc.2
-      vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)
+      vite: 7.3.1(@types/node@25.2.3)(jiti@2.6.1)
       vue: 3.5.28(typescript@5.9.3)
 
   '@vue/compiler-core@3.5.28':
@@ -3736,15 +3736,15 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  vite-plugin-static-copy@3.2.0(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)):
+  vite-plugin-static-copy@3.2.0(vite@7.3.1(@types/node@25.2.3)(jiti@2.6.1)):
     dependencies:
       chokidar: 3.6.0
       p-map: 7.0.4
       picocolors: 1.1.1
       tinyglobby: 0.2.15
-      vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)
+      vite: 7.3.1(@types/node@25.2.3)(jiti@2.6.1)
 
-  vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1):
+  vite@7.3.1(@types/node@25.2.3)(jiti@2.6.1):
     dependencies:
       esbuild: 0.27.2
       fdir: 6.5.0(picomatch@4.0.3)
@@ -3753,7 +3753,7 @@ snapshots:
       rollup: 4.55.2
       tinyglobby: 0.2.15
     optionalDependencies:
-      '@types/node': 25.0.9
+      '@types/node': 25.2.3
       fsevents: 2.3.3
       jiti: 2.6.1
 
