@@ -37,7 +37,7 @@
     "@deck.gl/geo-layers": "^9.2.6",
     "@deck.gl/json": "^9.2.6",
     "@deck.gl/layers": "^9.2.6",
-    "@deck.gl/mapbox": "^9.2.6",
+    "@deck.gl/mapbox": "^9.2.8",
     "@deck.gl/mesh-layers": "^9.2.6",
     "@deck.gl/widgets": "^9.2.6",
     "@fontsource/b612": "^5.2.7",
