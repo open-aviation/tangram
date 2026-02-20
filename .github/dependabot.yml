@@ -9,6 +9,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      deckgl:
+        patterns:
+          - "@deck.gl/*"
+          - "@luma.gl/*"
 
   - package-ecosystem: cargo
     directory: "/"
