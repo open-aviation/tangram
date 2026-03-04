@@ -43,7 +43,7 @@
     "@fontsource/b612": "^5.2.7",
     "@fontsource/inconsolata": "^5.2.8",
     "@fontsource/roboto-condensed": "^5.2.8",
-    "@protomaps/basemaps": "^5.7.0",
+    "@protomaps/basemaps": "^5.7.1",
     "@vitejs/plugin-vue": "^6.0.4",
     "font-awesome": "^4.7.0",
     "lit-html": "^3.3.2",
