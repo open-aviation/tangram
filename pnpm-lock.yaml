@@ -85,8 +85,8 @@ importers:
         specifier: ^5.2.8
         version: 5.2.8
       '@protomaps/basemaps':
-        specifier: ^5.7.0
-        version: 5.7.0
+        specifier: ^5.7.1
+        version: 5.7.1
       '@vitejs/plugin-vue':
         specifier: ^6.0.4
         version: 6.0.4(vite@7.3.1(@types/node@25.3.1)(jiti@2.6.1))(vue@3.5.29(typescript@5.9.3))
@@ -768,8 +768,8 @@ packages:
   '@probe.gl/stats@4.1.1':
     resolution: {integrity: sha512-4VpAyMHOqydSvPlEyHwXaE+AkIdR03nX+Qhlxsk2D/IW4OVmDZgIsvJB1cDzyEEtcfKcnaEbfXeiPgejBceT6g==}
 
-  '@protomaps/basemaps@5.7.0':
-    resolution: {integrity: sha512-vIInnzVSxHuOcvj1BFGkCjlFxG/9a1GV23t98kGEVcPUM7aEqTnf6loUHTRJYX5eCz+WCO16N0aibr1SLg830Q==}
+  '@protomaps/basemaps@5.7.1':
+    resolution: {integrity: sha512-wXTOVMo7Q5h+ShKFMwkOooXWo58KjXBce51y5iZxOul4gwU741St/Z7azr02bi09MR9l9r0wQxMKlpMwbwlYjA==}
     hasBin: true
 
   '@rolldown/pluginutils@1.0.0-rc.2':
@@ -2551,7 +2551,7 @@ snapshots:
 
   '@probe.gl/stats@4.1.1': {}
 
-  '@protomaps/basemaps@5.7.0': {}
+  '@protomaps/basemaps@5.7.1': {}
 
   '@rolldown/pluginutils@1.0.0-rc.2': {}
 
