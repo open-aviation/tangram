@@ -31,7 +31,7 @@ jobs:
           uv build --package tangram_weather --out-dir dist
           uv build --package tangram_globe --out-dir dist
           uv build --package tangram_explore --out-dir dist
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-hatch
           path: dist/*
@@ -151,7 +151,7 @@ jobs:
               apt-get update && apt-get install -y libssl-dev pkg-config
             fi
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.os }}_${{ matrix.target }}_${{ matrix.interpreter || 'all' }}_${{ matrix.manylinux }}
           path: dist/*
