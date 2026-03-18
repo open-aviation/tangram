@@ -19,6 +19,6 @@
     "@deck.gl/extensions": "^9.2.11",
     "@deck.gl/layers": "^9.2.11",
     "parquet-wasm": "^0.7.1",
-    "vue": "^3.5.29"
+    "vue": "^3.5.30"
   }
 }
