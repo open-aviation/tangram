@@ -10,7 +10,7 @@
   "dependencies": {
     "@open-aviation/tangram-core": "workspace:*",
     "chart.js": "^4.5.1",
-    "dayjs": "^1.11.19",
+    "dayjs": "^1.11.20",
     "vue-chartjs": "^5.3.3"
   },
   "devDependencies": {
