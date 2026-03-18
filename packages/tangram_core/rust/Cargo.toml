@@ -53,7 +53,7 @@ tracing-subscriber = { version = "0.3", features = [
 ], optional = true }
 
 [dev-dependencies]
-tokio-tungstenite = "0.28" # for unit tests in websocket.rs
+tokio-tungstenite = "0.29" # for unit tests in websocket.rs
 
 
 [[bin]]
