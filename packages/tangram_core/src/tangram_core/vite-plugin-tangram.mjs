@@ -58,7 +58,7 @@ export function tangramPlugin(options = {}) {
             fileName: entryFileName,
             formats: ["es"]
           },
-          rollupOptions: {
+          rolldownOptions: {
             external: [
               "vue",
               "maplibre",

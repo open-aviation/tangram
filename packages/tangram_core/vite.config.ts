@@ -65,7 +65,7 @@ export default defineConfig({
              * Several workarounds were attempted, including:
              *
              * - using `?url` and/or `?no-inline` suffixes in the import statement,
-             * - setting `rollupOptions.external` to `[/\.wasm$/]`,
+             * - setting `rolldownOptions.external` to `[/\.wasm$/]`,
              * - adopting this plugin: https://github.com/laynezh/vite-plugin-lib-assets
              *   (this seems the most promising: wasm is copied but bindgen code doesn't work)
              *
@@ -128,7 +128,7 @@ export default defineConfig({
     sourcemap: true,
     outDir: normalizePath(path.resolve(__dirname, "./dist-frontend")),
     emptyOutDir: false,
-    rollupOptions: {
+    rolldownOptions: {
       input: normalizePath(path.resolve(__dirname, "index.html")),
       external: [
         "vue",

@@ -56,7 +56,7 @@ export default defineConfig({
   },
   build: {
     outDir: normalizePath(path.resolve(__dirname, "./dist-frontend")),
-    rollupOptions: {
+    rolldownOptions: {
       input: Object.fromEntries(
         DECKGL_PACKAGES.map(pkg => [
           pkg.split("/").pop(),
