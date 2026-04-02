@@ -15,6 +15,7 @@ use redis::AsyncCommands;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::io::Cursor;
+use std::num::NonZeroU64;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -151,11 +152,13 @@ async fn handle_delete_rows(
             .await
             .map_err(|e| e.to_string())?;
 
-        if dry_run {
-            Ok(perform_dry_run_delete(sender_id.clone(), table, predicate).await)
+        let response = if dry_run {
+            perform_dry_run_delete(sender_id.clone(), table, predicate).await
         } else {
-            Ok(perform_actual_delete(sender_id.clone(), table, predicate).await)
-        }
+            perform_actual_delete(sender_id.clone(), table, predicate).await
+        };
+
+        Ok(response)
     })
     .await
     .unwrap_or_else(|e| ControlResponse::CommandFailed {
@@ -178,7 +181,7 @@ pub(crate) async fn perform_dry_run_delete(
 ) -> ControlResponse {
     let result = (async {
         let ctx = SessionContext::new();
-        ctx.register_table("t", Arc::new(table))?;
+        ctx.register_table("t", table.table_provider().await?)?;
 
         let options = SQLOptions::new()
             .with_allow_ddl(false)
@@ -659,12 +662,21 @@ async fn perform_maintenance(table_name: String, managed_table: ManagedTable) {
 
     if needs_optimize {
         let _lock = managed_table.ingest_lock.write().await;
-        if let Ok(builder) = DeltaTableBuilder::from_url(table_url.clone()) {
-            if let Ok(maintenance_table) = builder.load().await {
+        'optimize: {
+            let Ok(builder) = DeltaTableBuilder::from_url(table_url.clone()) else {
+                break 'optimize;
+            };
+            let Ok(maintenance_table) = builder.load().await else {
+                break 'optimize;
+            };
+
+            if let Some(target_size) =
+                NonZeroU64::new(managed_table.maintenance_config.optimize_target_file_size)
+            {
                 info!("running optimize for table {}", table_name);
                 match maintenance_table
                     .optimize()
-                    .with_target_size(managed_table.maintenance_config.optimize_target_file_size)
+                    .with_target_size(target_size)
                     .await
                 {
                     Ok(_) => {
@@ -673,6 +685,11 @@ async fn perform_maintenance(table_name: String, managed_table: ManagedTable) {
                     }
                     Err(e) => error!("optimize failed for table {}: {}", table_name, e),
                 }
+            } else {
+                error!(
+                    "invalid optimize target file size for table {}: must be > 0",
+                    table_name
+                );
             }
         }
     }
@@ -689,30 +706,35 @@ async fn perform_maintenance(table_name: String, managed_table: ManagedTable) {
 
     if needs_vacuum {
         let _lock = managed_table.ingest_lock.write().await;
-        if let Ok(builder) = DeltaTableBuilder::from_url(table_url) {
-            if let Ok(maintenance_table) = builder.load().await {
-                info!("running vacuum for table {}", table_name);
-                let mut builder = maintenance_table
-                    .vacuum()
-                    .with_enforce_retention_duration(false);
-                if let Some(secs) = managed_table
-                    .maintenance_config
-                    .vacuum_retention_period_secs
-                {
-                    builder = builder.with_retention_period(chrono::Duration::seconds(secs as i64));
-                }
-                match builder.await {
-                    Ok((new_table, _)) => {
-                        *managed_table.last_vacuum.lock().await = Instant::now();
-                        info!("vacuum successful for table {}", table_name);
-                        if let Err(e) = checkpoints::cleanup_metadata(&new_table, None).await {
-                            warn!("failed to cleanup metadata for table {}: {}", table_name, e);
-                        } else {
-                            info!("cleanup metadata successful for table {}", table_name);
-                        }
+        'vacuum: {
+            let Ok(builder) = DeltaTableBuilder::from_url(table_url) else {
+                break 'vacuum;
+            };
+            let Ok(maintenance_table) = builder.load().await else {
+                break 'vacuum;
+            };
+
+            info!("running vacuum for table {}", table_name);
+            let mut builder = maintenance_table
+                .vacuum()
+                .with_enforce_retention_duration(false);
+            if let Some(secs) = managed_table
+                .maintenance_config
+                .vacuum_retention_period_secs
+            {
+                builder = builder.with_retention_period(chrono::Duration::seconds(secs as i64));
+            }
+            match builder.await {
+                Ok((new_table, _)) => {
+                    *managed_table.last_vacuum.lock().await = Instant::now();
+                    info!("vacuum successful for table {}", table_name);
+                    if let Err(e) = checkpoints::cleanup_metadata(&new_table, None).await {
+                        warn!("failed to cleanup metadata for table {}: {}", table_name, e);
+                    } else {
+                        info!("cleanup metadata successful for table {}", table_name);
                     }
-                    Err(e) => error!("vacuum failed for table {}: {}", table_name, e),
                 }
+                Err(e) => error!("vacuum failed for table {}: {}", table_name, e),
             }
         }
     }
