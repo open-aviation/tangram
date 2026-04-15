@@ -11,9 +11,9 @@
     "@open-aviation/tangram-core": "workspace:*"
   },
   "devDependencies": {
-    "@deck.gl/core": "^9.2.11",
-    "@deck.gl/extensions": "^9.2.11",
-    "@deck.gl/layers": "^9.2.11",
+    "@deck.gl/core": "^9.3.0",
+    "@deck.gl/extensions": "^9.3.0",
+    "@deck.gl/layers": "^9.3.0",
     "vue": "^3.5.32"
   }
 }
