@@ -9,7 +9,7 @@ classifiers = [
 
 [dependency-groups]
 dev = [
-    "ipykernel>=6.29.5",
+    "ipykernel>=7.2.0",
     { include-group = "build" },
     { include-group = "test" },
     { include-group = "typing" },
