@@ -14,9 +14,9 @@
     "vue-chartjs": "^5.3.3"
   },
   "devDependencies": {
-    "@deck.gl/core": "^9.3.0",
-    "@deck.gl/extensions": "^9.3.0",
-    "@deck.gl/layers": "^9.3.0",
+    "@deck.gl/core": "^9.3.1",
+    "@deck.gl/extensions": "^9.3.1",
+    "@deck.gl/layers": "^9.3.1",
     "maplibre-gl": "^5.23.0",
     "rs1090-wasm": "^0.4.14",
     "vue": "^3.5.32"
