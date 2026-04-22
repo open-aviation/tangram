@@ -23,7 +23,7 @@ test = ["pytest>=8.4.1", "anyio>=4.8.0"]
 lint = ["ruff>=0.15.10"]
 typing = ["mypy>=1.20.1"]
 docs = [
-    "mkdocs-material[imaging]>=9.6.18",
+    "mkdocs-material[imaging]>=9.7.6",
     "mkdocstrings-python>=2.0.3",
 ]
 
