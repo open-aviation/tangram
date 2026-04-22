@@ -98,7 +98,7 @@ async fn handle_list_tables(
         tables.push(TableInfo {
             name,
             uri: managed.table_url.clone(),
-            version: table.version().unwrap_or(-1),
+            version: table.version().map(|v| v as i64).unwrap_or(-1),
             schema: schema_json.to_string(),
         });
     }
@@ -232,7 +232,7 @@ pub(crate) async fn perform_actual_delete(
         Ok((_, metrics)) => ControlResponse::DeleteOutput {
             request_id,
             dry_run: false,
-            affected_rows: metrics.num_deleted_rows,
+            affected_rows: metrics.num_deleted_rows.unwrap_or(0),
             preview: None,
         },
         Err(e) => ControlResponse::CommandFailed {
@@ -602,7 +602,7 @@ async fn consume_stream_for_table(
                 Ok(new_table) => {
                     table = new_table;
                     if let Some(version) = table.version() {
-                        if version >= 0 && (version as u64).is_multiple_of(checkpoint_interval) {
+                        if version.is_multiple_of(checkpoint_interval) {
                             if let Err(e) = checkpoints::create_checkpoint(&table, None).await {
                                 error!(
                                     "failed to create checkpoint for table '{}' at version {}: {}",
