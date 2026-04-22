@@ -21,7 +21,7 @@ build = [
 ]
 test = ["pytest>=8.4.1", "anyio>=4.8.0"]
 lint = ["ruff>=0.15.11"]
-typing = ["mypy>=1.20.1"]
+typing = ["mypy>=1.20.2"]
 docs = [
     "mkdocs-material[imaging]>=9.7.6",
     "mkdocstrings-python>=2.0.3",
