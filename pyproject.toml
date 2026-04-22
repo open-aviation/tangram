@@ -20,7 +20,7 @@ build = [
     "maturin>=1.9.3; platform_system == 'Windows'",
 ]
 test = ["pytest>=8.4.1", "anyio>=4.8.0"]
-lint = ["ruff>=0.15.10"]
+lint = ["ruff>=0.15.11"]
 typing = ["mypy>=1.20.1"]
 docs = [
     "mkdocs-material[imaging]>=9.6.18",
