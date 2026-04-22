@@ -87,7 +87,7 @@ fn list_tables_offline(base_path: String) -> PyResult<Vec<TableInfo>> {
                         tables.push(TableInfo {
                             name: table_name,
                             uri: table_url.to_string(),
-                            version: table.version().unwrap_or(-1),
+                            version: table.version().map(|v| v as i64).unwrap_or(-1),
                             schema: schema_json.to_string(),
                         });
                     }
