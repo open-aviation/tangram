@@ -50,7 +50,7 @@
     "maplibre-gl": "^5.23.0",
     "parquet-wasm": "^0.7.1",
     "phoenix": "^1.8.5",
-    "pmtiles": "^4.4.0",
+    "pmtiles": "^4.4.1",
     "rs1090-wasm": "^0.4.14",
     "vue": "^3.5.32"
   },
