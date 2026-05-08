@@ -483,6 +483,7 @@ export interface WidgetOptions {
   priority?: number;
   title?: string;
   relevantFor?: string | string[];
+  visible?: boolean | (() => boolean);
 }
 
 export interface WidgetEntry extends WidgetOptions {
@@ -513,7 +514,7 @@ export class UiApi {
     this.app.component(id, component);
 
     // TODO: deckgl map overlays order
-    const { priority = 0, title, relevantFor } = options;
+    const { priority = 0, title, relevantFor, visible } = options;
     const effectivePriority = location === "MapOverlay" ? 0 : priority;
 
     const widget: WidgetEntry = {
@@ -521,6 +522,7 @@ export class UiApi {
       priority: effectivePriority,
       title,
       relevantFor,
+      visible,
       isCollapsed: false
     };
 

@@ -2,11 +2,13 @@ import type { TangramApi } from "@open-aviation/tangram-core/api";
 import initWasm, { readParquet, wasmMemory } from "parquet-wasm";
 import { parseTable } from "arrow-js-ffi";
 import ExploreLayers from "./ExploreLayers.vue";
+import GeoJsonDropTarget from "./GeoJsonDropTarget.vue";
 import LayerList from "./LayerList.vue";
 import {
   addLayer,
   clearLayers,
   removeLayer,
+  layers,
   type StyleOptions,
   pluginConfig
 } from "./store";
@@ -78,8 +80,10 @@ export async function install(api: TangramApi, config?: { enable_3d?: boolean })
   }
 
   api.ui.registerWidget("explore-layers-map", "MapOverlay", ExploreLayers);
+  api.ui.registerWidget("explore-geojson-drop", "MapOverlay", GeoJsonDropTarget);
   api.ui.registerWidget("explore-layers-list", "SideBar", LayerList, {
-    title: "Explore Layers"
+    title: "Explore Layers",
+    visible: () => layers.value.length > 0
   });
 
   await initParquetWasm();
