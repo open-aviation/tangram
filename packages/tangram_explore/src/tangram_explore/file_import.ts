@@ -1,3 +1,5 @@
+import { feature as topoJsonFeature } from "topojson-client";
+import type { Objects, Topology } from "topojson-specification";
 import {
   createFeatureSourceFromGeoJson,
   type FeatureBounds,
@@ -15,7 +17,7 @@ const GEOJSON_GEOMETRY_TYPES = new Set<string>([
   "GeometryCollection"
 ]);
 
-const GEOJSON_MEDIA_TYPES = new Set(["", "application/json", "application/geo+json"]);
+const JSON_MEDIA_TYPES = new Set(["", "application/json", "application/geo+json"]);
 
 export type ImportedSource = FeatureSource | TableSource;
 
@@ -76,6 +78,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function looksLikeTopoJson(value: unknown): value is Topology<Objects> {
+  return isRecord(value) && value.type === "Topology" && isRecord(value.objects);
+}
+
 function looksLikeGeoJson(value: unknown): boolean {
   if (!isRecord(value)) {
     return false;
@@ -104,7 +110,7 @@ const geoJsonImporter: FileImporter = {
       return false;
     }
 
-    if (!GEOJSON_MEDIA_TYPES.has(file.metadata.mediaType)) {
+    if (!JSON_MEDIA_TYPES.has(file.metadata.mediaType)) {
       return false;
     }
 
@@ -128,7 +134,52 @@ const geoJsonImporter: FileImporter = {
   }
 };
 
-const FILE_IMPORTERS = [geoJsonImporter] as const;
+const topoJsonImporter: FileImporter = {
+  id: "topojson",
+  label: "TopoJSON",
+  canImport: async file => {
+    if (
+      file.metadata.extension &&
+      file.metadata.extension !== ".json" &&
+      file.metadata.extension !== ".topojson"
+    ) {
+      return false;
+    }
+
+    if (!JSON_MEDIA_TYPES.has(file.metadata.mediaType)) {
+      return false;
+    }
+
+    try {
+      const json = await file.getJson();
+      return looksLikeTopoJson(json);
+    } catch {
+      return false;
+    }
+  },
+  importFile: async file => {
+    const json = await file.getJson();
+    if (!looksLikeTopoJson(json)) {
+      throw new Error(`${file.metadata.name} does not look like TopoJSON.`);
+    }
+
+    const objectEntries = Object.entries(json.objects);
+    return objectEntries.map(([objectName, object]) => {
+      const geojson = topoJsonFeature(json, object);
+      const source = createFeatureSourceFromGeoJson(geojson);
+      return {
+        label:
+          objectEntries.length === 1
+            ? file.metadata.name
+            : `${file.metadata.name}: ${objectName}`,
+        source,
+        bounds: source.bounds
+      };
+    });
+  }
+};
+
+const FILE_IMPORTERS = [topoJsonImporter, geoJsonImporter] as const;
 
 export async function importDroppedFiles(files: File[]): Promise<ImportedLayer[]> {
   const importedLayers: ImportedLayer[] = [];
