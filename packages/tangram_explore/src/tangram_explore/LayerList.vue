@@ -3,17 +3,19 @@
     <div v-if="layers.length > 0" class="list-actions">
       <button class="text-btn danger" @click="clearLayers">clear all</button>
     </div>
-    <div v-if="layers.length === 0" class="empty-state">no active layers</div>
+    <div v-if="layers.length === 0" class="empty-state">
+      drop supported files anywhere on the map to add an explore layer
+    </div>
     <div v-for="layer in layers" :key="layer.id" class="layer-item">
       <div class="layer-header">
         <div class="left-col">
           <button
-            v-if="layer.source === 'geojson'"
+            v-if="layer.source.kind === 'features'"
             class="icon-btn"
             :title="isCollapsed(layer.id) ? 'expand settings' : 'collapse settings'"
             @click="toggleCollapsed(layer.id)"
           >
-            {{ isCollapsed(layer.id) ? '▸' : '▾' }}
+            {{ isCollapsed(layer.id) ? "▸" : "▾" }}
           </button>
           <button
             class="visibility-btn"
@@ -67,13 +69,20 @@
             ></div>
             <span class="kind-label">{{ layer.style.kind }}</span>
           </div>
-          <button class="text-btn danger" title="remove layer" @click="removeLayer(layer.id)">
+          <button
+            class="text-btn danger"
+            title="remove layer"
+            @click="removeLayer(layer.id)"
+          >
             remove
           </button>
         </div>
       </div>
 
-      <div v-if="layer.source === 'geojson' && !isCollapsed(layer.id)" class="geojson-controls">
+      <div
+        v-if="isFeatureLayer(layer) && !isCollapsed(layer.id)"
+        class="feature-controls"
+      >
         <label class="control-row">
           <span>style</span>
           <select
@@ -101,18 +110,24 @@
         <template v-if="layer.style.style_mode === 'single'">
           <label class="control-row">
             <span>fill</span>
-            <input
-              type="color"
-              :value="colorToHex(layer.style.fill_color)"
-              @input="updateGeoJsonStyle(layer.id, { fill_color: eventValue($event) })"
+            <ColorPicker
+              :model-value="
+                colorSpecToHex(layer.style.fill_color) ?? FALLBACK_ACCENT_HEX
+              "
+              @update:model-value="
+                value => updateFeatureStyle(layer, { fill_color: value })
+              "
             />
           </label>
           <label class="control-row">
             <span>line</span>
-            <input
-              type="color"
-              :value="colorToHex(layer.style.line_color)"
-              @input="updateGeoJsonStyle(layer.id, { line_color: eventValue($event) })"
+            <ColorPicker
+              :model-value="
+                colorSpecToHex(layer.style.line_color) ?? FALLBACK_ACCENT_HEX
+              "
+              @update:model-value="
+                value => updateFeatureStyle(layer, { line_color: value })
+              "
             />
           </label>
         </template>
@@ -130,7 +145,7 @@
               <input
                 type="checkbox"
                 :checked="!layer.style.hidden_categories[category.value]"
-                @change="toggleGeoJsonCategory(layer.id, category.value)"
+                @change="toggleFeatureCategory(layer, category.value)"
               />
               <span class="category-name">{{ category.value }}</span>
               <span class="category-count">{{ category.count }}</span>
@@ -138,7 +153,9 @@
             <input
               type="color"
               :value="categoryColor(layer, category.value)"
-              @input="setGeoJsonCategoryColor(layer.id, category.value, eventValue($event))"
+              @input="
+                setFeatureCategoryColor(layer, category.value, eventValue($event))
+              "
             />
           </div>
         </div>
@@ -151,7 +168,7 @@
             max="1"
             step="0.05"
             :value="layer.style.opacity"
-            @input="updateGeoJsonStyle(layer.id, { opacity: eventNumber($event) })"
+            @input="updateFeatureStyle(layer, { opacity: eventNumber($event) })"
           />
         </label>
         <label class="control-row">
@@ -162,7 +179,7 @@
             max="12"
             step="0.5"
             :value="layer.style.line_width"
-            @input="updateGeoJsonStyle(layer.id, { line_width: eventNumber($event) })"
+            @input="updateFeatureStyle(layer, { line_width: eventNumber($event) })"
           />
         </label>
         <label class="control-row">
@@ -173,7 +190,7 @@
             max="20"
             step="1"
             :value="layer.style.point_radius"
-            @input="updateGeoJsonStyle(layer.id, { point_radius: eventNumber($event) })"
+            @input="updateFeatureStyle(layer, { point_radius: eventNumber($event) })"
           />
         </label>
         <div class="checkbox-row">
@@ -181,7 +198,7 @@
             <input
               type="checkbox"
               :checked="layer.style.filled"
-              @change="updateGeoJsonStyle(layer.id, { filled: eventChecked($event) })"
+              @change="updateFeatureStyle(layer, { filled: eventChecked($event) })"
             />
             filled
           </label>
@@ -189,7 +206,7 @@
             <input
               type="checkbox"
               :checked="layer.style.stroked"
-              @change="updateGeoJsonStyle(layer.id, { stroked: eventChecked($event) })"
+              @change="updateFeatureStyle(layer, { stroked: eventChecked($event) })"
             />
             stroked
           </label>
@@ -200,43 +217,25 @@
 </template>
 
 <script setup lang="ts">
+import { ColorPicker } from "@open-aviation/tangram-core/components";
+import { colorSpecToHex, parseColorSpec } from "@open-aviation/tangram-core/utils";
 import {
   layers,
   clearLayers,
   removeLayer,
   toggleLayerVisibility,
-  parseColor,
-  colorToHex,
-  updateGeoJsonStyle,
-  setGeoJsonCategoryColor,
-  toggleGeoJsonCategory,
-  type GeoJsonLayerEntry,
+  updateFeatureStyle,
+  setFeatureCategoryColor,
+  toggleFeatureCategory,
+  type FeatureLayerEntry,
   type LayerEntry,
   type StyleOptions
 } from "./store";
 import { reactive } from "vue";
-
-type GeoJsonFeature = Record<string, unknown> & {
-  properties?: Record<string, unknown> | null;
-};
-
-interface CategoryStat {
-  value: string;
-  count: number;
-}
+import { categoryColorsForField, categoryStatsForField } from "./feature_source";
 
 const collapsedLayers = reactive(new Set<string>());
-
-const palette = [
-  "oklch(54.87% 0.222 260.33)", // uchu blue 5
-  "oklch(58.63% 0.231 19.6)", // uchu red 5
-  "oklch(75.23% 0.209 144.64)", // uchu green 5
-  "oklch(74.61% 0.171 51.56)", // uchu orange 5
-  "oklch(49.39% 0.215 298.31)", // uchu purple 5
-  "oklch(82.23% 0.112 355.33)", // uchu pink 5
-  "oklch(89% 0.146 91.5)", // uchu yellow 5
-  "oklch(56.82% 0.004 247.89)" // uchu gray 9
-];
+const FALLBACK_ACCENT_HEX = "#027ec7";
 
 function eventValue(event: Event): string {
   return (event.target as HTMLInputElement | HTMLSelectElement).value;
@@ -263,101 +262,67 @@ function toggleCollapsed(id: string) {
 }
 
 function getLayerColor(style: StyleOptions): string {
-  const [r, g, b, a] = parseColor(style.fill_color, [128, 128, 128, 255]);
+  const [r, g, b, a] = parseColorSpec(style.fill_color) ?? [128, 128, 128, 255];
   return `rgba(${r}, ${g}, ${b}, ${a / 255})`;
 }
 
 function getLayerStats(layer: LayerEntry): string {
-  if (layer.source === "parquet") return `${layer.table.numRows.toLocaleString()} rows`;
-  return `${features(layer).length.toLocaleString()} features`;
-}
-
-function features(layer: GeoJsonLayerEntry): GeoJsonFeature[] {
-  if (layer.data.type === "FeatureCollection" && Array.isArray(layer.data.features)) {
-    return layer.data.features.filter(isFeature);
-  }
-  if (layer.data.type === "Feature" && isFeature(layer.data)) return [layer.data];
-  return [];
-}
-
-function isFeature(value: unknown): value is GeoJsonFeature {
-  return typeof value === "object" && value !== null;
-}
-
-function propertyFields(layer: GeoJsonLayerEntry): string[] {
-  const names = new Set<string>();
-  for (const feature of features(layer)) {
-    const properties = feature.properties;
-    if (!properties) continue;
-    for (const key of Object.keys(properties)) names.add(key);
-  }
-  return [...names].sort();
-}
-
-function categoryStats(layer: GeoJsonLayerEntry): CategoryStat[] {
-  return categoryStatsForField(layer, layer.style.category_field);
-}
-
-function categoryStatsForField(layer: GeoJsonLayerEntry, field: string): CategoryStat[] {
-  if (!field) return [];
-  const counts = new Map<string, number>();
-  for (const feature of features(layer)) {
-    const value = feature.properties?.[field];
-    const category = value === undefined || value === null ? "(empty)" : String(value);
-    counts.set(category, (counts.get(category) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([value, count]) => ({ value, count }))
-    .sort((a, b) => a.value.localeCompare(b.value));
-}
-
-function defaultCategoryColor(category: string): string {
-  let hash = 0;
-  for (const char of category) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return palette[hash % palette.length];
-}
-
-function categoryColor(layer: GeoJsonLayerEntry, category: string): string {
-  return layer.style.category_colors[category] ?? defaultCategoryColor(category);
-}
-
-function colorsForField(layer: GeoJsonLayerEntry, field: string): Record<string, string> {
-  const colors: Record<string, string> = {};
-  const colorField = layer.style.color_field;
-
-  for (const feature of features(layer)) {
-    const categoryValue = feature.properties?.[field];
-    const category =
-      categoryValue === undefined || categoryValue === null ? "(empty)" : String(categoryValue);
-    const colorValue = colorField ? feature.properties?.[colorField] : undefined;
-    if (typeof colorValue === "string") colors[category] ??= colorValue;
+  if (layer.source.kind === "table") {
+    return `${layer.source.stats.rowCount.toLocaleString()} rows`;
   }
 
-  for (const stat of categoryStatsForField(layer, field)) {
-    colors[stat.value] ??= layer.style.category_colors[stat.value] ?? defaultCategoryColor(stat.value);
-  }
-  return colors;
+  return `${layer.source.stats.featureCount.toLocaleString()} features`;
 }
 
-function setStyleMode(layer: GeoJsonLayerEntry, mode: "single" | "category") {
+function isFeatureLayer(layer: LayerEntry): layer is FeatureLayerEntry {
+  return layer.source.kind === "features";
+}
+
+function propertyFields(layer: FeatureLayerEntry): string[] {
+  return layer.source.fields;
+}
+
+function categoryStats(layer: FeatureLayerEntry) {
+  return categoryStatsForField(layer.source, layer.style.category_field);
+}
+
+function categoryColor(layer: FeatureLayerEntry, category: string): string {
+  return colorSpecToHex(layer.style.category_colors[category]) ?? "#808080";
+}
+
+function setStyleMode(layer: FeatureLayerEntry, mode: "single" | "category") {
   if (mode === "single") {
-    updateGeoJsonStyle(layer.id, { style_mode: mode });
+    updateFeatureStyle(layer, { style_mode: mode });
     return;
   }
 
-  const field = layer.style.category_field || propertyFields(layer)[0] || "";
-  updateGeoJsonStyle(layer.id, {
+  const field =
+    layer.style.category_field ||
+    layer.source.styleHints.colorField ||
+    propertyFields(layer)[0] ||
+    "";
+  updateFeatureStyle(layer, {
     style_mode: mode,
     category_field: field,
-    category_colors: colorsForField(layer, field)
+    category_colors: categoryColorsForField(
+      layer.source,
+      field,
+      layer.style.color_field,
+      layer.style.category_colors
+    )
   });
 }
 
-function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
-  updateGeoJsonStyle(layer.id, {
+function setCategoryField(layer: FeatureLayerEntry, field: string) {
+  updateFeatureStyle(layer, {
     category_field: field,
     hidden_categories: {},
-    category_colors: colorsForField(layer, field)
+    category_colors: categoryColorsForField(
+      layer.source,
+      field,
+      layer.style.color_field,
+      layer.style.category_colors
+    )
   });
 }
 </script>
@@ -368,26 +333,27 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
   flex-direction: column;
   max-height: 520px;
   overflow-y: auto;
+  color: var(--t-fg);
 }
 
 .list-actions {
   display: flex;
   justify-content: flex-end;
   padding: 4px 12px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--t-border);
 }
 
 .empty-state {
   padding: 1rem;
   text-align: center;
-  color: #666;
+  color: var(--t-muted);
   font-size: 0.9em;
   font-style: italic;
 }
 
 .layer-item {
   padding: 6px 12px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--t-border);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -395,17 +361,16 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
 }
 
 .layer-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
+  gap: 12px;
 }
 
 .left-col {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
-  min-width: 0;
 }
 
 .right-col {
@@ -413,6 +378,7 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+  justify-self: end;
 }
 
 .visibility-btn,
@@ -422,7 +388,7 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
   border: none;
   cursor: pointer;
   padding: 2px;
-  color: #888;
+  color: var(--t-muted);
   display: flex;
   align-items: center;
 }
@@ -430,7 +396,7 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
 .visibility-btn:hover,
 .icon-btn:hover,
 .text-btn:hover {
-  color: #333;
+  color: var(--t-accent1);
 }
 
 .icon-btn {
@@ -445,12 +411,14 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
 }
 
 .text-btn.danger:hover {
-  color: #b91c1c;
+  color: var(--t-error);
 }
 
 .layer-label {
+  flex: 1;
+  min-width: 0;
   font-weight: 500;
-  color: #333;
+  color: var(--t-fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -461,10 +429,10 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
   display: flex;
   align-items: center;
   gap: 4px;
-  background-color: #f5f5f5;
+  background-color: var(--t-hover);
   padding: 2px 6px 2px 4px;
   border-radius: 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--t-border);
 }
 
 .status-dot {
@@ -476,25 +444,25 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
 .kind-label {
   text-transform: lowercase;
   font-size: 0.75em;
-  color: #555;
+  color: var(--t-muted);
   font-weight: 600;
   line-height: 1;
 }
 
 .layer-stats {
-  color: #999;
+  color: var(--t-muted);
   font-variant-numeric: tabular-nums;
   font-size: 0.85em;
 }
 
-.geojson-controls {
+.feature-controls {
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 8px;
   border-radius: 8px;
-  background: #fafafa;
-  border: 1px solid #eee;
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
 }
 
 .control-row {
@@ -502,13 +470,46 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
   grid-template-columns: 72px 1fr;
   align-items: center;
   gap: 8px;
-  color: #555;
+  color: var(--t-fg);
   font-size: 0.82em;
+}
+
+.control-row select {
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--t-border);
+  background: var(--t-bg);
+  color: var(--t-fg);
+}
+
+.control-row select:hover {
+  border-color: var(--t-accent1);
+}
+
+.control-row select:focus {
+  outline: none;
+  border-color: var(--t-accent1);
+  box-shadow: 0 0 0 1px var(--t-accent1);
+}
+
+.control-row select option {
+  background: var(--t-bg);
+  color: var(--t-fg);
+}
+
+.control-row input[type="range"],
+.checkbox-row input[type="checkbox"],
+.category-visible input[type="checkbox"] {
+  accent-color: var(--t-accent1);
 }
 
 .control-row input[type="color"] {
   width: 100%;
   height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--t-border);
+  background: var(--t-bg);
 }
 
 .category-list {
@@ -517,12 +518,13 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
   gap: 4px;
   max-height: 180px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 4px 0;
 }
 
 .category-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
 }
@@ -534,16 +536,22 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
   min-width: 0;
 }
 
+.category-row input[type="color"] {
+  width: 40px;
+  min-width: 40px;
+  justify-self: end;
+}
+
 .category-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #333;
+  color: var(--t-fg);
 }
 
 .category-count {
   margin-left: auto;
-  color: #999;
+  color: var(--t-muted);
   font-variant-numeric: tabular-nums;
   font-size: 0.8em;
 }
@@ -551,7 +559,7 @@ function setCategoryField(layer: GeoJsonLayerEntry, field: string) {
 .checkbox-row {
   display: flex;
   gap: 12px;
-  color: #555;
+  color: var(--t-fg);
   font-size: 0.82em;
 }
 </style>

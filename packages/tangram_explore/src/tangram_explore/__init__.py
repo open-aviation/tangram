@@ -92,6 +92,7 @@ class ExploreLayer(Protocol):
     If not provided, a random 8-character ID will be used."""
 
 
+# TODO: maybe its better to respect the browser theme with a sentinel marker?
 @dataclass(frozen=True, slots=True)
 class ScatterLayer(ExploreLayer):
     data: ArrowStreamExportable
