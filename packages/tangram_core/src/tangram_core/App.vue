@@ -117,7 +117,9 @@ const visibleSidebarWidgets = computed((): WidgetEntry[] => {
 
   return tangramApi.value.ui.widgets.SideBar.filter(widget => {
     const isVisible =
-      typeof widget.visible === "function" ? widget.visible() : widget.visible !== false;
+      typeof widget.visible === "function"
+        ? widget.visible()
+        : widget.visible !== false;
     if (!isVisible) return false;
     if (!widget.relevantFor) return true;
 

@@ -1,11 +1,9 @@
 import { reactive, shallowRef, triggerRef } from "vue";
 import type { Table } from "apache-arrow";
 import type { Table as WasmTable } from "parquet-wasm";
-
-export type ColorSpec =
-  | string
-  | [number, number, number]
-  | [number, number, number, number];
+import type { ColorSpec } from "@open-aviation/tangram-core/utils";
+import type { FeatureSource } from "./feature_source";
+import { createTableSource, type TableSource } from "./table_source";
 
 export interface ScatterOptions {
   kind: "scatter";
@@ -21,10 +19,10 @@ export interface ScatterOptions {
   pickable: boolean;
 }
 
-export type GeoJsonStyleMode = "single" | "category";
+export type FeatureStyleMode = "single" | "category";
 
-export interface GeoJsonOptions {
-  kind: "geojson";
+export interface FeatureStyleOptions {
+  kind: "feature";
   fill_color: ColorSpec;
   line_color: ColorSpec;
   point_radius: number;
@@ -34,36 +32,32 @@ export interface GeoJsonOptions {
   filled: boolean;
   extruded: boolean;
   pickable: boolean;
-  style_mode: GeoJsonStyleMode;
+  style_mode: FeatureStyleMode;
   color_field: string;
   category_field: string;
   category_colors: Record<string, string>;
   hidden_categories: Record<string, boolean>;
 }
 
-export type StyleOptions = ScatterOptions | GeoJsonOptions;
-export type GeoJsonData = Record<string, unknown>;
+export type StyleOptions = ScatterOptions | FeatureStyleOptions;
 
-export interface ParquetLayerEntry {
+export interface TableLayerEntry {
   id: string;
   label: string;
-  source: "parquet";
-  table: Table;
-  wasmRef: WasmTable;
+  source: TableSource;
   style: ScatterOptions;
   visible: boolean;
 }
 
-export interface GeoJsonLayerEntry {
+export interface FeatureLayerEntry {
   id: string;
   label: string;
-  source: "geojson";
-  data: GeoJsonData;
-  style: GeoJsonOptions;
+  source: FeatureSource;
+  style: FeatureStyleOptions;
   visible: boolean;
 }
 
-export type LayerEntry = ParquetLayerEntry | GeoJsonLayerEntry;
+export type LayerEntry = TableLayerEntry | FeatureLayerEntry;
 
 export const layers = shallowRef<LayerEntry[]>([]);
 
@@ -71,104 +65,116 @@ export const pluginConfig = reactive({
   enable_3d: false
 });
 
-export function addLayer(
+const FALLBACK_ACCENT_COLOR = "oklch(0.5616 0.0895 251.64)";
+
+function createDefaultScatterStyle(): ScatterOptions {
+  return {
+    kind: "scatter",
+    radius_scale: 50,
+    radius_min_pixels: 2,
+    radius_max_pixels: 5,
+    line_width_min_pixels: 1,
+    fill_color: FALLBACK_ACCENT_COLOR,
+    line_color: FALLBACK_ACCENT_COLOR,
+    opacity: 0.8,
+    stroked: false,
+    filled: true,
+    pickable: true
+  };
+}
+
+export function addTableLayer(
+  id: string,
+  label: string,
+  source: TableSource,
+  style: ScatterOptions
+) {
+  if (layers.value.some(d => d.id === id)) return;
+  layers.value.push({
+    id,
+    label,
+    source,
+    style,
+    visible: true
+  });
+  triggerRef(layers);
+}
+
+export function addServerTableLayer(
   id: string,
   label: string,
   table: Table,
   wasmRef: WasmTable,
   style: ScatterOptions
 ) {
-  if (layers.value.some(d => d.id === id)) return;
-  layers.value.push({ id, label, source: "parquet", table, wasmRef, style, visible: true });
-  triggerRef(layers);
+  addTableLayer(
+    id,
+    label,
+    createTableSource(table, () => wasmRef.free()),
+    style
+  );
 }
 
-function geoJsonFeatures(data: GeoJsonData): Record<string, unknown>[] {
-  if (data.type === "FeatureCollection" && Array.isArray(data.features)) {
-    return data.features.filter(
-      feature => typeof feature === "object" && feature !== null
-    ) as Record<string, unknown>[];
-  }
-  if (data.type === "Feature") return [data];
-  return [];
+function createDefaultFeatureStyle(source: FeatureSource): FeatureStyleOptions {
+  const colorField = source.styleHints.colorField;
+
+  return {
+    kind: "feature",
+    fill_color: FALLBACK_ACCENT_COLOR,
+    line_color: FALLBACK_ACCENT_COLOR,
+    point_radius: 4,
+    line_width: 2,
+    opacity: 0.75,
+    stroked: true,
+    filled: true,
+    extruded: false,
+    pickable: true,
+    style_mode: colorField ? "category" : "single",
+    color_field: colorField,
+    category_field: colorField,
+    category_colors: source.styleHints.categoryColors,
+    hidden_categories: {}
+  };
 }
 
-function detectColorPropertyField(data: GeoJsonData): string {
-  const preferredNames = ["color", "colour", "fill", "fill_color", "fillColor"];
-  const fields = new Set<string>();
-  for (const feature of geoJsonFeatures(data)) {
-    const properties = feature.properties;
-    if (typeof properties !== "object" || properties === null || Array.isArray(properties)) {
-      continue;
-    }
-    for (const key of Object.keys(properties)) fields.add(key);
-  }
-
-  for (const preferred of preferredNames) {
-    const match = [...fields].find(field => field.toLowerCase() === preferred.toLowerCase());
-    if (match) return match;
-  }
-  return "";
-}
-
-function categoryColorsFromProperty(data: GeoJsonData, field: string): Record<string, string> {
-  if (!field) return {};
-  const colors: Record<string, string> = {};
-  for (const feature of geoJsonFeatures(data)) {
-    const properties = feature.properties;
-    if (typeof properties !== "object" || properties === null || Array.isArray(properties)) {
-      continue;
-    }
-    const value = properties[field as keyof typeof properties];
-    if (typeof value === "string") colors[value] = value;
-  }
-  return colors;
-}
-
-export function addGeoJsonLayer(label: string, data: GeoJsonData) {
+export function addFeatureLayer(label: string, source: FeatureSource) {
   const id = crypto.randomUUID();
-  const propertyColorField = detectColorPropertyField(data);
   layers.value.push({
     id,
     label,
-    source: "geojson",
-    data,
+    source,
     visible: true,
-    style: {
-      kind: "geojson",
-      fill_color: "oklch(39.53% 0.15 259.87)",
-      line_color: "oklch(39.53% 0.15 259.87)",
-      point_radius: 4,
-      line_width: 2,
-      opacity: 0.75,
-      stroked: true,
-      filled: true,
-      extruded: false,
-      pickable: true,
-      style_mode: propertyColorField ? "category" : "single",
-      color_field: propertyColorField,
-      category_field: propertyColorField,
-      category_colors: categoryColorsFromProperty(data, propertyColorField),
-      hidden_categories: {}
-    }
+    style: createDefaultFeatureStyle(source)
   });
   triggerRef(layers);
+}
+
+export function addSourceLayer(label: string, source: FeatureSource | TableSource) {
+  if (source.kind === "features") {
+    addFeatureLayer(label, source);
+    return;
+  }
+
+  addTableLayer(crypto.randomUUID(), label, source, createDefaultScatterStyle());
+}
+
+function disposeLayer(entry: LayerEntry) {
+  if (entry.source.kind === "table") {
+    entry.source.dispose();
+  }
 }
 
 export function removeLayer(id: string) {
   const idx = layers.value.findIndex(d => d.id === id);
   if (idx !== -1) {
-    const entry = layers.value[idx];
-    if (entry.source === "parquet") entry.wasmRef.free();
+    disposeLayer(layers.value[idx]);
     layers.value.splice(idx, 1);
     triggerRef(layers);
   }
 }
 
 export function clearLayers() {
-  layers.value.forEach(e => {
-    if (e.source === "parquet") e.wasmRef.free();
-  });
+  layers.value.forEach(disposeLayer);
   layers.value = [];
   triggerRef(layers);
 }
@@ -181,97 +187,36 @@ export function toggleLayerVisibility(id: string) {
   }
 }
 
-export function updateGeoJsonStyle(id: string, patch: Partial<GeoJsonOptions>) {
-  const layer = layers.value.find(d => d.id === id);
-  if (layer?.source !== "geojson") return;
+export function updateFeatureStyle(
+  layer: FeatureLayerEntry,
+  patch: Partial<FeatureStyleOptions>
+) {
   layer.style = { ...layer.style, ...patch };
   triggerRef(layers);
 }
 
-export function setGeoJsonCategoryColor(id: string, category: string, color: string) {
-  const layer = layers.value.find(d => d.id === id);
-  if (layer?.source !== "geojson") return;
-  layer.style.category_colors = {
-    ...layer.style.category_colors,
-    [category]: color
-  };
-  triggerRef(layers);
-}
-
-export function toggleGeoJsonCategory(id: string, category: string) {
-  const layer = layers.value.find(d => d.id === id);
-  if (layer?.source !== "geojson") return;
-  layer.style.hidden_categories = {
-    ...layer.style.hidden_categories,
-    [category]: !layer.style.hidden_categories[category]
-  };
-  triggerRef(layers);
-}
-
-export function colorToHex(c: ColorSpec, fallback = "#273f77"): string {
-  const [r, g, b] = parseColor(c, [39, 63, 119, 255]);
-  if ([r, g, b].some(v => Number.isNaN(v))) return fallback;
-  return `#${[r, g, b].map(v => v.toString(16).padStart(2, "0")).join("")}`;
-}
-
-function linearToSrgb(value: number): number {
-  const srgb =
-    value <= 0.0031308 ? 12.92 * value : 1.055 * Math.pow(value, 1 / 2.4) - 0.055;
-  return Math.round(Math.min(1, Math.max(0, srgb)) * 255);
-}
-
-function parseOklch(c: string): [number, number, number, number] | null {
-  const match = c.match(
-    /^oklch\(\s*([\d.]+)%?\s+([\d.]+)\s+([\d.]+)(?:deg)?(?:\s*\/\s*([\d.]+%?))?\s*\)$/i
-  );
-  if (!match) return null;
-
-  const l = Number(match[1]) / 100;
-  const chroma = Number(match[2]);
-  const hue = (Number(match[3]) * Math.PI) / 180;
-  const alpha = match[4]?.endsWith("%")
-    ? (Number(match[4].slice(0, -1)) / 100) * 255
-    : Number(match[4] ?? 1) * 255;
-
-  const a = chroma * Math.cos(hue);
-  const b = chroma * Math.sin(hue);
-
-  const lPrime = l + 0.3963377774 * a + 0.2158037573 * b;
-  const mPrime = l - 0.1055613458 * a - 0.0638541728 * b;
-  const sPrime = l - 0.0894841775 * a - 1.291485548 * b;
-
-  const lCube = lPrime ** 3;
-  const mCube = mPrime ** 3;
-  const sCube = sPrime ** 3;
-
-  return [
-    linearToSrgb(4.0767416621 * lCube - 3.3077115913 * mCube + 0.2309699292 * sCube),
-    linearToSrgb(-1.2684380046 * lCube + 2.6097574011 * mCube - 0.3413193965 * sCube),
-    linearToSrgb(-0.0041960863 * lCube - 0.7034186147 * mCube + 1.707614701 * sCube),
-    Math.round(Math.min(255, Math.max(0, alpha)))
-  ];
-}
-
-export function parseColor(
-  c: ColorSpec,
-  defaultColor: [number, number, number, number]
-): [number, number, number, number] {
-  if (Array.isArray(c)) {
-    return c.length === 3
-      ? ([...c, 255] as [number, number, number, number])
-      : (c as [number, number, number, number]);
-  }
-  if (typeof c === "string" && c.startsWith("#")) {
-    const hex = c.slice(1);
-    if (hex.length === 6) {
-      const r = parseInt(hex.slice(0, 2), 16);
-      const g = parseInt(hex.slice(2, 4), 16);
-      const b = parseInt(hex.slice(4, 6), 16);
-      return [r, g, b, 255];
+export function setFeatureCategoryColor(
+  layer: FeatureLayerEntry,
+  category: string,
+  color: string
+) {
+  layer.style = {
+    ...layer.style,
+    category_colors: {
+      ...layer.style.category_colors,
+      [category]: color
     }
-  }
-  if (typeof c === "string" && c.toLowerCase().startsWith("oklch(")) {
-    return parseOklch(c) ?? defaultColor;
-  }
-  return defaultColor;
+  };
+  triggerRef(layers);
+}
+
+export function toggleFeatureCategory(layer: FeatureLayerEntry, category: string) {
+  layer.style = {
+    ...layer.style,
+    hidden_categories: {
+      ...layer.style.hidden_categories,
+      [category]: !layer.style.hidden_categories[category]
+    }
+  };
+  triggerRef(layers);
 }

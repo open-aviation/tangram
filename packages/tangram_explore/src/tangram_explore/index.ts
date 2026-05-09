@@ -2,10 +2,10 @@ import type { TangramApi } from "@open-aviation/tangram-core/api";
 import initWasm, { readParquet, wasmMemory } from "parquet-wasm";
 import { parseTable } from "arrow-js-ffi";
 import ExploreLayers from "./ExploreLayers.vue";
-import GeoJsonDropTarget from "./GeoJsonDropTarget.vue";
+import FileDropTarget from "./FileDropTarget.vue";
 import LayerList from "./LayerList.vue";
 import {
-  addLayer,
+  addServerTableLayer,
   clearLayers,
   removeLayer,
   layers,
@@ -52,7 +52,7 @@ async function loadAndAdd(def: LayerDefinition) {
     ffiTable.schemaAddr(),
     true // copying is required because adding new layers can grow wasm memory and detach
   );
-  addLayer(def.id, def.label, arrowTable, wasmTable, def.style);
+  addServerTableLayer(def.id, def.label, arrowTable, wasmTable, def.style);
 }
 
 async function handleMessage(payload: StackMessage) {
@@ -80,7 +80,7 @@ export async function install(api: TangramApi, config?: { enable_3d?: boolean })
   }
 
   api.ui.registerWidget("explore-layers-map", "MapOverlay", ExploreLayers);
-  api.ui.registerWidget("explore-geojson-drop", "MapOverlay", GeoJsonDropTarget);
+  api.ui.registerWidget("explore-file-drop", "MapOverlay", FileDropTarget);
   api.ui.registerWidget("explore-layers-list", "SideBar", LayerList, {
     title: "Explore Layers",
     visible: () => layers.value.length > 0

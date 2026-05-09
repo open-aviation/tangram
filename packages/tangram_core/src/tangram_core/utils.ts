@@ -1,6 +1,13 @@
 // adapted from: https://github.com/color-js/color.js/blob/main/src/spaces/oklch.js
 type Vector3 = [number, number, number];
 
+export type ColorSpec =
+  | string
+  | [number, number, number]
+  | [number, number, number, number];
+
+export type DeckGLColor = [number, number, number, number];
+
 const multiplyMatrices = (A: number[], B: Vector3): Vector3 => {
   return [
     A[0] * B[0] + A[1] * B[1] + A[2] * B[2],
@@ -60,7 +67,7 @@ export function oklchToDeckGLColor(
   c: number,
   h: number,
   a: number = 255
-): [number, number, number, number] {
+): DeckGLColor {
   const rgb = oklch2rgb([l, c, h]);
   return [
     Math.max(0, Math.min(255, Math.round(rgb[0] * 255))),
@@ -68,6 +75,94 @@ export function oklchToDeckGLColor(
     Math.max(0, Math.min(255, Math.round(rgb[2] * 255))),
     a
   ];
+}
+
+function parseOklchString(value: string): DeckGLColor | null {
+  const match = value.match(
+    /^oklch\(\s*([\d.]+)(%)?\s+([\d.]+)\s+([\d.]+)(?:deg)?(?:\s*\/\s*([\d.]+%?))?\s*\)$/i
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const lightness = match[2] ? Number(match[1]) / 100 : Number(match[1]);
+
+  const alpha = match[5]?.endsWith("%")
+    ? (Number(match[5].slice(0, -1)) / 100) * 255
+    : Number(match[5] ?? 1) * 255;
+
+  return oklchToDeckGLColor(
+    lightness,
+    Number(match[3]),
+    Number(match[4]),
+    Math.round(Math.min(255, Math.max(0, alpha)))
+  );
+}
+
+export function parseColorSpec(color: ColorSpec): DeckGLColor | null {
+  if (Array.isArray(color)) {
+    return color.length === 3
+      ? ([...color, 255] as DeckGLColor)
+      : (color as DeckGLColor);
+  }
+
+  if (typeof color === "string" && color.startsWith("#")) {
+    const hex = color.slice(1);
+    if (hex.length === 6) {
+      return [
+        Number.parseInt(hex.slice(0, 2), 16),
+        Number.parseInt(hex.slice(2, 4), 16),
+        Number.parseInt(hex.slice(4, 6), 16),
+        255
+      ];
+    }
+  }
+
+  if (typeof color === "string" && color.toLowerCase().startsWith("oklch(")) {
+    return parseOklchString(color);
+  }
+
+  return null;
+}
+
+export function colorSpecToHex(color: ColorSpec): string | null {
+  const parsed = parseColorSpec(color);
+  if (!parsed) {
+    return null;
+  }
+
+  const [red, green, blue] = parsed;
+
+  return `#${[red, green, blue]
+    .map(value => value.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+// TODO: maybe its better to support proper theming on the backend
+// and the colours look
+export const DEFAULT_CATEGORICAL_COLORS = [
+  "oklch(54.87% 0.222 260.33)", // uchu blue 5
+  "oklch(58.63% 0.231 19.6)", // uchu red 5
+  "oklch(75.23% 0.209 144.64)", // uchu green 5
+  "oklch(74.61% 0.171 51.56)", // uchu orange 5
+  "oklch(49.39% 0.215 298.31)", // uchu purple 5
+  "oklch(82.23% 0.112 355.33)", // uchu pink 5
+  "oklch(89% 0.146 91.5)", // uchu yellow 5
+  "oklch(56.82% 0.004 247.89)" // uchu gray 9
+];
+
+// NOTE: we should probably remove this, i prefer id-based colours but eh 
+export function categoricalColor(
+  value: string,
+  palette: readonly string[] = DEFAULT_CATEGORICAL_COLORS
+): string {
+  let hash = 0;
+  for (const char of value) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+
+  return palette[hash % palette.length];
 }
 
 export const formatTime = (ts: string) => {
