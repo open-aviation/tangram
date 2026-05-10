@@ -10,7 +10,7 @@
       <div class="layer-header">
         <div class="left-col">
           <button
-            v-if="layer.source.kind === 'features'"
+            v-if="layer.source.kind !== 'table'"
             class="icon-btn"
             :title="isCollapsed(layer.id) ? 'expand settings' : 'collapse settings'"
             @click="toggleCollapsed(layer.id)"
@@ -212,6 +212,92 @@
           </label>
         </div>
       </div>
+
+      <div
+        v-if="isTrajectoryLayer(layer) && !isCollapsed(layer.id)"
+        class="feature-controls"
+      >
+        <label class="control-row">
+          <span>style</span>
+          <select
+            :value="layer.style.style_mode"
+            @change="setTrajectoryStyleMode(layer, eventValue($event) as 'single' | 'category')"
+          >
+            <option value="single">single color</option>
+            <option value="category">by category</option>
+          </select>
+        </label>
+
+        <label v-if="layer.style.style_mode === 'category'" class="control-row">
+          <span>field</span>
+          <select
+            :value="layer.style.category_field"
+            @change="setTrajectoryCategoryField(layer, eventValue($event))"
+          >
+            <option value="">choose field</option>
+            <option v-for="field in trajectoryFields(layer)" :key="field" :value="field">
+              {{ field }}
+            </option>
+          </select>
+        </label>
+
+        <label v-if="layer.style.style_mode === 'single'" class="control-row">
+          <span>line</span>
+          <ColorPicker
+            :model-value="colorSpecToHex(layer.style.line_color) ?? FALLBACK_ACCENT_HEX"
+            @update:model-value="value => updateTrajectoryStyle(layer, { line_color: value })"
+          />
+        </label>
+
+        <div
+          v-if="layer.style.style_mode === 'category' && layer.style.category_field"
+          class="category-list"
+        >
+          <div
+            v-for="category in trajectoryCategoryStats(layer)"
+            :key="category.value"
+            class="category-row"
+          >
+            <label class="category-visible">
+              <input
+                type="checkbox"
+                :checked="!layer.style.hidden_categories[category.value]"
+                @change="toggleTrajectoryCategory(layer, category.value)"
+              />
+              <span class="category-name">{{ category.value }}</span>
+              <span class="category-count">{{ category.count }}</span>
+            </label>
+            <input
+              type="color"
+              :value="trajectoryCategoryColor(layer, category.value)"
+              @input="setTrajectoryCategoryColor(layer, category.value, eventValue($event))"
+            />
+          </div>
+        </div>
+
+        <label class="control-row">
+          <span>opacity</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            :value="layer.style.opacity"
+            @input="updateTrajectoryStyle(layer, { opacity: eventNumber($event) })"
+          />
+        </label>
+        <label class="control-row">
+          <span>line width</span>
+          <input
+            type="range"
+            min="1"
+            max="12"
+            step="0.5"
+            :value="layer.style.line_width"
+            @input="updateTrajectoryStyle(layer, { line_width: eventNumber($event) })"
+          />
+        </label>
+      </div>
     </div>
   </div>
 </template>
@@ -227,12 +313,20 @@ import {
   updateFeatureStyle,
   setFeatureCategoryColor,
   toggleFeatureCategory,
+  updateTrajectoryStyle,
+  setTrajectoryCategoryColor,
+  toggleTrajectoryCategory,
   type FeatureLayerEntry,
   type LayerEntry,
-  type StyleOptions
+  type StyleOptions,
+  type TrajectoryLayerEntry
 } from "./store";
 import { reactive } from "vue";
 import { categoryColorsForField, categoryStatsForField } from "./feature_source";
+import {
+  trajectoryColorsForField,
+  trajectoryStatsForField
+} from "./trajectory_source";
 
 const collapsedLayers = reactive(new Set<string>());
 const FALLBACK_ACCENT_HEX = "#027ec7";
@@ -262,7 +356,8 @@ function toggleCollapsed(id: string) {
 }
 
 function getLayerColor(style: StyleOptions): string {
-  const [r, g, b, a] = parseColorSpec(style.fill_color) ?? [128, 128, 128, 255];
+  const color = style.kind === "trajectory" ? style.line_color : style.fill_color;
+  const [r, g, b, a] = parseColorSpec(color) ?? [128, 128, 128, 255];
   return `rgba(${r}, ${g}, ${b}, ${a / 255})`;
 }
 
@@ -271,11 +366,19 @@ function getLayerStats(layer: LayerEntry): string {
     return `${layer.source.stats.rowCount.toLocaleString()} rows`;
   }
 
+  if (layer.source.kind === "trajectories") {
+    return `${layer.source.stats.trajectoryCount.toLocaleString()} trajectories`;
+  }
+
   return `${layer.source.stats.featureCount.toLocaleString()} features`;
 }
 
 function isFeatureLayer(layer: LayerEntry): layer is FeatureLayerEntry {
   return layer.source.kind === "features";
+}
+
+function isTrajectoryLayer(layer: LayerEntry): layer is TrajectoryLayerEntry {
+  return layer.source.kind === "trajectories";
 }
 
 function propertyFields(layer: FeatureLayerEntry): string[] {
@@ -323,6 +426,44 @@ function setCategoryField(layer: FeatureLayerEntry, field: string) {
       layer.style.color_field,
       layer.style.category_colors
     )
+  });
+}
+
+function trajectoryFields(layer: TrajectoryLayerEntry): string[] {
+  return layer.source.fields;
+}
+
+function trajectoryCategoryStats(layer: TrajectoryLayerEntry) {
+  return trajectoryStatsForField(layer.source, layer.style.category_field);
+}
+
+function trajectoryCategoryColor(layer: TrajectoryLayerEntry, category: string): string {
+  return colorSpecToHex(layer.style.category_colors[category]) ?? "#808080";
+}
+
+function setTrajectoryStyleMode(
+  layer: TrajectoryLayerEntry,
+  mode: "single" | "category"
+) {
+  if (mode === "single") {
+    updateTrajectoryStyle(layer, { style_mode: mode });
+    return;
+  }
+
+  const field =
+    layer.style.category_field || layer.source.styleHints.categoryField || trajectoryFields(layer)[0] || "";
+  updateTrajectoryStyle(layer, {
+    style_mode: mode,
+    category_field: field,
+    category_colors: trajectoryColorsForField(layer.source, field, layer.style.category_colors)
+  });
+}
+
+function setTrajectoryCategoryField(layer: TrajectoryLayerEntry, field: string) {
+  updateTrajectoryStyle(layer, {
+    category_field: field,
+    hidden_categories: {},
+    category_colors: trajectoryColorsForField(layer.source, field, layer.style.category_colors)
   });
 }
 </script>
