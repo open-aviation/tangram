@@ -4,6 +4,7 @@ import type { Table as WasmTable } from "parquet-wasm";
 import type { ColorSpec } from "@open-aviation/tangram-core/utils";
 import type { FeatureSource } from "./feature_source";
 import { createTableSource, type TableSource } from "./table_source";
+import type { TrajectorySource } from "./trajectory_source";
 
 export interface ScatterOptions {
   kind: "scatter";
@@ -20,6 +21,7 @@ export interface ScatterOptions {
 }
 
 export type FeatureStyleMode = "single" | "category";
+export type TrajectoryStyleMode = "single" | "category";
 
 export interface FeatureStyleOptions {
   kind: "feature";
@@ -39,7 +41,19 @@ export interface FeatureStyleOptions {
   hidden_categories: Record<string, boolean>;
 }
 
-export type StyleOptions = ScatterOptions | FeatureStyleOptions;
+export interface TrajectoryStyleOptions {
+  kind: "trajectory";
+  line_color: ColorSpec;
+  line_width: number;
+  opacity: number;
+  pickable: boolean;
+  style_mode: TrajectoryStyleMode;
+  category_field: string;
+  category_colors: Record<string, string>;
+  hidden_categories: Record<string, boolean>;
+}
+
+export type StyleOptions = ScatterOptions | FeatureStyleOptions | TrajectoryStyleOptions;
 
 export interface TableLayerEntry {
   id: string;
@@ -57,7 +71,15 @@ export interface FeatureLayerEntry {
   visible: boolean;
 }
 
-export type LayerEntry = TableLayerEntry | FeatureLayerEntry;
+export interface TrajectoryLayerEntry {
+  id: string;
+  label: string;
+  source: TrajectorySource;
+  style: TrajectoryStyleOptions;
+  visible: boolean;
+}
+
+export type LayerEntry = TableLayerEntry | FeatureLayerEntry | TrajectoryLayerEntry;
 
 export const layers = shallowRef<LayerEntry[]>([]);
 
@@ -115,6 +137,21 @@ export function addServerTableLayer(
   );
 }
 
+function createDefaultTrajectoryStyle(source: TrajectorySource): TrajectoryStyleOptions {
+  const categoryField = source.styleHints.categoryField;
+  return {
+    kind: "trajectory",
+    line_color: FALLBACK_ACCENT_COLOR,
+    line_width: 2,
+    opacity: 0.85,
+    pickable: true,
+    style_mode: categoryField ? "category" : "single",
+    category_field: categoryField,
+    category_colors: source.styleHints.categoryColors,
+    hidden_categories: {}
+  };
+}
+
 function createDefaultFeatureStyle(source: FeatureSource): FeatureStyleOptions {
   const colorField = source.styleHints.colorField;
 
@@ -149,9 +186,26 @@ export function addFeatureLayer(label: string, source: FeatureSource) {
   triggerRef(layers);
 }
 
-export function addSourceLayer(label: string, source: FeatureSource | TableSource) {
+export function addTrajectoryLayer(label: string, source: TrajectorySource) {
+  const id = crypto.randomUUID();
+  layers.value.push({
+    id,
+    label,
+    source,
+    visible: true,
+    style: createDefaultTrajectoryStyle(source)
+  });
+  triggerRef(layers);
+}
+
+export function addSourceLayer(label: string, source: FeatureSource | TableSource | TrajectorySource) {
   if (source.kind === "features") {
     addFeatureLayer(label, source);
+    return;
+  }
+
+  if (source.kind === "trajectories") {
+    addTrajectoryLayer(label, source);
     return;
   }
 
@@ -211,6 +265,40 @@ export function setFeatureCategoryColor(
 }
 
 export function toggleFeatureCategory(layer: FeatureLayerEntry, category: string) {
+  layer.style = {
+    ...layer.style,
+    hidden_categories: {
+      ...layer.style.hidden_categories,
+      [category]: !layer.style.hidden_categories[category]
+    }
+  };
+  triggerRef(layers);
+}
+
+export function updateTrajectoryStyle(
+  layer: TrajectoryLayerEntry,
+  patch: Partial<TrajectoryStyleOptions>
+) {
+  layer.style = { ...layer.style, ...patch };
+  triggerRef(layers);
+}
+
+export function setTrajectoryCategoryColor(
+  layer: TrajectoryLayerEntry,
+  category: string,
+  color: string
+) {
+  layer.style = {
+    ...layer.style,
+    category_colors: {
+      ...layer.style.category_colors,
+      [category]: color
+    }
+  };
+  triggerRef(layers);
+}
+
+export function toggleTrajectoryCategory(layer: TrajectoryLayerEntry, category: string) {
   layer.style = {
     ...layer.style,
     hidden_categories: {
