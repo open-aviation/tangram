@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@open-aviation/tangram-core": "workspace:*",
-    "weatherlayers-gl": "^2026.2.0"
+    "weatherlayers-gl": "^2026.5.1"
   },
   "devDependencies": {
     "vue": "^3.5.34"

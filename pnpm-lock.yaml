@@ -242,8 +242,8 @@ importers:
         specifier: workspace:*
         version: link:../tangram_core
       weatherlayers-gl:
-        specifier: ^2026.2.0
-        version: 2026.2.0(@deck.gl/core@9.3.2)(@deck.gl/extensions@9.3.2(@deck.gl/core@9.3.2)(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3))))(@deck.gl/layers@9.3.2(@deck.gl/core@9.3.2)(@loaders.gl/core@4.4.1)(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3))))(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3)))
+        specifier: ^2026.5.1
+        version: 2026.5.1(@deck.gl/core@9.3.2)(@deck.gl/extensions@9.3.2(@deck.gl/core@9.3.2)(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3))))(@deck.gl/layers@9.3.2(@deck.gl/core@9.3.2)(@loaders.gl/core@4.4.1)(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3))))(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3)))
     devDependencies:
       vue:
         specifier: ^3.5.34
@@ -1441,8 +1441,8 @@ packages:
   geodesy-fn@1.2.2:
     resolution: {integrity: sha512-m837H6/kNxfHiS6sXkQgPsRzfs2NkSUJx9l0n/S83X9oC5oq83jZWpntRQEhbXN2J7c+lqwesxKQnT5tMqMWNw==}
 
-  geokdbush@2.0.1:
-    resolution: {integrity: sha512-0M8so1Qx6+jJ1xpirpCNrgUsWAzIcQ3LrLmh0KJPBYI3gH7vy70nY5zEEjSp9Tn0nBt6Q2Fh922oL08lfib4Zg==}
+  geokdbush@2.1.0:
+    resolution: {integrity: sha512-bMc7mu+SeUxtHwRpVvZ36qnZa/x8YAGuaPNeGDxd9bxp/jYuJ5GrUirUPz6UNiT+nn/79IQ4gCNan0y4alEUxw==}
 
   gl-matrix@3.4.4:
     resolution: {integrity: sha512-latSnyDNt/8zYUB6VIJ6PCh2jBjJX6gnDsoCZ7LyW7GkqrD51EWwa9qCoGixj8YqBtETQK/xY7OmpTF8xz1DdQ==}
@@ -1839,8 +1839,8 @@ packages:
   rollup-plugin-worker-factory@0.5.7:
     resolution: {integrity: sha512-DZ9HOy8FFVnx9in/x2DFrbH2Dj3iBMUm5zuisBnfQst2WcDbNicJLveiytgnoKqXQnBm7TPnlEklp4ce1eT1aw==}
 
-  rollup@2.79.2:
-    resolution: {integrity: sha512-fS6iqSPZDs3dr/y7Od6y5nha8dW1YnbgtsyotCVvoFGKbERG++CVRFv1meyGDE1SNItQA8BrnCw7ScdAhRJ3XQ==}
+  rollup@2.80.0:
+    resolution: {integrity: sha512-cIFJOD1DESzpjOBl763Kp1AH7UE/0fcdHe6rZXUdQ9c50uvgigvW97u3IcSeBwOkgqL/PXPBktBCh0KEu5L8XQ==}
     engines: {node: '>=10.0.0'}
     hasBin: true
 
@@ -1910,9 +1910,6 @@ packages:
   tinyglobby@0.2.16:
     resolution: {integrity: sha512-pn99VhoACYR8nFHhxqix+uvsbXineAasWm5ojXoN8xEwK5Kd3/TrhNn1wByuD52UxWRLy8pu+kRMniEi6Eq9Zg==}
     engines: {node: '>=12.0.0'}
-
-  tinyqueue@2.0.3:
-    resolution: {integrity: sha512-ppJZNDuKGgxzkHihX8v9v9G5f+18gzaTfrukGrq6ueg0lmH4nqVnA2IPG0AEH3jKEk2GRJCUhDoqpoiw3PHLBA==}
 
   tinyqueue@3.0.0:
     resolution: {integrity: sha512-gRa9gwYU3ECmQYv3lslts5hxuIa90veaEcxDYuu3QGOIAEM2mOZkVHp48ANJuu1CURtRdHKUBY5Lm1tHV+sD4g==}
@@ -2031,14 +2028,14 @@ packages:
       typescript:
         optional: true
 
-  weatherlayers-gl@2026.2.0:
-    resolution: {integrity: sha512-aUo8ioQbDPMAknbjXhyGtBk9yPwd2OX5U0SA1QstuflwlwEbJditByt/yfw9Rr9ne0yau9gNyCLCuvvcHOxlbA==}
+  weatherlayers-gl@2026.5.1:
+    resolution: {integrity: sha512-flWW2vpE4lK0vfIFZFq6TC7hBNI3utjuRJgLYGflzg+DrD+t+mxyQngFbzhB1bVXdbfFxneP69e3iRWoAUPE+A==}
     peerDependencies:
-      '@deck.gl/core': ^9.2.6
-      '@deck.gl/extensions': ^9.2.6
-      '@deck.gl/layers': ^9.2.6
-      '@luma.gl/core': ^9.2.6
-      '@luma.gl/engine': ^9.2.6
+      '@deck.gl/core': ^9.3.2
+      '@deck.gl/extensions': ^9.3.2
+      '@deck.gl/layers': ^9.3.2
+      '@luma.gl/core': ^9.3.3
+      '@luma.gl/engine': ^9.3.3
       geotiff: ^3.0.0
     peerDependenciesMeta:
       geotiff:
@@ -3419,9 +3416,9 @@ snapshots:
 
   geodesy-fn@1.2.2: {}
 
-  geokdbush@2.0.1:
+  geokdbush@2.1.0:
     dependencies:
-      tinyqueue: 2.0.3
+      tinyqueue: 3.0.0
 
   gl-matrix@3.4.4: {}
 
@@ -3776,9 +3773,9 @@ snapshots:
 
   rollup-plugin-worker-factory@0.5.7:
     dependencies:
-      rollup: 2.79.2
+      rollup: 2.80.0
 
-  rollup@2.79.2:
+  rollup@2.80.0:
     optionalDependencies:
       fsevents: 2.3.3
 
@@ -3840,8 +3837,6 @@ snapshots:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
-
-  tinyqueue@2.0.3: {}
 
   tinyqueue@3.0.0: {}
 
@@ -3933,7 +3928,7 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
-  weatherlayers-gl@2026.2.0(@deck.gl/core@9.3.2)(@deck.gl/extensions@9.3.2(@deck.gl/core@9.3.2)(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3))))(@deck.gl/layers@9.3.2(@deck.gl/core@9.3.2)(@loaders.gl/core@4.4.1)(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3))))(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3))):
+  weatherlayers-gl@2026.5.1(@deck.gl/core@9.3.2)(@deck.gl/extensions@9.3.2(@deck.gl/core@9.3.2)(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3))))(@deck.gl/layers@9.3.2(@deck.gl/core@9.3.2)(@loaders.gl/core@4.4.1)(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3))))(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3))):
     dependencies:
       '@deck.gl/core': 9.3.2
       '@deck.gl/extensions': 9.3.2(@deck.gl/core@9.3.2)(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3)))
@@ -3945,7 +3940,7 @@ snapshots:
       comlink: 4.4.2
       cpt2js: 1.6.2
       geodesy-fn: 1.2.2
-      geokdbush: 2.0.1
+      geokdbush: 2.1.0
       icomesh: 1.1.0
       kdbush: 4.0.2
       rollup-plugin-worker-factory: 0.5.7
