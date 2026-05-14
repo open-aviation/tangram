@@ -103,13 +103,19 @@ function upsertEntity(entity: Entity) {
 }
 
 function trajectoryEntityType(trajectory: Trajectory): string {
-  return trajectory.properties.format === "ais-jsonl" ? SHIP_ENTITY_TYPE : AIRCRAFT_ENTITY_TYPE;
+  return trajectory.properties.format === "ais-jsonl"
+    ? SHIP_ENTITY_TYPE
+    : AIRCRAFT_ENTITY_TYPE;
 }
 
-function stringProperty(properties: Record<string, unknown>, ...keys: string[]): string | undefined {
+function stringProperty(
+  properties: Record<string, unknown>,
+  ...keys: string[]
+): string | undefined {
   for (const key of keys) {
     const value = properties[key];
-    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
+    if (value !== undefined && value !== null && String(value).trim())
+      return String(value).trim();
   }
   return undefined;
 }
@@ -119,8 +125,15 @@ function trajectoryEntityId(trajectory: Trajectory, type: string): string {
     return stringProperty(trajectory.properties, "mmsi", "id") ?? trajectory.id;
   }
   return (
-    stringProperty(trajectory.properties, "icao24", "callsign", "Callsign", "number", "Number", "id") ??
-    trajectory.id
+    stringProperty(
+      trajectory.properties,
+      "icao24",
+      "callsign",
+      "Callsign",
+      "number",
+      "Number",
+      "id"
+    ) ?? trajectory.id
   );
 }
 
@@ -149,8 +162,15 @@ function trajectoryPointToEntityState(
     };
   }
 
-  const callsign = stringProperty(trajectory.properties, "callsign", "Callsign", "number", "Number");
-  const icao24 = stringProperty(trajectory.properties, "icao24", "id") ?? callsign ?? trajectory.id;
+  const callsign = stringProperty(
+    trajectory.properties,
+    "callsign",
+    "Callsign",
+    "number",
+    "Number"
+  );
+  const icao24 =
+    stringProperty(trajectory.properties, "icao24", "id") ?? callsign ?? trajectory.id;
   return {
     ...trajectory.properties,
     ...common,
@@ -167,7 +187,8 @@ function trajectoryPointsForWidget(
   trajectory: Trajectory,
   type: string
 ): Record<string, unknown>[] {
-  const samples = trajectory.samples.length > 0 ? trajectory.samples : trajectory.points;
+  const samples =
+    trajectory.samples.length > 0 ? trajectory.samples : trajectory.points;
   return samples.map(sample => {
     if (type === SHIP_ENTITY_TYPE) {
       return {
@@ -183,22 +204,33 @@ function trajectoryPointsForWidget(
       };
     }
 
-    const callsign = stringProperty(trajectory.properties, "callsign", "Callsign", "number", "Number");
+    const callsign = stringProperty(
+      trajectory.properties,
+      "callsign",
+      "Callsign",
+      "number",
+      "Number"
+    );
     return {
       ...trajectory.properties,
-      icao24: stringProperty(trajectory.properties, "icao24", "id") ?? callsign ?? trajectory.id,
+      icao24:
+        stringProperty(trajectory.properties, "icao24", "id") ??
+        callsign ??
+        trajectory.id,
       callsign,
       timestamp: sample.timestamp,
       latitude: sample.latitude,
       longitude: sample.longitude,
       altitude: sample.altitude,
-      selected_altitude: "selected_altitude" in sample ? sample.selected_altitude : undefined,
+      selected_altitude:
+        "selected_altitude" in sample ? sample.selected_altitude : undefined,
       groundspeed: sample.speed,
       ias: "ias" in sample ? sample.ias : undefined,
       tas: "tas" in sample ? sample.tas : undefined,
       mach: "mach" in sample ? sample.mach : undefined,
       vertical_rate: "vertical_rate" in sample ? sample.vertical_rate : undefined,
-      vrate_barometric: "vrate_barometric" in sample ? sample.vrate_barometric : undefined,
+      vrate_barometric:
+        "vrate_barometric" in sample ? sample.vrate_barometric : undefined,
       vrate_inertial: "vrate_inertial" in sample ? sample.vrate_inertial : undefined,
       track: sample.track ?? sample.heading,
       heading: sample.heading,
@@ -245,9 +277,14 @@ function selectTrajectory(trajectory: Trajectory) {
   api.selection.selectEntity(entity, true);
 }
 
-const selectionDisposable = api.selection.onChanged(() => restoreSelectedImportedEntities());
+const selectionDisposable = api.selection.onChanged(() =>
+  restoreSelectedImportedEntities()
+);
 
-watch(api.state.getEntitiesByType(AIRCRAFT_ENTITY_TYPE), restoreSelectedImportedEntities);
+watch(
+  api.state.getEntitiesByType(AIRCRAFT_ENTITY_TYPE),
+  restoreSelectedImportedEntities
+);
 watch(api.state.getEntitiesByType(SHIP_ENTITY_TYPE), restoreSelectedImportedEntities);
 
 watch(
@@ -331,13 +368,14 @@ watch(
           widthUnits: "pixels",
           widthMinPixels: opts.line_width,
           getPath: trajectory =>
-            trajectory.points.map(point => [
+            trajectory.points.map<[number, number, number]>(point => [
               point.longitude,
               point.latitude,
               is3d ? (point.altitude ?? 0) : 0
             ]),
           getColor: trajectory =>
-            parseColorSpec(trajectoryColor(trajectory, opts)) ?? defaultFeatureLineColor(),
+            parseColorSpec(trajectoryColor(trajectory, opts)) ??
+            defaultFeatureLineColor(),
           getWidth: () => opts.line_width,
           onHover: (info: PickingInfo<Trajectory>) => {
             if (info.object) {

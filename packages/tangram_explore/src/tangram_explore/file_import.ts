@@ -190,11 +190,17 @@ function rowsToTrajectories(
 ): Trajectory[] {
   const groups = new Map<
     string,
-    { point: TrajectoryPoint | null; sample: TrajectorySample; row: Record<string, unknown> }[]
+    {
+      point: TrajectoryPoint | null;
+      sample: TrajectorySample;
+      row: Record<string, unknown>;
+    }[]
   >();
 
   const first = (row: Record<string, unknown>, fields: string[]) =>
-    fields.map(field => row[field]).find(value => value !== undefined && value !== null);
+    fields
+      .map(field => row[field])
+      .find(value => value !== undefined && value !== null);
 
   for (const row of rows) {
     const latitude =
@@ -218,8 +224,12 @@ function rowsToTrajectories(
       tas: finiteNumber(first(row, options.tasFields ?? [])),
       mach: finiteNumber(first(row, options.machFields ?? [])),
       vertical_rate: finiteNumber(first(row, options.verticalRateFields ?? [])),
-      vrate_barometric: finiteNumber(first(row, options.verticalRateBarometricFields ?? [])),
-      vrate_inertial: finiteNumber(first(row, options.verticalRateInertialFields ?? [])),
+      vrate_barometric: finiteNumber(
+        first(row, options.verticalRateBarometricFields ?? [])
+      ),
+      vrate_inertial: finiteNumber(
+        first(row, options.verticalRateInertialFields ?? [])
+      ),
       track: finiteNumber(first(row, options.trackFields ?? [])) ?? heading,
       heading,
       roll: finiteNumber(first(row, options.rollFields ?? [])),
@@ -259,21 +269,29 @@ function rowsToTrajectories(
 
   const trajectories: Trajectory[] = [];
   for (const [id, entries] of groups) {
-    entries.sort((left, right) => (left.sample.timestamp ?? 0) - (right.sample.timestamp ?? 0));
+    entries.sort(
+      (left, right) => (left.sample.timestamp ?? 0) - (right.sample.timestamp ?? 0)
+    );
     let segment: typeof entries = [];
     let segmentIndex = 1;
     const flush = () => {
-      const points = segment.map(entry => entry.point).filter((point): point is TrajectoryPoint => point !== null);
+      const points = segment
+        .map(entry => entry.point)
+        .filter((point): point is TrajectoryPoint => point !== null);
       if (points.length < 2) return;
       const properties: Record<string, unknown> = { ...options.defaultProperties, id };
       for (const field of options.idFields) {
         const value = segment
           .map(entry => entry.row[field])
-          .find(item => item !== undefined && item !== null && String(item).trim() !== "");
+          .find(
+            item => item !== undefined && item !== null && String(item).trim() !== ""
+          );
         if (value !== undefined && value !== null) properties[field] = value;
       }
       const samples = segment.map(entry => entry.sample);
-      const timestamps = samples.map(sample => sample.timestamp).filter(value => value !== null);
+      const timestamps = samples
+        .map(sample => sample.timestamp)
+        .filter(value => value !== null);
       trajectories.push({
         id: segmentIndex === 1 ? id : `${id}-${segmentIndex}`,
         label: segmentIndex === 1 ? id : `${id} (${segmentIndex})`,
@@ -289,7 +307,9 @@ function rowsToTrajectories(
     for (const entry of entries) {
       const previous = segment.length > 0 ? segment[segment.length - 1] : undefined;
       const gapSeconds =
-        previous && previous.sample.timestamp !== null && entry.sample.timestamp !== null
+        previous &&
+        previous.sample.timestamp !== null &&
+        entry.sample.timestamp !== null
           ? entry.sample.timestamp - previous.sample.timestamp
           : 0;
       if (segment.length > 0 && gapSeconds > options.splitThresholdSeconds) {
@@ -304,7 +324,10 @@ function rowsToTrajectories(
   return trajectories;
 }
 
-function importedTrajectoryLayer(label: string, trajectories: Trajectory[]): ImportedLayer[] {
+function importedTrajectoryLayer(
+  label: string,
+  trajectories: Trajectory[]
+): ImportedLayer[] {
   if (trajectories.length === 0) {
     throw new Error(`No valid trajectories found in ${label}.`);
   }
@@ -408,9 +431,16 @@ const flightradar24CsvImporter: FileImporter = {
   importFile: async file => {
     const lines = (await file.getText()).split(/\r?\n/).filter(line => line.trim());
     const header = splitCsvLine(lines[0]);
-    const rows = lines.slice(1).map(line =>
-      Object.fromEntries(splitCsvLine(line).map((value, index) => [header[index] ?? `field_${index}`, value]))
-    );
+    const rows = lines
+      .slice(1)
+      .map(line =>
+        Object.fromEntries(
+          splitCsvLine(line).map((value, index) => [
+            header[index] ?? `field_${index}`,
+            value
+          ])
+        )
+      );
     return importedTrajectoryLayer(
       file.metadata.name,
       rowsToTrajectories(rows, {
@@ -424,14 +454,23 @@ const flightradar24CsvImporter: FileImporter = {
         timestampFields: [...csvFieldVariants("Timestamp"), ...csvFieldVariants("UTC")],
         altitudeFields: csvFieldVariants("Altitude"),
         selectedAltitudeFields: csvFieldVariants("selected_altitude"),
-        speedFields: [...csvFieldVariants("Speed"), ...csvFieldVariants("ground_speed")],
+        speedFields: [
+          ...csvFieldVariants("Speed"),
+          ...csvFieldVariants("ground_speed")
+        ],
         iasFields: csvFieldVariants("ias"),
         tasFields: csvFieldVariants("tas"),
         machFields: csvFieldVariants("mach"),
-        verticalRateFields: [...csvFieldVariants("vertical_rate"), ...csvFieldVariants("verticalRate")],
+        verticalRateFields: [
+          ...csvFieldVariants("vertical_rate"),
+          ...csvFieldVariants("verticalRate")
+        ],
         verticalRateBarometricFields: csvFieldVariants("vrate_barometric"),
         verticalRateInertialFields: csvFieldVariants("vrate_inertial"),
-        headingFields: [...csvFieldVariants("Direction"), ...csvFieldVariants("heading")],
+        headingFields: [
+          ...csvFieldVariants("Direction"),
+          ...csvFieldVariants("heading")
+        ],
         trackFields: [...csvFieldVariants("track"), ...csvFieldVariants("Direction")],
         rollFields: csvFieldVariants("roll"),
         splitThresholdSeconds: 600,
@@ -456,10 +495,14 @@ const flightradar24JsonImporter: FileImporter = {
   importFile: async file => {
     const json = await file.getJson();
     if (!isRecord(json) || !Array.isArray(json.track)) {
-      throw new Error(`${file.metadata.name} does not look like a Flightradar24 JSON file.`);
+      throw new Error(
+        `${file.metadata.name} does not look like a Flightradar24 JSON file.`
+      );
     }
     const identification = isRecord(json.identification) ? json.identification : {};
-    const number = isRecord(identification.number) ? identification.number.default : undefined;
+    const number = isRecord(identification.number)
+      ? identification.number.default
+      : undefined;
     const callsign = identification.callsign ?? number ?? file.metadata.name;
     const rows = json.track.filter(isRecord).map(row => ({
       callsign,
@@ -468,7 +511,9 @@ const flightradar24JsonImporter: FileImporter = {
       timestamp: row.timestamp,
       altitude: isRecord(row.altitude) ? row.altitude.feet : row.altitude,
       speed: isRecord(row.speed) ? row.speed.kts : row.speed,
-      vertical_rate: isRecord(row.verticalSpeed) ? row.verticalSpeed.fpm : row.verticalSpeed,
+      vertical_rate: isRecord(row.verticalSpeed)
+        ? row.verticalSpeed.fpm
+        : row.verticalSpeed,
       heading: row.heading,
       track: row.heading
     }));
@@ -485,7 +530,11 @@ const flightradar24JsonImporter: FileImporter = {
         headingFields: ["heading"],
         trackFields: ["track", "heading"],
         splitThresholdSeconds: 600,
-        defaultProperties: { format: "flightradar24-json", file: file.metadata.name, callsign }
+        defaultProperties: {
+          format: "flightradar24-json",
+          file: file.metadata.name,
+          callsign
+        }
       })
     );
   }
@@ -507,7 +556,9 @@ async function jsonlSample(file: LazyImportFile): Promise<Record<string, unknown
   return rows;
 }
 
-async function parseJsonlRows(file: LazyImportFile): Promise<Record<string, unknown>[]> {
+async function parseJsonlRows(
+  file: LazyImportFile
+): Promise<Record<string, unknown>[]> {
   const rows: Record<string, unknown>[] = [];
   for (const line of (await file.getText()).split(/\r?\n/)) {
     if (!line.trim()) continue;
@@ -519,7 +570,9 @@ async function parseJsonlRows(file: LazyImportFile): Promise<Record<string, unkn
 
 const RS1090_TRAJECTORY_DF = new Set(["17", "18", "20", "21"]);
 
-function normalizeRs1090Rows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+function normalizeRs1090Rows(
+  rows: Record<string, unknown>[]
+): Record<string, unknown>[] {
   return rows.flatMap(row => {
     if (!RS1090_TRAJECTORY_DF.has(String(row.df))) return [];
 
@@ -552,7 +605,9 @@ const rs1090JsonlImporter: FileImporter = {
   canImport: async file => {
     if (file.metadata.extension !== ".jsonl") return false;
     const sample = await jsonlSample(file);
-    return sample.some(row => "icao24" in row && ("frame" in row || "bds" in row || "df" in row));
+    return sample.some(
+      row => "icao24" in row && ("frame" in row || "bds" in row || "df" in row)
+    );
   },
   importFile: async file =>
     importedTrajectoryLayer(
@@ -586,7 +641,12 @@ const aisJsonlImporter: FileImporter = {
   canImport: async file => {
     if (file.metadata.extension !== ".jsonl") return false;
     const sample = await jsonlSample(file);
-    return sample.some(row => "mmsi" in row && ("lat" in row || "latitude" in row) && ("lon" in row || "longitude" in row));
+    return sample.some(
+      row =>
+        "mmsi" in row &&
+        ("lat" in row || "latitude" in row) &&
+        ("lon" in row || "longitude" in row)
+    );
   },
   importFile: async file =>
     importedTrajectoryLayer(

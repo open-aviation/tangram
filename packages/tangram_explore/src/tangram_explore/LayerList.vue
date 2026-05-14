@@ -221,7 +221,9 @@
           <span>style</span>
           <select
             :value="layer.style.style_mode"
-            @change="setTrajectoryStyleMode(layer, eventValue($event) as 'single' | 'category')"
+            @change="
+              setTrajectoryStyleMode(layer, eventValue($event) as 'single' | 'category')
+            "
           >
             <option value="single">single color</option>
             <option value="category">by category</option>
@@ -235,7 +237,11 @@
             @change="setTrajectoryCategoryField(layer, eventValue($event))"
           >
             <option value="">choose field</option>
-            <option v-for="field in trajectoryFields(layer)" :key="field" :value="field">
+            <option
+              v-for="field in trajectoryFields(layer)"
+              :key="field"
+              :value="field"
+            >
               {{ field }}
             </option>
           </select>
@@ -245,7 +251,9 @@
           <span>line</span>
           <ColorPicker
             :model-value="colorSpecToHex(layer.style.line_color) ?? FALLBACK_ACCENT_HEX"
-            @update:model-value="value => updateTrajectoryStyle(layer, { line_color: value })"
+            @update:model-value="
+              value => updateTrajectoryStyle(layer, { line_color: value })
+            "
           />
         </label>
 
@@ -270,7 +278,9 @@
             <input
               type="color"
               :value="trajectoryCategoryColor(layer, category.value)"
-              @input="setTrajectoryCategoryColor(layer, category.value, eventValue($event))"
+              @input="
+                setTrajectoryCategoryColor(layer, category.value, eventValue($event))
+              "
             />
           </div>
         </div>
@@ -323,10 +333,7 @@ import {
 } from "./store";
 import { reactive } from "vue";
 import { categoryColorsForField, categoryStatsForField } from "./feature_source";
-import {
-  trajectoryColorsForField,
-  trajectoryStatsForField
-} from "./trajectory_source";
+import { trajectoryColorsForField, trajectoryStatsForField } from "./trajectory_source";
 
 const collapsedLayers = reactive(new Set<string>());
 const FALLBACK_ACCENT_HEX = "#027ec7";
@@ -437,7 +444,10 @@ function trajectoryCategoryStats(layer: TrajectoryLayerEntry) {
   return trajectoryStatsForField(layer.source, layer.style.category_field);
 }
 
-function trajectoryCategoryColor(layer: TrajectoryLayerEntry, category: string): string {
+function trajectoryCategoryColor(
+  layer: TrajectoryLayerEntry,
+  category: string
+): string {
   return colorSpecToHex(layer.style.category_colors[category]) ?? "#808080";
 }
 
@@ -451,11 +461,18 @@ function setTrajectoryStyleMode(
   }
 
   const field =
-    layer.style.category_field || layer.source.styleHints.categoryField || trajectoryFields(layer)[0] || "";
+    layer.style.category_field ||
+    layer.source.styleHints.categoryField ||
+    trajectoryFields(layer)[0] ||
+    "";
   updateTrajectoryStyle(layer, {
     style_mode: mode,
     category_field: field,
-    category_colors: trajectoryColorsForField(layer.source, field, layer.style.category_colors)
+    category_colors: trajectoryColorsForField(
+      layer.source,
+      field,
+      layer.style.category_colors
+    )
   });
 }
 
@@ -463,7 +480,11 @@ function setTrajectoryCategoryField(layer: TrajectoryLayerEntry, field: string) 
   updateTrajectoryStyle(layer, {
     category_field: field,
     hidden_categories: {},
-    category_colors: trajectoryColorsForField(layer.source, field, layer.style.category_colors)
+    category_colors: trajectoryColorsForField(
+      layer.source,
+      field,
+      layer.style.category_colors
+    )
   });
 }
 </script>

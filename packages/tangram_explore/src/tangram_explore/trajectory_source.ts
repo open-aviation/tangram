@@ -70,7 +70,9 @@ function extendBounds(point: TrajectoryPoint, bounds: FeatureBounds) {
 function propertyValue(trajectory: Trajectory, field: string): string {
   if (!field) return "";
   const value = trajectory.properties[field];
-  return value === undefined || value === null || value === "" ? "(empty)" : String(value);
+  return value === undefined || value === null || value === ""
+    ? "(empty)"
+    : String(value);
 }
 
 function preferredCategoryField(fields: string[]): string {
@@ -150,12 +152,16 @@ export function createTrajectorySource(trajectories: Trajectory[]): TrajectorySo
 
   const fields = [...fieldsSet].sort();
   const categoryField = preferredCategoryField(fields);
-  const validBounds = [bounds.minLon, bounds.minLat, bounds.maxLon, bounds.maxLat].every(
-    Number.isFinite
-  )
+  const validBounds = [
+    bounds.minLon,
+    bounds.minLat,
+    bounds.maxLon,
+    bounds.maxLat
+  ].every(Number.isFinite)
     ? bounds
     : null;
-  const timeRange = Number.isFinite(start) && Number.isFinite(stop) ? { start, stop } : null;
+  const timeRange =
+    Number.isFinite(start) && Number.isFinite(stop) ? { start, stop } : null;
 
   return {
     kind: "trajectories",
@@ -166,7 +172,15 @@ export function createTrajectorySource(trajectories: Trajectory[]): TrajectorySo
     styleHints: {
       categoryField,
       categoryColors: trajectoryColorsForField(
-        { kind: "trajectories", trajectories, fields, bounds: validBounds, timeRange, styleHints: { categoryField, categoryColors: {} }, stats: { trajectoryCount: trajectories.length, pointCount } },
+        {
+          kind: "trajectories",
+          trajectories,
+          fields,
+          bounds: validBounds,
+          timeRange,
+          styleHints: { categoryField, categoryColors: {} },
+          stats: { trajectoryCount: trajectories.length, pointCount }
+        },
         categoryField
       )
     },

@@ -53,7 +53,10 @@ export interface TrajectoryStyleOptions {
   hidden_categories: Record<string, boolean>;
 }
 
-export type StyleOptions = ScatterOptions | FeatureStyleOptions | TrajectoryStyleOptions;
+export type StyleOptions =
+  | ScatterOptions
+  | FeatureStyleOptions
+  | TrajectoryStyleOptions;
 
 export interface TableLayerEntry {
   id: string;
@@ -137,7 +140,9 @@ export function addServerTableLayer(
   );
 }
 
-function createDefaultTrajectoryStyle(source: TrajectorySource): TrajectoryStyleOptions {
+function createDefaultTrajectoryStyle(
+  source: TrajectorySource
+): TrajectoryStyleOptions {
   const categoryField = source.styleHints.categoryField;
   return {
     kind: "trajectory",
@@ -198,7 +203,10 @@ export function addTrajectoryLayer(label: string, source: TrajectorySource) {
   triggerRef(layers);
 }
 
-export function addSourceLayer(label: string, source: FeatureSource | TableSource | TrajectorySource) {
+export function addSourceLayer(
+  label: string,
+  source: FeatureSource | TableSource | TrajectorySource
+) {
   if (source.kind === "features") {
     addFeatureLayer(label, source);
     return;
@@ -298,7 +306,10 @@ export function setTrajectoryCategoryColor(
   triggerRef(layers);
 }
 
-export function toggleTrajectoryCategory(layer: TrajectoryLayerEntry, category: string) {
+export function toggleTrajectoryCategory(
+  layer: TrajectoryLayerEntry,
+  category: string
+) {
   layer.style = {
     ...layer.style,
     hidden_categories: {
