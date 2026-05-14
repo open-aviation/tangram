@@ -152,7 +152,7 @@ export const DEFAULT_CATEGORICAL_COLORS = [
   "oklch(56.82% 0.004 247.89)" // uchu gray 9
 ];
 
-// NOTE: we should probably remove this, i prefer id-based colours but eh 
+// NOTE: we should probably remove this, i prefer id-based colours but eh
 export function categoricalColor(
   value: string,
   palette: readonly string[] = DEFAULT_CATEGORICAL_COLORS
