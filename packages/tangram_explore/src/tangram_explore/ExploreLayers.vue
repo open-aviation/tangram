@@ -351,10 +351,6 @@ watch(
           },
           onClick: (info: PickingInfo<Trajectory>) => {
             if (!info.object) return false;
-            const srcEvent = info.srcEvent as (Event & { __tangramHandled?: boolean }) | undefined;
-            if (srcEvent) srcEvent.__tangramHandled = true;
-            api.map.suppressNextSelectionClear();
-            info.srcEvent?.stopPropagation?.();
             selectTrajectory(info.object);
             return true;
           },
