@@ -395,7 +395,9 @@ watch(
         }
       });
 
-      const hullDisposable = tangramApi.map.setLayer(hullLayer);
+      const hullDisposable = tangramApi.map.setLayer(hullLayer, {
+        slot: "entities_underlay"
+      });
       if (!hullLayerDisposable.value) {
         hullLayerDisposable.value = hullDisposable;
       }
@@ -445,7 +447,9 @@ watch(
       }
     });
 
-    layerDisposable.value = tangramApi.map.setLayer(shipLayer);
+    layerDisposable.value = tangramApi.map.setLayer(shipLayer, {
+      slot: "entities"
+    });
   },
   { immediate: true }
 );

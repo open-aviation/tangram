@@ -128,14 +128,6 @@ function parseTimestamp(value: unknown): number | null {
   return null;
 }
 
-function csvFieldVariants(field: string): string[] {
-  const variants = [field];
-  const lower = field.toLowerCase();
-  variants.push(lower);
-  variants.push(field.charAt(0).toUpperCase() + field.slice(1).toLowerCase());
-  return [...new Set(variants)];
-}
-
 function splitCsvLine(line: string): string[] {
   const cells: string[] = [];
   let current = "";
@@ -165,28 +157,231 @@ function positionPart(row: Record<string, unknown>, index: 0 | 1): number | null
   return finiteNumber(parts[index]);
 }
 
+// TODO we might want to move the processing to backend and send back
+// the parquet, but dealing with geo and topo json is a bit tricky
+interface TrajectoryImportOptions {
+  idFields: string[];
+  latitudeFields: string[];
+  longitudeFields: string[];
+  timestampFields: string[];
+  altitudeFields?: string[];
+  speedFields?: string[];
+  headingFields?: string[];
+  selectedAltitudeFields?: string[];
+  iasFields?: string[];
+  tasFields?: string[];
+  machFields?: string[];
+  verticalRateFields?: string[];
+  verticalRateBarometricFields?: string[];
+  verticalRateInertialFields?: string[];
+  trackFields?: string[];
+  rollFields?: string[];
+  splitThresholdSeconds: number;
+  defaultProperties: Record<string, unknown>;
+}
+
+const TRAJECTORY_FIELD_CANDIDATES = {
+  id: [
+    "icao24",
+    "callsign",
+    "flight_id",
+    "flight",
+    "mmsi",
+    "registration",
+    "tail_number",
+    "number",
+    "id",
+    "name"
+  ],
+  latitude: ["latitude", "lat"],
+  longitude: ["longitude", "lon", "lng", "long"],
+  timestamp: ["timestamp", "time", "datetime", "date", "utc", "seen", "lastseen"],
+  altitude: ["altitude", "altitude_baro", "altitude_geom"],
+  selectedAltitude: ["selected_altitude"],
+  speed: ["groundspeed", "ground_speed", "speed", "velocity"],
+  ias: ["ias"],
+  tas: ["tas"],
+  mach: ["mach"],
+  verticalRate: ["vertical_rate", "verticalspeed", "vertical_speed"],
+  verticalRateBarometric: ["vrate_barometric"],
+  verticalRateInertial: ["vrate_inertial"],
+  heading: ["heading", "direction", "course", "bearing"],
+  track: ["track", "course", "direction", "heading"],
+  roll: ["roll"]
+} as const;
+
+function normalizeFieldName(field: string): string {
+  return field.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function buildFieldLookup(rows: Record<string, unknown>[]): Map<string, string> {
+  const lookup = new Map<string, string>();
+  for (const row of rows.slice(0, 20)) {
+    for (const key of Object.keys(row)) {
+      const normalized = normalizeFieldName(key);
+      if (normalized && !lookup.has(normalized)) {
+        lookup.set(normalized, key);
+      }
+    }
+  }
+  return lookup;
+}
+
+function resolveFieldCandidates(
+  lookup: Map<string, string>,
+  candidates: readonly string[]
+): string[] {
+  return candidates
+    .map(candidate => lookup.get(normalizeFieldName(candidate)))
+    .filter((value): value is string => value !== undefined);
+}
+
+function detectTrajectoryOptions(
+  rows: Record<string, unknown>[],
+  defaultProperties: Record<string, unknown>,
+  splitThresholdSeconds = 600
+): TrajectoryImportOptions | null {
+  if (rows.length === 0) return null;
+
+  const lookup = buildFieldLookup(rows);
+  const latitudeFields = resolveFieldCandidates(
+    lookup,
+    TRAJECTORY_FIELD_CANDIDATES.latitude
+  );
+  const longitudeFields = resolveFieldCandidates(
+    lookup,
+    TRAJECTORY_FIELD_CANDIDATES.longitude
+  );
+  const hasCoordinates =
+    (latitudeFields.length > 0 && longitudeFields.length > 0) || lookup.has("position");
+
+  if (!hasCoordinates) {
+    return null;
+  }
+
+  return {
+    idFields: resolveFieldCandidates(lookup, TRAJECTORY_FIELD_CANDIDATES.id),
+    latitudeFields,
+    longitudeFields,
+    timestampFields: resolveFieldCandidates(
+      lookup,
+      TRAJECTORY_FIELD_CANDIDATES.timestamp
+    ),
+    altitudeFields: resolveFieldCandidates(
+      lookup,
+      TRAJECTORY_FIELD_CANDIDATES.altitude
+    ),
+    selectedAltitudeFields: resolveFieldCandidates(
+      lookup,
+      TRAJECTORY_FIELD_CANDIDATES.selectedAltitude
+    ),
+    speedFields: resolveFieldCandidates(lookup, TRAJECTORY_FIELD_CANDIDATES.speed),
+    iasFields: resolveFieldCandidates(lookup, TRAJECTORY_FIELD_CANDIDATES.ias),
+    tasFields: resolveFieldCandidates(lookup, TRAJECTORY_FIELD_CANDIDATES.tas),
+    machFields: resolveFieldCandidates(lookup, TRAJECTORY_FIELD_CANDIDATES.mach),
+    verticalRateFields: resolveFieldCandidates(
+      lookup,
+      TRAJECTORY_FIELD_CANDIDATES.verticalRate
+    ),
+    verticalRateBarometricFields: resolveFieldCandidates(
+      lookup,
+      TRAJECTORY_FIELD_CANDIDATES.verticalRateBarometric
+    ),
+    verticalRateInertialFields: resolveFieldCandidates(
+      lookup,
+      TRAJECTORY_FIELD_CANDIDATES.verticalRateInertial
+    ),
+    headingFields: resolveFieldCandidates(lookup, TRAJECTORY_FIELD_CANDIDATES.heading),
+    trackFields: resolveFieldCandidates(lookup, TRAJECTORY_FIELD_CANDIDATES.track),
+    rollFields: resolveFieldCandidates(lookup, TRAJECTORY_FIELD_CANDIDATES.roll),
+    splitThresholdSeconds,
+    defaultProperties
+  };
+}
+
+function parseCsvRows(text: string, maxRows?: number): Record<string, unknown>[] {
+  const lines = text.split(/\r?\n/).filter(line => line.trim());
+  if (lines.length === 0) {
+    return [];
+  }
+
+  const header = splitCsvLine(lines[0]);
+  const end = maxRows ? Math.min(lines.length, maxRows + 1) : lines.length;
+
+  return lines
+    .slice(1, end)
+    .map(line =>
+      Object.fromEntries(
+        splitCsvLine(line).map((value, index) => [
+          header[index] ?? `field_${index}`,
+          value
+        ])
+      )
+    );
+}
+
+function normalizeFlightRadarTrackJson(
+  value: Record<string, unknown>,
+  fallbackId: string
+): Record<string, unknown>[] | null {
+  if (!Array.isArray(value.track)) {
+    return null;
+  }
+
+  const identification = isRecord(value.identification) ? value.identification : {};
+  const number = isRecord(identification.number)
+    ? identification.number.default
+    : undefined;
+  const callsign = identification.callsign ?? number ?? fallbackId;
+
+  return value.track.filter(isRecord).map(row => ({
+    callsign,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    timestamp: row.timestamp,
+    altitude: isRecord(row.altitude) ? row.altitude.feet : row.altitude,
+    speed: isRecord(row.speed) ? row.speed.kts : row.speed,
+    vertical_rate: isRecord(row.verticalSpeed)
+      ? row.verticalSpeed.fpm
+      : row.verticalSpeed,
+    heading: row.heading,
+    track: row.heading
+  }));
+}
+
+function extractTrajectoryJsonRows(
+  value: unknown,
+  fallbackId: string
+): Record<string, unknown>[] | null {
+  if (Array.isArray(value)) {
+    const rows = value.filter(isRecord);
+    return rows.length > 0 ? rows : null;
+  }
+
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const normalizedTrackRows = normalizeFlightRadarTrackJson(value, fallbackId);
+  if (normalizedTrackRows && normalizedTrackRows.length > 0) {
+    return normalizedTrackRows;
+  }
+
+  for (const key of ["rows", "data", "points", "records", "trajectory", "positions"]) {
+    const candidate = value[key];
+    if (!Array.isArray(candidate)) continue;
+    const rows = candidate.filter(isRecord);
+    if (rows.length > 0) {
+      return rows;
+    }
+  }
+
+  return null;
+}
+
 function rowsToTrajectories(
   rows: Record<string, unknown>[],
-  options: {
-    idFields: string[];
-    latitudeFields: string[];
-    longitudeFields: string[];
-    timestampFields: string[];
-    altitudeFields?: string[];
-    speedFields?: string[];
-    headingFields?: string[];
-    selectedAltitudeFields?: string[];
-    iasFields?: string[];
-    tasFields?: string[];
-    machFields?: string[];
-    verticalRateFields?: string[];
-    verticalRateBarometricFields?: string[];
-    verticalRateInertialFields?: string[];
-    trackFields?: string[];
-    rollFields?: string[];
-    splitThresholdSeconds: number;
-    defaultProperties: Record<string, unknown>;
-  }
+  options: TrajectoryImportOptions
 ): Trajectory[] {
   const groups = new Map<
     string,
@@ -416,126 +611,78 @@ const topoJsonImporter: FileImporter = {
   }
 };
 
-const flightradar24CsvImporter: FileImporter = {
-  id: "fr24-csv",
-  label: "Flightradar24 CSV",
+const trajectoryCsvImporter: FileImporter = {
+  id: "trajectory-csv",
+  label: "Trajectory CSV",
   canImport: async file => {
     if (file.metadata.extension !== ".csv") return false;
-    const header = (await file.getText()).split(/\r?\n/, 1)[0]?.toLowerCase() ?? "";
+    const rows = parseCsvRows(await file.getText(), 20);
     return (
-      ((header.includes("latitude") && header.includes("longitude")) ||
-        header.includes("position")) &&
-      header.includes("timestamp")
+      detectTrajectoryOptions(rows, {
+        format: "trajectory-csv",
+        file: file.metadata.name
+      }) !== null
     );
   },
   importFile: async file => {
-    const lines = (await file.getText()).split(/\r?\n/).filter(line => line.trim());
-    const header = splitCsvLine(lines[0]);
-    const rows = lines
-      .slice(1)
-      .map(line =>
-        Object.fromEntries(
-          splitCsvLine(line).map((value, index) => [
-            header[index] ?? `field_${index}`,
-            value
-          ])
-        )
+    const rows = parseCsvRows(await file.getText());
+    const options = detectTrajectoryOptions(rows, {
+      format: "trajectory-csv",
+      file: file.metadata.name
+    });
+    if (!options) {
+      throw new Error(
+        `${file.metadata.name} does not look like a trajectory CSV file.`
       );
+    }
+
     return importedTrajectoryLayer(
       file.metadata.name,
-      rowsToTrajectories(rows, {
-        idFields: [
-          ...csvFieldVariants("Callsign"),
-          ...csvFieldVariants("icao24"),
-          ...csvFieldVariants("flight_id")
-        ],
-        latitudeFields: csvFieldVariants("Latitude"),
-        longitudeFields: csvFieldVariants("Longitude"),
-        timestampFields: [...csvFieldVariants("Timestamp"), ...csvFieldVariants("UTC")],
-        altitudeFields: csvFieldVariants("Altitude"),
-        selectedAltitudeFields: csvFieldVariants("selected_altitude"),
-        speedFields: [
-          ...csvFieldVariants("Speed"),
-          ...csvFieldVariants("ground_speed")
-        ],
-        iasFields: csvFieldVariants("ias"),
-        tasFields: csvFieldVariants("tas"),
-        machFields: csvFieldVariants("mach"),
-        verticalRateFields: [
-          ...csvFieldVariants("vertical_rate"),
-          ...csvFieldVariants("verticalRate")
-        ],
-        verticalRateBarometricFields: csvFieldVariants("vrate_barometric"),
-        verticalRateInertialFields: csvFieldVariants("vrate_inertial"),
-        headingFields: [
-          ...csvFieldVariants("Direction"),
-          ...csvFieldVariants("heading")
-        ],
-        trackFields: [...csvFieldVariants("track"), ...csvFieldVariants("Direction")],
-        rollFields: csvFieldVariants("roll"),
-        splitThresholdSeconds: 600,
-        defaultProperties: { format: "flightradar24-csv", file: file.metadata.name }
-      })
+      rowsToTrajectories(rows, options)
     );
   }
 };
 
-const flightradar24JsonImporter: FileImporter = {
-  id: "fr24-json",
-  label: "Flightradar24 JSON",
+const trajectoryJsonImporter: FileImporter = {
+  id: "trajectory-json",
+  label: "Trajectory JSON",
   canImport: async file => {
     if (file.metadata.extension !== ".json") return false;
     try {
       const json = await file.getJson();
-      return isRecord(json) && Array.isArray(json.track);
+      const rows = extractTrajectoryJsonRows(json, file.metadata.name);
+      return (
+        rows !== null &&
+        detectTrajectoryOptions(rows, {
+          format: "trajectory-json",
+          file: file.metadata.name
+        }) !== null
+      );
     } catch {
       return false;
     }
   },
   importFile: async file => {
     const json = await file.getJson();
-    if (!isRecord(json) || !Array.isArray(json.track)) {
+    const rows = extractTrajectoryJsonRows(json, file.metadata.name);
+    if (!rows) {
       throw new Error(
-        `${file.metadata.name} does not look like a Flightradar24 JSON file.`
+        `${file.metadata.name} does not look like a trajectory JSON file.`
       );
     }
-    const identification = isRecord(json.identification) ? json.identification : {};
-    const number = isRecord(identification.number)
-      ? identification.number.default
-      : undefined;
-    const callsign = identification.callsign ?? number ?? file.metadata.name;
-    const rows = json.track.filter(isRecord).map(row => ({
-      callsign,
-      latitude: row.latitude,
-      longitude: row.longitude,
-      timestamp: row.timestamp,
-      altitude: isRecord(row.altitude) ? row.altitude.feet : row.altitude,
-      speed: isRecord(row.speed) ? row.speed.kts : row.speed,
-      vertical_rate: isRecord(row.verticalSpeed)
-        ? row.verticalSpeed.fpm
-        : row.verticalSpeed,
-      heading: row.heading,
-      track: row.heading
-    }));
+    const options = detectTrajectoryOptions(rows, {
+      format: "trajectory-json",
+      file: file.metadata.name
+    });
+    if (!options) {
+      throw new Error(
+        `${file.metadata.name} does not look like a trajectory JSON file.`
+      );
+    }
+
     return importedTrajectoryLayer(
       file.metadata.name,
-      rowsToTrajectories(rows, {
-        idFields: ["callsign"],
-        latitudeFields: ["latitude"],
-        longitudeFields: ["longitude"],
-        timestampFields: ["timestamp"],
-        altitudeFields: ["altitude"],
-        speedFields: ["speed"],
-        verticalRateFields: ["vertical_rate"],
-        headingFields: ["heading"],
-        trackFields: ["track", "heading"],
-        splitThresholdSeconds: 600,
-        defaultProperties: {
-          format: "flightradar24-json",
-          file: file.metadata.name,
-          callsign
-        }
-      })
+      rowsToTrajectories(rows, options)
     );
   }
 };
@@ -665,13 +812,48 @@ const aisJsonlImporter: FileImporter = {
     )
 };
 
+const trajectoryJsonlImporter: FileImporter = {
+  id: "trajectory-jsonl",
+  label: "Trajectory JSONL",
+  canImport: async file => {
+    if (file.metadata.extension !== ".jsonl") return false;
+    const rows = await jsonlSample(file);
+    return (
+      detectTrajectoryOptions(rows, {
+        format: "trajectory-jsonl",
+        file: file.metadata.name
+      }) !== null
+    );
+  },
+  importFile: async file => {
+    const rows = await parseJsonlRows(file);
+    const options = detectTrajectoryOptions(rows, {
+      format: "trajectory-jsonl",
+      file: file.metadata.name
+    });
+    if (!options) {
+      throw new Error(
+        `${file.metadata.name} does not look like a trajectory JSONL file.`
+      );
+    }
+
+    return importedTrajectoryLayer(
+      file.metadata.name,
+      rowsToTrajectories(rows, options)
+    );
+  }
+};
+
+// keep file sniffing local to explore for now. Core stays format-agnostic,
+// while richer domain loaders can move into dedicated plugins later.
 const FILE_IMPORTERS = [
   topoJsonImporter,
   geoJsonImporter,
-  flightradar24JsonImporter,
-  flightradar24CsvImporter,
   rs1090JsonlImporter,
-  aisJsonlImporter
+  aisJsonlImporter,
+  trajectoryJsonImporter,
+  trajectoryJsonlImporter,
+  trajectoryCsvImporter
 ] as const;
 
 export async function importDroppedFiles(files: File[]): Promise<ImportedLayer[]> {

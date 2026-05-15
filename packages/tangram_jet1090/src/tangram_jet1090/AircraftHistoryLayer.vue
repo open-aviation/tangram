@@ -58,7 +58,12 @@ const updateLayer = async () => {
   const { layers } = buildTrailLayers(allSegments, config, "jet1090-history");
 
   for (const layer of layers) {
-    layerDisposables.set(layer.id, tangramApi.map.setLayer(layer));
+    layerDisposables.set(
+      layer.id,
+      tangramApi.map.setLayer(layer, {
+        slot: "tracks"
+      })
+    );
   }
 };
 

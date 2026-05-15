@@ -58,9 +58,16 @@ const updateLayer = () => {
 
   for (const layer of layers) {
     if (!layerDisposables.has(layer.id)) {
-      layerDisposables.set(layer.id, tangramApi.map.setLayer(layer));
+      layerDisposables.set(
+        layer.id,
+        tangramApi.map.setLayer(layer, {
+          slot: "live_trails"
+        })
+      );
     } else {
-      tangramApi.map.setLayer(layer);
+      tangramApi.map.setLayer(layer, {
+        slot: "live_trails"
+      });
     }
   }
 };

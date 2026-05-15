@@ -5,6 +5,11 @@ import type { ColorSpec } from "@open-aviation/tangram-core/utils";
 import type { FeatureSource } from "./feature_source";
 import { createTableSource, type TableSource } from "./table_source";
 import type { TrajectorySource } from "./trajectory_source";
+import {
+  addExploreTrajectoryLayer,
+  clearExploreTrajectoryLayers,
+  removeExploreTrajectoryLayer
+} from "./trajectory_selection";
 
 export interface ScatterOptions {
   kind: "scatter";
@@ -200,6 +205,7 @@ export function addTrajectoryLayer(label: string, source: TrajectorySource) {
     visible: true,
     style: createDefaultTrajectoryStyle(source)
   });
+  addExploreTrajectoryLayer(id, label, source.trajectories);
   triggerRef(layers);
 }
 
@@ -229,6 +235,9 @@ function disposeLayer(entry: LayerEntry) {
 export function removeLayer(id: string) {
   const idx = layers.value.findIndex(d => d.id === id);
   if (idx !== -1) {
+    if (layers.value[idx].source.kind === "trajectories") {
+      removeExploreTrajectoryLayer(layers.value[idx].id);
+    }
     disposeLayer(layers.value[idx]);
     layers.value.splice(idx, 1);
     triggerRef(layers);
@@ -236,6 +245,7 @@ export function removeLayer(id: string) {
 }
 
 export function clearLayers() {
+  clearExploreTrajectoryLayers();
   layers.value.forEach(disposeLayer);
   layers.value = [];
   triggerRef(layers);

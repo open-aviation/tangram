@@ -4,6 +4,8 @@ import {
   Component,
   computed,
   reactive,
+  getCurrentScope,
+  onScopeDispose,
   shallowRef,
   watch,
   type ShallowRef,
@@ -86,6 +88,24 @@ export type EntityId = string;
 
 export interface Disposable {
   dispose(): void;
+}
+
+function createDisposable(dispose: () => void): Disposable {
+  let disposed = false;
+  return {
+    dispose: () => {
+      if (disposed) return;
+      disposed = true;
+      dispose();
+    }
+  };
+}
+
+function bindDisposableToCurrentScope<T extends Disposable>(disposable: T): T {
+  if (getCurrentScope()) {
+    onScopeDispose(() => disposable.dispose());
+  }
+  return disposable;
 }
 
 /**
@@ -178,19 +198,21 @@ export class BusApi {
     };
     this.target.addEventListener(topic, listener as EventListener);
 
-    const dispose = () => {
+    const disposable = createDisposable(() => {
       this.target.removeEventListener(topic, listener as EventListener);
-    };
+    });
 
     if (opts.signal) {
       if (opts.signal.aborted) {
-        dispose();
+        disposable.dispose();
       } else {
-        opts.signal.addEventListener("abort", dispose, { once: true });
+        opts.signal.addEventListener("abort", () => disposable.dispose(), {
+          once: true
+        });
       }
     }
 
-    return { dispose };
+    return bindDisposableToCurrentScope(disposable);
   }
 
   publish<T>(topic: string, payload: T, opts: { async?: boolean } = {}): void {
@@ -368,9 +390,6 @@ export class SelectionApi {
     // keep the internal store in sync with the bus.
     // (allows selection to be driven externally, if needed.)
     this.bus.subscribe<SelectionChangedPayload>(SelectionApi.TOPIC_CHANGED, payload => {
-      // reconstruct Maps/Sets if payload crosses serialization boundaries (e.g. JSON),
-      // but assuming in-memory BusApi preserves Map instances for now.
-      // if payload.selection is a Map, use it. If it's something else, we might need parsing.
       if (payload?.selection instanceof Map) {
         this.update(payload.selection as Map<string, Set<string>>, { publish: false });
       }
@@ -434,6 +453,13 @@ export class SelectionApi {
     }
   }
 
+  clearType(type: string): void {
+    if (!this._map.value.has(type)) return;
+    const next = this.cloneMap(this._map.value);
+    next.delete(type);
+    this.update(next, { publish: true });
+  }
+
   clear(): void {
     this.update(new Map(), { publish: true });
   }
@@ -480,6 +506,7 @@ export class TimeApi implements Disposable {
 }
 
 export interface WidgetOptions {
+  pluginId?: string;
   priority?: number;
   title?: string;
   relevantFor?: string | string[];
@@ -488,8 +515,78 @@ export interface WidgetOptions {
 
 export interface WidgetEntry extends WidgetOptions {
   id: string;
+  pluginId?: string;
   priority: number;
   isCollapsed: boolean;
+}
+
+export interface EntityTypeOptions {
+  pluginId?: string;
+}
+
+export interface EntityTypeDefinition {
+  readonly type: string;
+  readonly pluginId?: string;
+}
+
+export interface EntityTypeHandle extends Disposable {
+  readonly type: string;
+}
+
+export interface MapLayerOptions {
+  pluginId?: string;
+  slot?: MapLayerSlot;
+}
+
+/**
+ * Layers are rendered from bottom to top in the exact order of this array.
+ * By mapping layers to semantic slots rather than numeric z-indexes, we
+ * guarantee deterministic rendering regardless of network latency or plugin
+ * installation order.
+ */
+export const MAP_LAYER_STACK = [
+  "background", // e.g. weather radar, satellite imagery, static terrain polygons
+  "analysis", // e.g. heatmaps, hexbins, airspace sector boundaries
+  "routes", // flight plans / voyage routes
+  "live_trails", // breadcrumbs behind live entities
+  "tracks", // trajectory loaded from storage (e.g. Parquet)
+  "entities_underlay", // e.g. ship hulls, selection halos
+  "entities", // e.g. aircraft, ships, vehicles
+  "highlights", // selection
+  "ui_overlay", // ephemeral ui elements, tooltips
+  "misc" // fallback (default)
+] as const;
+
+export type MapLayerSlot = (typeof MAP_LAYER_STACK)[number];
+
+const DEFAULT_MAP_LAYER_OPTIONS: Required<MapLayerOptions> = {
+  pluginId: "",
+  slot: "misc"
+};
+
+function createMapLayerBuckets(): Record<MapLayerSlot, Map<string, Layer>> {
+  return {
+    background: new Map(),
+    analysis: new Map(),
+    routes: new Map(),
+    live_trails: new Map(),
+    tracks: new Map(),
+    entities_underlay: new Map(),
+    entities: new Map(),
+    highlights: new Map(),
+    ui_overlay: new Map(),
+    misc: new Map()
+  };
+}
+
+function normalizeMapLayerOptions(
+  options?: MapLayerOptions,
+  base: Required<MapLayerOptions> = DEFAULT_MAP_LAYER_OPTIONS
+): Required<MapLayerOptions> {
+  return {
+    pluginId: options?.pluginId ?? base.pluginId,
+    slot: options?.slot ?? base.slot
+  };
 }
 
 export class UiApi {
@@ -519,6 +616,7 @@ export class UiApi {
 
     const widget: WidgetEntry = {
       id,
+      pluginId: options.pluginId,
       priority: effectivePriority,
       title,
       relevantFor,
@@ -529,23 +627,41 @@ export class UiApi {
     this.widgets[location].push(widget);
     this.sortWidgets(location);
 
-    return {
-      dispose: () => {
+    return bindDisposableToCurrentScope(
+      createDisposable(() => {
         const locationWidgets = this.widgets[location];
         const index = locationWidgets.findIndex(w => w.id === id);
         if (index > -1) {
           locationWidgets.splice(index, 1);
         }
-      }
-    };
+      })
+    );
   }
 
   public sortWidgets(location: WidgetLocation) {
     this.widgets[location].sort((a, b) => b.priority - a.priority);
   }
 
+  removeAllByPlugin(pluginId: string): void {
+    for (const location of Object.keys(this.widgets) as WidgetLocation[]) {
+      const locationWidgets = this.widgets[location];
+      for (let index = locationWidgets.length - 1; index >= 0; index -= 1) {
+        if (locationWidgets[index]?.pluginId === pluginId) {
+          locationWidgets.splice(index, 1);
+        }
+      }
+    }
+  }
+
   registerSettingsWidget(name: string, component: Component) {
     this.settingsWidgets.set(name, component);
+    if (getCurrentScope()) {
+      onScopeDispose(() => {
+        if (this.settingsWidgets.get(name) === component) {
+          this.settingsWidgets.delete(name);
+        }
+      });
+    }
   }
 
   getSettingsWidget(name: string): Component | undefined {
@@ -556,14 +672,16 @@ export class UiApi {
 
 export class MapApi implements Disposable {
   private tangramApi: TangramApi;
+  private overlay: MapboxOverlay | null = null;
+  private readonly layerSlots = createMapLayerBuckets();
+  private readonly layerSlotById = new Map<string, MapLayerSlot>();
+  private readonly layerPluginIdById = new Map<string, string>();
 
   constructor(tangramApi: TangramApi) {
     this.tangramApi = tangramApi;
   }
 
   readonly map = shallowRef<MaplibreMap | null>(null);
-  private overlay = shallowRef<MapboxOverlay | null>(null);
-  readonly layers = shallowRef<Layer[]>([]);
   readonly isReady = computed(() => !!this.map.value);
 
   readonly center = ref({ lng: 0, lat: 0 });
@@ -591,7 +709,7 @@ export class MapApi implements Disposable {
 
   initialize = (mapInstance: MaplibreMap) => {
     this.map.value = mapInstance;
-    this.overlay.value = new MapboxOverlay({
+    this.overlay = new MapboxOverlay({
       interleaved: false,
       onHover: info => {
         const canvas = this.map.value?.getCanvas();
@@ -605,15 +723,8 @@ export class MapApi implements Disposable {
         }
       }
     });
-    this.map.value.addControl(this.overlay.value);
-
-    watch(
-      this.layers,
-      newLayers => {
-        this.overlay.value?.setProps({ layers: newLayers });
-      },
-      { deep: true }
-    );
+    this.map.value.addControl(this.overlay);
+    this.syncDeckLayers();
 
     const onMapLoad = () => {
       this.updateState();
@@ -650,6 +761,7 @@ export class MapApi implements Disposable {
   dispose = () => {
     this.map.value?.remove();
     this.map.value = null;
+    this.overlay = null;
   };
 
   getMapInstance = (): MaplibreMap => {
@@ -659,29 +771,94 @@ export class MapApi implements Disposable {
     return this.map.value;
   };
 
-  addLayer(layer: Layer): Disposable {
-    this.layers.value = [...this.layers.value, layer];
-    return {
-      dispose: () => {
-        this.layers.value = this.layers.value.filter(l => l !== layer);
-      }
-    };
+  private removeLayerEntry(layerId: string) {
+    const slot = this.layerSlotById.get(layerId);
+    if (!slot) return;
+    this.layerSlots[slot].delete(layerId);
+    this.layerSlotById.delete(layerId);
+    this.layerPluginIdById.delete(layerId);
+    this.syncDeckLayers();
   }
 
-  setLayer(layer: Layer): Disposable {
-    const index = this.layers.value.findIndex(l => l.id === layer.id);
-    if (index >= 0) {
-      const newLayers = [...this.layers.value];
-      newLayers[index] = layer;
-      this.layers.value = newLayers;
-    } else {
-      this.layers.value = [...this.layers.value, layer];
+  private upsertLayer(layer: Layer, options: Required<MapLayerOptions>) {
+    const slot = options.slot;
+    const previousSlot = this.layerSlotById.get(layer.id);
+    if (previousSlot && previousSlot !== slot) {
+      this.layerSlots[previousSlot].delete(layer.id);
     }
-    return {
-      dispose: () => {
-        this.layers.value = this.layers.value.filter(l => l.id !== layer.id);
+
+    this.layerSlots[slot].set(layer.id, layer);
+    this.layerSlotById.set(layer.id, slot);
+
+    if (options.pluginId) {
+      this.layerPluginIdById.set(layer.id, options.pluginId);
+    } else {
+      this.layerPluginIdById.delete(layer.id);
+    }
+  }
+
+  private syncDeckLayers() {
+    const layers: Layer[] = [];
+    for (const slot of MAP_LAYER_STACK) {
+      for (const layer of this.layerSlots[slot].values()) {
+        layers.push(layer);
       }
-    };
+    }
+
+    this.overlay?.setProps({ layers });
+  }
+
+  refreshLayerOrder() {
+    this.syncDeckLayers();
+  }
+
+  removeAllByPlugin(pluginId: string): void {
+    let changed = false;
+
+    for (const [layerId, ownerId] of this.layerPluginIdById.entries()) {
+      if (ownerId !== pluginId) continue;
+
+      const slot = this.layerSlotById.get(layerId);
+      if (!slot) continue;
+
+      this.layerSlots[slot].delete(layerId);
+      this.layerSlotById.delete(layerId);
+      this.layerPluginIdById.delete(layerId);
+      changed = true;
+    }
+
+    if (changed) {
+      this.syncDeckLayers();
+    }
+  }
+
+  /**
+   * Adds a layer to the map pipeline.
+   *
+   * If called from a plugin's root `install()` function, provide
+   * `pluginId: ctx.id` for automatic cleanup. If called dynamically from inside
+   * a Vue component (e.g. clicking a button to highlight an airspace), capture
+   * the returned `Disposable` and call `.dispose()` inside Vue's `onUnmounted.
+   */
+  addLayer(layer: Layer, options?: MapLayerOptions): Disposable {
+    this.upsertLayer(layer, normalizeMapLayerOptions(options));
+    this.syncDeckLayers();
+    return createDisposable(() => this.removeLayerEntry(layer.id));
+  }
+
+  setLayer(layer: Layer, options?: MapLayerOptions): Disposable {
+    this.upsertLayer(
+      layer,
+      normalizeMapLayerOptions(options, {
+        pluginId:
+          options?.pluginId ??
+          this.layerPluginIdById.get(layer.id) ??
+          DEFAULT_MAP_LAYER_OPTIONS.pluginId,
+        slot: this.layerSlotById.get(layer.id) ?? DEFAULT_MAP_LAYER_OPTIONS.slot
+      })
+    );
+    this.syncDeckLayers();
+    return createDisposable(() => this.removeLayerEntry(layer.id));
   }
 }
 
@@ -692,30 +869,115 @@ export class MapApi implements Disposable {
 export class StateApi {
   readonly entitiesByType: Map<string, ShallowRef<Map<EntityId, Entity>>> = new Map();
   readonly totalCounts: Ref<ReadonlyMap<string, number>> = ref(new Map());
+  readonly entityTypes: ShallowRef<ReadonlyMap<string, EntityTypeDefinition>> =
+    shallowRef(new Map());
 
-  constructor() {}
+  constructor(private selection: SelectionApi) {}
 
-  registerEntityType = (type: string): void => {
-    if (!this.entitiesByType.has(type)) {
-      this.entitiesByType.set(type, shallowRef(new Map()));
-    }
-  };
-
-  getEntitiesByType = <T extends EntityState>(
-    type: string
-  ): Ref<ReadonlyMap<EntityId, Entity<T>>> => {
-    if (!this.entitiesByType.has(type)) {
-      this.entitiesByType.set(type, shallowRef(new Map()));
-    }
-    return this.entitiesByType.get(type) as Ref<ReadonlyMap<EntityId, Entity<T>>>;
-  };
-
-  replaceAllEntitiesByType = (type: string, newEntities: Entity[]): void => {
+  private ensureEntityBucket(type: string): ShallowRef<Map<EntityId, Entity>> {
     let bucket = this.entitiesByType.get(type);
     if (!bucket) {
       bucket = shallowRef(new Map());
       this.entitiesByType.set(type, bucket);
     }
+    return bucket;
+  }
+
+  private deleteEntityType(type: string): void {
+    if (!this.entityTypes.value.has(type)) return;
+    const nextMap = new Map(this.entityTypes.value);
+    nextMap.delete(type);
+    this.entityTypes.value = nextMap;
+  }
+
+  registerEntityType = (
+    type: string,
+    options: EntityTypeOptions = {}
+  ): EntityTypeHandle => {
+    this.ensureEntityBucket(type);
+    const nextMap = new Map(this.entityTypes.value);
+    nextMap.set(type, {
+      type,
+      pluginId: options.pluginId
+    });
+    this.entityTypes.value = nextMap;
+
+    return bindDisposableToCurrentScope({
+      type,
+      ...createDisposable(() => {
+        this.unregisterEntityType(type);
+      })
+    });
+  };
+
+  unregisterEntityType = (type: string): void => {
+    this.selection.clearType(type);
+
+    const bucket = this.entitiesByType.get(type);
+    if (bucket) {
+      bucket.value = new Map();
+    }
+    this.entitiesByType.delete(type);
+
+    if (this.totalCounts.value.has(type)) {
+      const nextTotalCounts = new Map(this.totalCounts.value);
+      nextTotalCounts.delete(type);
+      this.totalCounts.value = nextTotalCounts;
+    }
+
+    this.deleteEntityType(type);
+  };
+
+  removeAllByPlugin(pluginId: string): void {
+    const ownedTypes = Array.from(this.entityTypes.value.values())
+      .filter(definition => definition.pluginId === pluginId)
+      .map(definition => definition.type);
+
+    for (const type of ownedTypes) {
+      this.unregisterEntityType(type);
+    }
+  }
+
+  getEntityType = (type: string): EntityTypeDefinition | undefined => {
+    return this.entityTypes.value.get(type);
+  };
+
+  getEntitiesByType = <T extends EntityState>(
+    type: string
+  ): Ref<ReadonlyMap<EntityId, Entity<T>>> => {
+    return this.ensureEntityBucket(type) as Ref<ReadonlyMap<EntityId, Entity<T>>>;
+  };
+
+  getEntity = <T extends EntityState>(key: EntityKey): Entity<T> | undefined => {
+    return this.getEntitiesByType<T>(key.type).value.get(key.id) as
+      | Entity<T>
+      | undefined;
+  };
+
+  setEntity = <T extends EntityState>(entity: Entity<T>): void => {
+    const bucket = this.ensureEntityBucket(entity.type);
+    const nextMap = new Map(bucket.value);
+    nextMap.set(entity.id, entity);
+    bucket.value = nextMap;
+  };
+
+  removeEntity = (key: EntityKey): void => {
+    const bucket = this.entitiesByType.get(key.type);
+    if (!bucket || !bucket.value.has(key.id)) return;
+
+    const nextMap = new Map(bucket.value);
+    nextMap.delete(key.id);
+    bucket.value = nextMap;
+  };
+
+  clearEntitiesByType = (type: string): void => {
+    const bucket = this.entitiesByType.get(type);
+    if (!bucket) return;
+    bucket.value = new Map();
+  };
+
+  replaceAllEntitiesByType = (type: string, newEntities: Entity[]): void => {
+    const bucket = this.ensureEntityBucket(type);
 
     const newMap = new Map<EntityId, Entity>();
     for (const entity of newEntities) {
@@ -876,10 +1138,29 @@ export class RealtimeApi {
     topic: string,
     callback: (payload: T) => void
   ): Promise<Disposable> {
+    const scopeController = new AbortController();
+    if (getCurrentScope()) {
+      onScopeDispose(() => scopeController.abort());
+    }
+
     const [channelTopic, event] = this.parseTopicEvent(topic);
     const channel = await this.getChannel(channelTopic);
+
+    if (scopeController.signal.aborted) {
+      return createDisposable(() => {});
+    }
+
     const ref = channel.on(event, callback);
-    return { dispose: () => channel.off(event, ref) };
+    const disposable = createDisposable(() => {
+      scopeController.abort();
+      channel.off(event, ref);
+    });
+
+    scopeController.signal.addEventListener("abort", () => disposable.dispose(), {
+      once: true
+    });
+
+    return disposable;
   }
 
   async publish<T extends Record<string, unknown>>(
@@ -941,6 +1222,7 @@ export interface SearchResult {
 
 export interface SearchProvider {
   id: string;
+  pluginId?: string;
   name: string;
   search: (query: string, signal: AbortSignal) => Promise<SearchResult[]>;
 }
@@ -950,11 +1232,19 @@ export class SearchApi {
 
   registerProvider(provider: SearchProvider): Disposable {
     this.providers.set(provider.id, provider);
-    return {
-      dispose: () => {
+    return bindDisposableToCurrentScope(
+      createDisposable(() => {
         this.providers.delete(provider.id);
+      })
+    );
+  }
+
+  removeAllByPlugin(pluginId: string): void {
+    for (const [providerId, provider] of this.providers.entries()) {
+      if (provider.pluginId === pluginId) {
+        this.providers.delete(providerId);
       }
-    };
+    }
   }
 
   async search(
@@ -1033,9 +1323,9 @@ export class TangramApi {
     this.ui = new UiApi(app);
     this.time = new TimeApi();
     this.map = new MapApi(this);
-    this.state = new StateApi();
     this.trajectory = new TrajectoryApi(this.bus);
     this.selection = new SelectionApi(this.bus);
+    this.state = new StateApi(this.selection);
     this.search = new SearchApi();
 
     this.app = app;
@@ -1185,7 +1475,7 @@ export class TangramApi {
               if (order === undefined) return;
               const widgets = this.ui.widgets[location];
               for (const w of widgets) {
-                if (w.id.includes(pluginSuffix)) {
+                if (w.pluginId === pName || w.id.includes(pluginSuffix)) {
                   w.priority = order;
                 }
               }
@@ -1251,4 +1541,36 @@ export class TangramApi {
   getVueApp(): App {
     return this.app;
   }
+
+  /**
+   * Performs a cleanup of all passive data registered by a plugin.
+   *
+   * Tangram strictly separates data from resources.
+   * We do not force developers to hold arrays of `Disposable` callbacks for UI
+   * elements or map layers. Inspired by cascading deletes in a SQL database.
+   */
+  teardownPlugin(pluginId: string): void {
+    this.map.removeAllByPlugin(pluginId);
+    this.ui.removeAllByPlugin(pluginId);
+    this.state.removeAllByPlugin(pluginId);
+    this.search.removeAllByPlugin(pluginId);
+  }
+}
+
+/**
+ * Explicit plugin-scoped context passed to every plugin install() function.
+ *
+ * NOTE: Why pass context explicitly instead of using a global proxy?
+ * Browser JavaScript is single-threaded and lacks native async local storage.
+ * Because tangram loads plugins concurrently, relying on a global
+ * "currentPlugin" variable across await boundaries causes race conditions.
+ *
+ * - passive data (widgets, layers, EntityTypes): pass `pluginId: ctx.id`.
+ *   core will bulk-sweep from registries on plugin unload.
+ * - active resources (WebSockets, Timers, DOM Listeners): wrap in `ctx.onDispose`.
+ */
+export interface PluginContext {
+  readonly id: string;
+  readonly api: TangramApi;
+  onDispose<T extends Disposable>(disposable: T): T;
 }

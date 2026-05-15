@@ -93,7 +93,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, getCurrentInstance, ref, watch, computed } from "vue";
 import maplibregl from "maplibre-gl";
-import { TangramApi, type WidgetEntry, type SelectionMap } from "./api";
+import { TangramApi, type SelectionMap, type WidgetEntry } from "./api";
 import { loadPlugins } from "./plugin";
 import { layers, namedFlavor } from "@protomaps/basemaps";
 import * as pmtiles from "pmtiles";
@@ -111,6 +111,22 @@ const mapContainer = ref<HTMLElement | null>(null);
 const selectedMap = ref<SelectionMap>(new Map());
 let mapInstance: maplibregl.Map | undefined = undefined;
 
+function widgetMatchesSelection(
+  widget: WidgetEntry,
+  activeTypes: ReadonlySet<string>
+): boolean {
+  if (!widget.relevantFor) return true;
+  if (widget.relevantFor) {
+    const widgetTypes = Array.isArray(widget.relevantFor)
+      ? widget.relevantFor
+      : [widget.relevantFor];
+    if (widgetTypes.some(type => activeTypes.has(type))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const visibleSidebarWidgets = computed((): WidgetEntry[] => {
   if (!tangramApi.value) return [];
   const activeTypes = new Set<string>(selectedMap.value.keys());
@@ -121,12 +137,7 @@ const visibleSidebarWidgets = computed((): WidgetEntry[] => {
         ? widget.visible()
         : widget.visible !== false;
     if (!isVisible) return false;
-    if (!widget.relevantFor) return true;
-
-    const widgetTypes = Array.isArray(widget.relevantFor)
-      ? widget.relevantFor
-      : [widget.relevantFor];
-    return widgetTypes.some(t => activeTypes.has(t));
+    return widgetMatchesSelection(widget, activeTypes);
   });
 });
 
@@ -140,13 +151,8 @@ watch(selectedMap, map => {
   const activeTypes = new Set(map.keys());
 
   for (const widget of tangramApi.value.ui.widgets.SideBar) {
-    if (widget.relevantFor) {
-      const widgetTypes = Array.isArray(widget.relevantFor)
-        ? widget.relevantFor
-        : [widget.relevantFor];
-      if (widgetTypes.some(t => activeTypes.has(t))) {
-        widget.isCollapsed = false;
-      }
+    if (widgetMatchesSelection(widget, activeTypes)) {
+      widget.isCollapsed = false;
     }
   }
 });
@@ -189,24 +195,27 @@ watch([mapContainer, tangramApi], async ([newEl, api]) => {
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol("pmtiles", protocol.tile);
 
-    if (typeof mapConfig.style === "string") {
-      const styles = mapConfig.styles as Array<string | maplibregl.StyleSpecification>;
-      const namedStyle = styles.find(
+    type ResolvedMapStyle = string | maplibregl.StyleSpecification;
+    let resolvedStyle = mapConfig.style as ResolvedMapStyle;
+
+    if (typeof resolvedStyle === "string") {
+      const styles = mapConfig.styles as ResolvedMapStyle[];
+      const namedStyle: ResolvedMapStyle | undefined = styles.find(
         s =>
-          (typeof s === "string" && s === mapConfig.style) || // Url
-          (typeof s === "object" && s.name === mapConfig.style) // StyleSpecification
+          (typeof s === "string" && s === resolvedStyle) || // Url
+          (typeof s === "object" && s.name === resolvedStyle) // StyleSpecification
       );
       if (namedStyle !== undefined) {
-        mapConfig.style = namedStyle;
+        resolvedStyle = namedStyle;
       } // TODO: raise error if not found (we need a proper system for notifying users)
     }
 
-    if (typeof mapConfig.style === "string") {
-      const res = await fetch(mapConfig.style);
-      mapConfig.style = await res.json();
+    if (typeof resolvedStyle === "string") {
+      const res = await fetch(resolvedStyle);
+      resolvedStyle = await res.json();
     }
 
-    if (typeof mapConfig.style === "object") {
+    if (typeof resolvedStyle === "object") {
       // If the style is an object, we need to ensure it has the correct structure
       // First we need to remove all None/null values from the style object
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -237,19 +246,21 @@ watch([mapContainer, tangramApi], async ([newEl, api]) => {
         return obj;
       };
 
-      const styleObject = removeNulls(mapConfig.style);
+      const styleObject = removeNulls(resolvedStyle);
 
       if (!styleObject.layers) {
         styleObject.layers = layers("protomaps", namedFlavor("light"), {
           lang: mapConfig.lang
         });
       }
-      mapConfig.style = styleObject;
+      resolvedStyle = styleObject;
     }
 
-    mapInstance = new maplibregl.Map({
+    mapConfig.style = resolvedStyle as typeof mapConfig.style;
+
+    const mapOptions: maplibregl.MapOptions = {
       container: newEl,
-      style: mapConfig.style,
+      style: resolvedStyle,
       center: [mapConfig.center_lon, mapConfig.center_lat],
       zoom: mapConfig.zoom,
       pitch: mapConfig.pitch,
@@ -261,8 +272,9 @@ watch([mapContainer, tangramApi], async ([newEl, api]) => {
       dragRotate: mapConfig.allow_bearing,
       touchZoomRotate: mapConfig.allow_bearing,
       pitchWithRotate: mapConfig.allow_pitch
-    });
+    };
 
+    mapInstance = new maplibregl.Map(mapOptions);
     api.map.initialize(mapInstance);
   }
 });

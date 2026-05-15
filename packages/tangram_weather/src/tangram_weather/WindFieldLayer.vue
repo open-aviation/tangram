@@ -122,7 +122,9 @@ const fetchAndDisplay = async () => {
       animate: true
     });
 
-    layerDisposable.value = tangramApi.map.addLayer(windLayer);
+    layerDisposable.value = tangramApi.map.addLayer(windLayer, {
+      slot: "background"
+    });
   } catch (error) {
     console.error("Failed to fetch or display wind data:", error);
   }

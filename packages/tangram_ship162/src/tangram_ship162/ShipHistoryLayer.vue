@@ -75,7 +75,11 @@ const updateLayer = async () => {
     );
   }
 
-  const layerPromises = layers.map(layer => tangramApi.map.addLayer(layer));
+  const layerPromises = layers.map(layer =>
+    tangramApi.map.addLayer(layer, {
+      slot: "tracks"
+    })
+  );
   layerDisposable.value = {
     dispose: () => {
       layerPromises.forEach(d => d.dispose());

@@ -1,9 +1,13 @@
-import type { TangramApi } from "@open-aviation/tangram-core/api";
-import type { PluginUiConfig } from "@open-aviation/tangram-core/plugin";
+import type { PluginContext } from "@open-aviation/tangram-core/api";
 import WindFieldLayer from "./WindFieldLayer.vue";
 
-export function install(api: TangramApi, config?: PluginUiConfig) {
-  api.ui.registerWidget("wind-field-layer", "MapOverlay", WindFieldLayer, {
+interface WeatherConfig {
+  topbar_order?: number;
+}
+
+export function install(ctx: PluginContext, config?: WeatherConfig) {
+  ctx.api.ui.registerWidget("wind-field-layer", "MapOverlay", WindFieldLayer, {
+    pluginId: ctx.id,
     priority: config?.topbar_order
   });
 }
