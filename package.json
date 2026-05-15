@@ -15,5 +15,10 @@
     "prettier": "^3.8.3",
     "typescript": "^5.9.3",
     "vite": "^8.0.13"
+  },
+  "pnpm": {
+    "overrides": {
+      "@scarf/scarf": "link:packages/tangram_weather/vendor/scarf-disabled"
+    }
   }
 }

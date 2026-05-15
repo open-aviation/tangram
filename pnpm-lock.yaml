@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@scarf/scarf': link:packages/tangram_weather/vendor/scarf-disabled
+
 importers:
 
   .:
@@ -759,9 +762,6 @@ packages:
 
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
-
-  '@scarf/scarf@1.4.0':
-    resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -2703,8 +2703,6 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@scarf/scarf@1.4.0': {}
-
   '@standard-schema/spec@1.1.0': {}
 
   '@swc/helpers@0.5.18':
@@ -3927,7 +3925,7 @@ snapshots:
       '@luma.gl/core': 9.3.3
       '@luma.gl/engine': 9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3))
       '@mapbox/sphericalmercator': 2.0.2
-      '@scarf/scarf': 1.4.0
+      '@scarf/scarf': link:packages/tangram_weather/vendor/scarf-disabled
       comlink: 4.4.2
       cpt2js: 1.6.2
       geodesy-fn: 1.2.2

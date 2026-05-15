@@ -1,10 +1,5 @@
 packages:
   - packages/*
 
-allowBuilds:
-  '@scarf/scarf': true
-  esbuild: true
-
-onlyBuiltDependencies:
-  - '@scarf/scarf'
-  - esbuild
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: true

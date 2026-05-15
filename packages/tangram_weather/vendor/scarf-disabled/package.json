@@ -1,0 +1,9 @@
+{
+  "name": "@scarf/scarf",
+  "version": "1.4.0-security-disabled",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  }
+}
