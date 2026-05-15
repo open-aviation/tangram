@@ -166,9 +166,13 @@ const updateLayer = () => {
     }) as Layer;
 
     if (!layerDisposable.value) {
-      layerDisposable.value = tangramApi.map.setLayer(routeLayer);
+      layerDisposable.value = tangramApi.map.setLayer(routeLayer, {
+        slot: "routes"
+      });
     } else {
-      tangramApi.map.setLayer(routeLayer);
+      tangramApi.map.setLayer(routeLayer, {
+        slot: "routes"
+      });
     }
   } else if (layerDisposable.value) {
     layerDisposable.value.dispose();

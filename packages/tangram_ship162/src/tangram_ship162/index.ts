@@ -1,4 +1,9 @@
-import type { TangramApi, Entity, SearchResult } from "@open-aviation/tangram-core/api";
+import {
+  type Entity,
+  type PluginContext,
+  type SearchResult,
+  type TangramApi
+} from "@open-aviation/tangram-core/api";
 import {
   TrajectoryApi,
   type BusResultEnvelope,
@@ -62,25 +67,35 @@ interface BackendSearchResult {
   score: number;
 }
 
-export function install(api: TangramApi, config?: Ship162FrontendConfig) {
+export function install(ctx: PluginContext, config?: Ship162FrontendConfig) {
+  const api = ctx.api;
   const channel = config?.search_channel || "ship162:search";
 
   api.ui.registerWidget("ship162-count-widget", "TopBar", ShipCountWidget, {
+    pluginId: ctx.id,
     priority: config?.topbar_order
   });
   api.ui.registerWidget("ship162-info-widget", "SideBar", ShipInfoWidget, {
+    pluginId: ctx.id,
     priority: config?.sidebar_order,
     title: "Ship Details",
     relevantFor: ENTITY_TYPE
   });
-  api.ui.registerWidget("ship162-ship-layer", "MapOverlay", ShipLayer);
-  api.ui.registerWidget("ship162-trail-layer", "MapOverlay", ShipTrailLayer);
-  api.ui.registerWidget("ship162-history-layer", "MapOverlay", ShipHistoryLayer);
+  api.ui.registerWidget("ship162-ship-layer", "MapOverlay", ShipLayer, {
+    pluginId: ctx.id
+  });
+  api.ui.registerWidget("ship162-trail-layer", "MapOverlay", ShipTrailLayer, {
+    pluginId: ctx.id
+  });
+  api.ui.registerWidget("ship162-history-layer", "MapOverlay", ShipHistoryLayer, {
+    pluginId: ctx.id
+  });
 
-  api.state.registerEntityType(ENTITY_TYPE);
+  api.state.registerEntityType(ENTITY_TYPE, { pluginId: ctx.id });
 
   api.search.registerProvider({
     id: "ships",
+    pluginId: ctx.id,
     name: "Ships (Live)",
     search: async (query, signal) => {
       void signal;
@@ -125,6 +140,7 @@ export function install(api: TangramApi, config?: Ship162FrontendConfig) {
 
   api.search.registerProvider({
     id: "ships-history",
+    pluginId: ctx.id,
     name: "Ships (History)",
     search: async (query, signal) => {
       if (query.length < 3) return [];
@@ -182,10 +198,10 @@ export function install(api: TangramApi, config?: Ship162FrontendConfig) {
     }
   });
 
-  (async () => {
+  void (async () => {
     try {
       const connectionId = await api.realtime.ensureConnected();
-      await subscribeToShipData(api, connectionId);
+      ctx.onDispose(await subscribeToShipData(api, connectionId));
     } catch (e) {
       console.error("failed initializing ship162 realtime subscription", e);
     }
@@ -214,31 +230,33 @@ export function install(api: TangramApi, config?: Ship162FrontendConfig) {
     shipStore.version++;
   };
 
-  api.selection.onChanged(handleSelectionChanged);
+  ctx.onDispose(api.selection.onChanged(handleSelectionChanged));
 
-  api.bus.subscribe<TrajectoryGetRequest>(TrajectoryApi.TOPIC_GET, async req => {
-    if (req.key.type !== ENTITY_TYPE) return;
+  ctx.onDispose(
+    api.bus.subscribe<TrajectoryGetRequest>(TrajectoryApi.TOPIC_GET, async req => {
+      if (req.key.type !== ENTITY_TYPE) return;
 
-    const id = req.key.id;
-    if (!shipStore.selected.has(id)) {
-      const selectionData: ShipSelectionData = {
-        trajectory: [],
-        loading: true,
-        error: null
-      };
-      shipStore.selected.set(id, selectionData);
-    }
-
-    const points = await ensureTrajectory(api, id);
-
-    api.bus.publish<BusResultEnvelope<TrajectoryGetResult>>(
-      `${TrajectoryApi.TOPIC_GET}:result`,
-      {
-        request_id: req.request_id,
-        data: { key: req.key, points, source: "tangram_ship162" }
+      const id = req.key.id;
+      if (!shipStore.selected.has(id)) {
+        const selectionData: ShipSelectionData = {
+          trajectory: [],
+          loading: true,
+          error: null
+        };
+        shipStore.selected.set(id, selectionData);
       }
-    );
-  });
+
+      const points = await ensureTrajectory(api, id);
+
+      api.bus.publish<BusResultEnvelope<TrajectoryGetResult>>(
+        `${TrajectoryApi.TOPIC_GET}:result`,
+        {
+          request_id: req.request_id,
+          data: { key: req.key, points, source: "tangram_ship162" }
+        }
+      );
+    })
+  );
 }
 
 async function ensureTrajectory(api: TangramApi, mmsi: string): Promise<unknown[]> {
@@ -314,58 +332,58 @@ async function fetchTrajectory(api: TangramApi, mmsi: string): Promise<unknown[]
   return shipStore.selected.get(mmsi)?.trajectory ?? [];
 }
 
-async function subscribeToShipData(api: TangramApi, connectionId: string) {
+async function subscribeToShipData(
+  api: TangramApi,
+  connectionId: string
+): Promise<{ dispose(): void }> {
   const topic = `streaming-${connectionId}:new-ship162-data`;
   try {
-    await api.realtime.subscribe<{ ship: Ship162Vessel[]; count: number }>(
-      topic,
-      payload => {
-        const entities: Entity[] = payload.ship.map(ship => ({
-          id: ship.mmsi.toString(),
-          type: ENTITY_TYPE,
-          state: ship
-        }));
-        api.state.replaceAllEntitiesByType(ENTITY_TYPE, entities);
-        api.state.setTotalCount(ENTITY_TYPE, payload.count);
+    const subscription = await api.realtime.subscribe<{
+      ship: Ship162Vessel[];
+      count: number;
+    }>(topic, payload => {
+      const entities: Entity[] = payload.ship.map(ship => ({
+        id: ship.mmsi.toString(),
+        type: ENTITY_TYPE,
+        state: ship
+      }));
+      api.state.replaceAllEntitiesByType(ENTITY_TYPE, entities);
+      api.state.setTotalCount(ENTITY_TYPE, payload.count);
 
-        let hasUpdates = false;
-        for (const [id, data] of shipStore.selected) {
-          const entityMap =
-            api.state.getEntitiesByType<Ship162Vessel>(ENTITY_TYPE).value;
-          const entity = entityMap.get(id);
+      let hasUpdates = false;
+      for (const [id, data] of shipStore.selected) {
+        const entityMap = api.state.getEntitiesByType<Ship162Vessel>(ENTITY_TYPE).value;
+        const entity = entityMap.get(id);
 
-          if (
-            entity &&
-            entity.state &&
-            entity.state.latitude &&
-            entity.state.longitude
-          ) {
-            const updated = entity.state;
-            const last = data.trajectory[data.trajectory.length - 1];
-            const timestamp = updated.lastseen ?? updated.timestamp ?? 0;
+        if (entity && entity.state && entity.state.latitude && entity.state.longitude) {
+          const updated = entity.state;
+          const last = data.trajectory[data.trajectory.length - 1];
+          const timestamp = updated.lastseen ?? updated.timestamp ?? 0;
 
-            if (!last || Math.abs((last.timestamp ?? 0) - timestamp) > 0.5) {
-              const point = {
-                ...updated,
-                timestamp: timestamp
-              };
-              data.trajectory.push(point);
-              api.bus.publish(TrajectoryApi.TOPIC_APPEND, {
-                key: { id, type: ENTITY_TYPE },
-                points: [point],
-                source: "tangram_ship162"
-              });
-              hasUpdates = true;
-            }
+          if (!last || Math.abs((last.timestamp ?? 0) - timestamp) > 0.5) {
+            const point = {
+              ...updated,
+              timestamp: timestamp
+            };
+            data.trajectory.push(point);
+            api.bus.publish(TrajectoryApi.TOPIC_APPEND, {
+              key: { id, type: ENTITY_TYPE },
+              points: [point],
+              source: "tangram_ship162"
+            });
+            hasUpdates = true;
           }
         }
-        if (hasUpdates) {
-          shipStore.version++;
-        }
       }
-    );
+
+      if (hasUpdates) {
+        shipStore.version++;
+      }
+    });
     await api.realtime.publish("system:join-streaming", { connectionId });
+    return subscription;
   } catch (e) {
     console.error(`failed to subscribe to ${topic}`, e);
+    return { dispose: () => {} };
   }
 }

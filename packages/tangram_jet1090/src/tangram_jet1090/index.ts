@@ -1,5 +1,10 @@
 import { watch } from "vue";
-import type { TangramApi, Entity, SearchResult } from "@open-aviation/tangram-core/api";
+import {
+  type Entity,
+  type PluginContext,
+  type SearchResult,
+  type TangramApi
+} from "@open-aviation/tangram-core/api";
 import {
   TrajectoryApi,
   type BusResultEnvelope,
@@ -72,58 +77,82 @@ interface BackendSearchResult {
   score: number;
 }
 
-export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
+export function install(ctx: PluginContext, config?: Jet1090FrontendConfig) {
+  const api = ctx.api;
   const channel = config?.search_channel || "jet1090:search";
 
   if (config) {
-    watch(
-      () => config.show_route_lines,
-      v => (pluginConfig.showRouteLines = v),
-      { immediate: true }
-    );
-    watch(
-      () => config.trail_type,
-      v => {
-        pluginConfig.trailType = v;
-        aircraftStore.version++;
-      },
-      { immediate: true }
-    );
-    watch(
-      () => config.trail_color,
-      v => (pluginConfig.trailColor = v),
-      { immediate: true, deep: true }
-    );
-    watch(
-      () => config.trail_alpha,
-      v => (pluginConfig.trailAlpha = v),
-      { immediate: true }
-    );
-    watch(
-      () => config.enable_3d,
-      v => (pluginConfig.enable3d = v),
-      { immediate: true }
-    );
+    ctx.onDispose({
+      dispose: watch(
+        () => config.show_route_lines,
+        v => (pluginConfig.showRouteLines = v),
+        { immediate: true }
+      )
+    });
+    ctx.onDispose({
+      dispose: watch(
+        () => config.trail_type,
+        v => {
+          pluginConfig.trailType = v;
+          aircraftStore.version++;
+        },
+        { immediate: true }
+      )
+    });
+    ctx.onDispose({
+      dispose: watch(
+        () => config.trail_color,
+        v => (pluginConfig.trailColor = v),
+        { immediate: true, deep: true }
+      )
+    });
+    ctx.onDispose({
+      dispose: watch(
+        () => config.trail_alpha,
+        v => (pluginConfig.trailAlpha = v),
+        { immediate: true }
+      )
+    });
+    ctx.onDispose({
+      dispose: watch(
+        () => config.enable_3d,
+        v => (pluginConfig.enable3d = v),
+        { immediate: true }
+      )
+    });
   }
 
   api.ui.registerWidget("jet1090-count-widget", "TopBar", AircraftCountWidget, {
+    pluginId: ctx.id,
     priority: config?.topbar_order
   });
-  api.ui.registerWidget("jet1090-aircraft-layer", "MapOverlay", AircraftLayer);
+  api.ui.registerWidget("jet1090-aircraft-layer", "MapOverlay", AircraftLayer, {
+    pluginId: ctx.id
+  });
   api.ui.registerWidget("jet1090-info-widget", "SideBar", AircraftInfoWidget, {
+    pluginId: ctx.id,
     priority: config?.sidebar_order,
     title: "Aircraft Details",
     relevantFor: ENTITY_TYPE
   });
-  api.ui.registerWidget("jet1090-trail-layer", "MapOverlay", AircraftTrailLayer);
-  api.ui.registerWidget("jet1090-route-layer", "MapOverlay", RouteLayer);
-  api.ui.registerWidget("jet1090-sensors-layer", "MapOverlay", SensorsLayer);
-  api.ui.registerWidget("jet1090-history-layer", "MapOverlay", AircraftHistoryLayer);
+  api.ui.registerWidget("jet1090-trail-layer", "MapOverlay", AircraftTrailLayer, {
+    pluginId: ctx.id
+  });
+  api.ui.registerWidget("jet1090-route-layer", "MapOverlay", RouteLayer, {
+    pluginId: ctx.id
+  });
+  api.ui.registerWidget("jet1090-sensors-layer", "MapOverlay", SensorsLayer, {
+    pluginId: ctx.id
+  });
+  api.ui.registerWidget("jet1090-history-layer", "MapOverlay", AircraftHistoryLayer, {
+    pluginId: ctx.id
+  });
 
-  api.state.registerEntityType(ENTITY_TYPE);
+  api.state.registerEntityType(ENTITY_TYPE, { pluginId: ctx.id });
 
   api.search.registerProvider({
     id: "aircraft",
+    pluginId: ctx.id,
     name: "Aircraft (Live)",
     search: async (query, signal) => {
       void signal;
@@ -168,6 +197,7 @@ export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
 
   api.search.registerProvider({
     id: "flights-history",
+    pluginId: ctx.id,
     name: "Flights (History)",
     search: async (query, signal) => {
       if (query.length < 3) return [];
@@ -225,10 +255,10 @@ export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
     }
   });
 
-  (async () => {
+  void (async () => {
     try {
       const connectionId = await api.realtime.ensureConnected();
-      await subscribeToAircraftData(api, connectionId);
+      ctx.onDispose(await subscribeToAircraftData(api, connectionId));
     } catch (e) {
       console.error("failed initializing jet1090 realtime subscription", e);
     }
@@ -258,32 +288,34 @@ export function install(api: TangramApi, config?: Jet1090FrontendConfig) {
     aircraftStore.version++;
   };
 
-  api.selection.onChanged(handleSelectionChanged);
+  ctx.onDispose(api.selection.onChanged(handleSelectionChanged));
 
-  api.bus.subscribe<TrajectoryGetRequest>(TrajectoryApi.TOPIC_GET, async req => {
-    if (req.key.type !== ENTITY_TYPE) return;
+  ctx.onDispose(
+    api.bus.subscribe<TrajectoryGetRequest>(TrajectoryApi.TOPIC_GET, async req => {
+      if (req.key.type !== ENTITY_TYPE) return;
 
-    const id = req.key.id;
-    if (!aircraftStore.selected.has(id)) {
-      const selectionData: AircraftSelectionData = {
-        trajectory: [],
-        loading: true,
-        error: null,
-        route: { origin: null, destination: null }
-      };
-      aircraftStore.selected.set(id, selectionData);
-    }
-
-    const points = await ensureTrajectory(api, id);
-
-    api.bus.publish<BusResultEnvelope<TrajectoryGetResult>>(
-      `${TrajectoryApi.TOPIC_GET}:result`,
-      {
-        request_id: req.request_id,
-        data: { key: req.key, points, source: "tangram_jet1090" }
+      const id = req.key.id;
+      if (!aircraftStore.selected.has(id)) {
+        const selectionData: AircraftSelectionData = {
+          trajectory: [],
+          loading: true,
+          error: null,
+          route: { origin: null, destination: null }
+        };
+        aircraftStore.selected.set(id, selectionData);
       }
-    );
-  });
+
+      const points = await ensureTrajectory(api, id);
+
+      api.bus.publish<BusResultEnvelope<TrajectoryGetResult>>(
+        `${TrajectoryApi.TOPIC_GET}:result`,
+        {
+          request_id: req.request_id,
+          data: { key: req.key, points, source: "tangram_jet1090" }
+        }
+      );
+    })
+  );
 }
 
 /**
@@ -366,58 +398,58 @@ async function fetchTrajectory(api: TangramApi, icao24: string): Promise<unknown
   return aircraftStore.selected.get(icao24)?.trajectory ?? [];
 }
 
-async function subscribeToAircraftData(api: TangramApi, connectionId: string) {
+async function subscribeToAircraftData(
+  api: TangramApi,
+  connectionId: string
+): Promise<{ dispose(): void }> {
   const topic = `streaming-${connectionId}:new-jet1090-data`;
   try {
-    await api.realtime.subscribe<{ aircraft: Jet1090Aircraft[]; count: number }>(
-      topic,
-      payload => {
-        const entities: Entity[] = payload.aircraft.map(ac => ({
-          id: ac.icao24,
-          type: ENTITY_TYPE,
-          state: ac
-        }));
-        api.state.replaceAllEntitiesByType(ENTITY_TYPE, entities);
-        api.state.setTotalCount(ENTITY_TYPE, payload.count);
+    const subscription = await api.realtime.subscribe<{
+      aircraft: Jet1090Aircraft[];
+      count: number;
+    }>(topic, payload => {
+      const entities: Entity[] = payload.aircraft.map(ac => ({
+        id: ac.icao24,
+        type: ENTITY_TYPE,
+        state: ac
+      }));
+      api.state.replaceAllEntitiesByType(ENTITY_TYPE, entities);
+      api.state.setTotalCount(ENTITY_TYPE, payload.count);
 
-        let hasUpdates = false;
-        for (const [id, data] of aircraftStore.selected) {
-          const entityMap =
-            api.state.getEntitiesByType<Jet1090Aircraft>(ENTITY_TYPE).value;
-          const entity = entityMap.get(id);
+      let hasUpdates = false;
+      for (const [id, data] of aircraftStore.selected) {
+        const entityMap =
+          api.state.getEntitiesByType<Jet1090Aircraft>(ENTITY_TYPE).value;
+        const entity = entityMap.get(id);
 
-          if (
-            entity &&
-            entity.state &&
-            entity.state.latitude &&
-            entity.state.longitude
-          ) {
-            const updated = entity.state;
-            const last = data.trajectory[data.trajectory.length - 1];
-            const timestamp = updated.lastseen / 1_000_000;
+        if (entity && entity.state && entity.state.latitude && entity.state.longitude) {
+          const updated = entity.state;
+          const last = data.trajectory[data.trajectory.length - 1];
+          const timestamp = updated.lastseen / 1_000_000;
 
-            if (!last || Math.abs((last.timestamp || 0) - timestamp) > 0.5) {
-              const point = {
-                ...updated,
-                timestamp: timestamp
-              };
-              data.trajectory.push(point);
-              api.bus.publish(TrajectoryApi.TOPIC_APPEND, {
-                key: { id, type: ENTITY_TYPE },
-                points: [point],
-                source: "tangram_jet1090"
-              });
-              hasUpdates = true;
-            }
+          if (!last || Math.abs((last.timestamp || 0) - timestamp) > 0.5) {
+            const point = {
+              ...updated,
+              timestamp: timestamp
+            };
+            data.trajectory.push(point);
+            api.bus.publish(TrajectoryApi.TOPIC_APPEND, {
+              key: { id, type: ENTITY_TYPE },
+              points: [point],
+              source: "tangram_jet1090"
+            });
+            hasUpdates = true;
           }
         }
-        if (hasUpdates) {
-          aircraftStore.version++;
-        }
       }
-    );
+      if (hasUpdates) {
+        aircraftStore.version++;
+      }
+    });
     await api.realtime.publish("system:join-streaming", { connectionId });
+    return subscription;
   } catch (e) {
     console.error(`failed to subscribe to ${topic}`, e);
+    return { dispose: () => {} };
   }
 }

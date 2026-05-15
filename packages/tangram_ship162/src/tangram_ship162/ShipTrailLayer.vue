@@ -50,10 +50,12 @@ const updateLayer = () => {
       getColor: d => d.colors,
       getWidth: d => (d.dashed ? 1 : 2),
       extensions: [new PathStyleExtension({ dash: true })],
-      getDashArray: d => (d.dashed ? [5, 5] : [0, 0]),
+      getDashArray: (d: PathSegment<TrailColor>) => (d.dashed ? [5, 5] : [0, 0]),
       dashJustified: true
     }) as Layer;
-    layerDisposable.value = tangramApi.map.addLayer(trailLayer);
+    layerDisposable.value = tangramApi.map.addLayer(trailLayer, {
+      slot: "live_trails"
+    });
   }
 };
 

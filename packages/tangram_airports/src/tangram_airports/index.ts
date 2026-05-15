@@ -1,29 +1,42 @@
-import type { TangramApi } from "@open-aviation/tangram-core/api";
+import type { PluginContext } from "@open-aviation/tangram-core/api";
 import { airport_information } from "rs1090-wasm";
 import AirportSearchWidget from "./AirportSearchWidget.vue";
 
-export function install(api: TangramApi) {
+interface AirportSearchEntry {
+  name: string;
+  city: string;
+  countryCode: string;
+  iata: string;
+  icao: string;
+  lon: number;
+  lat: number;
+}
+
+export function install(ctx: PluginContext) {
+  const api = ctx.api;
+
   api.search.registerProvider({
     id: "airports",
+    pluginId: ctx.id,
     name: "Airports",
     search: async (query, signal) => {
       if (query.length < 3 || signal.aborted) return [];
 
-      const airports = airport_information(query);
-      return airports.slice(0, 10).map(a => ({
-        id: `airport-${a.icao}`,
+      const airports = airport_information(query) as AirportSearchEntry[];
+      return airports.slice(0, 10).map(airport => ({
+        id: `airport-${airport.icao}`,
         component: AirportSearchWidget,
         props: {
-          name: a.name,
-          city: a.city,
-          countryCode: a.countryCode,
-          iata: a.iata,
-          icao: a.icao
+          name: airport.name,
+          city: airport.city,
+          countryCode: airport.countryCode,
+          iata: airport.iata,
+          icao: airport.icao
         },
         score: 100,
         onSelect: () => {
           api.map.getMapInstance().flyTo({
-            center: [a.lon, a.lat],
+            center: [airport.lon, airport.lat],
             zoom: 13,
             speed: 1.2
           });

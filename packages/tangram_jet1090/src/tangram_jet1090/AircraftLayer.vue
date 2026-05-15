@@ -35,7 +35,7 @@ if (!tangramApi) {
 const aircraftEntities = computed(
   () => tangramApi.state.getEntitiesByType<Jet1090Aircraft>("jet1090_aircraft").value
 );
-const selectedIds = ref<Set<string>>(new Set());
+const selectedIds = ref<ReadonlySet<string>>(new Set());
 const selectionDisposable = tangramApi.selection.onChanged(map => {
   selectedIds.value = map.get("jet1090_aircraft") || new Set();
 });
@@ -194,7 +194,9 @@ watch(
       }
     });
 
-    const d = tangramApi.map.setLayer(layer);
+    const d = tangramApi.map.setLayer(layer, {
+      slot: "entities"
+    });
     if (!layerDisposable.value) layerDisposable.value = d;
   },
   { immediate: true }

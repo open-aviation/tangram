@@ -81,7 +81,9 @@ watch(
         });
 
         if (layerDisposable.value) layerDisposable.value.dispose();
-        layerDisposable.value = tangramApi.map.addLayer(sensorsLayer);
+        layerDisposable.value = tangramApi.map.addLayer(sensorsLayer, {
+          slot: "analysis"
+        });
       })
       .catch(error => {
         console.error("failed to fetch or display sensor data:", error);

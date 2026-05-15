@@ -2,8 +2,7 @@
 import { watch, inject, onUnmounted, shallowReactive, computed } from "vue";
 import { GeoJsonLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
-import type { TangramApi, Disposable, Entity } from "@open-aviation/tangram-core/api";
-import { TrajectoryApi } from "@open-aviation/tangram-core/api";
+import { Disposable, TangramApi } from "@open-aviation/tangram-core/api";
 import { categoricalColor, parseColorSpec } from "@open-aviation/tangram-core/utils";
 import {
   layers,
@@ -24,10 +23,13 @@ import {
   trajectoryCategoryValue,
   type Trajectory
 } from "./trajectory_source";
+import {
+  selectExploreTrajectory,
+  selectedTrajectoryIdForEntry
+} from "./trajectory_selection";
 
 const api = inject<TangramApi>("tangramApi")!;
 const layerDisposables = new Map<string, Disposable>();
-const selectedImportedEntities = new Map<string, Entity>();
 
 const hoverInfo = shallowReactive({
   x: 0,
@@ -36,11 +38,17 @@ const hoverInfo = shallowReactive({
   layerLabel: ""
 });
 
+function clearHoverInfo() {
+  hoverInfo.object = null;
+  hoverInfo.layerLabel = "";
+}
+
 const enable3d = computed(() => !!pluginConfig.enable_3d);
 
 const FALLBACK_ACCENT_COLOR = "oklch(0.5616 0.0895 251.64)";
-const AIRCRAFT_ENTITY_TYPE = "jet1090_aircraft";
-const SHIP_ENTITY_TYPE = "ship162_ship";
+const SELECTED_TRAJECTORY_COLOR: [number, number, number, number] = [
+  255, 255, 255, 255
+];
 
 function withAlpha(color: number[], alpha: number): [number, number, number, number] {
   return [color[0] ?? 128, color[1] ?? 128, color[2] ?? 128, alpha];
@@ -95,202 +103,17 @@ function geoJsonTooltipProperties(object: unknown): Record<string, unknown> | nu
   return properties && Object.keys(properties).length > 0 ? properties : null;
 }
 
-function upsertEntity(entity: Entity) {
-  const current = api.state.getEntitiesByType(entity.type).value;
-  const next = [...current.values()].filter(item => item.id !== entity.id);
-  next.push(entity);
-  api.state.replaceAllEntitiesByType(entity.type, next);
-}
-
-function trajectoryEntityType(trajectory: Trajectory): string {
-  return trajectory.properties.format === "ais-jsonl"
-    ? SHIP_ENTITY_TYPE
-    : AIRCRAFT_ENTITY_TYPE;
-}
-
-function stringProperty(
-  properties: Record<string, unknown>,
-  ...keys: string[]
-): string | undefined {
-  for (const key of keys) {
-    const value = properties[key];
-    if (value !== undefined && value !== null && String(value).trim())
-      return String(value).trim();
-  }
-  return undefined;
-}
-
-function trajectoryEntityId(trajectory: Trajectory, type: string): string {
-  if (type === SHIP_ENTITY_TYPE) {
-    return stringProperty(trajectory.properties, "mmsi", "id") ?? trajectory.id;
-  }
-  return (
-    stringProperty(
-      trajectory.properties,
-      "icao24",
-      "callsign",
-      "Callsign",
-      "number",
-      "Number",
-      "id"
-    ) ?? trajectory.id
-  );
-}
-
-function trajectoryPointToEntityState(
-  trajectory: Trajectory,
-  type: string
-): Record<string, unknown> {
-  const lastPoint = trajectory.points[trajectory.points.length - 1];
-  const common = {
-    timestamp: lastPoint?.timestamp ?? trajectory.stop ?? undefined,
-    lastseen: lastPoint?.timestamp ?? trajectory.stop ?? undefined,
-    latitude: lastPoint?.latitude,
-    longitude: lastPoint?.longitude,
-    heading: lastPoint?.heading,
-    speed: lastPoint?.speed
-  };
-
-  if (type === SHIP_ENTITY_TYPE) {
-    const mmsi = stringProperty(trajectory.properties, "mmsi", "id") ?? trajectory.id;
-    return {
-      ...trajectory.properties,
-      ...common,
-      mmsi,
-      ship_name: trajectory.properties.ship_name ?? trajectory.properties.shipname,
-      course: lastPoint?.heading
-    };
-  }
-
-  const callsign = stringProperty(
-    trajectory.properties,
-    "callsign",
-    "Callsign",
-    "number",
-    "Number"
-  );
-  const icao24 =
-    stringProperty(trajectory.properties, "icao24", "id") ?? callsign ?? trajectory.id;
-  return {
-    ...trajectory.properties,
-    ...common,
-    icao24,
-    callsign,
-    altitude: lastPoint?.altitude,
-    groundspeed: lastPoint?.speed,
-    track: lastPoint?.heading,
-    count: trajectory.points.length
-  };
-}
-
-function trajectoryPointsForWidget(
-  trajectory: Trajectory,
-  type: string
-): Record<string, unknown>[] {
-  const samples =
-    trajectory.samples.length > 0 ? trajectory.samples : trajectory.points;
-  return samples.map(sample => {
-    if (type === SHIP_ENTITY_TYPE) {
-      return {
-        ...trajectory.properties,
-        mmsi: stringProperty(trajectory.properties, "mmsi", "id") ?? trajectory.id,
-        ship_name: trajectory.properties.ship_name ?? trajectory.properties.shipname,
-        timestamp: sample.timestamp,
-        latitude: sample.latitude,
-        longitude: sample.longitude,
-        speed: sample.speed,
-        course: sample.track ?? sample.heading,
-        heading: sample.heading
-      };
-    }
-
-    const callsign = stringProperty(
-      trajectory.properties,
-      "callsign",
-      "Callsign",
-      "number",
-      "Number"
-    );
-    return {
-      ...trajectory.properties,
-      icao24:
-        stringProperty(trajectory.properties, "icao24", "id") ??
-        callsign ??
-        trajectory.id,
-      callsign,
-      timestamp: sample.timestamp,
-      latitude: sample.latitude,
-      longitude: sample.longitude,
-      altitude: sample.altitude,
-      selected_altitude:
-        "selected_altitude" in sample ? sample.selected_altitude : undefined,
-      groundspeed: sample.speed,
-      ias: "ias" in sample ? sample.ias : undefined,
-      tas: "tas" in sample ? sample.tas : undefined,
-      mach: "mach" in sample ? sample.mach : undefined,
-      vertical_rate: "vertical_rate" in sample ? sample.vertical_rate : undefined,
-      vrate_barometric:
-        "vrate_barometric" in sample ? sample.vrate_barometric : undefined,
-      vrate_inertial: "vrate_inertial" in sample ? sample.vrate_inertial : undefined,
-      track: sample.track ?? sample.heading,
-      heading: sample.heading,
-      roll: "roll" in sample ? sample.roll : undefined,
-      count: trajectory.points.length
-    };
-  });
-}
-
-function importedEntityKey(entity: Entity): string {
-  return `${entity.type}:${entity.id}`;
-}
-
-function restoreSelectedImportedEntities() {
-  for (const [key, entity] of selectedImportedEntities) {
-    if (!api.selection.has({ id: entity.id, type: entity.type })) {
-      selectedImportedEntities.delete(key);
-      continue;
-    }
-
-    const entities = api.state.getEntitiesByType(entity.type).value;
-    if (!entities.has(entity.id)) {
-      upsertEntity(entity);
-    }
-  }
-}
-
-function selectTrajectory(trajectory: Trajectory) {
-  const type = trajectoryEntityType(trajectory);
-  const id = trajectoryEntityId(trajectory, type);
-  const entity: Entity = {
-    id,
-    type,
-    state: trajectoryPointToEntityState(trajectory, type)
-  };
-
-  selectedImportedEntities.set(importedEntityKey(entity), entity);
-  upsertEntity(entity);
-  api.bus.publish(TrajectoryApi.TOPIC_INIT, {
-    key: { id, type },
-    points: trajectoryPointsForWidget(trajectory, type),
-    source: "tangram_explore"
-  });
-  api.selection.selectEntity(entity, true);
-}
-
-const selectionDisposable = api.selection.onChanged(() =>
-  restoreSelectedImportedEntities()
-);
-
-watch(
-  api.state.getEntitiesByType(AIRCRAFT_ENTITY_TYPE),
-  restoreSelectedImportedEntities
-);
-watch(api.state.getEntitiesByType(SHIP_ENTITY_TYPE), restoreSelectedImportedEntities);
-
 watch(
   [layers, enable3d],
   ([currentLayers, is3d]) => {
     const activeIds = new Set(currentLayers.map(l => l.id));
+
+    if (
+      hoverInfo.object &&
+      !currentLayers.some(layer => layer.label === hoverInfo.layerLabel)
+    ) {
+      clearHoverInfo();
+    }
 
     for (const [id, disposable] of layerDisposables) {
       if (!activeIds.has(id)) {
@@ -345,15 +168,23 @@ watch(
         });
 
         if (!layerDisposables.has(entry.id)) {
-          layerDisposables.set(entry.id, api.map.setLayer(deckLayer));
+          layerDisposables.set(
+            entry.id,
+            api.map.setLayer(deckLayer, {
+              slot: "entities_underlay"
+            })
+          );
         } else {
-          api.map.setLayer(deckLayer);
+          api.map.setLayer(deckLayer, {
+            slot: "entities_underlay"
+          });
         }
         continue;
       }
 
       if (isTrajectoryLayerEntry(entry)) {
         const opts = entry.style;
+        const currentSelectedTrajectoryId = selectedTrajectoryIdForEntry(entry.id);
         const data = filteredTrajectories(
           entry.source,
           opts.category_field,
@@ -373,10 +204,19 @@ watch(
               point.latitude,
               is3d ? (point.altitude ?? 0) : 0
             ]),
-          getColor: trajectory =>
-            parseColorSpec(trajectoryColor(trajectory, opts)) ??
-            defaultFeatureLineColor(),
-          getWidth: () => opts.line_width,
+          getColor: trajectory => {
+            if (trajectory.id === currentSelectedTrajectoryId) {
+              return SELECTED_TRAJECTORY_COLOR;
+            }
+            return (
+              parseColorSpec(trajectoryColor(trajectory, opts)) ??
+              defaultFeatureLineColor()
+            );
+          },
+          getWidth: trajectory =>
+            trajectory.id === currentSelectedTrajectoryId
+              ? opts.line_width + 2
+              : opts.line_width,
           onHover: (info: PickingInfo<Trajectory>) => {
             if (info.object) {
               hoverInfo.object = info.object.properties;
@@ -389,20 +229,38 @@ watch(
           },
           onClick: (info: PickingInfo<Trajectory>) => {
             if (!info.object) return false;
-            selectTrajectory(info.object);
+
+            // NOTE: we intentionally store selected imported trajectories in
+            // local explore state rather than pushing them into
+            // `api.state.setEntity`.
+            //
+            // Tangram's core StateApi is currently optimised for live, realtime
+            // telemetry. Injecting ephemeral, historical datasets into the live
+            // pool causes widget misbehavior and memory leaks.
+            //
+            // TODO: once core implements a unified history/timeline api
+            // this local state should be removed and handled by core.
+            selectExploreTrajectory(entry.id, info.object);
             return true;
           },
           updateTriggers: {
             getPath: [is3d],
-            getColor: [opts],
-            getWidth: [opts.line_width]
+            getColor: [opts, currentSelectedTrajectoryId],
+            getWidth: [opts.line_width, currentSelectedTrajectoryId]
           }
         });
 
         if (!layerDisposables.has(entry.id)) {
-          layerDisposables.set(entry.id, api.map.setLayer(deckLayer));
+          layerDisposables.set(
+            entry.id,
+            api.map.setLayer(deckLayer, {
+              slot: "tracks"
+            })
+          );
         } else {
-          api.map.setLayer(deckLayer);
+          api.map.setLayer(deckLayer, {
+            slot: "tracks"
+          });
         }
         continue;
       }
@@ -447,7 +305,7 @@ watch(
             hoverInfo.y = info.y;
             hoverInfo.layerLabel = entry.label;
           } else {
-            hoverInfo.object = null;
+            clearHoverInfo();
           }
         },
         updateTriggers: {
@@ -458,9 +316,16 @@ watch(
       });
 
       if (!layerDisposables.has(entry.id)) {
-        layerDisposables.set(entry.id, api.map.setLayer(deckLayer));
+        layerDisposables.set(
+          entry.id,
+          api.map.setLayer(deckLayer, {
+            slot: "entities_underlay"
+          })
+        );
       } else {
-        api.map.setLayer(deckLayer);
+        api.map.setLayer(deckLayer, {
+          slot: "entities_underlay"
+        });
       }
     }
   },
@@ -468,7 +333,7 @@ watch(
 );
 
 onUnmounted(() => {
-  selectionDisposable.dispose();
+  clearHoverInfo();
   for (const disposable of layerDisposables.values()) {
     disposable.dispose();
   }
