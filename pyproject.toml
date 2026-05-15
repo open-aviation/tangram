@@ -29,8 +29,6 @@ docs = [
 
 [tool.uv]
 exclude-newer = "7 days ago"
-# # TODO: remove on 2026-05-20
-# exclude-newer-package = { maturin = "2026-05-12", mypy = "2026-05-12", librt = "2026-05-11" }
 
 [tool.uv.workspace]
 members = ["packages/tangram_*"]
