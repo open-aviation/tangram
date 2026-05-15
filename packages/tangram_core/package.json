@@ -9,7 +9,8 @@
     "directory": "packages/tangram_core"
   },
   "scripts": {
-    "build": "vite build --config vite.lib-esm.config.ts && vite build"
+    "build": "vite build --config vite.lib-esm.config.ts && vite build",
+    "test": "vitest run src/tangram_core/keyboard.test.ts"
   },
   "files": [
     "src/tangram_core/*.ts",
@@ -26,6 +27,7 @@
   "exports": {
     "./vite-plugin": "./src/tangram_core/vite-plugin-tangram.mjs",
     "./api": "./src/tangram_core/api.ts",
+    "./keyboard": "./src/tangram_core/keyboard.ts",
     "./types": "./src/tangram_core/types.d.ts",
     "./utils": "./src/tangram_core/utils.ts",
     "./components": "./src/tangram_core/components.ts"
@@ -57,6 +59,7 @@
   "devDependencies": {
     "@types/phoenix": "^1.6.7",
     "vite": "^8.0.13",
-    "vite-plugin-static-copy": "^4.1.0"
+    "vite-plugin-static-copy": "^4.1.0",
+    "vitest": "^4.1.6"
   }
 }

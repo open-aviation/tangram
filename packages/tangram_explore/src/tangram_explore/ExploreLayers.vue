@@ -6,6 +6,7 @@ import { Disposable, TangramApi } from "@open-aviation/tangram-core/api";
 import { categoricalColor, parseColorSpec } from "@open-aviation/tangram-core/utils";
 import {
   layers,
+  activeLayerId,
   pluginConfig,
   type FeatureLayerEntry,
   type FeatureStyleOptions,
@@ -35,12 +36,32 @@ const hoverInfo = shallowReactive({
   x: 0,
   y: 0,
   object: null as Record<string, unknown> | null,
+  layerId: null as string | null,
   layerLabel: ""
 });
 
 function clearHoverInfo() {
   hoverInfo.object = null;
+  hoverInfo.layerId = null;
   hoverInfo.layerLabel = "";
+}
+
+function setHoverInfo(
+  entry: LayerEntry,
+  x: number,
+  y: number,
+  object: Record<string, unknown> | null
+) {
+  if (!object) {
+    clearHoverInfo();
+    return;
+  }
+
+  hoverInfo.object = object;
+  hoverInfo.x = x;
+  hoverInfo.y = y;
+  hoverInfo.layerId = entry.id;
+  hoverInfo.layerLabel = entry.label;
 }
 
 const enable3d = computed(() => !!pluginConfig.enable_3d);
@@ -104,13 +125,32 @@ function geoJsonTooltipProperties(object: unknown): Record<string, unknown> | nu
 }
 
 watch(
-  [layers, enable3d],
-  ([currentLayers, is3d]) => {
+  () => api.map.map.value,
+  (map, _previousMap, onCleanup) => {
+    if (!map) return;
+
+    const canvasContainer = map.getCanvasContainer();
+    const handlePointerLeave = () => {
+      clearHoverInfo();
+    };
+
+    canvasContainer.addEventListener("pointerleave", handlePointerLeave);
+
+    onCleanup(() => {
+      canvasContainer.removeEventListener("pointerleave", handlePointerLeave);
+    });
+  },
+  { immediate: true }
+);
+
+watch(
+  [layers, enable3d, activeLayerId],
+  ([currentLayers, is3d, focusedId]) => {
     const activeIds = new Set(currentLayers.map(l => l.id));
 
     if (
-      hoverInfo.object &&
-      !currentLayers.some(layer => layer.label === hoverInfo.layerLabel)
+      hoverInfo.layerId &&
+      !currentLayers.some(layer => layer.id === hoverInfo.layerId && layer.visible)
     ) {
       clearHoverInfo();
     }
@@ -123,6 +163,9 @@ watch(
     }
 
     for (const entry of currentLayers) {
+      const isFocused = focusedId === null || focusedId === entry.id;
+      const opacityMultiplier = isFocused ? 1.0 : 0.2;
+
       if (isFeatureLayerEntry(entry)) {
         const opts = entry.style;
         const data = filteredFeatureCollection(
@@ -135,7 +178,7 @@ watch(
           data: data as never,
           visible: entry.visible,
           pickable: opts.pickable,
-          opacity: opts.opacity,
+          opacity: opts.opacity * opacityMultiplier,
           stroked: opts.stroked,
           filled: opts.filled,
           extruded: opts.extruded,
@@ -151,15 +194,7 @@ watch(
                 : featureColor(feature as GeoJsonFeature, opts)
             ) ?? defaultFeatureLineColor(),
           onHover: (info: PickingInfo) => {
-            const properties = geoJsonTooltipProperties(info.object);
-            if (properties) {
-              hoverInfo.object = properties;
-              hoverInfo.x = info.x;
-              hoverInfo.y = info.y;
-              hoverInfo.layerLabel = entry.label;
-            } else {
-              hoverInfo.object = null;
-            }
+            setHoverInfo(entry, info.x, info.y, geoJsonTooltipProperties(info.object));
           },
           updateTriggers: {
             getFillColor: [opts],
@@ -195,7 +230,7 @@ watch(
           data,
           visible: entry.visible,
           pickable: opts.pickable,
-          opacity: opts.opacity,
+          opacity: opts.opacity * opacityMultiplier,
           widthUnits: "pixels",
           widthMinPixels: opts.line_width,
           getPath: trajectory =>
@@ -218,14 +253,7 @@ watch(
               ? opts.line_width + 2
               : opts.line_width,
           onHover: (info: PickingInfo<Trajectory>) => {
-            if (info.object) {
-              hoverInfo.object = info.object.properties;
-              hoverInfo.x = info.x;
-              hoverInfo.y = info.y;
-              hoverInfo.layerLabel = entry.label;
-            } else {
-              hoverInfo.object = null;
-            }
+            setHoverInfo(entry, info.x, info.y, info.object?.properties ?? null);
           },
           onClick: (info: PickingInfo<Trajectory>) => {
             if (!info.object) return false;
@@ -281,7 +309,7 @@ watch(
         data: { length: table.numRows },
         visible: entry.visible,
         pickable: opts.pickable,
-        opacity: opts.opacity,
+        opacity: opts.opacity * opacityMultiplier,
         stroked: opts.stroked,
         filled: opts.filled,
         radiusScale: opts.radius_scale,
@@ -300,10 +328,7 @@ watch(
         onHover: (info: PickingInfo) => {
           if (info.index !== -1) {
             const row = table.get(info.index);
-            hoverInfo.object = row ? row.toJSON() : null;
-            hoverInfo.x = info.x;
-            hoverInfo.y = info.y;
-            hoverInfo.layerLabel = entry.label;
+            setHoverInfo(entry, info.x, info.y, row ? row.toJSON() : null);
           } else {
             clearHoverInfo();
           }

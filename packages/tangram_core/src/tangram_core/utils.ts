@@ -8,6 +8,16 @@ export type ColorSpec =
 
 export type DeckGLColor = [number, number, number, number];
 
+export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
+
+export const Ok = <T>(value: T): Result<T, never> => ({ ok: true, value });
+
+export const Err = <E>(error: E): Result<never, E> => ({ ok: false, error });
+
+export function assertNever(value: never, message: string): never {
+  throw new Error(`${message}: ${JSON.stringify(value)}`);
+}
+
 const multiplyMatrices = (A: number[], B: Vector3): Vector3 => {
   return [
     A[0] * B[0] + A[1] * B[1] + A[2] * B[2],
