@@ -1,12 +1,40 @@
 <template>
-  <div class="layer-list">
+  <div
+    ref="layerListRef"
+    class="layer-list"
+    tabindex="0"
+    @mouseenter="onListEnter"
+    @mouseleave="onListLeave"
+  >
     <div v-if="layers.length > 0" class="list-actions">
+      <div class="list-actions-primary">
+        <button
+          v-if="collapsibleLayerCount > 0"
+          class="text-btn"
+          @click="toggleAllCollapsed"
+        >
+          {{ allCollapsed ? "expand all" : "collapse all" }}
+        </button>
+        <button class="text-btn" @click="toggleAllVisibility">
+          {{ allHidden ? "show all" : "hide all" }}
+        </button>
+        <span class="pending-keys" :class="{ 'is-visible': !!pendingKeys }">
+          {{ pendingKeys ?? "" }}
+        </span>
+      </div>
       <button class="text-btn danger" @click="clearLayers">clear all</button>
     </div>
     <div v-if="layers.length === 0" class="empty-state">
       drop supported files anywhere on the map to add an explore layer
     </div>
-    <div v-for="layer in layers" :key="layer.id" class="layer-item">
+    <div
+      v-for="(layer, index) in layers"
+      :key="layer.id"
+      class="layer-item"
+      :data-layer-index="index"
+      :class="{ 'is-focused': index === focusedIndex }"
+      @mouseenter="onLayerEnter(index)"
+    >
       <div class="layer-header">
         <div class="left-col">
           <button
@@ -15,7 +43,20 @@
             :title="isCollapsed(layer.id) ? 'expand settings' : 'collapse settings'"
             @click="toggleCollapsed(layer.id)"
           >
-            {{ isCollapsed(layer.id) ? "▸" : "▾" }}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path v-if="isCollapsed(layer.id)" d="m9 18 6-6-6-6" />
+              <path v-else d="m6 9 6 6 6-6" />
+            </svg>
           </button>
           <button
             class="visibility-btn"
@@ -58,23 +99,38 @@
               <path d="m9 18 .722-3.25" />
             </svg>
           </button>
-          <span class="layer-label">{{ layer.label }}</span>
+          <span class="layer-label" title="fit layer bounds" @click="flyToLayer(layer)">
+            {{ layer.label }}
+          </span>
         </div>
         <div class="right-col">
-          <span class="layer-stats">{{ getLayerStats(layer) }}</span>
           <div class="layer-chip">
             <div
               class="status-dot"
               :style="{ backgroundColor: getLayerColor(layer.style) }"
             ></div>
-            <span class="kind-label">{{ layer.style.kind }}</span>
+            <span class="layer-stats">{{ getLayerStats(layer) }}</span>
           </div>
           <button
-            class="text-btn danger"
+            class="icon-btn danger"
             title="remove layer"
             @click="removeLayer(layer.id)"
           >
-            remove
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 6h18"></path>
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+            </svg>
           </button>
         </div>
       </div>
@@ -160,19 +216,25 @@
           </div>
         </div>
 
-        <label class="control-row">
+        <label class="control-row slider-row">
           <span>opacity</span>
+          <span class="control-value">{{
+            formatSliderValue(layer.style.opacity, 2)
+          }}</span>
           <input
             type="range"
             min="0"
             max="1"
-            step="0.05"
+            step="0.02"
             :value="layer.style.opacity"
             @input="updateFeatureStyle(layer, { opacity: eventNumber($event) })"
           />
         </label>
-        <label class="control-row">
+        <label class="control-row slider-row">
           <span>line width</span>
+          <span class="control-value">{{
+            formatSliderValue(layer.style.line_width)
+          }}</span>
           <input
             type="range"
             min="0"
@@ -182,8 +244,11 @@
             @input="updateFeatureStyle(layer, { line_width: eventNumber($event) })"
           />
         </label>
-        <label class="control-row">
+        <label class="control-row slider-row">
           <span>point radius</span>
+          <span class="control-value">{{
+            formatSliderInteger(layer.style.point_radius)
+          }}</span>
           <input
             type="range"
             min="1"
@@ -285,19 +350,25 @@
           </div>
         </div>
 
-        <label class="control-row">
+        <label class="control-row slider-row">
           <span>opacity</span>
+          <span class="control-value">{{
+            formatSliderValue(layer.style.opacity, 2)
+          }}</span>
           <input
             type="range"
             min="0"
             max="1"
-            step="0.05"
+            step="0.02"
             :value="layer.style.opacity"
             @input="updateTrajectoryStyle(layer, { opacity: eventNumber($event) })"
           />
         </label>
-        <label class="control-row">
+        <label class="control-row slider-row">
           <span>line width</span>
+          <span class="control-value">{{
+            formatSliderValue(layer.style.line_width)
+          }}</span>
           <input
             type="range"
             min="1"
@@ -314,9 +385,12 @@
 
 <script setup lang="ts">
 import { ColorPicker } from "@open-aviation/tangram-core/components";
+import { useVimList } from "@open-aviation/tangram-core/keyboard";
 import { colorSpecToHex, parseColorSpec } from "@open-aviation/tangram-core/utils";
+import type { TangramApi } from "@open-aviation/tangram-core/api";
 import {
   layers,
+  activeLayerId,
   clearLayers,
   removeLayer,
   toggleLayerVisibility,
@@ -331,12 +405,135 @@ import {
   type StyleOptions,
   type TrajectoryLayerEntry
 } from "./store";
-import { reactive } from "vue";
+import {
+  reactive,
+  computed,
+  inject,
+  nextTick,
+  onUnmounted,
+  ref,
+  triggerRef,
+  watch
+} from "vue";
 import { categoryColorsForField, categoryStatsForField } from "./feature_source";
 import { trajectoryColorsForField, trajectoryStatsForField } from "./trajectory_source";
 
+const api = inject<TangramApi>("tangramApi")!;
 const collapsedLayers = reactive(new Set<string>());
 const FALLBACK_ACCENT_HEX = "#027ec7";
+const isActive = ref(false);
+const layerListRef = ref<HTMLElement | null>(null);
+let activeLayerFrame: number | null = null;
+
+const { focusedIndex, pendingKeys, setFocus } = useVimList(layers, {
+  isActive,
+  target: layerListRef,
+  onAction: (action, start, count) => {
+    const subset = layers.value.slice(start, start + count);
+    if (action === "delete") {
+      subset.map(l => l.id).forEach(removeLayer);
+    } else if (action === "toggle") {
+      subset.map(l => l.id).forEach(toggleLayerVisibility);
+    } else if (action === "select" && subset.length > 0) {
+      flyToLayer(subset[0]);
+    }
+  }
+});
+
+const allHidden = computed(() => layers.value.every(l => !l.visible));
+const collapsibleLayerIds = computed(() =>
+  layers.value.filter(layer => layer.source.kind !== "table").map(layer => layer.id)
+);
+const collapsibleLayerCount = computed(() => collapsibleLayerIds.value.length);
+const allCollapsed = computed(
+  () =>
+    collapsibleLayerIds.value.length > 0 &&
+    collapsibleLayerIds.value.every(id => collapsedLayers.has(id))
+);
+
+function toggleAllVisibility() {
+  const targetState = allHidden.value;
+  layers.value.forEach(l => {
+    l.visible = targetState;
+  });
+  triggerRef(layers);
+}
+
+function toggleAllCollapsed() {
+  if (allCollapsed.value) {
+    collapsedLayers.clear();
+    return;
+  }
+
+  collapsedLayers.clear();
+  for (const id of collapsibleLayerIds.value) {
+    collapsedLayers.add(id);
+  }
+}
+
+function scheduleActiveLayer(id: string | null) {
+  if (activeLayerFrame !== null) {
+    window.cancelAnimationFrame(activeLayerFrame);
+  }
+
+  activeLayerFrame = window.requestAnimationFrame(() => {
+    activeLayerId.value = id;
+    activeLayerFrame = null;
+  });
+}
+
+function onLayerEnter(index: number) {
+  setFocus(index);
+}
+
+function onListEnter() {
+  isActive.value = true;
+  layerListRef.value?.focus({ preventScroll: true });
+}
+
+function onListLeave() {
+  isActive.value = false;
+  setFocus(null);
+}
+
+watch(
+  focusedIndex,
+  async idx => {
+    scheduleActiveLayer(
+      idx !== null && idx >= 0 && idx < layers.value.length
+        ? layers.value[idx].id
+        : null
+    );
+
+    if (idx === null || idx < 0) return;
+
+    await nextTick();
+    const container = layerListRef.value;
+    if (!container) return;
+
+    const item = container.querySelector<HTMLElement>(`[data-layer-index="${idx}"]`);
+    item?.scrollIntoView({ block: "nearest" });
+  },
+  { flush: "post" }
+);
+
+onUnmounted(() => {
+  if (activeLayerFrame !== null) {
+    window.cancelAnimationFrame(activeLayerFrame);
+  }
+});
+
+function flyToLayer(layer: LayerEntry) {
+  const bounds = layer.source.bounds;
+  if (!bounds) return;
+  api.map.getMapInstance().fitBounds(
+    [
+      [bounds.minLon, bounds.minLat],
+      [bounds.maxLon, bounds.maxLat]
+    ],
+    { padding: 48, maxZoom: 14 }
+  );
+}
 
 function eventValue(event: Event): string {
   return (event.target as HTMLInputElement | HTMLSelectElement).value;
@@ -348,6 +545,17 @@ function eventNumber(event: Event): number {
 
 function eventChecked(event: Event): boolean {
   return (event.target as HTMLInputElement).checked;
+}
+
+function formatSliderValue(value: number, fractionDigits = 1): string {
+  return value
+    .toFixed(fractionDigits)
+    .replace(/(\.\d*?[1-9])0+$/, "$1")
+    .replace(/\.0+$/, "");
+}
+
+function formatSliderInteger(value: number): string {
+  return `${Math.round(value)}`;
 }
 
 function isCollapsed(id: string): boolean {
@@ -500,9 +708,34 @@ function setTrajectoryCategoryField(layer: TrajectoryLayerEntry, field: string) 
 
 .list-actions {
   display: flex;
-  justify-content: flex-end;
-  padding: 4px 12px;
+  justify-content: space-between;
+  padding: 2px 4px;
   border-bottom: 1px solid var(--t-border);
+}
+
+.list-actions-primary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pending-keys {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4ch;
+  padding: 0 4px;
+  border: 1px solid var(--t-border);
+  border-radius: 4px;
+  color: var(--t-muted);
+  font-size: 0.72em;
+  font-family: "Inconsolata", monospace;
+  line-height: 1.2;
+  visibility: hidden;
+}
+
+.pending-keys.is-visible {
+  visibility: visible;
 }
 
 .empty-state {
@@ -514,12 +747,16 @@ function setTrajectoryCategoryField(layer: TrajectoryLayerEntry, field: string) 
 }
 
 .layer-item {
-  padding: 6px 12px;
+  padding: 0 6px;
   border-bottom: 1px solid var(--t-border);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   font-size: 0.9em;
+}
+
+.layer-item.is-focused {
+  background-color: var(--t-hover);
 }
 
 .layer-header {
@@ -563,6 +800,7 @@ function setTrajectoryCategoryField(layer: TrajectoryLayerEntry, field: string) 
 
 .icon-btn {
   width: 16px;
+  height: 16px;
   justify-content: center;
   font-size: 12px;
 }
@@ -572,6 +810,7 @@ function setTrajectoryCategoryField(layer: TrajectoryLayerEntry, field: string) 
   font-family: "B612", sans-serif;
 }
 
+.icon-btn.danger:hover,
 .text-btn.danger:hover {
   color: var(--t-error);
 }
@@ -585,30 +824,24 @@ function setTrajectoryCategoryField(layer: TrajectoryLayerEntry, field: string) 
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: "B612", sans-serif;
+  cursor: pointer;
+}
+
+.layer-label:hover {
+  text-decoration: underline;
 }
 
 .layer-chip {
   display: flex;
   align-items: center;
-  gap: 4px;
-  background-color: var(--t-hover);
-  padding: 2px 6px 2px 4px;
-  border-radius: 12px;
-  border: 1px solid var(--t-border);
+  gap: 6px;
+  padding: 2px 4px;
 }
 
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-}
-
-.kind-label {
-  text-transform: lowercase;
-  font-size: 0.75em;
-  color: var(--t-muted);
-  font-weight: 600;
-  line-height: 1;
 }
 
 .layer-stats {
@@ -620,11 +853,10 @@ function setTrajectoryCategoryField(layer: TrajectoryLayerEntry, field: string) 
 .feature-controls {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
+  gap: 4px;
+  padding: 0 8px;
+  margin: 0 0 6px 0;
   border-radius: 8px;
-  background: var(--t-surface);
-  border: 1px solid var(--t-border);
 }
 
 .control-row {
@@ -634,6 +866,18 @@ function setTrajectoryCategoryField(layer: TrajectoryLayerEntry, field: string) 
   gap: 8px;
   color: var(--t-fg);
   font-size: 0.82em;
+}
+
+.slider-row {
+  grid-template-columns: 72px auto 1fr;
+}
+
+.control-value {
+  min-width: 18px;
+  color: var(--t-muted);
+  font-size: 0.78em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .control-row select {

@@ -1,4 +1,4 @@
-import { reactive, shallowRef, triggerRef } from "vue";
+import { reactive, shallowRef, triggerRef, ref } from "vue";
 import type { Table } from "apache-arrow";
 import type { Table as WasmTable } from "parquet-wasm";
 import type { ColorSpec } from "@open-aviation/tangram-core/utils";
@@ -90,6 +90,7 @@ export interface TrajectoryLayerEntry {
 export type LayerEntry = TableLayerEntry | FeatureLayerEntry | TrajectoryLayerEntry;
 
 export const layers = shallowRef<LayerEntry[]>([]);
+export const activeLayerId = ref<string | null>(null);
 
 export const pluginConfig = reactive({
   enable_3d: false
