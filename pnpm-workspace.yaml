@@ -1,5 +1,8 @@
 packages:
   - packages/*
 
+overrides:
+  "@scarf/scarf": link:packages/tangram_weather/vendor/scarf-disabled
+
 minimumReleaseAge: 10080
 minimumReleaseAgeStrict: true
