@@ -1,4 +1,6 @@
 import { computed, ref, shallowRef } from "vue";
+import type { WorkspaceDatasetEntry } from "@open-aviation/tangram-core/api";
+import { isTrajectoryDatasetEntry } from "./datasets";
 import type { Trajectory } from "./trajectory_source";
 
 export interface ExploreTrajectorySelectionPayload {
@@ -76,59 +78,27 @@ export const exploreTrajectoryRecords = shallowRef<
   ReadonlyMap<string, ExploreTrajectorySelectionPayload>
 >(new Map());
 
-const trajectoryKeysByEntry = new Map<string, string[]>();
-
-export function addExploreTrajectoryLayer(
-  entryId: string,
-  layerLabel: string,
-  trajectories: ReadonlyArray<Trajectory>
+export function rebuildExploreTrajectoryRecords(
+  entries: ReadonlyArray<WorkspaceDatasetEntry>
 ): void {
-  const records = new Map(exploreTrajectoryRecords.value);
-  const previousKeys = trajectoryKeysByEntry.get(entryId) ?? [];
+  const records = new Map<string, ExploreTrajectorySelectionPayload>();
 
-  for (const key of previousKeys) {
-    records.delete(key);
+  for (const entry of entries) {
+    if (!isTrajectoryDatasetEntry(entry)) continue;
+    for (const trajectory of entry.payload.trajectories) {
+      const key = exploreTrajectoryKey(entry.id, trajectory.id);
+      records.set(
+        key,
+        buildExploreTrajectorySelectionPayload(entry.id, entry.label, trajectory)
+      );
+    }
   }
 
-  const nextKeys: string[] = [];
-  for (const trajectory of trajectories) {
-    const key = exploreTrajectoryKey(entryId, trajectory.id);
-    nextKeys.push(key);
-    records.set(
-      key,
-      buildExploreTrajectorySelectionPayload(entryId, layerLabel, trajectory)
-    );
-  }
-
-  trajectoryKeysByEntry.set(entryId, nextKeys);
   exploreTrajectoryRecords.value = records;
 
   if (selectedTrajectoryKey.value && !records.has(selectedTrajectoryKey.value)) {
     selectedTrajectoryKey.value = null;
   }
-}
-
-export function removeExploreTrajectoryLayer(entryId: string): void {
-  const keys = trajectoryKeysByEntry.get(entryId);
-  if (!keys) return;
-
-  const records = new Map(exploreTrajectoryRecords.value);
-  for (const key of keys) {
-    records.delete(key);
-  }
-
-  trajectoryKeysByEntry.delete(entryId);
-  exploreTrajectoryRecords.value = records;
-
-  if (selectedTrajectoryKey.value && !records.has(selectedTrajectoryKey.value)) {
-    selectedTrajectoryKey.value = null;
-  }
-}
-
-export function clearExploreTrajectoryLayers(): void {
-  trajectoryKeysByEntry.clear();
-  exploreTrajectoryRecords.value = new Map();
-  selectedTrajectoryKey.value = null;
 }
 
 export const selectedTrajectory = computed(() => {

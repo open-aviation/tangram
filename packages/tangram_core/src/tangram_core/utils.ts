@@ -1,3 +1,5 @@
+import type { LazyImportFile, MapBounds } from "./api";
+
 // adapted from: https://github.com/color-js/color.js/blob/main/src/spaces/oklch.js
 type Vector3 = [number, number, number];
 
@@ -16,6 +18,274 @@ export const Err = <E>(error: E): Result<never, E> => ({ ok: false, error });
 
 export function assertNever(value: never, message: string): never {
   throw new Error(`${message}: ${JSON.stringify(value)}`);
+}
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function finiteNumber(value: unknown): number | null {
+  const number = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+export function parseTimestamp(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (value > 10_000_000_000_000_000) return value / 1_000_000_000;
+    if (value > 10_000_000_000_000) return value / 1_000_000;
+    if (value > 10_000_000_000) return value / 1000;
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const asNumber = Number(value);
+    if (Number.isFinite(asNumber)) return parseTimestamp(asNumber);
+    const parsed = Date.parse(value.endsWith("Z") ? value : `${value}Z`);
+    return Number.isFinite(parsed) ? parsed / 1000 : null;
+  }
+
+  return null;
+}
+
+export interface ModifierKeys {
+  ctrlKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+}
+
+const EMPTY_MODIFIER_KEYS: ModifierKeys = {
+  ctrlKey: false,
+  altKey: false,
+  metaKey: false
+};
+
+export function getModifierKeys(event: unknown): ModifierKeys {
+  if (typeof event !== "object" || event === null) return EMPTY_MODIFIER_KEYS;
+
+  const eventObject = event as Record<string, unknown>;
+  const srcEvent = eventObject["srcEvent"];
+  const sourceEvent = eventObject["sourceEvent"];
+  const source =
+    typeof srcEvent === "object" && srcEvent !== null
+      ? ((srcEvent as Record<string, unknown>)["originalEvent"] ?? srcEvent)
+      : (sourceEvent ?? event);
+
+  if (typeof source !== "object" || source === null) return EMPTY_MODIFIER_KEYS;
+
+  const maybe = source as Partial<ModifierKeys>;
+  return {
+    ctrlKey: !!maybe.ctrlKey,
+    altKey: !!maybe.altKey,
+    metaKey: !!maybe.metaKey
+  };
+}
+
+export function computeBoundsFromRecords<T>(
+  records: ReadonlyArray<T>,
+  getLongitude: (record: T) => number | null | undefined,
+  getLatitude: (record: T) => number | null | undefined
+): MapBounds | null {
+  let minLon = Number.POSITIVE_INFINITY;
+  let minLat = Number.POSITIVE_INFINITY;
+  let maxLon = Number.NEGATIVE_INFINITY;
+  let maxLat = Number.NEGATIVE_INFINITY;
+
+  for (const record of records) {
+    const longitude = getLongitude(record);
+    const latitude = getLatitude(record);
+    if (longitude == null || latitude == null) continue;
+
+    minLon = Math.min(minLon, longitude);
+    minLat = Math.min(minLat, latitude);
+    maxLon = Math.max(maxLon, longitude);
+    maxLat = Math.max(maxLat, latitude);
+  }
+
+  return [minLon, minLat, maxLon, maxLat].every(Number.isFinite)
+    ? { minLon, minLat, maxLon, maxLat }
+    : null;
+}
+
+export function segmentTrajectoryRecords<T>(
+  records: ReadonlyArray<T>,
+  options: {
+    getId: (record: T) => string | null | undefined;
+    getTimestamp: (record: T) => number | null;
+    maxGapSeconds: number;
+    fallbackId?: string;
+  }
+): T[][] {
+  const buckets = new Map<string, T[]>();
+
+  for (const record of records) {
+    const key = options.getId(record) || options.fallbackId || "trajectory";
+    const bucket = buckets.get(key) ?? [];
+    bucket.push(record);
+    buckets.set(key, bucket);
+  }
+
+  const groups: T[][] = [];
+  for (const bucket of buckets.values()) {
+    const sorted = [...bucket].sort(
+      (left, right) =>
+        (options.getTimestamp(left) ?? 0) - (options.getTimestamp(right) ?? 0)
+    );
+
+    let segment: T[] = [];
+    for (const record of sorted) {
+      const previous = segment.length > 0 ? segment[segment.length - 1] : undefined;
+      const previousTimestamp = previous ? options.getTimestamp(previous) : null;
+      const currentTimestamp = options.getTimestamp(record);
+      const gapSeconds =
+        previousTimestamp !== null && currentTimestamp !== null
+          ? currentTimestamp - previousTimestamp
+          : 0;
+
+      if (segment.length > 0 && gapSeconds > options.maxGapSeconds) {
+        groups.push(segment);
+        segment = [];
+      }
+
+      segment.push(record);
+    }
+
+    if (segment.length > 0) {
+      groups.push(segment);
+    }
+  }
+
+  return groups;
+}
+
+export function latestTrajectoryPoints<T>(
+  segments: ReadonlyArray<ReadonlyArray<T>>
+): T[] {
+  return segments
+    .map(segment => segment[segment.length - 1])
+    .filter((record): record is T => record !== undefined);
+}
+
+// NOTE: csv support was added in da9eba30e667941b5193d66133f51ad32b97d4ed by xoolive
+// we might want to switch to papaparse for better handling of european decimals/TSVs etc
+
+function splitCsvLine(line: string): string[] {
+  const cells: string[] = [];
+  let current = "";
+  let quoted = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"' && line[index + 1] === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      cells.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  cells.push(current);
+  return cells;
+}
+
+export function parseCsvRows(
+  text: string,
+  maxRows?: number
+): Record<string, unknown>[] {
+  const lines = text.split(/\r?\n/).filter(line => line.trim());
+  if (lines.length === 0) {
+    return [];
+  }
+
+  const header = splitCsvLine(lines[0]);
+  const end = maxRows ? Math.min(lines.length, maxRows + 1) : lines.length;
+
+  return lines
+    .slice(1, end)
+    .map(line =>
+      Object.fromEntries(
+        splitCsvLine(line).map((value, index) => [
+          header[index] ?? `field_${index}`,
+          value
+        ])
+      )
+    );
+}
+
+export async function parseJsonlRows(
+  file: Pick<LazyImportFile, "rawFile" | "getText">,
+  maxRows?: number,
+  tolerateErrors = false
+): Promise<Record<string, unknown>[]> {
+  const rows: Record<string, unknown>[] = [];
+
+  const parseLine = (line: string): boolean => {
+    if (!line.trim()) return true;
+
+    try {
+      const parsed = JSON.parse(line);
+      if (isRecord(parsed)) {
+        rows.push(parsed);
+      }
+    } catch (error) {
+      if (tolerateErrors) {
+        return false;
+      }
+
+      throw error;
+    }
+
+    return !(maxRows && rows.length >= maxRows);
+  };
+
+  const stream = file.rawFile.stream?.();
+  if (stream) {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+
+        let newlineIndex = buffer.indexOf("\n");
+        while (newlineIndex !== -1) {
+          const line = buffer.slice(0, newlineIndex).replace(/\r$/, "");
+          buffer = buffer.slice(newlineIndex + 1);
+
+          if (!parseLine(line)) {
+            await reader.cancel();
+            return rows;
+          }
+
+          newlineIndex = buffer.indexOf("\n");
+        }
+
+        if (done) break;
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    if (buffer && !parseLine(buffer.replace(/\r$/, ""))) {
+      return rows;
+    }
+
+    return rows;
+  }
+
+  for (const line of (await file.getText()).split(/\r?\n/)) {
+    if (!parseLine(line)) {
+      return rows;
+    }
+  }
+
+  return rows;
 }
 
 const multiplyMatrices = (A: number[], B: Vector3): Vector3 => {

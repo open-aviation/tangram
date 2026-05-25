@@ -3,10 +3,12 @@ import {
   ref,
   Component,
   computed,
+  markRaw,
   reactive,
   getCurrentScope,
   onScopeDispose,
   shallowRef,
+  triggerRef,
   watch,
   type ShallowRef,
   type Ref
@@ -15,8 +17,10 @@ import type { Map as MaplibreMap, LngLatBounds, StyleSpecification } from "mapli
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import type { Layer } from "@deck.gl/core";
 import { Socket, Channel } from "phoenix";
+import FileDropTarget from "./FileDropTarget.vue";
 import MapSettings from "./MapSettings.vue";
 import ThemeSettings from "./ThemeSettings.vue";
+import WorkspacePanel from "./WorkspacePanel.vue";
 
 class NotImplementedError extends Error {
   constructor(message = "this function is not yet implemented.") {
@@ -465,6 +469,380 @@ export class SelectionApi {
   }
 }
 
+interface DisposableLike {
+  dispose(): void;
+}
+
+export interface MapBounds {
+  minLon: number;
+  minLat: number;
+  maxLon: number;
+  maxLat: number;
+}
+
+export interface WorkspaceDatasetEntry<TPayload = unknown> {
+  id: string;
+  kind: string;
+  label: string;
+  pluginId?: string;
+  payload: TPayload;
+  bounds: MapBounds | null;
+  visible: boolean;
+  dispose?: () => void;
+}
+
+export interface WorkspaceDatasetInput<TPayload = unknown> {
+  id?: string;
+  kind: string;
+  label: string;
+  pluginId?: string;
+  payload: TPayload;
+  bounds?: MapBounds | null;
+  visible?: boolean;
+  dispose?: () => void;
+}
+
+export interface ImportFileMetadata {
+  name: string;
+  extension: string;
+  mediaType: string;
+}
+
+export class LazyImportFile {
+  readonly metadata: ImportFileMetadata;
+
+  private _bytesPromise?: Promise<Uint8Array>;
+  private _textPromise?: Promise<string>;
+  private _jsonPromise?: Promise<unknown>;
+
+  constructor(private readonly file: File) {
+    this.metadata = {
+      name: file.name,
+      extension: fileExtension(file.name),
+      mediaType: file.type.toLowerCase()
+    };
+  }
+
+  get rawFile(): File {
+    return this.file;
+  }
+
+  getBytes(): Promise<Uint8Array> {
+    return (this._bytesPromise ??= this.file
+      .arrayBuffer()
+      .then(buffer => new Uint8Array(buffer)));
+  }
+
+  getText(): Promise<string> {
+    return (this._textPromise ??= this.file.text());
+  }
+
+  getJson(): Promise<unknown> {
+    return (this._jsonPromise ??= this.getText().then(JSON.parse));
+  }
+}
+
+export interface WorkspaceImporter {
+  id: string;
+  pluginId?: string;
+  label?: string;
+  priority?: number;
+  accepts: (file: LazyImportFile) => Promise<boolean> | boolean;
+  parse: (file: LazyImportFile) => Promise<WorkspaceDatasetInput[]>;
+}
+
+export interface ImportFailure {
+  fileName: string;
+  importerId?: string;
+  message: string;
+}
+
+type WorkspaceDatasetRecord<T extends WorkspaceDatasetInput<unknown>> =
+  WorkspaceDatasetEntry<T["payload"]> & Omit<T, keyof WorkspaceDatasetInput<unknown>>;
+
+export interface ImportBatchResult {
+  entries: WorkspaceDatasetEntry[];
+  failures: ImportFailure[];
+  bounds: MapBounds | null;
+}
+
+function fileExtension(name: string): string {
+  const index = name.lastIndexOf(".");
+  return index === -1 ? "" : name.slice(index).toLowerCase();
+}
+
+function createDatasetEntry<T extends WorkspaceDatasetInput>(
+  input: T
+): WorkspaceDatasetRecord<T> {
+  return {
+    ...input,
+    id: input.id ?? crypto.randomUUID(),
+    label: input.label,
+    pluginId: input.pluginId,
+    payload: input.payload,
+    bounds: input.bounds ?? null,
+    visible: input.visible ?? true,
+    dispose: input.dispose
+  };
+}
+
+function disposeEntry(entry: WorkspaceDatasetEntry) {
+  entry.dispose?.();
+}
+
+function removeImporterIfSame(
+  importers: Map<string, WorkspaceImporter>,
+  importer: WorkspaceImporter
+) {
+  if (importers.get(importer.id) === importer) {
+    importers.delete(importer.id);
+  }
+}
+
+function unionBounds(
+  current: MapBounds | null,
+  next: MapBounds | null
+): MapBounds | null {
+  if (!next) return current;
+  if (!current) return { ...next };
+  return {
+    minLon: Math.min(current.minLon, next.minLon),
+    minLat: Math.min(current.minLat, next.minLat),
+    maxLon: Math.max(current.maxLon, next.maxLon),
+    maxLat: Math.max(current.maxLat, next.maxLat)
+  };
+}
+
+export class WorkspaceApi {
+  readonly datasets: ShallowRef<WorkspaceDatasetEntry[]> = shallowRef([]);
+  readonly activeDatasetId = ref<string | null>(null);
+
+  private upsertEntries<T extends WorkspaceDatasetEntry>(entries: T[]): T[] {
+    if (entries.length === 0) return entries;
+
+    const next = [...this.datasets.value];
+
+    for (const entry of entries) {
+      const existingIndex = next.findIndex(dataset => dataset.id === entry.id);
+      if (existingIndex === -1) {
+        next.push(entry);
+        continue;
+      }
+
+      disposeEntry(next[existingIndex]);
+      next[existingIndex] = entry;
+    }
+
+    this.datasets.value = next;
+    triggerRef(this.datasets);
+    return entries;
+  }
+
+  add<T extends WorkspaceDatasetInput>(input: T): WorkspaceDatasetRecord<T> {
+    const entry = createDatasetEntry(input);
+    this.upsertEntries([entry]);
+    return entry;
+  }
+
+  addMany<T extends WorkspaceDatasetInput>(inputs: T[]): WorkspaceDatasetRecord<T>[] {
+    if (inputs.length === 0) return [];
+    return this.upsertEntries(inputs.map(createDatasetEntry));
+  }
+
+  update(
+    id: string,
+    updater: (entry: WorkspaceDatasetEntry) => WorkspaceDatasetEntry | void | undefined
+  ): boolean {
+    const index = this.datasets.value.findIndex(entry => entry.id === id);
+    if (index === -1) return false;
+
+    const next = [...this.datasets.value];
+    const current = next[index];
+    const updated = updater(current);
+    next[index] = updated ?? current;
+    this.datasets.value = next;
+    triggerRef(this.datasets);
+    return true;
+  }
+
+  remove(id: string) {
+    const next: WorkspaceDatasetEntry[] = [];
+    let removed = false;
+
+    for (const entry of this.datasets.value) {
+      if (entry.id === id) {
+        removed = true;
+        disposeEntry(entry);
+        continue;
+      }
+      next.push(entry);
+    }
+
+    if (!removed) return;
+
+    if (this.activeDatasetId.value === id) {
+      this.activeDatasetId.value = null;
+    }
+
+    this.datasets.value = next;
+    triggerRef(this.datasets);
+  }
+
+  clear() {
+    for (const entry of this.datasets.value) {
+      disposeEntry(entry);
+    }
+    this.datasets.value = [];
+    this.activeDatasetId.value = null;
+    triggerRef(this.datasets);
+  }
+
+  toggleVisibility(id: string) {
+    this.update(id, entry => {
+      entry.visible = !entry.visible;
+      return entry;
+    });
+  }
+
+  setVisibility(id: string, visible: boolean) {
+    this.update(id, entry => {
+      if (entry.visible === visible) return entry;
+      entry.visible = visible;
+      return entry;
+    });
+  }
+
+  setAllVisibility(visible: boolean) {
+    let changed = false;
+    const next = [...this.datasets.value];
+
+    for (const entry of next) {
+      if (entry.visible !== visible) {
+        entry.visible = visible;
+        changed = true;
+      }
+    }
+
+    if (!changed) return;
+    this.datasets.value = next;
+    triggerRef(this.datasets);
+  }
+
+  setActiveDataset(id: string | null) {
+    this.activeDatasetId.value = id;
+  }
+
+  removeAllByPlugin(pluginId: string) {
+    let changed = false;
+    const next: WorkspaceDatasetEntry[] = [];
+
+    for (const entry of this.datasets.value) {
+      if (entry.pluginId === pluginId) {
+        disposeEntry(entry);
+        changed = true;
+        continue;
+      }
+      next.push(entry);
+    }
+
+    if (!changed) return;
+
+    if (
+      this.activeDatasetId.value &&
+      !next.some(entry => entry.id === this.activeDatasetId.value)
+    ) {
+      this.activeDatasetId.value = null;
+    }
+
+    this.datasets.value = next;
+    triggerRef(this.datasets);
+  }
+}
+
+export class ImportApi {
+  private readonly importers = new Map<string, WorkspaceImporter>();
+
+  constructor(private readonly workspace: WorkspaceApi) {}
+
+  registerImporter(importer: WorkspaceImporter): DisposableLike {
+    this.importers.set(importer.id, importer);
+    return {
+      dispose: () => removeImporterIfSame(this.importers, importer)
+    };
+  }
+
+  async importFiles(files: File[]): Promise<ImportBatchResult> {
+    const importedEntries: WorkspaceDatasetEntry[] = [];
+    const failures: ImportFailure[] = [];
+
+    for (const rawFile of files) {
+      const file = new LazyImportFile(rawFile);
+      const importer = await this.firstAcceptingImporter(this.sortedImporters(), file);
+
+      if (!importer) {
+        failures.push({
+          fileName: rawFile.name,
+          message: `No importer accepted ${rawFile.name}.`
+        });
+        continue;
+      }
+
+      try {
+        const entries = this.workspace.addMany(
+          (await importer.parse(file)).map(dataset => ({
+            ...dataset,
+            pluginId: dataset.pluginId ?? importer.pluginId
+          }))
+        );
+        importedEntries.push(...entries);
+      } catch (error) {
+        failures.push({
+          fileName: rawFile.name,
+          importerId: importer.id,
+          message:
+            error instanceof Error ? error.message : `Failed to import ${rawFile.name}.`
+        });
+      }
+    }
+
+    return {
+      entries: importedEntries,
+      failures,
+      bounds: importedEntries.reduce<MapBounds | null>(
+        (aggregate, entry) => unionBounds(aggregate, entry.bounds),
+        null
+      )
+    };
+  }
+
+  removeAllByPlugin(pluginId: string) {
+    for (const importer of [...this.importers.values()]) {
+      if (importer.pluginId === pluginId) {
+        this.importers.delete(importer.id);
+      }
+    }
+  }
+
+  private sortedImporters(): WorkspaceImporter[] {
+    return [...this.importers.values()].sort(
+      (left, right) => (right.priority ?? 0) - (left.priority ?? 0)
+    );
+  }
+
+  private async firstAcceptingImporter(
+    importers: WorkspaceImporter[],
+    file: LazyImportFile
+  ): Promise<WorkspaceImporter | undefined> {
+    for (const importer of importers) {
+      if (await importer.accepts(file)) {
+        return importer;
+      }
+    }
+
+    return undefined;
+  }
+}
+
 export interface Entity<TState extends EntityState = EntityState> {
   readonly id: EntityId;
   readonly type: string;
@@ -518,6 +896,18 @@ export interface WidgetEntry extends WidgetOptions {
   pluginId?: string;
   priority: number;
   isCollapsed: boolean;
+}
+
+export interface WorkspaceComponentOptions {
+  pluginId?: string;
+  chip?: Component;
+  details?: Component;
+}
+
+export interface WorkspaceComponentEntry {
+  pluginId?: string;
+  chip?: Component;
+  details?: Component;
 }
 
 export interface EntityTypeOptions {
@@ -596,6 +986,9 @@ export class UiApi {
     SideBar: [],
     MapOverlay: []
   });
+  readonly workspaceComponents: ShallowRef<
+    ReadonlyMap<string, WorkspaceComponentEntry>
+  > = shallowRef(new Map());
   private settingsWidgets = new Map<string, Component>();
 
   constructor(app: App) {
@@ -642,6 +1035,34 @@ export class UiApi {
     this.widgets[location].sort((a, b) => b.priority - a.priority);
   }
 
+  registerWorkspaceComponents(
+    kind: string,
+    options: WorkspaceComponentOptions
+  ): Disposable {
+    const entry: WorkspaceComponentEntry = {
+      pluginId: options.pluginId,
+      chip: options.chip ? markRaw(options.chip) : undefined,
+      details: options.details ? markRaw(options.details) : undefined
+    };
+
+    const next = new Map(this.workspaceComponents.value);
+    next.set(kind, entry);
+    this.workspaceComponents.value = next;
+
+    return bindDisposableToCurrentScope(
+      createDisposable(() => {
+        if (this.workspaceComponents.value.get(kind) !== entry) return;
+        const updated = new Map(this.workspaceComponents.value);
+        updated.delete(kind);
+        this.workspaceComponents.value = updated;
+      })
+    );
+  }
+
+  getWorkspaceComponents(kind: string): WorkspaceComponentEntry | undefined {
+    return this.workspaceComponents.value.get(kind);
+  }
+
   removeAllByPlugin(pluginId: string): void {
     for (const location of Object.keys(this.widgets) as WidgetLocation[]) {
       const locationWidgets = this.widgets[location];
@@ -650,6 +1071,18 @@ export class UiApi {
           locationWidgets.splice(index, 1);
         }
       }
+    }
+
+    const nextWorkspaceComponents = new Map(this.workspaceComponents.value);
+    let changed = false;
+    for (const [kind, entry] of nextWorkspaceComponents.entries()) {
+      if (entry.pluginId === pluginId) {
+        nextWorkspaceComponents.delete(kind);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.workspaceComponents.value = nextWorkspaceComponents;
     }
   }
 
@@ -1303,8 +1736,10 @@ export class TangramApi {
   readonly time: TimeApi;
   readonly ui: UiApi;
   readonly map: MapApi;
+  readonly workspace: WorkspaceApi;
   readonly state: StateApi;
   readonly bus: BusApi;
+  readonly import: ImportApi;
   readonly trajectory: TrajectoryApi;
   readonly selection: SelectionApi;
   readonly realtime: RealtimeApi;
@@ -1323,12 +1758,19 @@ export class TangramApi {
     this.ui = new UiApi(app);
     this.time = new TimeApi();
     this.map = new MapApi(this);
+    this.workspace = new WorkspaceApi();
     this.trajectory = new TrajectoryApi(this.bus);
     this.selection = new SelectionApi(this.bus);
     this.state = new StateApi(this.selection);
     this.search = new SearchApi();
+    this.import = new ImportApi(this.workspace);
 
     this.app = app;
+    this.ui.registerWidget("tangram-core-file-drop", "MapOverlay", FileDropTarget);
+    this.ui.registerWidget("tangram-workspace-panel", "SideBar", WorkspacePanel, {
+      title: "Workspace",
+      visible: () => this.workspace.datasets.value.length > 0
+    });
     this.ui.registerSettingsWidget("map-settings", MapSettings);
     this.ui.registerSettingsWidget("theme-settings", ThemeSettings);
 
@@ -1550,8 +1992,10 @@ export class TangramApi {
    * elements or map layers. Inspired by cascading deletes in a SQL database.
    */
   teardownPlugin(pluginId: string): void {
+    this.import.removeAllByPlugin(pluginId);
     this.map.removeAllByPlugin(pluginId);
     this.ui.removeAllByPlugin(pluginId);
+    this.workspace.removeAllByPlugin(pluginId);
     this.state.removeAllByPlugin(pluginId);
     this.search.removeAllByPlugin(pluginId);
   }

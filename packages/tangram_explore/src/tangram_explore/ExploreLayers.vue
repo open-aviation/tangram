@@ -2,18 +2,18 @@
 import { watch, inject, onUnmounted, shallowReactive, computed } from "vue";
 import { GeoJsonLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
-import { Disposable, TangramApi } from "@open-aviation/tangram-core/api";
+import type { Table } from "apache-arrow";
+import { type Disposable, type TangramApi } from "@open-aviation/tangram-core/api";
 import { categoricalColor, parseColorSpec } from "@open-aviation/tangram-core/utils";
+import { pluginConfig } from "./config";
 import {
-  layers,
-  activeLayerId,
-  pluginConfig,
-  type FeatureLayerEntry,
+  isExploreDatasetEntry,
+  isFeatureDatasetEntry,
+  isTrajectoryDatasetEntry,
+  type ExploreDatasetEntry,
   type FeatureStyleOptions,
-  type LayerEntry,
-  type TrajectoryLayerEntry,
   type TrajectoryStyleOptions
-} from "./store";
+} from "./datasets";
 import {
   featureCategoryValue,
   filteredFeatureCollection,
@@ -30,6 +30,10 @@ import {
 } from "./trajectory_selection";
 
 const api = inject<TangramApi>("tangramApi")!;
+const layers = computed(() =>
+  api.workspace.datasets.value.filter(isExploreDatasetEntry)
+);
+const activeLayerId = api.workspace.activeDatasetId;
 const layerDisposables = new Map<string, Disposable>();
 
 const hoverInfo = shallowReactive({
@@ -47,7 +51,7 @@ function clearHoverInfo() {
 }
 
 function setHoverInfo(
-  entry: LayerEntry,
+  entry: ExploreDatasetEntry,
   x: number,
   y: number,
   object: Record<string, unknown> | null
@@ -95,14 +99,6 @@ function defaultTableLineColor(): [number, number, number, number] {
   return withAlpha(getFallbackColor(), 255);
 }
 
-function isFeatureLayerEntry(entry: LayerEntry): entry is FeatureLayerEntry {
-  return entry.source.kind === "features";
-}
-
-function isTrajectoryLayerEntry(entry: LayerEntry): entry is TrajectoryLayerEntry {
-  return entry.source.kind === "trajectories";
-}
-
 function featureColor(feature: GeoJsonFeature, opts: FeatureStyleOptions) {
   if (opts.style_mode === "single") {
     return opts.fill_color;
@@ -146,6 +142,9 @@ watch(
 watch(
   [layers, enable3d, activeLayerId],
   ([currentLayers, is3d, focusedId]) => {
+    const activeLayer = currentLayers.some(layer => layer.id === focusedId)
+      ? focusedId
+      : null;
     const activeIds = new Set(currentLayers.map(l => l.id));
 
     if (
@@ -163,13 +162,13 @@ watch(
     }
 
     for (const entry of currentLayers) {
-      const isFocused = focusedId === null || focusedId === entry.id;
+      const isFocused = activeLayer === null || activeLayer === entry.id;
       const opacityMultiplier = isFocused ? 1.0 : 0.2;
 
-      if (isFeatureLayerEntry(entry)) {
+      if (isFeatureDatasetEntry(entry)) {
         const opts = entry.style;
         const data = filteredFeatureCollection(
-          entry.source,
+          entry.payload,
           opts.category_field,
           opts.hidden_categories
         );
@@ -217,11 +216,11 @@ watch(
         continue;
       }
 
-      if (isTrajectoryLayerEntry(entry)) {
+      if (isTrajectoryDatasetEntry(entry)) {
         const opts = entry.style;
         const currentSelectedTrajectoryId = selectedTrajectoryIdForEntry(entry.id);
         const data = filteredTrajectories(
-          entry.source,
+          entry.payload,
           opts.category_field,
           opts.hidden_categories
         );
@@ -293,21 +292,24 @@ watch(
         continue;
       }
 
-      const table = entry.source.table;
-      const coordinates = entry.source.coordinates;
-      if (entry.source.variant !== "point-table" || !coordinates) continue;
+      const tableEntry = entry as ExploreDatasetEntry;
+      if (tableEntry.kind !== "table") continue;
 
-      const latData = table.getChild(coordinates.latitudeField)!;
-      const lonData = table.getChild(coordinates.longitudeField)!;
+      const arrowTable = tableEntry.payload.table as Table;
+      const coordinates = tableEntry.payload.coordinates;
+      if (tableEntry.payload.variant !== "point-table" || !coordinates) continue;
+
+      const latData = arrowTable.getChild(coordinates.latitudeField)!;
+      const lonData = arrowTable.getChild(coordinates.longitudeField)!;
       const altData =
         is3d && coordinates.altitudeField
-          ? table.getChild(coordinates.altitudeField)
+          ? arrowTable.getChild(coordinates.altitudeField)
           : null;
-      const opts = entry.style;
+      const opts = tableEntry.style;
       const deckLayer = new ScatterplotLayer({
-        id: `explore-layer-${entry.id}`,
-        data: { length: table.numRows },
-        visible: entry.visible,
+        id: `explore-layer-${tableEntry.id}`,
+        data: { length: arrowTable.numRows },
+        visible: tableEntry.visible,
         pickable: opts.pickable,
         opacity: opts.opacity * opacityMultiplier,
         stroked: opts.stroked,
@@ -327,22 +329,22 @@ watch(
         getLineColor: parseColorSpec(opts.line_color) ?? defaultTableLineColor(),
         onHover: (info: PickingInfo) => {
           if (info.index !== -1) {
-            const row = table.get(info.index);
-            setHoverInfo(entry, info.x, info.y, row ? row.toJSON() : null);
+            const row = arrowTable.get(info.index);
+            setHoverInfo(tableEntry, info.x, info.y, row ? row.toJSON() : null);
           } else {
             clearHoverInfo();
           }
         },
         updateTriggers: {
-          getPosition: [entry.id, is3d],
+          getPosition: [tableEntry.id, is3d],
           getFillColor: [opts.fill_color],
           getLineColor: [opts.line_color]
         }
       });
 
-      if (!layerDisposables.has(entry.id)) {
+      if (!layerDisposables.has(tableEntry.id)) {
         layerDisposables.set(
-          entry.id,
+          tableEntry.id,
           api.map.setLayer(deckLayer, {
             slot: "entities_underlay"
           })
