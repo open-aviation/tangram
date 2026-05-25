@@ -30,9 +30,10 @@
 import { computed, inject, onUnmounted, ref, watch, reactive, type Ref } from "vue";
 import { IconLayer, PolygonLayer } from "@deck.gl/layers";
 import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core/api";
-import { oklchToDeckGLColor } from "@open-aviation/tangram-core/utils";
+import { getModifierKeys, oklchToDeckGLColor } from "@open-aviation/tangram-core/utils";
 import type { Ship162Vessel } from ".";
 import type { PickingInfo } from "@deck.gl/core";
+import { isShip162ImportedHistoryDataset } from "./imported_trajectory";
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
@@ -42,13 +43,33 @@ if (!tangramApi) {
 const shipEntities = computed(
   () => tangramApi.state.getEntitiesByType<Ship162Vessel>("ship162_ship").value
 );
+const importedEntries = computed(() =>
+  tangramApi.workspace.datasets.value.filter(isShip162ImportedHistoryDataset)
+);
+const importedShips = computed<Entity<Ship162Vessel>[]>(() =>
+  // HACK: imported ship history is projected into fake "current" entities by taking
+  // the last sample of each segmented track so we can reuse the live ship layers.
+  // TODO: replace this with a time-aware query over historical datasets once core can render
+  // a temporal window.
+  importedEntries.value.flatMap(entry =>
+    !entry.visible
+      ? []
+      : entry.payload.latestPoints.map((state, index) => ({
+          id: `imported:${entry.id}:${state.mmsi}:${index}`,
+          type: "ship162_imported",
+          state
+        }))
+  )
+);
 const selectedIds = ref<ReadonlySet<string>>(new Set());
 const selectionDisposable = tangramApi.selection.onChanged(map => {
   selectedIds.value = map.get("ship162_ship") || new Set();
 });
 
-const layerDisposable: Ref<Disposable | null> = ref(null);
-const hullLayerDisposable: Ref<Disposable | null> = ref(null);
+const liveLayerDisposable: Ref<Disposable | null> = ref(null);
+const importedLayerDisposable: Ref<Disposable | null> = ref(null);
+const liveHullLayerDisposable: Ref<Disposable | null> = ref(null);
+const importedHullLayerDisposable: Ref<Disposable | null> = ref(null);
 const zoom = computed(() => tangramApi.map.zoom.value);
 
 const tooltip = reactive<{
@@ -279,66 +300,49 @@ const getShipHullPolygon = (state: Ship162Vessel): number[][] | null => {
   return [A, B, C, D, E, A];
 };
 
-const getModifierKeys = (
-  event: unknown
-): { ctrlKey: boolean; altKey: boolean; metaKey: boolean } => {
-  const base = { ctrlKey: false, altKey: false, metaKey: false };
-  if (typeof event !== "object" || event === null) return base;
-
-  const e1 =
-    (
-      event as {
-        srcEvent?: { originalEvent?: unknown } | unknown;
-        sourceEvent?: unknown;
-      }
-    ).srcEvent && typeof (event as { srcEvent?: unknown }).srcEvent === "object"
-      ? ((event as { srcEvent?: { originalEvent?: unknown } }).srcEvent
-          ?.originalEvent ?? (event as { srcEvent?: unknown }).srcEvent)
-      : ((event as { sourceEvent?: unknown }).sourceEvent ?? event);
-
-  if (typeof e1 !== "object" || e1 === null) return base;
-  const maybe = e1 as Partial<{ ctrlKey: boolean; altKey: boolean; metaKey: boolean }>;
-  return {
-    ctrlKey: !!maybe.ctrlKey,
-    altKey: !!maybe.altKey,
-    metaKey: !!maybe.metaKey
-  };
-};
-
 const onClick = (info: PickingInfo<Entity<Ship162Vessel>>, event: unknown) => {
   if (!info.object) return;
+  // HACK: Imported ship icons are synthetic snapshots of a historical dataset, so
+  // they bypass entity selection entirely. Once selection can target workspace-backed
+  // temporal data, remove this special case and route through that model instead.
+  if (info.object.type === "ship162_imported") return;
   const mods = getModifierKeys(event);
   const exclusive = !mods.ctrlKey && !mods.altKey && !mods.metaKey;
 
+  const entity = info.object;
+
   if (exclusive) {
-    tangramApi.selection.selectEntity(info.object, true);
+    tangramApi.selection.selectEntity(entity, true);
   } else {
-    if (selectedIds.value.has(info.object.id)) {
-      tangramApi.selection.deselect({ id: info.object.id, type: "ship162_ship" });
+    if (selectedIds.value.has(entity.id)) {
+      tangramApi.selection.deselect({ id: entity.id, type: "ship162_ship" });
     } else {
-      tangramApi.selection.selectEntity(info.object, false);
+      tangramApi.selection.selectEntity(entity, false);
     }
+  }
+};
+
+const onHover = (info: PickingInfo<Entity<Ship162Vessel>>) => {
+  if (info.object) {
+    tooltip.object = info.object;
+    tooltip.x = info.x;
+    tooltip.y = info.y;
+  } else {
+    tooltip.object = null;
   }
 };
 
 watch(
   [shipEntities, selectedIds, () => tangramApi.map.isReady.value, zoom],
   ([entities, currentSelectedIds, isMapReady, currentZoom]) => {
-    if (!entities || !isMapReady) return;
+    if (!isMapReady) return;
 
-    if (layerDisposable.value) layerDisposable.value.dispose();
-    if (hullLayerDisposable.value) {
-      hullLayerDisposable.value.dispose();
-      hullLayerDisposable.value = null;
-    }
-
-    // added a 0.9 factor because it looked slightly too large
     const sizeScale = 0.9 * Math.min(Math.max(0.5, Math.pow(2, currentZoom - 10)), 2);
     const showHulls = currentZoom >= 12;
 
-    // Ship hull layer (only visible at high zoom)
     const baseData: Entity<Ship162Vessel>[] = [];
     const selectedData: Entity<Ship162Vessel>[] = [];
+
     for (const d of entities.values()) {
       if (currentSelectedIds.has(d.id)) {
         selectedData.push(d);
@@ -346,10 +350,11 @@ watch(
         baseData.push(d);
       }
     }
-    const allData = baseData.concat(selectedData);
+
+    const data = baseData.concat(selectedData);
 
     if (showHulls) {
-      const hullData = allData
+      const hullData = data
         .map(entity => ({
           entity,
           polygon: getShipHullPolygon(entity.state)
@@ -360,7 +365,7 @@ watch(
         entity: Entity<Ship162Vessel>;
         polygon: number[][];
       }>({
-        id: "ship-hull-layer",
+        id: "live-ship-hull-layer",
         data: hullData,
         pickable: true,
         stroked: true,
@@ -368,16 +373,14 @@ watch(
         wireframe: false,
         lineWidthMinPixels: 1,
         getPolygon: d => d.polygon,
-        getFillColor: d => {
-          return currentSelectedIds.has(d.entity.id)
+        getFillColor: d =>
+          currentSelectedIds.has(d.entity.id)
             ? colors.selected
-            : getIconColor(d.entity.state);
-        },
-        getLineColor: d => {
-          return currentSelectedIds.has(d.entity.id)
+            : getIconColor(d.entity.state),
+        getLineColor: d =>
+          currentSelectedIds.has(d.entity.id)
             ? colors.selected
-            : getIconColor(d.entity.state);
-        },
+            : getIconColor(d.entity.state),
         getLineWidth: 0.5,
         onClick: (info: PickingInfo, event: unknown) => {
           if (!info.object) return;
@@ -385,28 +388,30 @@ watch(
             entity: Entity<Ship162Vessel>;
             polygon: number[][];
           };
-          const mockInfo = { ...info, object: hullData.entity } as PickingInfo<
-            Entity<Ship162Vessel>
-          >;
+          const mockInfo = {
+            ...info,
+            object: hullData.entity
+          } as PickingInfo<Entity<Ship162Vessel>>;
           onClick(mockInfo, event);
         },
         updateTriggers: {
-          getFillColor: [currentSelectedIds]
+          getFillColor: [currentSelectedIds],
+          getLineColor: [currentSelectedIds]
         }
       });
 
-      const hullDisposable = tangramApi.map.setLayer(hullLayer, {
+      liveHullLayerDisposable.value?.dispose();
+      liveHullLayerDisposable.value = tangramApi.map.setLayer(hullLayer, {
         slot: "entities_underlay"
       });
-      if (!hullLayerDisposable.value) {
-        hullLayerDisposable.value = hullDisposable;
-      }
+    } else if (liveHullLayerDisposable.value) {
+      liveHullLayerDisposable.value.dispose();
+      liveHullLayerDisposable.value = null;
     }
 
-    // Icon layer (always visible, but smaller when hulls are shown)
     const shipLayer = new IconLayer<Entity<Ship162Vessel>>({
-      id: "ship-layer",
-      data: allData,
+      id: "live-ship-layer",
+      data,
       pickable: true,
       billboard: false,
       getIcon: d => {
@@ -427,27 +432,114 @@ watch(
         if (isStationary(d.state)) return 0;
         return -(d.state.course || d.state.heading || 0);
       },
-      onClick: onClick,
-      onHover: info => {
-        if (info.object) {
-          tooltip.object = info.object;
-          tooltip.x = info.x;
-          tooltip.y = info.y;
-        } else {
-          tooltip.object = null;
-        }
-      },
+      onClick,
+      onHover,
       updateTriggers: {
         getIcon: Array.from(currentSelectedIds).sort().join(","),
         sizeScale: [showHulls]
       },
-      // required for globe: https://github.com/visgl/deck.gl/issues/9777#issuecomment-3628393899
       parameters: {
         cullMode: "none"
       }
     });
 
-    layerDisposable.value = tangramApi.map.setLayer(shipLayer, {
+    liveLayerDisposable.value?.dispose();
+    liveLayerDisposable.value = tangramApi.map.setLayer(shipLayer, {
+      slot: "entities"
+    });
+  },
+  { immediate: true }
+);
+
+watch(
+  [importedShips, () => tangramApi.map.isReady.value, zoom],
+  ([data, isMapReady, currentZoom]) => {
+    if (!isMapReady) return;
+
+    const sizeScale = 0.9 * Math.min(Math.max(0.5, Math.pow(2, currentZoom - 10)), 2);
+    const showHulls = currentZoom >= 12;
+
+    if (showHulls) {
+      const hullData = data
+        .map(entity => ({
+          entity,
+          polygon: getShipHullPolygon(entity.state)
+        }))
+        .filter(({ polygon }) => polygon !== null);
+
+      const hullLayer = new PolygonLayer<{
+        entity: Entity<Ship162Vessel>;
+        polygon: number[][];
+      }>({
+        id: "imported-ship-hull-layer",
+        data: hullData,
+        pickable: true,
+        stroked: true,
+        filled: true,
+        wireframe: false,
+        lineWidthMinPixels: 1,
+        getPolygon: d => d.polygon,
+        getFillColor: d => getIconColor(d.entity.state),
+        getLineColor: d => getIconColor(d.entity.state),
+        getLineWidth: 0.5,
+        onClick: (info: PickingInfo, event: unknown) => {
+          if (!info.object) return;
+          const hullData = info.object as {
+            entity: Entity<Ship162Vessel>;
+            polygon: number[][];
+          };
+          const mockInfo = {
+            ...info,
+            object: hullData.entity
+          } as PickingInfo<Entity<Ship162Vessel>>;
+          onClick(mockInfo, event);
+        }
+      });
+
+      importedHullLayerDisposable.value?.dispose();
+      importedHullLayerDisposable.value = tangramApi.map.setLayer(hullLayer, {
+        slot: "entities_underlay"
+      });
+    } else if (importedHullLayerDisposable.value) {
+      importedHullLayerDisposable.value.dispose();
+      importedHullLayerDisposable.value = null;
+    }
+
+    const shipLayer = new IconLayer<Entity<Ship162Vessel>>({
+      id: "imported-ship-layer",
+      data,
+      pickable: true,
+      billboard: false,
+      getIcon: d => {
+        const { url, id } = getShipIcon(d.state, false);
+        return {
+          url,
+          id,
+          width: 24,
+          height: 24,
+          anchorY: 12,
+          mask: false
+        };
+      },
+      sizeScale: showHulls ? sizeScale * 0.5 : sizeScale,
+      getPosition: d => [d.state.longitude!, d.state.latitude!],
+      getSize: 24,
+      getAngle: d => {
+        if (isStationary(d.state)) return 0;
+        return -(d.state.course || d.state.heading || 0);
+      },
+      onClick,
+      onHover,
+      updateTriggers: {
+        sizeScale: [showHulls]
+      },
+      parameters: {
+        cullMode: "none"
+      }
+    });
+
+    importedLayerDisposable.value?.dispose();
+    importedLayerDisposable.value = tangramApi.map.setLayer(shipLayer, {
       slot: "entities"
     });
   },
@@ -455,8 +547,10 @@ watch(
 );
 
 onUnmounted(() => {
-  layerDisposable.value?.dispose();
-  hullLayerDisposable.value?.dispose();
+  liveLayerDisposable.value?.dispose();
+  importedLayerDisposable.value?.dispose();
+  liveHullLayerDisposable.value?.dispose();
+  importedHullLayerDisposable.value?.dispose();
   selectionDisposable.dispose();
 });
 </script>

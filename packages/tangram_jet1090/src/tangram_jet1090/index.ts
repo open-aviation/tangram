@@ -22,6 +22,7 @@ import AircraftResult from "./AircraftResult.vue";
 import AircraftHistoryLayer from "./AircraftHistoryLayer.vue";
 import AircraftHistoryGroup from "./AircraftHistoryGroup.vue";
 import AircraftHistoryInterval from "./AircraftHistoryInterval.vue";
+import Jet1090DatasetChip from "./Jet1090DatasetChip.vue";
 import {
   aircraftStore,
   type AircraftSelectionData,
@@ -29,6 +30,11 @@ import {
   type TrailColorOptions,
   type HistoryInterval
 } from "./store";
+import {
+  JET1090_IMPORTED_HISTORY_KIND,
+  acceptsRs1090Jsonl,
+  parseRs1090Jsonl
+} from "./imported_trajectory";
 
 const ENTITY_TYPE = "jet1090_aircraft";
 
@@ -80,6 +86,23 @@ interface BackendSearchResult {
 export function install(ctx: PluginContext, config?: Jet1090FrontendConfig) {
   const api = ctx.api;
   const channel = config?.search_channel || "jet1090:search";
+
+  ctx.onDispose(
+    api.ui.registerWorkspaceComponents(JET1090_IMPORTED_HISTORY_KIND, {
+      pluginId: ctx.id,
+      chip: Jet1090DatasetChip
+    })
+  );
+
+  ctx.onDispose(
+    api.import.registerImporter({
+      id: "rs1090-jsonl",
+      pluginId: ctx.id,
+      priority: 200,
+      accepts: acceptsRs1090Jsonl,
+      parse: parseRs1090Jsonl
+    })
+  );
 
   if (config) {
     ctx.onDispose({

@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { inject, onMounted, onUnmounted, ref } from "vue";
-import type { TangramApi } from "@open-aviation/tangram-core/api";
-import { importDroppedFiles } from "./file_import";
-import { addSourceLayer } from "./store";
-import type { FeatureBounds } from "./feature_source";
+import type { TangramApi } from "./api";
 
 const api = inject<TangramApi>("tangramApi")!;
 const isDragging = ref(false);
@@ -11,20 +8,6 @@ let dragDepth = 0;
 
 function hasFiles(event: DragEvent) {
   return Array.from(event.dataTransfer?.types ?? []).includes("Files");
-}
-
-function fitMapToBounds(bounds: FeatureBounds | null) {
-  if (!bounds) {
-    return;
-  }
-
-  api.map.getMapInstance().fitBounds(
-    [
-      [bounds.minLon, bounds.minLat],
-      [bounds.maxLon, bounds.maxLat]
-    ],
-    { padding: 48, maxZoom: 14 }
-  );
 }
 
 function onDragEnter(event: DragEvent) {
@@ -45,6 +28,12 @@ function onDragLeave() {
   if (dragDepth === 0) isDragging.value = false;
 }
 
+function summarizeFailures(messages: string[]): string {
+  if (messages.length === 0) return "";
+  if (messages.length === 1) return messages[0];
+  return `${messages.slice(0, 3).join("\n")}${messages.length > 3 ? "\n..." : ""}`;
+}
+
 async function onDrop(event: DragEvent) {
   event.preventDefault();
   dragDepth = 0;
@@ -54,15 +43,25 @@ async function onDrop(event: DragEvent) {
   if (files.length === 0) return;
 
   try {
-    const importedLayers = await importDroppedFiles(files);
-    for (const layer of importedLayers) {
-      addSourceLayer(layer.label, layer.source);
-      fitMapToBounds(layer.bounds);
+    const result = await api.import.importFiles(files);
+
+    if (result.bounds) {
+      api.map.getMapInstance().fitBounds(
+        [
+          [result.bounds.minLon, result.bounds.minLat],
+          [result.bounds.maxLon, result.bounds.maxLat]
+        ],
+        { padding: 48, maxZoom: 14 }
+      );
     }
-  } catch (err) {
-    // TODO: replace alert() once tangram_core has a proper toast notification system.
-    alert(err instanceof Error ? err.message : "Could not import dropped files");
-    console.error(err);
+
+    if (result.failures.length > 0) {
+      // TODO: replace alert() once tangram_core has a proper toast notification system.
+      alert(summarizeFailures(result.failures.map(failure => failure.message)));
+    }
+  } catch (error) {
+    alert(error instanceof Error ? error.message : "Could not import dropped files");
+    console.error(error);
   }
 }
 

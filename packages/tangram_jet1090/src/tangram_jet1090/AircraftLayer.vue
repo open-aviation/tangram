@@ -21,10 +21,12 @@ import { computed, inject, onUnmounted, ref, watch, reactive, type Ref } from "v
 import { IconLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core/api";
+import { getModifierKeys } from "@open-aviation/tangram-core/utils";
 import { html, svg, render } from "lit-html";
 import { get_image_object, type IconProps } from "./PlanePath";
 import type { Jet1090Aircraft } from ".";
 import { pluginConfig } from "./store";
+import { isJet1090ImportedHistoryDataset } from "./imported_trajectory";
 
 const FEET_TO_METERS = 0.3048;
 const tangramApi = inject<TangramApi>("tangramApi");
@@ -35,12 +37,32 @@ if (!tangramApi) {
 const aircraftEntities = computed(
   () => tangramApi.state.getEntitiesByType<Jet1090Aircraft>("jet1090_aircraft").value
 );
+const importedEntries = computed(() =>
+  tangramApi.workspace.datasets.value.filter(isJet1090ImportedHistoryDataset)
+);
+const importedAircraft = computed<Entity<Jet1090Aircraft>[]>(() =>
+  // HACK: imported history is rendered by synthesizing fake "current" entities from
+  // the last sample of each segmented flight so we can reuse the live aircraft icon
+  // layer.
+  // TODO: replace this with a time-aware query over historical datasets once core
+  // can ask plugins for the visible temporal window.
+  importedEntries.value.flatMap(entry =>
+    !entry.visible
+      ? []
+      : entry.payload.latestPoints.map((state, index) => ({
+          id: `imported:${entry.id}:${state.icao24}:${index}`,
+          type: "jet1090_imported",
+          state
+        }))
+  )
+);
 const selectedIds = ref<ReadonlySet<string>>(new Set());
 const selectionDisposable = tangramApi.selection.onChanged(map => {
   selectedIds.value = map.get("jet1090_aircraft") || new Set();
 });
 
-const layerDisposable: Ref<Disposable | null> = ref(null);
+const liveLayerDisposable: Ref<Disposable | null> = ref(null);
+const importedLayerDisposable: Ref<Disposable | null> = ref(null);
 
 const tooltip = reactive<{
   x: number;
@@ -107,20 +129,35 @@ const createAircraftSvgDataURL = (typecode: string, isSelected: boolean): string
   return dataUrl;
 };
 
-const onClick = (info: PickingInfo<Entity<Jet1090Aircraft>>, event: any) => {
+const onClick = (info: PickingInfo<Entity<Jet1090Aircraft>>, event: unknown) => {
   if (!info.object) return;
-  const srcEvent: MouseEvent =
-    event?.srcEvent?.originalEvent ?? event?.srcEvent ?? event?.sourceEvent ?? event;
-  const exclusive = !srcEvent.ctrlKey && !srcEvent.altKey && !srcEvent.metaKey;
+  // HACK: These imported icons are synthetic stand-ins for a historical dataset, not
+  // real state entities, so selection is blocked here. Once selection becomes
+  // workspace/time-aware, route imported history through that API instead of bailing out.
+  if (info.object.type === "jet1090_imported") return;
+  const mods = getModifierKeys(event);
+  const exclusive = !mods.ctrlKey && !mods.altKey && !mods.metaKey;
+
+  const entity = info.object;
 
   if (exclusive) {
-    tangramApi.selection.selectEntity(info.object, true);
+    tangramApi.selection.selectEntity(entity, true);
   } else {
-    if (selectedIds.value.has(info.object.id)) {
-      tangramApi.selection.deselect({ id: info.object.id, type: "jet1090_aircraft" });
+    if (selectedIds.value.has(entity.id)) {
+      tangramApi.selection.deselect({ id: entity.id, type: "jet1090_aircraft" });
     } else {
-      tangramApi.selection.selectEntity(info.object, false);
+      tangramApi.selection.selectEntity(entity, false);
     }
+  }
+};
+
+const onHover = (info: PickingInfo<Entity<Jet1090Aircraft>>) => {
+  if (info.object) {
+    tooltip.object = info.object;
+    tooltip.x = info.x;
+    tooltip.y = info.y;
+  } else {
+    tooltip.object = null;
   }
 };
 
@@ -132,10 +169,11 @@ watch(
     () => pluginConfig.enable3d
   ],
   ([entities, currentSelectedIds, isMapReady, enable3d]) => {
-    if (!entities || !isMapReady) return;
+    if (!isMapReady) return;
 
-    const baseData = [];
-    const selectedData = [];
+    const baseData: Entity<Jet1090Aircraft>[] = [];
+    const selectedData: Entity<Jet1090Aircraft>[] = [];
+
     for (const d of entities.values()) {
       if (currentSelectedIds.has(d.id)) {
         selectedData.push(d);
@@ -143,11 +181,12 @@ watch(
         baseData.push(d);
       }
     }
+
     const data = baseData.concat(selectedData);
 
     const layer = new IconLayer<Entity<Jet1090Aircraft>>({
-      id: "aircraft-layer",
-      data: data,
+      id: "live-aircraft-layer",
+      data,
       pickable: true,
       billboard: false,
       sizeScale: 1,
@@ -170,40 +209,82 @@ watch(
         d.state.latitude!,
         !enable3d ? 0 : (d.state.altitude || 0) * FEET_TO_METERS
       ],
-      getAngle: (d: Entity<Jet1090Aircraft>) => {
+      getAngle: d => {
         const iconProps = get_image_object(d.state.typecode || null) as IconProps;
         return -(d.state.track || 0) + iconProps.rotcorr;
       },
-      onClick: onClick,
-      onHover: (info: PickingInfo<Entity<Jet1090Aircraft>>) => {
-        if (info.object) {
-          tooltip.object = info.object;
-          tooltip.x = info.x;
-          tooltip.y = info.y;
-        } else {
-          tooltip.object = null;
-        }
-      },
+      onClick,
+      onHover,
       updateTriggers: {
         getIcon: Array.from(currentSelectedIds).sort().join(","),
         getPosition: [enable3d]
       },
-      // required for globe: https://github.com/visgl/deck.gl/issues/9777#issuecomment-3628393899
       parameters: {
         cullMode: "none"
       }
     });
 
-    const d = tangramApi.map.setLayer(layer, {
+    liveLayerDisposable.value?.dispose();
+    liveLayerDisposable.value = tangramApi.map.setLayer(layer, {
       slot: "entities"
     });
-    if (!layerDisposable.value) layerDisposable.value = d;
+  },
+  { immediate: true }
+);
+
+watch(
+  [importedAircraft, () => tangramApi.map.isReady.value, () => pluginConfig.enable3d],
+  ([data, isMapReady, enable3d]) => {
+    if (!isMapReady) return;
+
+    const layer = new IconLayer<Entity<Jet1090Aircraft>>({
+      id: "imported-aircraft-layer",
+      data,
+      pickable: true,
+      billboard: false,
+      sizeScale: 1,
+      getSize: 32,
+      getIcon: d => {
+        const typecode = d.state.typecode || "A320";
+        return {
+          url: createAircraftSvgDataURL(typecode, false),
+          id: typecode,
+          width: 64,
+          height: 64,
+          anchorY: 32,
+          mask: false
+        };
+      },
+      getPosition: d => [
+        d.state.longitude!,
+        d.state.latitude!,
+        !enable3d ? 0 : (d.state.altitude || 0) * FEET_TO_METERS
+      ],
+      getAngle: d => {
+        const iconProps = get_image_object(d.state.typecode || null) as IconProps;
+        return -(d.state.track || 0) + iconProps.rotcorr;
+      },
+      onClick,
+      onHover,
+      updateTriggers: {
+        getPosition: [enable3d]
+      },
+      parameters: {
+        cullMode: "none"
+      }
+    });
+
+    importedLayerDisposable.value?.dispose();
+    importedLayerDisposable.value = tangramApi.map.setLayer(layer, {
+      slot: "entities"
+    });
   },
   { immediate: true }
 );
 
 onUnmounted(() => {
-  layerDisposable.value?.dispose();
+  liveLayerDisposable.value?.dispose();
+  importedLayerDisposable.value?.dispose();
   selectionDisposable.dispose();
 });
 </script>

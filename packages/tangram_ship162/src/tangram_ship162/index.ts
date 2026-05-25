@@ -19,7 +19,13 @@ import ShipResult from "./ShipResult.vue";
 import ShipHistoryLayer from "./ShipHistoryLayer.vue";
 import ShipHistoryGroup from "./ShipHistoryGroup.vue";
 import ShipHistoryInterval from "./ShipHistoryInterval.vue";
+import Ship162DatasetChip from "./Ship162DatasetChip.vue";
 import { shipStore, type ShipSelectionData, type HistoryInterval } from "./store";
+import {
+  SHIP162_IMPORTED_HISTORY_KIND,
+  acceptsShip162Jsonl,
+  parseShip162Jsonl
+} from "./imported_trajectory";
 
 const ENTITY_TYPE = "ship162_ship";
 
@@ -70,6 +76,23 @@ interface BackendSearchResult {
 export function install(ctx: PluginContext, config?: Ship162FrontendConfig) {
   const api = ctx.api;
   const channel = config?.search_channel || "ship162:search";
+
+  ctx.onDispose(
+    api.ui.registerWorkspaceComponents(SHIP162_IMPORTED_HISTORY_KIND, {
+      pluginId: ctx.id,
+      chip: Ship162DatasetChip
+    })
+  );
+
+  ctx.onDispose(
+    api.import.registerImporter({
+      id: "ship162-jsonl",
+      pluginId: ctx.id,
+      priority: 200,
+      accepts: acceptsShip162Jsonl,
+      parse: parseShip162Jsonl
+    })
+  );
 
   api.ui.registerWidget("ship162-count-widget", "TopBar", ShipCountWidget, {
     pluginId: ctx.id,

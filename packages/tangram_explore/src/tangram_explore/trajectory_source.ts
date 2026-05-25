@@ -15,17 +15,9 @@ export interface TrajectorySample {
   latitude?: number | null;
   longitude?: number | null;
   altitude?: number | null;
-  selected_altitude?: number | null;
   speed?: number | null;
-  ias?: number | null;
-  tas?: number | null;
-  mach?: number | null;
-  vertical_rate?: number | null;
-  vrate_barometric?: number | null;
-  vrate_inertial?: number | null;
   heading?: number | null;
   track?: number | null;
-  roll?: number | null;
   raw?: Record<string, unknown>;
 }
 

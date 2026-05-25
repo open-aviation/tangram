@@ -6,20 +6,18 @@ import {
 } from "@open-aviation/tangram-core/api";
 import initWasm, { readParquet, wasmMemory } from "parquet-wasm";
 import { parseTable } from "arrow-js-ffi";
+import ExploreDatasetChip from "./ExploreDatasetChip.vue";
+import ExploreFeatureDetails from "./ExploreFeatureDetails.vue";
 import ExploreLayers from "./ExploreLayers.vue";
 import ExploreTrajectoryResult from "./ExploreTrajectoryResult.vue";
+import ExploreTrajectoryDetails from "./ExploreTrajectoryDetails.vue";
 import ExploreTrajectoryWidget from "./ExploreTrajectoryWidget.vue";
-import FileDropTarget from "./FileDropTarget.vue";
-import LayerList from "./LayerList.vue";
+import { pluginConfig } from "./config";
+import { createTableDatasetInput, type ScatterOptions } from "./datasets";
+import { registerExploreImporters } from "./file_import";
+import { createTableSource } from "./table_source";
 import {
-  addServerTableLayer,
-  clearLayers,
-  removeLayer,
-  layers,
-  type ScatterOptions,
-  pluginConfig
-} from "./store";
-import {
+  rebuildExploreTrajectoryRecords,
   exploreTrajectoryKey,
   exploreTrajectoryRecords,
   hasSelectedTrajectory,
@@ -32,6 +30,7 @@ const EXPLORE_CHANNEL = "explore";
 const EXPLORE_EVENT = "layers";
 
 let wasmInitialized = false;
+const serverLayerIds = new Set<string>();
 
 async function initParquetWasm() {
   if (wasmInitialized) return;
@@ -67,25 +66,48 @@ async function loadAndAdd(def: LayerDefinition) {
     ffiTable.schemaAddr(),
     true // copying is required because adding new layers can grow wasm memory and detach
   );
-  addServerTableLayer(def.id, def.label, arrowTable, wasmTable, def.style);
+  serverLayerIds.add(def.id);
+  return createTableDatasetInput(
+    def.label,
+    createTableSource(arrowTable, () => wasmTable.free()),
+    {
+      id: def.id,
+      style: def.style
+    }
+  );
 }
 
-async function handleMessage(payload: StackMessage) {
+function removeServerLayer(api: TangramApi, id: string) {
+  if (!serverLayerIds.has(id)) return;
+  api.workspace.remove(id);
+  serverLayerIds.delete(id);
+}
+
+function clearServerLayers(api: TangramApi) {
+  for (const id of [...serverLayerIds]) {
+    api.workspace.remove(id);
+  }
+  serverLayerIds.clear();
+}
+
+async function handleMessage(api: TangramApi, pluginId: string, payload: StackMessage) {
   if (payload.op === "add" && payload.layer) {
-    await loadAndAdd(payload.layer);
+    const dataset = await loadAndAdd(payload.layer);
+    api.workspace.add({ ...dataset, pluginId });
   } else if (payload.op === "clear") {
-    clearLayers();
+    clearServerLayers(api);
   } else if (payload.op === "remove" && payload.id) {
-    removeLayer(payload.id);
+    removeServerLayer(api, payload.id);
   }
 }
 
-async function syncLayers() {
+async function syncLayers(api: TangramApi, pluginId: string) {
   const res = await fetch("/explore/layers");
   const layerDefs: LayerDefinition[] = await res.json();
-  clearLayers();
+  clearServerLayers(api);
   for (const def of layerDefs) {
-    await loadAndAdd(def);
+    const dataset = await loadAndAdd(def);
+    api.workspace.add({ ...dataset, pluginId });
   }
 }
 
@@ -171,20 +193,33 @@ function buildTrajectorySearchResults(api: TangramApi, query: string): SearchRes
 export async function install(ctx: PluginContext, config?: { enable_3d?: boolean }) {
   const api = ctx.api;
 
+  ctx.onDispose(
+    api.ui.registerWorkspaceComponents("features", {
+      pluginId: ctx.id,
+      chip: ExploreDatasetChip,
+      details: ExploreFeatureDetails
+    })
+  );
+  ctx.onDispose(
+    api.ui.registerWorkspaceComponents("table", {
+      pluginId: ctx.id,
+      chip: ExploreDatasetChip
+    })
+  );
+  ctx.onDispose(
+    api.ui.registerWorkspaceComponents("trajectories", {
+      pluginId: ctx.id,
+      chip: ExploreDatasetChip,
+      details: ExploreTrajectoryDetails
+    })
+  );
+
   if (config) {
     if (config.enable_3d !== undefined) pluginConfig.enable_3d = config.enable_3d;
   }
 
   api.ui.registerWidget("explore-layers-map", "MapOverlay", ExploreLayers, {
     pluginId: ctx.id
-  });
-  api.ui.registerWidget("explore-file-drop", "MapOverlay", FileDropTarget, {
-    pluginId: ctx.id
-  });
-  api.ui.registerWidget("explore-layers-list", "SideBar", LayerList, {
-    pluginId: ctx.id,
-    title: "Explore Layers",
-    visible: () => layers.value.length > 0
   });
   api.ui.registerWidget(
     "explore-trajectory-widget",
@@ -207,12 +242,24 @@ export async function install(ctx: PluginContext, config?: { enable_3d?: boolean
   await initParquetWasm();
   await api.realtime.ensureConnected();
 
+  for (const disposable of registerExploreImporters(api, ctx.id)) {
+    ctx.onDispose(disposable);
+  }
+
   ctx.onDispose(
     await api.realtime.subscribe<StackMessage>(
       `${EXPLORE_CHANNEL}:${EXPLORE_EVENT}`,
-      handleMessage
+      payload => handleMessage(api, ctx.id, payload)
     )
   );
+
+  ctx.onDispose({
+    dispose: watch(
+      api.workspace.datasets,
+      datasets => rebuildExploreTrajectoryRecords(datasets),
+      { immediate: true }
+    )
+  });
 
   ctx.onDispose({
     dispose: watch(selectedTrajectory, trajectory => {
@@ -226,5 +273,5 @@ export async function install(ctx: PluginContext, config?: { enable_3d?: boolean
     })
   });
 
-  await syncLayers();
+  await syncLayers(api, ctx.id);
 }
