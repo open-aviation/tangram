@@ -1,6 +1,12 @@
 import { reactive } from "vue";
 import type { Ship162Vessel } from ".";
 
+export interface TrailColorOptions {
+  by_attribute: "speed";
+  min?: number;
+  max?: number;
+}
+
 export interface ShipSelectionData {
   trajectory: Ship162Vessel[];
   loading: boolean;
@@ -23,4 +29,13 @@ export const shipStore = reactive({
   version: 0,
   selectedHistoryInterval: null as HistoryInterval | null,
   historyVersion: 0
+});
+
+export const pluginConfig = reactive({
+  trailColor: {
+    by_attribute: "speed",
+    min: 0,
+    max: 14
+  } as string | TrailColorOptions,
+  trailAlpha: 0.6
 });

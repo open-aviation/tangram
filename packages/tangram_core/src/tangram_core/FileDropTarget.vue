@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { inject, onMounted, onUnmounted, ref } from "vue";
 import type { TangramApi } from "./api";
+import { unionTimeRanges } from "./utils";
 
 const api = inject<TangramApi>("tangramApi")!;
 const isDragging = ref(false);
@@ -44,6 +45,19 @@ async function onDrop(event: DragEvent) {
 
   try {
     const result = await api.import.importFiles(files);
+
+    const importedTemporalRange = unionTimeRanges(
+      result.entries.map(entry => entry.timeRange)
+    );
+
+    if (importedTemporalRange) {
+      requestAnimationFrame(() => {
+        api.time.fitToRange(importedTemporalRange, {
+          anchor: "end",
+          enterHistory: true
+        });
+      });
+    }
 
     if (result.bounds) {
       api.map.getMapInstance().fitBounds(

@@ -1,5 +1,5 @@
 <template>
-  <div class="aircraft-count-widget">
+  <div v-if="isLive" class="aircraft-count-widget">
     <div class="count-display">
       <span id="visible_count">{{ visibleCount }}</span> (<span id="plane_count">{{
         totalCount ?? 0
@@ -22,6 +22,8 @@ if (!tangramApi) {
 const totalCount = computed(
   () => tangramApi.state.totalCounts.value?.get("jet1090_aircraft") ?? 0
 );
+
+const isLive = computed(() => tangramApi.time.isLive.value);
 
 const visibleCount = computed(
   () => tangramApi.state.getEntitiesByType("jet1090_aircraft").value?.size ?? 0

@@ -1,4 +1,4 @@
-import type { LazyImportFile, MapBounds } from "./api";
+import type { LazyImportFile, MapBounds, TimeRange } from "./api";
 
 // adapted from: https://github.com/color-js/color.js/blob/main/src/spaces/oklch.js
 type Vector3 = [number, number, number];
@@ -27,6 +27,35 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 export function finiteNumber(value: unknown): number | null {
   const number = typeof value === "number" ? value : Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+export function resolveBearing(
+  ...values: Array<number | null | undefined>
+): number | undefined {
+  return values.find(value => value !== null && value !== undefined);
+}
+
+export function computeGeographicBearing(
+  fromLatitude: number,
+  fromLongitude: number,
+  toLatitude: number,
+  toLongitude: number
+): number {
+  const lat1 = (fromLatitude * Math.PI) / 180;
+  const lat2 = (toLatitude * Math.PI) / 180;
+  const lonDelta = ((toLongitude - fromLongitude) * Math.PI) / 180;
+
+  const y = Math.sin(lonDelta) * Math.cos(lat2);
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(lonDelta);
+
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+export function interpolateBearing(start: number, end: number): number {
+  const delta = ((end - start + 540) % 360) - 180;
+  return (start + delta / 2 + 360) % 360;
 }
 
 export function parseTimestamp(value: unknown): number | null {
@@ -106,63 +135,31 @@ export function computeBoundsFromRecords<T>(
     : null;
 }
 
-export function segmentTrajectoryRecords<T>(
-  records: ReadonlyArray<T>,
-  options: {
-    getId: (record: T) => string | null | undefined;
-    getTimestamp: (record: T) => number | null;
-    maxGapSeconds: number;
-    fallbackId?: string;
-  }
-): T[][] {
-  const buckets = new Map<string, T[]>();
-
-  for (const record of records) {
-    const key = options.getId(record) || options.fallbackId || "trajectory";
-    const bucket = buckets.get(key) ?? [];
-    bucket.push(record);
-    buckets.set(key, bucket);
-  }
-
-  const groups: T[][] = [];
-  for (const bucket of buckets.values()) {
-    const sorted = [...bucket].sort(
-      (left, right) =>
-        (options.getTimestamp(left) ?? 0) - (options.getTimestamp(right) ?? 0)
-    );
-
-    let segment: T[] = [];
-    for (const record of sorted) {
-      const previous = segment.length > 0 ? segment[segment.length - 1] : undefined;
-      const previousTimestamp = previous ? options.getTimestamp(previous) : null;
-      const currentTimestamp = options.getTimestamp(record);
-      const gapSeconds =
-        previousTimestamp !== null && currentTimestamp !== null
-          ? currentTimestamp - previousTimestamp
-          : 0;
-
-      if (segment.length > 0 && gapSeconds > options.maxGapSeconds) {
-        groups.push(segment);
-        segment = [];
-      }
-
-      segment.push(record);
-    }
-
-    if (segment.length > 0) {
-      groups.push(segment);
-    }
-  }
-
-  return groups;
+export function normalizeTimeRange(range: TimeRange): TimeRange {
+  return range.start <= range.stop
+    ? { start: range.start, stop: range.stop }
+    : { start: range.stop, stop: range.start };
 }
 
-export function latestTrajectoryPoints<T>(
-  segments: ReadonlyArray<ReadonlyArray<T>>
-): T[] {
-  return segments
-    .map(segment => segment[segment.length - 1])
-    .filter((record): record is T => record !== undefined);
+export function unionTimeRanges(
+  ranges: ReadonlyArray<TimeRange | null | undefined>
+): TimeRange | null {
+  let start = Number.POSITIVE_INFINITY;
+  let stop = Number.NEGATIVE_INFINITY;
+
+  for (const range of ranges) {
+    if (!range) continue;
+    const normalized = normalizeTimeRange(range);
+    start = Math.min(start, normalized.start);
+    stop = Math.max(stop, normalized.stop);
+  }
+
+  return Number.isFinite(start) && Number.isFinite(stop) ? { start, stop } : null;
+}
+
+export function clampTimeToRange(time: number, range: TimeRange | null): number {
+  if (!range) return time;
+  return Math.min(Math.max(time, range.start), range.stop);
 }
 
 // NOTE: csv support was added in da9eba30e667941b5193d66133f51ad32b97d4ed by xoolive
@@ -464,55 +461,32 @@ export const formatDuration = (sec: number) => {
   return `${h}h ${m}m`;
 };
 
-export type Position3D = [number, number, number];
-export interface PathSegment<ColorT> {
-  path: Position3D[];
-  colors: ColorT[];
-  dashed: boolean;
-}
+export const MATERIAL_ICON_VIEW_BOX = "0 -960 960 960";
 
-export function* generateSegments<T, ColorT>(
-  data: Iterable<T>,
-  opts: {
-    getPosition: (d: T) => Position3D | null;
-    getTimestamp: (d: T) => number | null;
-    getColor: (d: T) => ColorT;
-    gapColor: ColorT;
-    maxGapSeconds: number;
-  }
-): Generator<PathSegment<ColorT>> {
-  let segment: PathSegment<ColorT> = { path: [], colors: [], dashed: false };
-  let lastT: number | null = null;
-  let lastPos: Position3D | null = null;
-
-  for (const d of data) {
-    const pos = opts.getPosition(d);
-    if (!pos) continue;
-
-    const t = opts.getTimestamp(d);
-
-    if (lastT !== null && t !== null && lastPos !== null) {
-      if (Math.abs(t - lastT) > opts.maxGapSeconds) {
-        if (segment.path.length > 1) {
-          yield segment;
-        }
-        yield {
-          path: [lastPos, pos],
-          colors: [opts.gapColor, opts.gapColor],
-          dashed: true
-        };
-        segment = { path: [], colors: [], dashed: false };
-      }
-    }
-
-    segment.path.push(pos);
-    segment.colors.push(opts.getColor(d));
-
-    lastT = t;
-    lastPos = pos;
-  }
-
-  if (segment.path.length > 1) {
-    yield segment;
-  }
-}
+// use https://fonts.google.com/icons?icon.style=Rounded&icon.size=24&icon.color=%23e3e3e3 and copy svg
+export const ICON_PATHS = {
+  autorenew:
+    "M480-160q-133 0-226.5-93.5T160-480q0-28 20-47t47-19q28 0 46.5 19t19.5 47q0 78 54.5 132.5T480-293q78 0 132.5-54.5T667-480q0-78-54.5-132.5T480-667h-18l36 36q20 20 20 47t-20 47q-20 20-47 20t-47-20L257-683q-10-10-15-23t-5-28q0-15 5-28t15-23l147-147q20-20 47-20t47 20q20 20 20 47t-20 47l-36 36h18q133 0 226.5 93.5T800-480q0 133-93.5 226.5T480-160Z",
+  collapseAll:
+    "M480-264 324-108q-11 11-28 11t-28-11q-11-11-11-28t11-28l155-155q23-23 57-23t57 23l155 155q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-264Zm0-432 156-156q11-11 28-11t28 11q11 11 11 28t-11 28L537-641q-23 23-57 23t-57-23L268-796q-11-11-11-28t11-28q11-11 28-11t28 11l156 156Z",
+  expandAll:
+    "m480-194 155-155q12-12 28-12t28 12q12 12 12 28.5T691-292L537-137q-23 23-57 23t-57-23L268-292q-12-12-11.5-28.5T269-349q12-12 28.5-12t28.5 12l154 155Zm0-572L326-612q-12 12-28 11.5T270-612q-12-12-12.5-28.5T269-669l154-154q23-23 57-23t57 23l154 154q12 12 11.5 28.5T690-612q-12 11-28 11.5T634-612L480-766Z",
+  chevronDown:
+    "M579-480 285-774q-15-15-14.5-35.5T286-845q15-15 35.5-15t35.5 15l307 308q12 12 18 27t6 30q0 15-6 30t-18 27L356-115q-15 15-35 14.5T286-116q-15-15-15-35.5t15-35.5l293-293Z",
+  chevronRight:
+    "M579-480 285-774q-15-15-14.5-35.5T286-845q15-15 35.5-15t35.5 15l307 308q12 12 18 27t6 30q0 15-6 30t-18 27L356-115q-15 15-35 14.5T286-116q-15-15-15-35.5t15-35.5l293-293Z",
+  delete:
+    "M280-120q-33 0-56.5-23.5T200-200v-520q-17 0-28.5-11.5T160-760q0-17 11.5-28.5T200-800h160q0-17 11.5-28.5T400-840h160q17 0 28.5 11.5T600-800h160q17 0 28.5 11.5T800-760q0 17-11.5 28.5T760-720v520q0 33-23.5 56.5T680-120H280Zm148.5-171.5Q440-303 440-320v-280q0-17-11.5-28.5T400-640q-17 0-28.5 11.5T360-600v280q0 17 11.5 28.5T400-280q17 0 28.5-11.5Zm160 0Q600-303 600-320v-280q0-17-11.5-28.5T560-640q-17 0-28.5 11.5T520-600v280q0 17 11.5 28.5T560-280q17 0 28.5-11.5Z",
+  play: "M320-273v-414q0-17 12-28.5t28-11.5q5 0 10.5 1.5T381-721l326 207q9 6 13.5 15t4.5 19q0 10-4.5 19T707-446L381-239q-5 3-10.5 4.5T360-233q-16 0-28-11.5T320-273Z",
+  pause:
+    "M640-200q-33 0-56.5-23.5T560-280v-400q0-33 23.5-56.5T640-760q33 0 56.5 23.5T720-680v400q0 33-23.5 56.5T640-200Zm-320 0q-33 0-56.5-23.5T240-280v-400q0-33 23.5-56.5T320-760q33 0 56.5 23.5T400-680v400q0 33-23.5 56.5T320-200Z",
+  close:
+    "M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z",
+  edit: "M160-120q-17 0-28.5-11.5T120-160v-97q0-16 6-30.5t17-25.5l505-504q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L313-143q-11 11-25.5 17t-30.5 6h-97Zm544-528 56-56-56-56-56 56 56 56Z",
+  settings:
+    "M433-80q-27 0-46.5-18T363-142l-9-66q-13-5-24.5-12T307-235l-62 26q-25 11-50 2t-39-32l-47-82q-14-23-8-49t27-43l53-40q-1-7-1-13.5v-27q0-6.5 1-13.5l-53-40q-21-17-27-43t8-49l47-82q14-23 39-32t50 2l62 26q11-8 23-15t24-12l9-66q4-26 23.5-44t46.5-18h94q27 0 46.5 18t23.5 44l9 66q13 5 24.5 12t22.5 15l62-26q25-11 50-2t39 32l47 82q14 23 8 49t-27 43l-53 40q1 7 1 13.5v27q0 6.5-2 13.5l53 40q21 17 27 43t-8 49l-48 82q-14 23-39 32t-50-2l-60-26q-11 8-23 15t-24 12l-9 66q-4 26-23.5 44T527-80h-94Zm49-260q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Z",
+  visibility:
+    "M607.5-372.5Q660-425 660-500t-52.5-127.5Q555-680 480-680t-127.5 52.5Q300-575 300-500t52.5 127.5Q405-320 480-320t127.5-52.5Zm-204-51Q372-455 372-500t31.5-76.5Q435-608 480-608t76.5 31.5Q588-545 588-500t-31.5 76.5Q525-392 480-392t-76.5-31.5ZM235.5-272Q125-344 61-462q-5-9-7.5-18.5T51-500q0-10 2.5-19.5T61-538q64-118 174.5-190T480-800q134 0 244.5 72T899-538q5 9 7.5 18.5T909-500q0 10-2.5 19.5T899-462q-64 118-174.5 190T480-200q-134 0-244.5-72ZM480-500Zm207.5 160.5Q782-399 832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280q113 0 207.5-59.5Z",
+  visibilityOff:
+    "M607-627q29 29 42.5 66t9.5 76q0 15-11 25.5T622-449q-15 0-25.5-10.5T586-485q5-26-3-50t-25-41q-17-17-41-26t-51-4q-15 0-25.5-11T430-643q0-15 10.5-25.5T466-679q38-4 75 9.5t66 42.5Zm-127-93q-19 0-37 1.5t-36 5.5q-17 3-30.5-5T358-742q-5-16 3.5-31t24.5-18q23-5 46.5-7t47.5-2q137 0 250.5 72T904-534q4 8 6 16.5t2 17.5q0 9-1.5 17.5T905-466q-18 40-44.5 75T802-327q-12 11-28 9t-26-16q-10-14-8.5-30.5T753-392q24-23 44-50t35-58q-50-101-144.5-160.5T480-720Zm0 520q-134 0-245-72.5T60-463q-5-8-7.5-17.5T50-500q0-10 2-19t7-18q20-40 46.5-76.5T166-680l-83-84q-11-12-10.5-28.5T84-820q11-11 28-11t28 11l680 680q11 11 11.5 27.5T820-84q-11 11-28 11t-28-11L624-222q-35 11-71 16.5t-73 5.5ZM222-624q-29 26-53 57t-41 67q50 101 144.5 160.5T480-280q20 0 39-2.5t39-5.5l-36-38q-11 3-21 4.5t-21 1.5q-75 0-127.5-52.5T300-500q0-11 1.5-21t4.5-21l-84-82Zm319 93Zm-151 75Z"
+} as const;

@@ -21,13 +21,7 @@ import FileDropTarget from "./FileDropTarget.vue";
 import MapSettings from "./MapSettings.vue";
 import ThemeSettings from "./ThemeSettings.vue";
 import WorkspacePanel from "./WorkspacePanel.vue";
-
-class NotImplementedError extends Error {
-  constructor(message = "this function is not yet implemented.") {
-    super(message);
-    this.name = "NotImplementedError";
-  }
-}
+import { clampTimeToRange, normalizeTimeRange, unionTimeRanges } from "./utils";
 
 export type Url = string;
 
@@ -480,6 +474,11 @@ export interface MapBounds {
   maxLat: number;
 }
 
+export interface TimeRange {
+  start: number;
+  stop: number;
+}
+
 export interface WorkspaceDatasetEntry<TPayload = unknown> {
   id: string;
   kind: string;
@@ -487,6 +486,7 @@ export interface WorkspaceDatasetEntry<TPayload = unknown> {
   pluginId?: string;
   payload: TPayload;
   bounds: MapBounds | null;
+  timeRange: TimeRange | null;
   visible: boolean;
   dispose?: () => void;
 }
@@ -498,6 +498,7 @@ export interface WorkspaceDatasetInput<TPayload = unknown> {
   pluginId?: string;
   payload: TPayload;
   bounds?: MapBounds | null;
+  timeRange?: TimeRange | null;
   visible?: boolean;
   dispose?: () => void;
 }
@@ -581,6 +582,7 @@ function createDatasetEntry<T extends WorkspaceDatasetInput>(
     pluginId: input.pluginId,
     payload: input.payload,
     bounds: input.bounds ?? null,
+    timeRange: input.timeRange ? normalizeTimeRange(input.timeRange) : null,
     visible: input.visible ?? true,
     dispose: input.dispose
   };
@@ -862,24 +864,231 @@ export interface ITimestamp {
 
 export type WidgetLocation = "TopBar" | "SideBar" | "MapOverlay";
 
-/* Local time. Not to be confused with the server time. */
+function clampRangeToRange(range: TimeRange, available: TimeRange | null): TimeRange {
+  const normalized = normalizeTimeRange(range);
+  if (!available) return normalized;
+
+  const span = Math.max(normalized.stop - normalized.start, 0);
+  const availableSpan = Math.max(available.stop - available.start, 0);
+  if (availableSpan <= span) {
+    return { ...available };
+  }
+
+  let start = Math.max(normalized.start, available.start);
+  let stop = start + span;
+
+  if (stop > available.stop) {
+    stop = available.stop;
+    start = stop - span;
+  }
+
+  return normalizeTimeRange({ start, stop });
+}
+
+/* Local playback time for historical datasets. Not to be confused with server/
+simulation time. */
 export class TimeApi implements Disposable {
-  readonly now = ref(new Date());
-  readonly isPlaying = ref(false);
+  readonly currentTime = shallowRef(Date.now() / 1000);
+  readonly availableRange = shallowRef<TimeRange | null>(null);
+  readonly viewRange = shallowRef<TimeRange | null>(null);
 
-  constructor() {}
+  private readonly mode = ref<"live" | "playback">("live");
+  private readonly playbackState = ref<"paused" | "playing">("paused");
+  private readonly playbackSpeedState = ref(1);
 
-  dispose() {}
+  readonly isPlaying = computed(
+    () => this.mode.value === "playback" && this.playbackState.value === "playing"
+  );
+  readonly isLive = computed(() => this.mode.value === "live");
+  readonly playbackSpeed = computed(() =>
+    this.mode.value === "playback" ? this.playbackSpeedState.value : 1
+  );
 
-  play(): void {
-    throw new NotImplementedError();
+  private animationFrameId: number | null = null;
+  private lastTick: number = 0;
+
+  constructor() {
+    this.loop();
   }
-  pause(): void {
-    throw new NotImplementedError();
+
+  private get rangeConstraint(): TimeRange | null {
+    // dropping file B after file A then Play shuold restart from B's focused range
+    // not A's earlier start
+    return this.viewRange.value ?? this.availableRange.value;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  seek(_time: Date): void {
-    throw new NotImplementedError();
+
+  public setAvailableRange(
+    range: TimeRange | null,
+    options: { autoFocus?: boolean } = {}
+  ) {
+    const normalized = range ? normalizeTimeRange(range) : null;
+    const previous = this.availableRange.value;
+
+    this.availableRange.value = normalized;
+
+    if (!normalized) {
+      this.viewRange.value = null;
+      this.mode.value = "live";
+      this.playbackState.value = "paused";
+      this.playbackSpeedState.value = 1;
+      this.currentTime.value = Date.now() / 1000;
+      return;
+    }
+
+    if (options.autoFocus || !previous || !this.viewRange.value) {
+      this.viewRange.value = { ...normalized };
+      this.currentTime.value = normalized.stop;
+      this.mode.value = "playback";
+      this.playbackState.value = "paused";
+    } else {
+      this.viewRange.value = clampRangeToRange(this.viewRange.value, normalized);
+      if (!this.isLive.value) {
+        this.currentTime.value = clampTimeToRange(this.currentTime.value, normalized);
+      }
+    }
+  }
+
+  public fitToRange(
+    range: TimeRange,
+    options: { anchor?: "start" | "end" | "keep"; enterHistory?: boolean } = {}
+  ) {
+    const normalized = normalizeTimeRange(range);
+    this.viewRange.value = { ...normalized };
+
+    if (options.enterHistory ?? true) {
+      this.mode.value = "playback";
+      this.playbackState.value = "paused";
+    }
+
+    if (options.anchor === "start") {
+      this.currentTime.value = normalized.start;
+    } else if (options.anchor === "keep") {
+      this.currentTime.value = clampTimeToRange(this.currentTime.value, normalized);
+    } else {
+      this.currentTime.value = normalized.stop;
+    }
+  }
+
+  public setViewRange(range: TimeRange) {
+    this.viewRange.value = clampRangeToRange(range, this.availableRange.value);
+    this.currentTime.value = clampTimeToRange(
+      this.currentTime.value,
+      this.viewRange.value
+    );
+  }
+
+  public zoomView(factor: number, anchorTime?: number) {
+    const view = this.viewRange.value ?? this.availableRange.value;
+    if (!view || factor <= 0) return;
+
+    const span = Math.max(view.stop - view.start, 1);
+    const nextSpan = Math.max(1, span * factor);
+    const anchor = anchorTime ?? (view.start + view.stop) / 2;
+    const ratio = span > 0 ? (anchor - view.start) / span : 0.5;
+    const nextStart = anchor - nextSpan * ratio;
+    const nextStop = nextStart + nextSpan;
+    this.setViewRange({ start: nextStart, stop: nextStop });
+  }
+
+  public panView(deltaSeconds: number) {
+    const view = this.viewRange.value ?? this.availableRange.value;
+    if (!view || deltaSeconds === 0) return;
+    this.setViewRange({
+      start: view.start + deltaSeconds,
+      stop: view.stop + deltaSeconds
+    });
+  }
+
+  public setPlaybackSpeed(speed: number) {
+    if (!Number.isFinite(speed) || speed <= 0) return;
+    if (this.mode.value !== "playback") return;
+    this.playbackSpeedState.value = speed;
+  }
+
+  public setCurrentTime(
+    time: number,
+    options: { pause?: boolean; preserveLive?: boolean } = {}
+  ) {
+    const constraint = this.rangeConstraint;
+    this.currentTime.value = clampTimeToRange(time, constraint);
+    if (!options.preserveLive) {
+      this.mode.value = "playback";
+    }
+    if (options.pause ?? true) {
+      this.playbackState.value = "paused";
+    }
+  }
+
+  public goLive() {
+    this.mode.value = "live";
+    this.playbackState.value = "paused";
+    this.playbackSpeedState.value = 1;
+    this.currentTime.value = Date.now() / 1000;
+  }
+
+  public play() {
+    const range = this.rangeConstraint;
+    if (!range) return;
+
+    if (this.isLive.value) {
+      this.currentTime.value = range.start;
+    } else {
+      if (
+        this.currentTime.value < range.start ||
+        this.currentTime.value >= range.stop
+      ) {
+        this.currentTime.value = range.start;
+      }
+    }
+
+    this.mode.value = "playback";
+    this.playbackState.value = "playing";
+  }
+
+  public pause() {
+    if (this.mode.value !== "playback" || this.playbackState.value !== "playing") {
+      return;
+    }
+    this.playbackState.value = "paused";
+  }
+
+  public togglePlayback() {
+    if (this.isPlaying.value) {
+      this.pause();
+    } else {
+      this.play();
+    }
+  }
+
+  private loop = () => {
+    const now = Date.now() / 1000;
+    const dt = now - (this.lastTick || now);
+    this.lastTick = now;
+
+    if (this.isLive.value) {
+      this.currentTime.value = now;
+    } else if (this.playbackState.value === "playing") {
+      const range = this.rangeConstraint;
+      if (!range) {
+        this.playbackState.value = "paused";
+      } else {
+        const nextTime = this.currentTime.value + dt * this.playbackSpeedState.value;
+        if (nextTime >= range.stop) {
+          this.currentTime.value = range.stop;
+          this.playbackState.value = "paused";
+        } else {
+          this.currentTime.value = clampTimeToRange(nextTime, range);
+        }
+      }
+    }
+
+    this.animationFrameId = requestAnimationFrame(this.loop);
+  };
+
+  dispose() {
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
   }
 }
 
@@ -1189,6 +1398,14 @@ export class MapApi implements Disposable {
   setMapLayerVisibility(id: string, visible: boolean) {
     this.map.value?.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
     this.mapLayerVisibility[id] = visible;
+  }
+
+  // the optimised trajectory path mutates existing layer/controller state in place,
+  // avoiding the need to rebuild the deck layers every tick. but because we are no
+  // longer changing deck props every frame, MapboxOverlay does not automatically know
+  // it should render another frame
+  requestRepaint() {
+    this.map.value?.triggerRepaint();
   }
 
   dispose = () => {
@@ -1756,6 +1973,9 @@ export class TangramApi {
     this.bus = new BusApi();
     this.realtime = new RealtimeApi(config);
     this.ui = new UiApi(app);
+    // playback is frontend-authoritative for now
+    // we may later introduce a backend clock for simulators or multi-client sessions,
+    // but we are holding it off for now due to unclear ownership and cross-client behaviour.
     this.time = new TimeApi();
     this.map = new MapApi(this);
     this.workspace = new WorkspaceApi();
@@ -1775,6 +1995,7 @@ export class TangramApi {
     this.ui.registerSettingsWidget("theme-settings", ThemeSettings);
 
     this.applyTheme();
+    this.setupWorkspaceTime();
     this.setupViewUpdates();
     this.setupSettingsWatchers();
   }
@@ -1930,6 +2151,32 @@ export class TangramApi {
         }
       },
       { deep: true }
+    );
+  }
+
+  private setupWorkspaceTime() {
+    let previousTemporalIds = new Set<string>();
+
+    watch(
+      this.workspace.datasets,
+      datasets => {
+        const temporalEntries = datasets.filter(
+          dataset => dataset.timeRange !== null && dataset.timeRange !== undefined
+        );
+        const nextAvailableRange = unionTimeRanges(
+          temporalEntries.map(dataset => dataset.timeRange)
+        );
+        const nextTemporalIds = new Set(temporalEntries.map(dataset => dataset.id));
+        const shouldAutoFocusWorkspaceTime =
+          previousTemporalIds.size === 0 && nextTemporalIds.size > 0;
+
+        this.time.setAvailableRange(nextAvailableRange, {
+          autoFocus: shouldAutoFocusWorkspaceTime
+        });
+
+        previousTemporalIds = nextTemporalIds;
+      },
+      { immediate: true }
     );
   }
 

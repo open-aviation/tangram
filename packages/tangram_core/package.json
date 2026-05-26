@@ -28,6 +28,7 @@
     "./vite-plugin": "./src/tangram_core/vite-plugin-tangram.mjs",
     "./api": "./src/tangram_core/api.ts",
     "./keyboard": "./src/tangram_core/keyboard.ts",
+    "./trajectory": "./src/tangram_core/trajectory.ts",
     "./types": "./src/tangram_core/types.d.ts",
     "./utils": "./src/tangram_core/utils.ts",
     "./components": "./src/tangram_core/components.ts"
@@ -47,7 +48,6 @@
     "@fontsource/roboto-condensed": "^5.2.8",
     "@protomaps/basemaps": "^5.7.2",
     "@vitejs/plugin-vue": "^6.0.7",
-    "font-awesome": "^4.7.0",
     "lit-html": "^3.3.3",
     "maplibre-gl": "^5.24.0",
     "parquet-wasm": "^0.7.1",

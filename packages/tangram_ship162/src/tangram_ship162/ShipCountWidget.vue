@@ -1,5 +1,5 @@
 <template>
-  <div class="ship-count-widget">
+  <div v-if="isLive" class="ship-count-widget">
     <div class="count-display">
       <span id="visible_ships_count">{{ visibleCount }}</span> (<span>{{
         totalCount ?? 0
@@ -22,6 +22,7 @@ if (!tangramApi) {
 const totalCount = computed(
   () => tangramApi.state.totalCounts.value?.get("ship162_ship") ?? 0
 );
+const isLive = computed(() => tangramApi.time.isLive.value);
 const visibleCount = computed(
   () => tangramApi.state.getEntitiesByType("ship162_ship").value?.size ?? 0
 );

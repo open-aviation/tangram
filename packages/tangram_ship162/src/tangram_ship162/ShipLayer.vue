@@ -25,20 +25,50 @@
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
-import { computed, inject, onUnmounted, ref, watch, reactive, type Ref } from "vue";
+import { computed, inject, onUnmounted, reactive, ref, watch, type Ref } from "vue";
 import { IconLayer, PolygonLayer } from "@deck.gl/layers";
-import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core/api";
-import { getModifierKeys, oklchToDeckGLColor } from "@open-aviation/tangram-core/utils";
-import type { Ship162Vessel } from ".";
 import type { PickingInfo } from "@deck.gl/core";
-import { isShip162ImportedHistoryDataset } from "./imported_trajectory";
+import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core/api";
+import { findTrajectorySampleIndexAtTime } from "@open-aviation/tangram-core/trajectory";
+import {
+  getModifierKeys,
+  oklchToDeckGLColor,
+  resolveBearing
+} from "@open-aviation/tangram-core/utils";
+import type { Ship162Vessel } from ".";
+import {
+  importedShipTimestamp,
+  isShip162ImportedHistoryDataset
+} from "./imported_trajectory";
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
   throw new Error("assert: tangram api not provided");
 }
+
+interface ImportedShipMarker {
+  id: string;
+  datasetId: string;
+  trackIndex: number;
+  source: "workspace";
+  visible: boolean;
+  state: Ship162Vessel;
+}
+
+interface ImportedShipHull {
+  marker: ImportedShipMarker;
+  polygon: number[][];
+}
+
+interface ImportedTrackCursor {
+  track: ReadonlyArray<Ship162Vessel>;
+  marker: ImportedShipMarker;
+  hull: ImportedShipHull;
+  sampleIndex: number | null;
+}
+
+type ShipTooltipItem = Entity<Ship162Vessel> | ImportedShipMarker;
 
 const shipEntities = computed(
   () => tangramApi.state.getEntitiesByType<Ship162Vessel>("ship162_ship").value
@@ -46,21 +76,96 @@ const shipEntities = computed(
 const importedEntries = computed(() =>
   tangramApi.workspace.datasets.value.filter(isShip162ImportedHistoryDataset)
 );
-const importedShips = computed<Entity<Ship162Vessel>[]>(() =>
-  // HACK: imported ship history is projected into fake "current" entities by taking
-  // the last sample of each segmented track so we can reuse the live ship layers.
-  // TODO: replace this with a time-aware query over historical datasets once core can render
-  // a temporal window.
-  importedEntries.value.flatMap(entry =>
-    !entry.visible
-      ? []
-      : entry.payload.latestPoints.map((state, index) => ({
-          id: `imported:${entry.id}:${state.mmsi}:${index}`,
-          type: "ship162_imported",
-          state
-        }))
-  )
-);
+const importedTrackCursors: ImportedTrackCursor[] = [];
+const importedShipsData: ImportedShipMarker[] = [];
+const importedShipHullData: ImportedShipHull[] = [];
+
+const getShipAngle = (state: Ship162Vessel): number => {
+  if (isStationary(state)) return 0;
+  return -(resolveBearing(state.course, state.heading) ?? 0);
+};
+
+const getHiddenShipPolygon = (state: Ship162Vessel): number[][] => {
+  const point: [number, number] = [state.longitude ?? 0, state.latitude ?? 0];
+  return [point, point, point, point];
+};
+
+const syncImportedShipsTime = (): boolean => {
+  let changed = false;
+
+  for (let index = 0; index < importedTrackCursors.length; index += 1) {
+    const cursor = importedTrackCursors[index];
+    const sampleIndex = findTrajectorySampleIndexAtTime(
+      cursor.track,
+      tangramApi.time.currentTime.value,
+      importedShipTimestamp
+    );
+
+    if (sampleIndex === null) {
+      if (cursor.sampleIndex !== null || cursor.marker.visible) {
+        cursor.sampleIndex = null;
+        cursor.marker.visible = false;
+        cursor.hull.polygon = getHiddenShipPolygon(cursor.marker.state);
+        changed = true;
+      }
+
+      continue;
+    }
+
+    if (cursor.sampleIndex === sampleIndex && cursor.marker.visible) {
+      continue;
+    }
+
+    cursor.sampleIndex = sampleIndex;
+    cursor.marker.state = cursor.track[sampleIndex];
+    cursor.marker.visible = true;
+    cursor.hull.polygon =
+      getShipHullPolygon(cursor.marker.state) ??
+      getHiddenShipPolygon(cursor.marker.state);
+    changed = true;
+  }
+
+  return changed;
+};
+
+const rebuildImportedTrackCursors = () => {
+  importedTrackCursors.length = 0;
+  importedShipsData.length = 0;
+  importedShipHullData.length = 0;
+
+  for (const entry of importedEntries.value) {
+    if (!entry.visible) continue;
+
+    entry.payload.tracks.forEach((track, trackIndex) => {
+      if (track.length === 0) return;
+
+      const marker: ImportedShipMarker = {
+        id: `imported:${entry.id}:${trackIndex}`,
+        datasetId: entry.id,
+        trackIndex,
+        source: "workspace",
+        visible: false,
+        state: track[0]
+      };
+      const hull: ImportedShipHull = {
+        marker,
+        polygon: getHiddenShipPolygon(track[0])
+      };
+
+      importedTrackCursors.push({
+        track,
+        marker,
+        hull,
+        sampleIndex: null
+      });
+      importedShipsData.push(marker);
+      importedShipHullData.push(hull);
+    });
+  }
+
+  syncImportedShipsTime();
+};
+
 const selectedIds = ref<ReadonlySet<string>>(new Set());
 const selectionDisposable = tangramApi.selection.onChanged(map => {
   selectedIds.value = map.get("ship162_ship") || new Set();
@@ -75,7 +180,7 @@ const zoom = computed(() => tangramApi.map.zoom.value);
 const tooltip = reactive<{
   x: number;
   y: number;
-  object: Entity<Ship162Vessel> | null;
+  object: ShipTooltipItem | null;
 }>({ x: 0, y: 0, object: null });
 
 const colors = {
@@ -98,8 +203,9 @@ const isStationary = (state: Ship162Vessel): boolean => {
     state.status === "At anchor" ||
     state.status === "Moored" ||
     state.status === "Aground"
-  )
+  ) {
     return true;
+  }
   return false;
 };
 
@@ -162,7 +268,7 @@ const rgbToHex = (r: number, g: number, b: number) =>
   [r, g, b]
     .map(x => {
       const hex = x.toString(16);
-      return hex.length === 1 ? "0" + hex : hex;
+      return hex.length === 1 ? `0${hex}` : hex;
     })
     .join("");
 
@@ -211,7 +317,6 @@ const getShipHullPolygon = (state: Ship162Vessel): number[][] | null => {
     heading
   } = state;
 
-  // Check if we have all required dimension + position data
   if (
     to_bow == null ||
     to_stern == null ||
@@ -300,12 +405,8 @@ const getShipHullPolygon = (state: Ship162Vessel): number[][] | null => {
   return [A, B, C, D, E, A];
 };
 
-const onClick = (info: PickingInfo<Entity<Ship162Vessel>>, event: unknown) => {
+const onLiveClick = (info: PickingInfo<Entity<Ship162Vessel>>, event: unknown) => {
   if (!info.object) return;
-  // HACK: Imported ship icons are synthetic snapshots of a historical dataset, so
-  // they bypass entity selection entirely. Once selection can target workspace-backed
-  // temporal data, remove this special case and route through that model instead.
-  if (info.object.type === "ship162_imported") return;
   const mods = getModifierKeys(event);
   const exclusive = !mods.ctrlKey && !mods.altKey && !mods.metaKey;
 
@@ -313,16 +414,14 @@ const onClick = (info: PickingInfo<Entity<Ship162Vessel>>, event: unknown) => {
 
   if (exclusive) {
     tangramApi.selection.selectEntity(entity, true);
+  } else if (selectedIds.value.has(entity.id)) {
+    tangramApi.selection.deselect({ id: entity.id, type: "ship162_ship" });
   } else {
-    if (selectedIds.value.has(entity.id)) {
-      tangramApi.selection.deselect({ id: entity.id, type: "ship162_ship" });
-    } else {
-      tangramApi.selection.selectEntity(entity, false);
-    }
+    tangramApi.selection.selectEntity(entity, false);
   }
 };
 
-const onHover = (info: PickingInfo<Entity<Ship162Vessel>>) => {
+const onHover = (info: PickingInfo<ShipTooltipItem>) => {
   if (info.object) {
     tooltip.object = info.object;
     tooltip.x = info.x;
@@ -332,28 +431,106 @@ const onHover = (info: PickingInfo<Entity<Ship162Vessel>>) => {
   }
 };
 
+const renderImportedShipLayer = (currentZoom: number) => {
+  const sizeScale = 0.9 * Math.min(Math.max(0.5, Math.pow(2, currentZoom - 10)), 2);
+  const showHulls = currentZoom >= 12;
+
+  if (showHulls) {
+    const hullLayer = new PolygonLayer<ImportedShipHull>({
+      id: "imported-ship-hull-layer",
+      data: importedShipHullData,
+      pickable: false,
+      stroked: true,
+      filled: true,
+      wireframe: false,
+      lineWidthMinPixels: 1,
+      getPolygon: d => d.polygon,
+      getFillColor: d =>
+        d.marker.visible ? getIconColor(d.marker.state) : ([0, 0, 0, 0] as const),
+      getLineColor: d =>
+        d.marker.visible ? getIconColor(d.marker.state) : ([0, 0, 0, 0] as const),
+      getLineWidth: 0.5
+    });
+
+    importedHullLayerDisposable.value = tangramApi.map.setLayer(hullLayer, {
+      slot: "entities_underlay"
+    });
+  } else if (importedHullLayerDisposable.value) {
+    importedHullLayerDisposable.value.dispose();
+    importedHullLayerDisposable.value = null;
+  }
+
+  const shipLayer = new IconLayer<ImportedShipMarker>({
+    id: "imported-ship-layer",
+    data: importedShipsData,
+    pickable: true,
+    billboard: false,
+    // TODO: once imported playback markers move to a sprite-backed temporal layer,
+    // keep one persistent layer and update buffers instead of calling setLayer() here.
+    // NOTE: the sparse imported icon layer still uses Tangram's setLayer path.
+    // We also tried feeding historical icon position/angle/size
+    // through `data.attributes` typed arrays, but that regressed icon
+    // rendering. The heavy playback geometry is handled separately by the
+    // mutable timed trajectory controller.
+    getIcon: d => {
+      const { url, id } = getShipIcon(d.state, false);
+      return {
+        url,
+        id,
+        width: 24,
+        height: 24,
+        anchorY: 12,
+        mask: false
+      };
+    },
+    sizeScale: showHulls ? sizeScale * 0.5 : sizeScale,
+    getPosition: d => [d.state.longitude!, d.state.latitude!],
+    getSize: d => (d.visible ? 24 : 0),
+    getAngle: d => (d.visible ? getShipAngle(d.state) : 0),
+    onHover,
+    dataComparator: () => false,
+    updateTriggers: {
+      getAngle: [tangramApi.time.currentTime.value],
+      getSize: [tangramApi.time.currentTime.value],
+      sizeScale: [showHulls, tangramApi.time.currentTime.value]
+    },
+    parameters: {
+      cullMode: "none"
+    }
+  });
+
+  importedLayerDisposable.value = tangramApi.map.setLayer(shipLayer, {
+    slot: "entities"
+  });
+};
+
 watch(
-  [shipEntities, selectedIds, () => tangramApi.map.isReady.value, zoom],
-  ([entities, currentSelectedIds, isMapReady, currentZoom]) => {
+  [
+    shipEntities,
+    selectedIds,
+    () => tangramApi.map.isReady.value,
+    zoom,
+    () => tangramApi.time.isLive.value
+  ],
+  ([entities, currentSelectedIds, isMapReady, currentZoom, isLive]) => {
     if (!isMapReady) return;
 
     const sizeScale = 0.9 * Math.min(Math.max(0.5, Math.pow(2, currentZoom - 10)), 2);
     const showHulls = currentZoom >= 12;
-
     const baseData: Entity<Ship162Vessel>[] = [];
     const selectedData: Entity<Ship162Vessel>[] = [];
 
-    for (const d of entities.values()) {
-      if (currentSelectedIds.has(d.id)) {
-        selectedData.push(d);
+    for (const entity of entities.values()) {
+      if (currentSelectedIds.has(entity.id)) {
+        selectedData.push(entity);
       } else {
-        baseData.push(d);
+        baseData.push(entity);
       }
     }
 
-    const data = baseData.concat(selectedData);
+    const data = isLive ? baseData.concat(selectedData) : [];
 
-    if (showHulls) {
+    if (showHulls && isLive) {
       const hullData = data
         .map(entity => ({
           entity,
@@ -384,15 +561,11 @@ watch(
         getLineWidth: 0.5,
         onClick: (info: PickingInfo, event: unknown) => {
           if (!info.object) return;
-          const hullData = info.object as {
+          const hullInfo = info.object as {
             entity: Entity<Ship162Vessel>;
             polygon: number[][];
           };
-          const mockInfo = {
-            ...info,
-            object: hullData.entity
-          } as PickingInfo<Entity<Ship162Vessel>>;
-          onClick(mockInfo, event);
+          onLiveClick({ ...info, object: hullInfo.entity } as PickingInfo<Entity<Ship162Vessel>>, event);
         },
         updateTriggers: {
           getFillColor: [currentSelectedIds],
@@ -428,11 +601,8 @@ watch(
       sizeScale: showHulls ? sizeScale * 0.5 : sizeScale,
       getPosition: d => [d.state.longitude!, d.state.latitude!],
       getSize: 24,
-      getAngle: d => {
-        if (isStationary(d.state)) return 0;
-        return -(d.state.course || d.state.heading || 0);
-      },
-      onClick,
+      getAngle: d => getShipAngle(d.state),
+      onClick: onLiveClick,
       onHover,
       updateTriggers: {
         getIcon: Array.from(currentSelectedIds).sort().join(","),
@@ -452,98 +622,31 @@ watch(
 );
 
 watch(
-  [importedShips, () => tangramApi.map.isReady.value, zoom],
-  ([data, isMapReady, currentZoom]) => {
+  [importedEntries, () => tangramApi.map.isReady.value],
+  ([, isMapReady]) => {
     if (!isMapReady) return;
-
-    const sizeScale = 0.9 * Math.min(Math.max(0.5, Math.pow(2, currentZoom - 10)), 2);
-    const showHulls = currentZoom >= 12;
-
-    if (showHulls) {
-      const hullData = data
-        .map(entity => ({
-          entity,
-          polygon: getShipHullPolygon(entity.state)
-        }))
-        .filter(({ polygon }) => polygon !== null);
-
-      const hullLayer = new PolygonLayer<{
-        entity: Entity<Ship162Vessel>;
-        polygon: number[][];
-      }>({
-        id: "imported-ship-hull-layer",
-        data: hullData,
-        pickable: true,
-        stroked: true,
-        filled: true,
-        wireframe: false,
-        lineWidthMinPixels: 1,
-        getPolygon: d => d.polygon,
-        getFillColor: d => getIconColor(d.entity.state),
-        getLineColor: d => getIconColor(d.entity.state),
-        getLineWidth: 0.5,
-        onClick: (info: PickingInfo, event: unknown) => {
-          if (!info.object) return;
-          const hullData = info.object as {
-            entity: Entity<Ship162Vessel>;
-            polygon: number[][];
-          };
-          const mockInfo = {
-            ...info,
-            object: hullData.entity
-          } as PickingInfo<Entity<Ship162Vessel>>;
-          onClick(mockInfo, event);
-        }
-      });
-
-      importedHullLayerDisposable.value?.dispose();
-      importedHullLayerDisposable.value = tangramApi.map.setLayer(hullLayer, {
-        slot: "entities_underlay"
-      });
-    } else if (importedHullLayerDisposable.value) {
-      importedHullLayerDisposable.value.dispose();
-      importedHullLayerDisposable.value = null;
-    }
-
-    const shipLayer = new IconLayer<Entity<Ship162Vessel>>({
-      id: "imported-ship-layer",
-      data,
-      pickable: true,
-      billboard: false,
-      getIcon: d => {
-        const { url, id } = getShipIcon(d.state, false);
-        return {
-          url,
-          id,
-          width: 24,
-          height: 24,
-          anchorY: 12,
-          mask: false
-        };
-      },
-      sizeScale: showHulls ? sizeScale * 0.5 : sizeScale,
-      getPosition: d => [d.state.longitude!, d.state.latitude!],
-      getSize: 24,
-      getAngle: d => {
-        if (isStationary(d.state)) return 0;
-        return -(d.state.course || d.state.heading || 0);
-      },
-      onClick,
-      onHover,
-      updateTriggers: {
-        sizeScale: [showHulls]
-      },
-      parameters: {
-        cullMode: "none"
-      }
-    });
-
-    importedLayerDisposable.value?.dispose();
-    importedLayerDisposable.value = tangramApi.map.setLayer(shipLayer, {
-      slot: "entities"
-    });
+    rebuildImportedTrackCursors();
+    renderImportedShipLayer(zoom.value);
   },
   { immediate: true }
+);
+
+watch([() => tangramApi.map.isReady.value, zoom], ([isMapReady, currentZoom]) => {
+  if (!isMapReady) return;
+  renderImportedShipLayer(currentZoom);
+});
+
+watch(
+  [
+    () => tangramApi.time.currentTime.value,
+    () => tangramApi.map.isReady.value,
+    () => tangramApi.time.isLive.value
+  ],
+  ([, isMapReady, isLive]) => {
+    if (!isMapReady || isLive) return;
+    if (!syncImportedShipsTime()) return;
+    renderImportedShipLayer(zoom.value);
+  }
 );
 
 onUnmounted(() => {

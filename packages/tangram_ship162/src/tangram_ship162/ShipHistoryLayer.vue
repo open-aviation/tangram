@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { inject, onUnmounted, ref, watch, type Ref } from "vue";
-import { PathLayer } from "@deck.gl/layers";
-import { PathStyleExtension } from "@deck.gl/extensions";
+import { inject, onUnmounted, ref, watch } from "vue";
 import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
-import { generateSegments, type PathSegment } from "@open-aviation/tangram-core/utils";
+import {
+  generateTimedSegments,
+  prepareTimedTrajectoryLayerData,
+  type PreparedTimedTrajectoryLayerData,
+  TimedTrajectoryLayerController,
+  type TimedPathSegment
+} from "@open-aviation/tangram-core/trajectory";
 import { shipStore } from "./store";
 import type { Layer } from "@deck.gl/core";
 
@@ -16,17 +20,97 @@ interface ShipHistoryPoint {
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) throw new Error("assert: tangram api not provided");
 
-const layerDisposable: Ref<Disposable | null> = ref(null);
+const layerDisposables = new Map<string, Disposable>();
+const historyData = ref<ShipHistoryPoint[]>([]);
+let requestVersion = 0;
+let preparedHistoryPaths: PreparedTimedTrajectoryLayerData<
+  [number, number, number, number]
+> = {
+  segmentData: {
+    timeOrigin: 0,
+    solidSegments: [],
+    dashedSegments: []
+  },
+  polygonData: []
+};
+let historyLayerController: TimedTrajectoryLayerController<
+  [number, number, number, number]
+> | null = null;
 
-const updateLayer = async () => {
-  if (layerDisposable.value) {
-    layerDisposable.value.dispose();
-    layerDisposable.value = null;
+const clearLayers = () => {
+  layerDisposables.forEach(disposable => disposable.dispose());
+  layerDisposables.clear();
+};
+
+const syncLayerSet = (layers: Layer[]) => {
+  const currentIds = new Set(layers.map(layer => layer.id));
+
+  for (const [id, disposable] of layerDisposables) {
+    if (!currentIds.has(id)) {
+      disposable.dispose();
+      layerDisposables.delete(id);
+    }
   }
+
+  for (const layer of layers) {
+    if (!layerDisposables.has(layer.id)) {
+      layerDisposables.set(
+        layer.id,
+        tangramApi.map.setLayer(layer, {
+          slot: "tracks"
+        })
+      );
+    } else {
+      tangramApi.map.setLayer(layer, {
+        slot: "tracks"
+      });
+    }
+  }
+};
+
+const renderLayer = () => {
+  const ship = shipStore.selectedHistoryInterval;
+  if (
+    !ship ||
+    (preparedHistoryPaths.segmentData.solidSegments.length === 0 &&
+      preparedHistoryPaths.segmentData.dashedSegments.length === 0)
+  ) {
+    historyLayerController = null;
+    syncLayerSet([]);
+    return;
+  }
+
+  historyLayerController = new TimedTrajectoryLayerController(preparedHistoryPaths, {
+    idPrefix: "ship-history",
+    currentTime: tangramApi.time.currentTime.value
+  });
+
+  syncLayerSet(historyLayerController.layers);
+};
+
+const tickLayer = () => {
+  if (!historyLayerController) return;
+
+  const update = historyLayerController.setCurrentTime(
+    tangramApi.time.currentTime.value
+  );
+  if (update.layersChanged) {
+    syncLayerSet(historyLayerController.layers);
+  }
+
+  if (update.needsRepaint) {
+    tangramApi.map.requestRepaint();
+  }
+};
+
+const loadHistoryData = async () => {
+  clearLayers();
+  historyData.value = [];
 
   const ship = shipStore.selectedHistoryInterval;
   if (!ship) return;
 
+  const currentRequestVersion = ++requestVersion;
   const start_ts = new Date(ship.start_ts + "Z").getTime();
   const end_ts = new Date(ship.end_ts + "Z").getTime();
   const response = await fetch(
@@ -34,62 +118,34 @@ const updateLayer = async () => {
   );
   const data = (await response.json()) as ShipHistoryPoint[];
 
-  const segments = generateSegments<ShipHistoryPoint, [number, number, number]>(data, {
+  if (currentRequestVersion !== requestVersion) return;
+  historyData.value = data;
+
+  const timedSegments: TimedPathSegment<[number, number, number, number]>[] = [];
+  for (const segment of generateTimedSegments<
+    ShipHistoryPoint,
+    [number, number, number, number]
+  >(historyData.value, {
     getPosition: d =>
-      Number.isFinite(d.longitude) && Number.isFinite(d.latitude)
-        ? [d.longitude as number, d.latitude as number, 0]
-        : null,
-    getTimestamp: d => {
-      const ts =
-        typeof d.timestamp === "string" ? Date.parse(d.timestamp) : d.timestamp;
-      return Number.isFinite(ts) ? ts / 1000 : null;
-    },
-    getColor: () => [128, 0, 128],
-    gapColor: [150, 150, 150],
+      d.longitude != null && d.latitude != null ? [d.longitude, d.latitude, 0] : null,
+    getTimestamp: d =>
+      typeof d.timestamp === "string" ? Date.parse(d.timestamp) / 1000 : d.timestamp,
+    getColor: () => [128, 0, 128, 255],
+    gapColor: [150, 150, 150, 128],
     maxGapSeconds: 3600
-  });
-
-  const layers: Layer[] = [];
-
-  let idx = 0;
-  for (const segment of segments as Iterable<PathSegment<[number, number, number]>>) {
-    layers.push(
-      new PathLayer({
-        id: `ship-history-path-${idx++}`,
-        data: [{ path: segment.path, colors: segment.colors }],
-        pickable: false,
-        widthScale: 1,
-        widthMinPixels: 2,
-        getPath: d => d.path,
-        getColor: d => d.colors,
-        getWidth: segment.dashed ? 1 : 2,
-        parameters: { depthTest: false },
-        ...(segment.dashed
-          ? {
-              extensions: [new PathStyleExtension({ dash: true })],
-              getDashArray: [5, 5],
-              dashJustified: true
-            }
-          : {})
-      })
-    );
+  })) {
+    timedSegments.push(segment);
   }
 
-  const layerPromises = layers.map(layer =>
-    tangramApi.map.addLayer(layer, {
-      slot: "tracks"
-    })
-  );
-  layerDisposable.value = {
-    dispose: () => {
-      layerPromises.forEach(d => d.dispose());
-    }
-  };
+  preparedHistoryPaths = prepareTimedTrajectoryLayerData(timedSegments);
+  renderLayer();
 };
 
-watch(() => shipStore.historyVersion, updateLayer);
+watch(() => shipStore.historyVersion, loadHistoryData);
+watch(() => tangramApi.time.currentTime.value, tickLayer);
 
 onUnmounted(() => {
-  layerDisposable.value?.dispose();
+  clearLayers();
+  historyLayerController = null;
 });
 </script>

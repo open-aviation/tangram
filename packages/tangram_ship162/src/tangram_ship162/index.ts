@@ -1,4 +1,6 @@
+import { watch } from "vue";
 import {
+  type Disposable,
   type Entity,
   type PluginContext,
   type SearchResult,
@@ -20,7 +22,13 @@ import ShipHistoryLayer from "./ShipHistoryLayer.vue";
 import ShipHistoryGroup from "./ShipHistoryGroup.vue";
 import ShipHistoryInterval from "./ShipHistoryInterval.vue";
 import Ship162DatasetChip from "./Ship162DatasetChip.vue";
-import { shipStore, type ShipSelectionData, type HistoryInterval } from "./store";
+import {
+  pluginConfig,
+  shipStore,
+  type HistoryInterval,
+  type ShipSelectionData,
+  type TrailColorOptions
+} from "./store";
 import {
   SHIP162_IMPORTED_HISTORY_KIND,
   acceptsShip162Jsonl,
@@ -36,6 +44,8 @@ interface Ship162FrontendConfig {
   topbar_order: number;
   sidebar_order: number;
   search_channel: string;
+  trail_color: string | TrailColorOptions;
+  trail_alpha: number;
 }
 
 export interface MmsiInfo {
@@ -76,6 +86,23 @@ interface BackendSearchResult {
 export function install(ctx: PluginContext, config?: Ship162FrontendConfig) {
   const api = ctx.api;
   const channel = config?.search_channel || "ship162:search";
+
+  if (config) {
+    ctx.onDispose({
+      dispose: watch(
+        () => config.trail_color,
+        value => (pluginConfig.trailColor = value),
+        { immediate: true, deep: true }
+      )
+    });
+    ctx.onDispose({
+      dispose: watch(
+        () => config.trail_alpha,
+        value => (pluginConfig.trailAlpha = value),
+        { immediate: true }
+      )
+    });
+  }
 
   ctx.onDispose(
     api.ui.registerWorkspaceComponents(SHIP162_IMPORTED_HISTORY_KIND, {
@@ -147,7 +174,7 @@ export function install(ctx: PluginContext, config?: Ship162FrontendConfig) {
             };
             api.selection.selectEntity(entity, true);
 
-            if (r.state.latitude && r.state.longitude) {
+            if (r.state.latitude != null && r.state.longitude != null) {
               api.map.getMapInstance().flyTo({
                 center: [r.state.longitude, r.state.latitude],
                 zoom: 10
@@ -223,8 +250,7 @@ export function install(ctx: PluginContext, config?: Ship162FrontendConfig) {
 
   void (async () => {
     try {
-      const connectionId = await api.realtime.ensureConnected();
-      ctx.onDispose(await subscribeToShipData(api, connectionId));
+      ctx.onDispose(await bindShipStreaming(api));
     } catch (e) {
       console.error("failed initializing ship162 realtime subscription", e);
     }
@@ -355,6 +381,53 @@ async function fetchTrajectory(api: TangramApi, mmsi: string): Promise<unknown[]
   return shipStore.selected.get(mmsi)?.trajectory ?? [];
 }
 
+async function bindShipStreaming(api: TangramApi): Promise<Disposable> {
+  const connectionId = await api.realtime.ensureConnected();
+  let subscription: Disposable | null = null;
+  let generation = 0;
+
+  const syncStreaming = async (isLive: boolean) => {
+    const currentGeneration = ++generation;
+
+    subscription?.dispose();
+    subscription = null;
+
+    if (!isLive) {
+      await api.realtime.publish("system:leave-streaming", { connectionId });
+      return;
+    }
+
+    const next = await subscribeToShipData(api, connectionId);
+    if (currentGeneration !== generation) {
+      next.dispose();
+      if (!api.time.isLive.value) {
+        await api.realtime.publish("system:leave-streaming", { connectionId });
+      }
+      return;
+    }
+
+    subscription = next;
+  };
+
+  await syncStreaming(api.time.isLive.value);
+
+  const stopWatchingLiveMode = watch(
+    () => api.time.isLive.value,
+    isLive => {
+      void syncStreaming(isLive);
+    }
+  );
+
+  return {
+    dispose() {
+      generation += 1;
+      stopWatchingLiveMode();
+      subscription?.dispose();
+      subscription = null;
+    }
+  };
+}
+
 async function subscribeToShipData(
   api: TangramApi,
   connectionId: string
@@ -373,12 +446,28 @@ async function subscribeToShipData(
       api.state.replaceAllEntitiesByType(ENTITY_TYPE, entities);
       api.state.setTotalCount(ENTITY_TYPE, payload.count);
 
+      const entityMap = api.state.getEntitiesByType<Ship162Vessel>(ENTITY_TYPE).value;
+
       let hasUpdates = false;
       for (const [id, data] of shipStore.selected) {
-        const entityMap = api.state.getEntitiesByType<Ship162Vessel>(ENTITY_TYPE).value;
         const entity = entityMap.get(id);
 
-        if (entity && entity.state && entity.state.latitude && entity.state.longitude) {
+        if (!entity) {
+          if (data.trajectory.length === 0) continue;
+
+          data.trajectory = [];
+          data.loading = false;
+          data.error = null;
+          api.bus.publish(TrajectoryApi.TOPIC_INIT, {
+            key: { id, type: ENTITY_TYPE },
+            points: [],
+            source: "tangram_ship162"
+          });
+          hasUpdates = true;
+          continue;
+        }
+
+        if (entity.state.latitude != null && entity.state.longitude != null) {
           const updated = entity.state;
           const last = data.trajectory[data.trajectory.length - 1];
           const timestamp = updated.lastseen ?? updated.timestamp ?? 0;

@@ -4,6 +4,7 @@ import { GeoJsonLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import type { Table } from "apache-arrow";
 import { type Disposable, type TangramApi } from "@open-aviation/tangram-core/api";
+import { findTrajectorySampleAtTime } from "@open-aviation/tangram-core/trajectory";
 import { categoricalColor, parseColorSpec } from "@open-aviation/tangram-core/utils";
 import { pluginConfig } from "./config";
 import {
@@ -35,6 +36,7 @@ const layers = computed(() =>
 );
 const activeLayerId = api.workspace.activeDatasetId;
 const layerDisposables = new Map<string, Disposable>();
+const trajectoryPointDisposables = new Map<string, Disposable>();
 
 const hoverInfo = shallowReactive({
   x: 0,
@@ -359,12 +361,138 @@ watch(
   { deep: true }
 );
 
+watch(
+  [
+    layers,
+    enable3d,
+    activeLayerId,
+    () => api.time.currentTime.value,
+    () => api.time.isLive.value
+  ],
+  ([currentLayers, is3d, focusedId, currentTime, isLive]) => {
+    const activeLayer = currentLayers.some(layer => layer.id === focusedId)
+      ? focusedId
+      : null;
+    const trajectoryEntries = currentLayers.filter(isTrajectoryDatasetEntry);
+    const activeIds = new Set(trajectoryEntries.map(entry => entry.id));
+
+    for (const [id, disposable] of trajectoryPointDisposables) {
+      if (!activeIds.has(id)) {
+        disposable.dispose();
+        trajectoryPointDisposables.delete(id);
+      }
+    }
+
+    for (const entry of trajectoryEntries) {
+      const opts = entry.style;
+      const isFocused = activeLayer === null || activeLayer === entry.id;
+      const opacityMultiplier = isFocused ? 1.0 : 0.2;
+      const currentSelectedTrajectoryId = selectedTrajectoryIdForEntry(entry.id);
+      const data =
+        isLive || !entry.timeRange
+          ? []
+          : filteredTrajectories(
+              entry.payload,
+              opts.category_field,
+              opts.hidden_categories
+            ).flatMap(trajectory => {
+              const point = findTrajectorySampleAtTime(
+                trajectory.points,
+                currentTime,
+                sample => sample.timestamp
+              );
+              if (!point) return [];
+              return [{ trajectory, point }];
+            });
+
+      if (data.length === 0) {
+        trajectoryPointDisposables.get(entry.id)?.dispose();
+        trajectoryPointDisposables.delete(entry.id);
+        continue;
+      }
+
+      const markerLayer = new ScatterplotLayer<{
+        trajectory: Trajectory;
+        point: Trajectory["points"][number];
+      }>({
+        id: `explore-current-${entry.id}`,
+        data,
+        visible: entry.visible,
+        pickable: opts.pickable,
+        opacity: opts.opacity * opacityMultiplier,
+        stroked: true,
+        filled: true,
+        radiusScale: 1,
+        radiusMinPixels: Math.max(opts.line_width + 3, 4),
+        radiusMaxPixels: Math.max(opts.line_width + 3, 4),
+        lineWidthMinPixels: 1.5,
+        getPosition: ({ point }) => [
+          point.longitude,
+          point.latitude,
+          is3d ? (point.altitude ?? 0) : 0
+        ],
+        getFillColor: ({ trajectory }) => {
+          if (trajectory.id === currentSelectedTrajectoryId) {
+            return SELECTED_TRAJECTORY_COLOR;
+          }
+          return (
+            parseColorSpec(trajectoryColor(trajectory, opts)) ??
+            defaultFeatureFillColor()
+          );
+        },
+        getLineColor: ({ trajectory }) => {
+          if (trajectory.id === currentSelectedTrajectoryId) {
+            return SELECTED_TRAJECTORY_COLOR;
+          }
+          return defaultFeatureLineColor();
+        },
+        onHover: (info: PickingInfo<{ trajectory: Trajectory }>) => {
+          setHoverInfo(
+            entry,
+            info.x,
+            info.y,
+            info.object?.trajectory.properties ?? null
+          );
+        },
+        onClick: (info: PickingInfo<{ trajectory: Trajectory }>) => {
+          if (!info.object) return false;
+          selectExploreTrajectory(entry.id, info.object.trajectory);
+          return true;
+        },
+        updateTriggers: {
+          getPosition: [currentTime, is3d],
+          getFillColor: [opts, currentSelectedTrajectoryId],
+          getLineColor: [currentSelectedTrajectoryId]
+        }
+      });
+
+      if (!trajectoryPointDisposables.has(entry.id)) {
+        trajectoryPointDisposables.set(
+          entry.id,
+          api.map.setLayer(markerLayer, {
+            slot: "entities"
+          })
+        );
+      } else {
+        api.map.setLayer(markerLayer, {
+          slot: "entities"
+        });
+      }
+    }
+  },
+  { deep: true }
+);
+
 onUnmounted(() => {
   clearHoverInfo();
   for (const disposable of layerDisposables.values()) {
     disposable.dispose();
   }
   layerDisposables.clear();
+  for (const disposable of trajectoryPointDisposables.values()) {
+    disposable.dispose();
+  }
+  trajectoryPointDisposables.clear();
 });
 </script>
 

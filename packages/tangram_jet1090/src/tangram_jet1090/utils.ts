@@ -1,11 +1,5 @@
-import { PathLayer, SolidPolygonLayer } from "@deck.gl/layers";
-import { PathStyleExtension } from "@deck.gl/extensions";
-import {
-  oklchToDeckGLColor,
-  type PathSegment,
-  type Position3D
-} from "@open-aviation/tangram-core/utils";
-import type { Layer } from "@deck.gl/core";
+import { oklchToDeckGLColor, resolveBearing } from "@open-aviation/tangram-core/utils";
+import type { Position3D } from "@open-aviation/tangram-core/trajectory";
 import type { TrailColorOptions } from "./store";
 
 export const FEET_TO_METERS = 0.3048;
@@ -77,7 +71,7 @@ export function getPointColor(p: PositionData, config: TrailConfig): Color {
       return oklchToDeckGLColor(0.6 + intensity * 0.1, 0.1 + intensity * 0.15, 30, a);
     }
   } else if (by_attribute === "track") {
-    value = p.track || p.heading || 0;
+    value = resolveBearing(p.track, p.heading) ?? 0;
     return oklchToDeckGLColor(0.65, 0.2, value, a);
   }
 
@@ -91,94 +85,18 @@ export function getPosition(
   p: PositionData,
   enable3d: boolean,
   prevAlt: { value: number | null }
-): [number, number, number] | null {
+): Position3D | null {
   if (!Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) return null;
+
+  const isSurfacePositionSample = p.altitude == null && p.groundspeed != null;
+
   let alt = p.altitude;
-  if (alt == null && prevAlt.value != null) alt = prevAlt.value;
+  if (isSurfacePositionSample) {
+    alt = 0;
+  } else if (alt == null && prevAlt.value != null) {
+    alt = prevAlt.value;
+  }
   if (alt != null) prevAlt.value = alt;
   const z = !enable3d ? 0 : (alt || 0) * FEET_TO_METERS;
   return [p.longitude!, p.latitude!, z];
-}
-
-export interface BuildTrailLayersResult {
-  layers: Layer[];
-}
-
-interface PathDataItem {
-  path: Position3D[];
-  colors: Color[];
-  dashed: boolean;
-}
-
-interface CurtainDataItem {
-  polygon: Position3D[];
-  color: Color;
-}
-
-export function buildTrailLayers(
-  segments: Iterable<PathSegment<Color>>,
-  config: TrailConfig,
-  idPrefix: string
-): BuildTrailLayersResult {
-  const layers: Layer[] = [];
-  const pathData: PathDataItem[] = [];
-  const curtainData: CurtainDataItem[] = [];
-
-  for (const segment of segments) {
-    pathData.push(segment);
-
-    if (!segment.dashed && config.trailType === "curtain" && segment.path.length >= 2) {
-      for (let i = 1; i < segment.path.length; i++) {
-        const [lon1, lat1, z1] = segment.path[i - 1];
-        const [lon2, lat2, z2] = segment.path[i];
-        const color = segment.colors[i];
-
-        curtainData.push({
-          polygon: [
-            [lon1, lat1, 0],
-            [lon2, lat2, 0],
-            [lon2, lat2, z2],
-            [lon1, lat1, z1]
-          ],
-          color
-        });
-      }
-    }
-  }
-
-  if (pathData.length > 0) {
-    layers.push(
-      new PathLayer({
-        id: `${idPrefix}-path`,
-        data: pathData,
-        pickable: false,
-        widthScale: 1,
-        widthMinPixels: 2,
-        getPath: (d: PathDataItem) => d.path,
-        getColor: (d: PathDataItem) => d.colors,
-        getWidth: (d: PathDataItem) => (d.dashed ? 1 : 2),
-        extensions: [new PathStyleExtension({ dash: true })],
-        getDashArray: (d: PathDataItem) => (d.dashed ? [5, 5] : [0, 0]),
-        dashJustified: true
-      })
-    );
-  }
-
-  if (curtainData.length > 0) {
-    layers.push(
-      new SolidPolygonLayer({
-        id: `${idPrefix}-curtain`,
-        data: curtainData,
-        pickable: false,
-        stroked: false,
-        filled: true,
-        extruded: false,
-        _full3d: true,
-        getPolygon: (d: CurtainDataItem) => d.polygon,
-        getFillColor: (d: CurtainDataItem) => d.color
-      })
-    );
-  }
-
-  return { layers };
 }

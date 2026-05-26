@@ -6,18 +6,19 @@
         <span class="navbar-title">tangram</span>
       </div>
 
-      <div class="navbar-spacer"></div>
+      <div class="navbar-center">
+        <Timeline v-if="tangramApi" />
+      </div>
 
-      <template v-if="tangramApi">
-        <component
-          :is="widget.id"
-          v-for="widget in tangramApi.ui.widgets.TopBar"
-          :key="widget.id"
-        />
-        <SettingsMenu />
-      </template>
-      <div v-else class="loading-indicator">
-        <i class="fa fa-circle-o-notch fa-spin"></i>
+      <div class="navbar-actions">
+        <template v-if="tangramApi">
+          <component
+            :is="widget.id"
+            v-for="widget in tangramApi.ui.widgets.TopBar"
+            :key="widget.id"
+          />
+          <SettingsMenu />
+        </template>
       </div>
     </div>
 
@@ -31,15 +32,11 @@
             class="sidebar-section"
           >
             <div class="sidebar-header" @click="toggleSection(widget)">
-              <svg
+              <SvgIcon
                 class="caret"
                 :class="{ open: !widget.isCollapsed }"
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-              >
-                <path d="M8 5v14l11-7z" fill="currentColor" />
-              </svg>
+                :path="ICON_PATHS.chevronRight"
+              />
               {{ widget.title || widget.id }}
             </div>
             <div v-show="!widget.isCollapsed" class="sidebar-body">
@@ -100,6 +97,9 @@ import * as pmtiles from "pmtiles";
 import CommandPalette from "./CommandPalette.vue";
 import SettingsMenu from "./SettingsMenu.vue";
 import MapLayerSettings from "./MapLayerSettings.vue";
+import Timeline from "./Timeline.vue";
+import SvgIcon from "./SvgIcon.vue";
+import { ICON_PATHS } from "./utils";
 
 type ApiState = "loading" | "ready" | "error";
 
@@ -344,40 +344,61 @@ button {
 }
 
 .navbar {
+  height: 50px;
   min-height: 50px;
   background: var(--t-bg);
   color: var(--t-fg);
   z-index: 3000;
   width: 100%;
   box-sizing: border-box;
-  padding: 0.5rem 1rem;
-  display: flex;
-  flex-wrap: wrap;
+  padding: 0 1rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "brand timeline actions";
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
   border-bottom: 1px solid var(--t-border);
 }
 
 .navbar-brand {
+  grid-area: brand;
   display: flex;
   align-items: center;
+  gap: 5px;
+}
+
+.navbar-center {
+  grid-area: timeline;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar-center > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.navbar-actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .navbar-logo {
   height: 24px;
-  margin-right: 5px;
+  display: block;
 }
 
 .navbar-title {
-  padding-top: 0.3125rem;
-  padding-bottom: 0.3125rem;
   font-size: 1.25rem;
-  margin-bottom: 0;
+  line-height: 1;
   color: var(--t-fg);
-}
-
-.navbar-spacer {
-  margin-left: auto;
 }
 
 /* sidebar */
@@ -407,12 +428,13 @@ button {
 }
 
 .sidebar-header {
+  width: 100%;
   padding: 4px;
   background-color: var(--t-hover);
   cursor: pointer;
-  user-select: none;
   display: flex;
   align-items: center;
+  user-select: none;
   font-size: 14px;
   border-bottom: 1px solid var(--t-border);
   color: var(--t-fg);
@@ -452,8 +474,20 @@ button {
   display: none !important;
 }
 
-.loading-indicator {
-  color: var(--t-muted);
+@media (max-width: 980px) {
+  .navbar {
+    height: auto;
+    grid-template-columns: auto auto;
+    grid-template-areas:
+      "brand actions"
+      "timeline timeline";
+    row-gap: 0.5rem;
+    padding: 0.35rem 1rem;
+  }
+
+  .navbar-center {
+    justify-content: stretch;
+  }
 }
 
 .error-overlay {
@@ -489,6 +523,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
   font-family: "B612", sans-serif;
   font-weight: bold;
   font-size: 12px;

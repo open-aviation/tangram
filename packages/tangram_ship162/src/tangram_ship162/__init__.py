@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Literal
 
 import tangram_core
+from annotated_types import Ge, Le
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import ORJSONResponse, Response
 from pydantic import TypeAdapter
@@ -166,6 +167,13 @@ async def get_history_slice(
 
 
 @dataclass(frozen=True)
+class TrailColorOptions:
+    by_attribute: Annotated[Literal["speed"], FrontendMutable()] = "speed"
+    min: Annotated[float, FrontendMutable()] = 0.0
+    max: Annotated[float, FrontendMutable()] = 14.0
+
+
+@dataclass(frozen=True)
 class ShipsConfig:
     ship162_channel: str = "ship162"
     history_table_name: str = "ship162"
@@ -183,6 +191,8 @@ class ShipsConfig:
     history_checkpoint_interval: int = 10
     topbar_order: int = 100
     sidebar_order: int = 100
+    trail_color: str | TrailColorOptions = TrailColorOptions()
+    trail_alpha: float = 0.6
 
 
 @dataclass(frozen=True)
@@ -192,6 +202,8 @@ class ShipsFrontendConfig(
     search_channel: str
     topbar_order: Annotated[int, FrontendMutable()]
     sidebar_order: Annotated[int, FrontendMutable()]
+    trail_color: Annotated[str, FrontendMutable(kind="color")] | TrailColorOptions
+    trail_alpha: Annotated[float, Ge(0), Le(1), FrontendMutable()]
 
 
 def into_frontend(config: ShipsConfig) -> ShipsFrontendConfig:
@@ -199,6 +211,8 @@ def into_frontend(config: ShipsConfig) -> ShipsFrontendConfig:
         search_channel=config.search_channel,
         topbar_order=config.topbar_order,
         sidebar_order=config.sidebar_order,
+        trail_color=config.trail_color,
+        trail_alpha=config.trail_alpha,
     )
 
 

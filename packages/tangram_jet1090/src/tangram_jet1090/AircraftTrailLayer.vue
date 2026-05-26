@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import { computed, inject, onUnmounted, watch } from "vue";
 import type { TangramApi, Disposable } from "@open-aviation/tangram-core/api";
-import { generateSegments, type PathSegment } from "@open-aviation/tangram-core/utils";
+import {
+  buildTrajectoryCurtainPolygons,
+  buildTrajectoryLayers,
+  generateSegments,
+  generateTimedSegments,
+  type PathSegment,
+  prepareTimedTrajectoryLayerData,
+  type PreparedTimedTrajectoryLayerData,
+  TimedTrajectoryLayerController,
+  type TimedPathSegment
+} from "@open-aviation/tangram-core/trajectory";
 import { aircraftStore, pluginConfig } from "./store";
 import {
   MAX_GAP_SECONDS,
   GAP_COLOR,
   getPointColor,
   getPosition,
-  buildTrailLayers,
   type TrailConfig,
   type Color
 } from "./utils";
@@ -28,9 +37,18 @@ const importedEntries = computed(() =>
 const importedFlights = computed(() =>
   importedEntries.value.flatMap(entry => (entry.visible ? entry.payload.flights : []))
 );
+let preparedImportedTrailData: PreparedTimedTrajectoryLayerData<Color> = {
+  segmentData: {
+    timeOrigin: 0,
+    solidSegments: [],
+    dashedSegments: []
+  },
+  polygonData: []
+};
+let importedLayerController: TimedTrajectoryLayerController<Color> | null = null;
 
 const syncLayerSet = (
-  layers: ReturnType<typeof buildTrailLayers>["layers"],
+  layers: ReturnType<typeof buildTrajectoryLayers>,
   store: Map<string, Disposable>
 ) => {
   const currentIds = new Set(layers.map(layer => layer.id));
@@ -59,6 +77,11 @@ const syncLayerSet = (
 };
 
 const updateLiveLayers = () => {
+  if (!tangramApi.time.isLive.value) {
+    syncLayerSet([], liveLayerDisposables);
+    return;
+  }
+
   const config: TrailConfig = {
     trailType: pluginConfig.trailType,
     trailColor: pluginConfig.trailColor,
@@ -85,11 +108,43 @@ const updateLiveLayers = () => {
     }
   }
 
-  const { layers } = buildTrailLayers(allSegments, config, "jet1090-live-trails");
+  const layers = buildTrajectoryLayers(allSegments, {
+    idPrefix: "jet1090-live-trails",
+    polygons:
+      config.trailType === "curtain"
+        ? buildTrajectoryCurtainPolygons(allSegments)
+        : undefined
+  });
   syncLayerSet(layers, liveLayerDisposables);
 };
 
 const updateImportedLayers = () => {
+  importedLayerController = new TimedTrajectoryLayerController(
+    preparedImportedTrailData,
+    {
+      idPrefix: "jet1090-imported-trails",
+      currentTime: tangramApi.time.currentTime.value
+    }
+  );
+  syncLayerSet(importedLayerController.layers, importedLayerDisposables);
+};
+
+const tickImportedLayers = () => {
+  if (!importedLayerController) return;
+
+  const update = importedLayerController.setCurrentTime(
+    tangramApi.time.currentTime.value
+  );
+  if (update.layersChanged) {
+    syncLayerSet(importedLayerController.layers, importedLayerDisposables);
+  }
+
+  if (update.needsRepaint) {
+    tangramApi.map.requestRepaint();
+  }
+};
+
+const rebuildImportedTrailData = () => {
   const config: TrailConfig = {
     trailType: pluginConfig.trailType,
     trailColor: pluginConfig.trailColor,
@@ -97,13 +152,13 @@ const updateImportedLayers = () => {
     enable3d: pluginConfig.enable3d
   };
 
-  const allSegments: PathSegment<Color>[] = [];
+  const timedSegments: TimedPathSegment<Color>[] = [];
 
   for (const flight of importedFlights.value) {
     if (flight.length < 2) continue;
 
     const prevAlt = { value: null as number | null };
-    const segments = generateSegments(flight, {
+    const segments = generateTimedSegments(flight, {
       getPosition: p => getPosition(p, config.enable3d, prevAlt),
       getTimestamp: p => importedAircraftTimestamp(p),
       getColor: p => getPointColor(p, config),
@@ -112,12 +167,13 @@ const updateImportedLayers = () => {
     });
 
     for (const segment of segments) {
-      allSegments.push(segment);
+      timedSegments.push(segment);
     }
   }
 
-  const { layers } = buildTrailLayers(allSegments, config, "jet1090-imported-trails");
-  syncLayerSet(layers, importedLayerDisposables);
+  preparedImportedTrailData = prepareTimedTrajectoryLayerData(timedSegments, {
+    includeCurtains: config.trailType === "curtain"
+  });
 };
 
 watch(
@@ -126,7 +182,8 @@ watch(
     () => pluginConfig.trailType,
     () => pluginConfig.trailColor,
     () => pluginConfig.trailAlpha,
-    () => pluginConfig.enable3d
+    () => pluginConfig.enable3d,
+    () => tangramApi.time.isLive.value
   ],
   updateLiveLayers,
   {}
@@ -140,14 +197,20 @@ watch(
     () => pluginConfig.trailAlpha,
     () => pluginConfig.enable3d
   ],
-  updateImportedLayers,
-  {}
+  () => {
+    rebuildImportedTrailData();
+    updateImportedLayers();
+  },
+  { immediate: true }
 );
+
+watch(() => tangramApi.time.currentTime.value, tickImportedLayers);
 
 onUnmounted(() => {
   liveLayerDisposables.forEach(d => d.dispose());
   liveLayerDisposables.clear();
   importedLayerDisposables.forEach(d => d.dispose());
   importedLayerDisposables.clear();
+  importedLayerController = null;
 });
 </script>

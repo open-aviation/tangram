@@ -1,5 +1,6 @@
 import { watch } from "vue";
 import {
+  type Disposable,
   type Entity,
   type PluginContext,
   type SearchResult,
@@ -204,7 +205,7 @@ export function install(ctx: PluginContext, config?: Jet1090FrontendConfig) {
             };
             api.selection.selectEntity(entity, true);
 
-            if (r.state.latitude && r.state.longitude) {
+            if (r.state.latitude != null && r.state.longitude != null) {
               api.map.getMapInstance().flyTo({
                 center: [r.state.longitude, r.state.latitude],
                 zoom: 10
@@ -280,8 +281,7 @@ export function install(ctx: PluginContext, config?: Jet1090FrontendConfig) {
 
   void (async () => {
     try {
-      const connectionId = await api.realtime.ensureConnected();
-      ctx.onDispose(await subscribeToAircraftData(api, connectionId));
+      ctx.onDispose(await bindAircraftStreaming(api));
     } catch (e) {
       console.error("failed initializing jet1090 realtime subscription", e);
     }
@@ -421,6 +421,53 @@ async function fetchTrajectory(api: TangramApi, icao24: string): Promise<unknown
   return aircraftStore.selected.get(icao24)?.trajectory ?? [];
 }
 
+async function bindAircraftStreaming(api: TangramApi): Promise<Disposable> {
+  const connectionId = await api.realtime.ensureConnected();
+  let subscription: Disposable | null = null;
+  let generation = 0;
+
+  const syncStreaming = async (isLive: boolean) => {
+    const currentGeneration = ++generation;
+
+    subscription?.dispose();
+    subscription = null;
+
+    if (!isLive) {
+      await api.realtime.publish("system:leave-streaming", { connectionId });
+      return;
+    }
+
+    const next = await subscribeToAircraftData(api, connectionId);
+    if (currentGeneration !== generation) {
+      next.dispose();
+      if (!api.time.isLive.value) {
+        await api.realtime.publish("system:leave-streaming", { connectionId });
+      }
+      return;
+    }
+
+    subscription = next;
+  };
+
+  await syncStreaming(api.time.isLive.value);
+
+  const stopWatchingLiveMode = watch(
+    () => api.time.isLive.value,
+    isLive => {
+      void syncStreaming(isLive);
+    }
+  );
+
+  return {
+    dispose() {
+      generation += 1;
+      stopWatchingLiveMode();
+      subscription?.dispose();
+      subscription = null;
+    }
+  };
+}
+
 async function subscribeToAircraftData(
   api: TangramApi,
   connectionId: string
@@ -439,13 +486,28 @@ async function subscribeToAircraftData(
       api.state.replaceAllEntitiesByType(ENTITY_TYPE, entities);
       api.state.setTotalCount(ENTITY_TYPE, payload.count);
 
+      const entityMap = api.state.getEntitiesByType<Jet1090Aircraft>(ENTITY_TYPE).value;
+
       let hasUpdates = false;
       for (const [id, data] of aircraftStore.selected) {
-        const entityMap =
-          api.state.getEntitiesByType<Jet1090Aircraft>(ENTITY_TYPE).value;
         const entity = entityMap.get(id);
 
-        if (entity && entity.state && entity.state.latitude && entity.state.longitude) {
+        if (!entity) {
+          if (data.trajectory.length === 0) continue;
+
+          data.trajectory = [];
+          data.loading = false;
+          data.error = null;
+          api.bus.publish(TrajectoryApi.TOPIC_INIT, {
+            key: { id, type: ENTITY_TYPE },
+            points: [],
+            source: "tangram_jet1090"
+          });
+          hasUpdates = true;
+          continue;
+        }
+
+        if (entity.state.latitude != null && entity.state.longitude != null) {
           const updated = entity.state;
           const last = data.trajectory[data.trajectory.length - 1];
           const timestamp = updated.lastseen / 1_000_000;

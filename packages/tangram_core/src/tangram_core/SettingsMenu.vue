@@ -1,20 +1,22 @@
 <template>
   <div class="settings-menu-anchor">
-    <button class="settings-btn" title="Settings" @click.stop="isOpen = !isOpen">
-      <i class="fa fa-cog"></i>
-    </button>
+    <IconButton title="Settings" aria-label="Settings" @click.stop="isOpen = !isOpen">
+      <SvgIcon :path="ICON_PATHS.settings" />
+    </IconButton>
 
     <div v-if="isOpen" class="settings-dropdown" @click.stop>
       <div class="settings-header">
         <span>Settings</span>
-        <button class="close-btn" @click="isOpen = false">
-          <svg width="14" height="14" viewBox="0 0 24 24">
-            <path
-              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
-              fill="currentColor"
-            />
-          </svg>
-        </button>
+        <IconButton
+          title="Close settings"
+          aria-label="Close settings"
+          size="xs"
+          variant="plain"
+          muted
+          @click="isOpen = false"
+        >
+          <SvgIcon :path="ICON_PATHS.close" />
+        </IconButton>
       </div>
       <div class="settings-content">
         <div
@@ -27,10 +29,12 @@
           <template v-for="item in getRenderList(pluginName)" :key="item.key">
             <div v-if="item.type === 'widget'" class="widget-group">
               <component
-                :is="getWidgetComponent(item.widget)"
+                :is="getWidgetComponent(item.widget!)"
                 :model-value="getPluginValue(pluginName, item.key)"
                 :schema="item.schema"
-                @update:model-value="v => setPluginValue(pluginName, item.key, v)"
+                @update:model-value="
+                  (v: unknown) => setPluginValue(pluginName, item.key, v)
+                "
               />
             </div>
 
@@ -55,6 +59,9 @@
 <script setup lang="ts">
 import { ref, inject, computed } from "vue";
 import type { TangramApi, JsonSchema } from "./api";
+import IconButton from "./IconButton.vue";
+import SvgIcon from "./SvgIcon.vue";
+import { ICON_PATHS } from "./utils";
 import SettingsField from "./SettingsField.vue";
 
 const api = inject<TangramApi>("tangramApi")!;
@@ -192,19 +199,6 @@ const triggerValidation = (pluginName: string) => {
 .settings-menu-anchor {
   position: relative;
 }
-.settings-btn {
-  background: none;
-  border: 1px solid transparent;
-  color: var(--t-fg);
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-.settings-btn:hover {
-  background-color: var(--t-hover);
-}
 .settings-dropdown {
   position: absolute;
   top: 100%;
@@ -231,17 +225,6 @@ const triggerValidation = (pluginName: string) => {
   align-items: center;
   background-color: var(--t-bg);
   border-radius: 8px 8px 0 0;
-}
-.close-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--t-muted);
-  display: flex;
-  padding: 4px;
-}
-.close-btn:hover {
-  color: var(--t-fg);
 }
 .settings-content {
   overflow-y: auto;

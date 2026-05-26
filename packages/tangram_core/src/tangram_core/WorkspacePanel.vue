@@ -8,21 +8,50 @@
   >
     <div v-if="datasetRows.length > 0" class="list-actions">
       <div class="list-actions-primary">
-        <button
+        <IconButton
           v-if="collapsibleDatasetCount > 0"
-          class="text-btn"
+          class="icon-btn"
+          size="xs"
+          variant="plain"
+          muted
+          :title="allCollapsed ? 'expand all' : 'collapse all'"
           @click="toggleAllCollapsed"
         >
-          {{ allCollapsed ? "expand all" : "collapse all" }}
-        </button>
-        <button class="text-btn" @click="api.workspace.setAllVisibility(allHidden)">
+          <svg
+            class="collapse-toggle-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 -960 960 960"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path :d="allCollapsed ? ICON_PATHS.expandAll : ICON_PATHS.collapseAll" />
+          </svg>
+        </IconButton>
+        <IconButton
+          class="text-btn"
+          :icon-only="false"
+          size="xs"
+          variant="plain"
+          muted
+          @click="api.workspace.setAllVisibility(allHidden)"
+        >
           {{ allHidden ? "show all" : "hide all" }}
-        </button>
+        </IconButton>
         <span class="pending-keys" :class="{ 'is-visible': !!pendingKeys }">
           {{ pendingKeys ?? "" }}
         </span>
       </div>
-      <button class="text-btn danger" @click="api.workspace.clear()">clear all</button>
+      <IconButton
+        class="text-btn danger"
+        :icon-only="false"
+        size="xs"
+        variant="plain"
+        muted
+        danger
+        @click="api.workspace.clear()"
+      >
+        clear all
+      </IconButton>
     </div>
     <div v-if="datasetRows.length === 0" class="empty-state">
       drop supported files anywhere on the map to add a layer
@@ -37,75 +66,47 @@
     >
       <div class="dataset-header">
         <div class="left-col">
-          <button
+          <IconButton
             v-if="row.components?.details"
             class="icon-btn"
+            size="xs"
+            variant="plain"
+            muted
             :title="
               isCollapsed(row.dataset.id) ? 'expand settings' : 'collapse settings'
             "
             @click="toggleCollapsed(row.dataset.id)"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path v-if="isCollapsed(row.dataset.id)" d="m9 18 6-6-6-6" />
-              <path v-else d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
+            <SvgIcon
+              class="dataset-chevron"
+              :class="{ 'is-open': !isCollapsed(row.dataset.id) }"
+              :path="ICON_PATHS.chevronRight"
+            />
+          </IconButton>
           <span v-else class="chevron-spacer" aria-hidden="true"></span>
-          <button
+          <IconButton
             class="visibility-btn"
+            size="xs"
+            variant="plain"
+            muted
             :title="row.dataset.visible ? 'hide layer' : 'show layer'"
             @click="api.workspace.toggleVisibility(row.dataset.id)"
           >
-            <svg
-              v-if="row.dataset.visible"
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path
-                d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
-              />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <svg
-              v-else
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="m15 18-.722-3.25" />
-              <path d="M2 8a10.645 10.645 0 0 0 20 0" />
-              <path d="m20 15-1.726-2.05" />
-              <path d="m4 15 1.726-2.05" />
-              <path d="m9 18 .722-3.25" />
-            </svg>
-          </button>
+            <SvgIcon
+              :path="
+                row.dataset.visible ? ICON_PATHS.visibility : ICON_PATHS.visibilityOff
+              "
+            />
+          </IconButton>
           <span
             class="dataset-label"
-            title="fit layer bounds"
-            @click="flyToDataset(row.dataset)"
+            :class="{ 'is-selected': row.dataset.id === selectedDatasetId }"
+            :title="
+              row.dataset.timeRange
+                ? 'fit layer bounds and open playback'
+                : 'fit layer bounds'
+            "
+            @click="focusDataset(row.dataset)"
           >
             {{ row.dataset.label }}
           </span>
@@ -116,27 +117,17 @@
             v-if="row.components?.chip"
             :dataset="row.dataset"
           />
-          <button
+          <IconButton
             class="icon-btn danger"
+            size="xs"
+            variant="plain"
+            muted
+            danger
             title="remove layer"
             @click="api.workspace.remove(row.dataset.id)"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M3 6h18"></path>
-              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-            </svg>
-          </button>
+            <SvgIcon :path="ICON_PATHS.delete" />
+          </IconButton>
         </div>
       </div>
       <div
@@ -152,7 +143,10 @@
 <script setup lang="ts">
 import { inject, ref, reactive, computed, watch, nextTick, onUnmounted } from "vue";
 import type { TangramApi, WorkspaceDatasetEntry } from "./api";
+import IconButton from "./IconButton.vue";
+import SvgIcon from "./SvgIcon.vue";
 import { useVimList } from "./keyboard";
+import { ICON_PATHS } from "./utils";
 
 const api = inject<TangramApi>("tangramApi")!;
 const datasets = api.workspace.datasets;
@@ -166,6 +160,7 @@ const datasetRows = computed(() =>
 const collapsedDatasets = reactive(new Set<string>());
 const isActive = ref(false);
 const panelRef = ref<HTMLElement | null>(null);
+const selectedDatasetId = ref<string | null>(null);
 let activeDatasetFrame: number | null = null;
 
 const { focusedIndex, pendingKeys, setFocus } = useVimList(datasets, {
@@ -178,7 +173,7 @@ const { focusedIndex, pendingKeys, setFocus } = useVimList(datasets, {
     } else if (action === "toggle") {
       subset.map(d => d.id).forEach(id => api.workspace.toggleVisibility(id));
     } else if (action === "select" && subset.length > 0) {
-      flyToDataset(subset[0]);
+      focusDataset(subset[0]);
     }
   }
 });
@@ -250,13 +245,28 @@ watch(
   { flush: "post" }
 );
 
+watch(datasets, entries => {
+  if (selectedDatasetId.value && !entries.some(entry => entry.id === selectedDatasetId.value)) {
+    selectedDatasetId.value = null;
+  }
+});
+
 onUnmounted(() => {
   if (activeDatasetFrame !== null) {
     window.cancelAnimationFrame(activeDatasetFrame);
   }
 });
 
-function flyToDataset(dataset: WorkspaceDatasetEntry) {
+function focusDataset(dataset: WorkspaceDatasetEntry) {
+  selectedDatasetId.value = dataset.id;
+
+  if (dataset.timeRange) {
+    api.time.fitToRange(dataset.timeRange, {
+      anchor: "end",
+      enterHistory: true
+    });
+  }
+
   const bounds = dataset.bounds;
   if (!bounds) return;
   api.map.getMapInstance().fitBounds(
@@ -364,18 +374,6 @@ function toggleCollapsed(id: string) {
   justify-self: end;
 }
 
-.visibility-btn,
-.icon-btn,
-.text-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px;
-  color: var(--t-muted);
-  display: flex;
-  align-items: center;
-}
-
 .visibility-btn:hover,
 .icon-btn:hover,
 .text-btn:hover {
@@ -383,19 +381,34 @@ function toggleCollapsed(id: string) {
 }
 
 .icon-btn {
-  width: 16px;
-  height: 16px;
-  justify-content: center;
+  width: 18px;
+  min-width: 18px;
+  min-height: 18px;
   font-size: 12px;
 }
 
+.dataset-chevron {
+  transition: transform 0.15s ease;
+}
+
+.collapse-toggle-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.dataset-chevron.is-open {
+  transform: rotate(90deg);
+}
+
 .chevron-spacer {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
 }
 
 .text-btn {
+  color: var(--t-muted);
   font-size: 0.75em;
   font-family: "B612", sans-serif;
 }
@@ -419,6 +432,10 @@ function toggleCollapsed(id: string) {
 
 .dataset-label:hover {
   text-decoration: underline;
+}
+
+.dataset-label.is-selected {
+  font-weight: 700;
 }
 
 .dataset-details {
