@@ -100,21 +100,10 @@ export default defineConfig({
                 __dirname,
                 "node_modules/parquet-wasm/esm/parquet_wasm_bg.wasm"
               )
-            ),
-            normalizePath(
-              path.resolve(
-                __dirname,
-                "node_modules/font-awesome/css/font-awesome.min.css"
-              )
             )
           ],
-          dest: "."
-        },
-        {
-          src: normalizePath(
-            path.resolve(__dirname, "node_modules/font-awesome/fonts/*")
-          ),
-          dest: "fonts"
+          dest: ".",
+          rename: { stripBase: true }
         }
       ]
     }),

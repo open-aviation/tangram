@@ -56,13 +56,16 @@
                 <span class="swatch" :style="{ background: theme.accent2 }"></span>
               </div>
             </div>
-            <button
-              class="edit-btn"
+            <IconButton
               title="Edit Theme Colors"
+              aria-label="Edit Theme Colors"
+              size="sm"
+              variant="plain"
+              muted
               @click.stop="toggleEdit(theme.name)"
             >
-              <i class="fa fa-pencil"></i>
-            </button>
+              <SvgIcon :path="ICON_PATHS.edit" />
+            </IconButton>
           </div>
 
           <div v-if="editingTheme === theme.name" class="theme-editor">
@@ -88,6 +91,9 @@
 import { computed, inject, ref } from "vue";
 import type { TangramApi, ThemeDefinition } from "./api";
 import ColorPicker from "./ColorPicker.vue";
+import IconButton from "./IconButton.vue";
+import SvgIcon from "./SvgIcon.vue";
+import { ICON_PATHS } from "./utils";
 
 const props = defineProps<{
   modelValue: string | { light: string; dark: string };
@@ -286,19 +292,5 @@ select {
   font-size: 0.75rem;
   color: var(--t-muted);
   text-transform: capitalize;
-}
-
-.edit-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--t-muted);
-  padding: 4px;
-  border-radius: 4px;
-}
-
-.edit-btn:hover {
-  background-color: var(--t-surface);
-  color: var(--t-fg);
 }
 </style>

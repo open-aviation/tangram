@@ -3,21 +3,20 @@ import type {
   WorkspaceDatasetEntry,
   WorkspaceDatasetInput
 } from "@open-aviation/tangram-core/api";
+import { segmentTrajectoryRecords } from "@open-aviation/tangram-core/trajectory";
 import {
   computeBoundsFromRecords,
   finiteNumber,
-  latestTrajectoryPoints,
   parseJsonlRows,
-  parseTimestamp,
-  segmentTrajectoryRecords
+  parseTimestamp
 } from "@open-aviation/tangram-core/utils";
 import type { Ship162Vessel } from ".";
+import type { TimeRange } from "@open-aviation/tangram-core/api";
 
 export const SHIP162_IMPORTED_HISTORY_KIND = "ship162_imported_history";
 
 export interface Ship162ImportedPayload {
   tracks: Ship162Vessel[][];
-  latestPoints: Ship162Vessel[];
   recordCount: number;
 }
 
@@ -71,6 +70,22 @@ export function importedShipRecordCount(payload: Ship162ImportedPayload): number
   return payload.recordCount;
 }
 
+function importedShipTimeRange(
+  records: ReadonlyArray<Ship162Vessel>
+): TimeRange | null {
+  let start = Number.POSITIVE_INFINITY;
+  let stop = Number.NEGATIVE_INFINITY;
+
+  for (const record of records) {
+    const timestamp = importedShipTimestamp(record);
+    if (timestamp === null) continue;
+    start = Math.min(start, timestamp);
+    stop = Math.max(stop, timestamp);
+  }
+
+  return Number.isFinite(start) && Number.isFinite(stop) ? { start, stop } : null;
+}
+
 function buildImportedPayload(
   records: ReadonlyArray<Ship162Vessel>
 ): Ship162ImportedPayload {
@@ -83,9 +98,6 @@ function buildImportedPayload(
 
   return {
     tracks,
-    // HACK: we cache the terminal sample of each segmented track so the live ship layer
-    // can place a static icon for imported history
-    latestPoints: latestTrajectoryPoints(tracks),
     recordCount: records.length
   };
 }
@@ -98,8 +110,7 @@ export function isShip162ImportedHistoryDataset(
     (entry as { kind?: unknown }).kind === SHIP162_IMPORTED_HISTORY_KIND &&
     typeof payload === "object" &&
     payload !== null &&
-    Array.isArray((payload as Ship162ImportedPayload).tracks) &&
-    Array.isArray((payload as Ship162ImportedPayload).latestPoints)
+    Array.isArray((payload as Ship162ImportedPayload).tracks)
   );
 }
 
@@ -130,6 +141,7 @@ export async function parseShip162Jsonl(
       kind: SHIP162_IMPORTED_HISTORY_KIND,
       label: file.metadata.name,
       payload: buildImportedPayload(records),
+      timeRange: importedShipTimeRange(records),
       bounds: computeBoundsFromRecords(
         records,
         record => record.longitude,

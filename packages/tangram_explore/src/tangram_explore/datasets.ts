@@ -210,6 +210,7 @@ export function createTrajectoryDatasetInput(
     label,
     payload: source,
     bounds: source.bounds,
+    timeRange: source.timeRange,
     style: options.style ?? createDefaultTrajectoryStyle(source),
     pluginId: options.pluginId,
     id: options.id,

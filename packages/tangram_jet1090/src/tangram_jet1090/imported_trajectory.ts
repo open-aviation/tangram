@@ -3,22 +3,24 @@ import type {
   WorkspaceDatasetEntry,
   WorkspaceDatasetInput
 } from "@open-aviation/tangram-core/api";
+import { segmentTrajectoryRecords } from "@open-aviation/tangram-core/trajectory";
 import {
+  computeGeographicBearing,
   computeBoundsFromRecords,
   finiteNumber,
+  interpolateBearing,
   isRecord,
-  latestTrajectoryPoints,
   parseJsonlRows,
   parseTimestamp,
-  segmentTrajectoryRecords
+  resolveBearing
 } from "@open-aviation/tangram-core/utils";
 import type { Jet1090Aircraft } from ".";
+import type { TimeRange } from "@open-aviation/tangram-core/api";
 
 export const JET1090_IMPORTED_HISTORY_KIND = "jet1090_imported_history";
 
 export interface Jet1090ImportedPayload {
   flights: Jet1090Aircraft[][];
-  latestPoints: Jet1090Aircraft[];
   recordCount: number;
 }
 
@@ -75,8 +77,7 @@ function normalizeRs1090Row(row: Record<string, unknown>): Jet1090Aircraft | nul
 }
 
 export function importedAircraftTimestamp(record: Jet1090Aircraft): number | null {
-  if (record.timestamp !== undefined) return record.timestamp;
-  return Number.isFinite(record.lastseen) ? record.lastseen / 1_000_000 : null;
+  return record.timestamp ?? record.lastseen / 1_000_000;
 }
 
 export function importedAircraftFlightCount(payload: Jet1090ImportedPayload): number {
@@ -87,6 +88,127 @@ export function importedAircraftRecordCount(payload: Jet1090ImportedPayload): nu
   return payload.recordCount;
 }
 
+// sometimes track and heading are missing from historical data, so
+// for cosmetic purposes, we estimate the track using consecutive points
+
+function* previousRecords(
+  flight: ReadonlyArray<Jet1090Aircraft>,
+  index: number
+): Generator<Jet1090Aircraft> {
+  for (let previousIndex = index - 1; previousIndex >= 0; previousIndex -= 1) {
+    yield flight[previousIndex];
+  }
+}
+
+function* nextRecords(
+  flight: ReadonlyArray<Jet1090Aircraft>,
+  index: number
+): Generator<Jet1090Aircraft> {
+  for (let nextIndex = index + 1; nextIndex < flight.length; nextIndex += 1) {
+    yield flight[nextIndex];
+  }
+}
+
+function firstBearing(
+  records: Iterable<Jet1090Aircraft>,
+  from: Jet1090Aircraft,
+  direction: "incoming" | "outgoing"
+): number | undefined {
+  if (from.latitude == null || from.longitude == null) {
+    return undefined;
+  }
+
+  for (const record of records) {
+    if (record.latitude == null || record.longitude == null) {
+      continue;
+    }
+
+    if (record.latitude === from.latitude && record.longitude === from.longitude) {
+      continue;
+    }
+
+    const bearing =
+      direction === "incoming"
+        ? computeGeographicBearing(
+            record.latitude,
+            record.longitude,
+            from.latitude,
+            from.longitude
+          )
+        : computeGeographicBearing(
+            from.latitude,
+            from.longitude,
+            record.latitude,
+            record.longitude
+          );
+
+    return bearing;
+  }
+
+  return undefined;
+}
+
+function estimateFlightDirection(
+  flight: ReadonlyArray<Jet1090Aircraft>,
+  index: number
+): number | undefined {
+  const record = flight[index];
+  const explicitDirection = resolveBearing(record.track, record.heading);
+
+  if (explicitDirection !== undefined) {
+    return explicitDirection;
+  }
+
+  const incomingBearing = firstBearing(
+    previousRecords(flight, index),
+    record,
+    "incoming"
+  );
+  const outgoingBearing = firstBearing(nextRecords(flight, index), record, "outgoing");
+
+  if (incomingBearing !== undefined && outgoingBearing !== undefined) {
+    return interpolateBearing(incomingBearing, outgoingBearing);
+  }
+
+  return incomingBearing ?? outgoingBearing;
+}
+
+function backfillFlightDirectionFromGeometry(
+  flight: ReadonlyArray<Jet1090Aircraft>
+): Jet1090Aircraft[] {
+  return flight.map((record, index) => {
+    if (resolveBearing(record.track, record.heading) !== undefined) {
+      return record;
+    }
+
+    const estimatedDirection = estimateFlightDirection(flight, index);
+    if (estimatedDirection === undefined) {
+      return record;
+    }
+
+    return {
+      ...record,
+      track: estimatedDirection
+    };
+  });
+}
+
+function importedAircraftTimeRange(
+  records: ReadonlyArray<Jet1090Aircraft>
+): TimeRange | null {
+  let start = Number.POSITIVE_INFINITY;
+  let stop = Number.NEGATIVE_INFINITY;
+
+  for (const record of records) {
+    const timestamp = importedAircraftTimestamp(record);
+    if (timestamp === null) continue;
+    start = Math.min(start, timestamp);
+    stop = Math.max(stop, timestamp);
+  }
+
+  return Number.isFinite(start) && Number.isFinite(stop) ? { start, stop } : null;
+}
+
 function buildImportedPayload(
   records: ReadonlyArray<Jet1090Aircraft>
 ): Jet1090ImportedPayload {
@@ -95,13 +217,10 @@ function buildImportedPayload(
     getTimestamp: importedAircraftTimestamp,
     maxGapSeconds: 600,
     fallbackId: "aircraft"
-  });
+  }).map(backfillFlightDirectionFromGeometry);
 
   return {
     flights,
-    // HACK: we precompute one terminal point per segmented flight so the live aircraft
-    // renderer can draw a static icon for imported history
-    latestPoints: latestTrajectoryPoints(flights),
     recordCount: records.length
   };
 }
@@ -113,8 +232,7 @@ export function isJet1090ImportedHistoryDataset(
   return (
     (entry as { kind?: unknown }).kind === JET1090_IMPORTED_HISTORY_KIND &&
     isRecord(payload) &&
-    Array.isArray(payload.flights) &&
-    Array.isArray(payload.latestPoints)
+    Array.isArray(payload.flights)
   );
 }
 
@@ -143,6 +261,7 @@ export async function parseRs1090Jsonl(
       kind: JET1090_IMPORTED_HISTORY_KIND,
       label: file.metadata.name,
       payload: buildImportedPayload(records),
+      timeRange: importedAircraftTimeRange(records),
       bounds: computeBoundsFromRecords(
         records,
         record => record.longitude,
