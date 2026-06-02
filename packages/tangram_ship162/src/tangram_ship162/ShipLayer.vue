@@ -565,7 +565,10 @@ watch(
             entity: Entity<Ship162Vessel>;
             polygon: number[][];
           };
-          onLiveClick({ ...info, object: hullInfo.entity } as PickingInfo<Entity<Ship162Vessel>>, event);
+          onLiveClick(
+            { ...info, object: hullInfo.entity } as PickingInfo<Entity<Ship162Vessel>>,
+            event
+          );
         },
         updateTriggers: {
           getFillColor: [currentSelectedIds],

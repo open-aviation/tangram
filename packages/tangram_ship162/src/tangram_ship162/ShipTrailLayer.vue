@@ -124,13 +124,10 @@ const updateLiveLayer = () => {
 };
 
 const updateImportedLayer = () => {
-  importedLayerController = new TimedTrajectoryLayerController(
-    preparedImportedPaths,
-    {
-      idPrefix: "ship-imported-trails",
-      currentTime: tangramApi.time.currentTime.value
-    }
-  );
+  importedLayerController = new TimedTrajectoryLayerController(preparedImportedPaths, {
+    idPrefix: "ship-imported-trails",
+    currentTime: tangramApi.time.currentTime.value
+  });
   syncLayerSet(importedLayerController.layers, importedLayerDisposables);
 };
 

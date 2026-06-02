@@ -246,7 +246,10 @@ watch(
 );
 
 watch(datasets, entries => {
-  if (selectedDatasetId.value && !entries.some(entry => entry.id === selectedDatasetId.value)) {
+  if (
+    selectedDatasetId.value &&
+    !entries.some(entry => entry.id === selectedDatasetId.value)
+  ) {
     selectedDatasetId.value = null;
   }
 });
