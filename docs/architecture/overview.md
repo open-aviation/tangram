@@ -62,6 +62,7 @@ graph LR
 | `tangram` (Core)          | `tangram_core` package                            | REST API server, CLI, and frontend shell.                      |
 | [`channel`](./channel.md) | (Bundled with `tangram`)                          | WebSocket bridge between the frontend and Redis pub/sub.       |
 | `jet1090` integration     | [`tangram_jet1090` plugin](../plugins/jet1090.md) | Decodes Mode S/ADS-B messages and provides data streams.       |
+| `datalink` integration    | [`tangram_datalink` plugin](../plugins/datalink.md) | Bridges ACARS/VDL2 messages into live aircraft state and feeds. |
 | State Vectors & History   | [`tangram_jet1090` plugin](../plugins/jet1090.md) | Maintains real-time state and stores historical aircraft data. |
 | System Info               | [`tangram_system` plugin](../plugins/system.md)   | Provides backend server metrics like CPU and memory usage.     |
 | Weather Layers            | [`tangram_weather` plugin](../plugins/weather.md) | Provides API endpoints for meteorological data.                |

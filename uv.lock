@@ -20,6 +20,7 @@ exclude-newer-span = "-P7D"
 members = [
     "tangram-airports",
     "tangram-core",
+    "tangram-datalink",
     "tangram-example",
     "tangram-explore",
     "tangram-globe",
@@ -2581,6 +2582,17 @@ requires-dist = [
     { name = "typer" },
     { name = "uvicorn", specifier = ">=0.32.0" },
 ]
+
+[[package]]
+name = "tangram-datalink"
+version = "0.4.1"
+source = { editable = "packages/tangram_datalink" }
+dependencies = [
+    { name = "tangram-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tangram-core", editable = "packages/tangram_core" }]
 
 [[package]]
 name = "tangram-example"

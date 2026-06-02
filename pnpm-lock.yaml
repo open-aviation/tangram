@@ -128,6 +128,28 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@types/node@25.6.0)(vite@8.0.13(@types/node@25.6.0)(jiti@2.6.1))
 
+  packages/tangram_datalink:
+    dependencies:
+      '@open-aviation/tangram-core':
+        specifier: workspace:*
+        version: link:../tangram_core
+    devDependencies:
+      '@deck.gl/core':
+        specifier: ^9.3.2
+        version: 9.3.2
+      '@deck.gl/extensions':
+        specifier: ^9.3.2
+        version: 9.3.2(@deck.gl/core@9.3.2)(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3)))
+      '@deck.gl/layers':
+        specifier: ^9.3.2
+        version: 9.3.2(@deck.gl/core@9.3.2)(@loaders.gl/core@4.4.1)(@luma.gl/core@9.3.3)(@luma.gl/engine@9.3.3(@luma.gl/core@9.3.3)(@luma.gl/shadertools@9.3.3(@luma.gl/core@9.3.3)))
+      lit-html:
+        specifier: ^3.3.3
+        version: 3.3.3
+      vue:
+        specifier: ^3.5.34
+        version: 3.5.34(typescript@5.9.3)
+
   packages/tangram_example:
     dependencies:
       '@open-aviation/tangram-core':

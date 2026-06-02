@@ -1,0 +1,57 @@
+<template>
+  <div v-if="isLive" class="datalink-count-widget">
+    <div class="count-display">
+      <span id="visible_count">{{ visibleCount }}</span> (<span id="plane_count">{{
+        totalCount ?? 0
+      }}</span
+      >)
+    </div>
+    <span id="count_aircraft">datalink entities</span>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, inject } from "vue";
+import type { TangramApi } from "@open-aviation/tangram-core/api";
+
+const tangramApi = inject<TangramApi>("tangramApi");
+if (!tangramApi) {
+  throw new Error("assert: tangram api not provided");
+}
+
+const totalCount = computed(
+  () => tangramApi.state.totalCounts.value?.get("datalink_aircraft") ?? 0
+);
+
+const isLive = computed(() => tangramApi.time.isLive.value);
+
+const visibleCount = computed(
+  () => tangramApi.state.getEntitiesByType("datalink_aircraft").value?.size ?? 0
+);
+</script>
+
+<style scoped>
+#visible_count {
+  font-size: 1em;
+  color: color-mix(in oklch, var(--t-accent1), var(--t-fg));
+}
+#plane_count {
+  color: var(--t-fg);
+}
+#count_aircraft {
+  color: var(--t-muted);
+  font-size: 9pt;
+  text-align: center;
+}
+.datalink-count-widget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1px;
+  border-bottom: 1px solid var(--t-border);
+}
+.count-display {
+  text-align: center;
+  color: var(--t-fg);
+}
+</style>
