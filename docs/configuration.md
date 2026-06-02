@@ -64,6 +64,7 @@ For details on each plugin's available settings, refer to their respective docum
 
 - [`tangram_jet1090`](plugins/jet1090.md#configuration)
 - [`tangram_ship162`](plugins/ship162.md#configuration)
+- [`tangram_datalink`](plugins/datalink.md#configuration)
 - [`tangram_history`](plugins/history.md#configuration)
 - [`tangram_explore`](plugins/explore.md#configuration)
 - [`tangram_system`](plugins/system.md#configuration)

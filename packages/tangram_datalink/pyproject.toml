@@ -1,0 +1,47 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "tangram_datalink"
+version = "0.4.1"
+description = "Aviation datalink integration plugin for tangram"
+license = "AGPL-3.0"
+readme = "readme.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Abraham Cheung", email = "abraham@ylcheung.com" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = ["tangram_core>=0.4.1"]
+
+[project.entry-points."tangram_core.plugins"]
+tangram_datalink = "tangram_datalink:plugin"
+
+[tool.uv.sources]
+tangram_core = { workspace = true }
+
+[tool.maturin]
+python-source = "src"
+module-name = "tangram_datalink._datalink"
+features = ["pyo3"]
+include = ["dist-frontend/**/*", "package.json"]
+
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "rust/Cargo.toml" },
+    { file = "**/*.rs" },
+]

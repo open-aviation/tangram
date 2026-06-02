@@ -43,7 +43,7 @@ tangram serve --config tangram.toml
 
 **Can I use this for non-aviation data?**
 
-> Yes. While the official plugins focus on air (`tangram_jet1090`) and maritime traffic (`tangram_ship162`), the core is domain-agnostic. Any data you can push to Redis or serialize to Arrow can be visualized. The `tangram_explore` plugin is specifically designed to visualize generic geospatial DataFrames (scatter plots, trajectories) without writing a full backend plugin.
+> Yes. While the official plugins focus on air (`tangram_jet1090`, `tangram_datalink`) and maritime traffic (`tangram_ship162`), the core is domain-agnostic. Any data you can push to Redis or serialize to Arrow can be visualized. The `tangram_explore` plugin is specifically designed to visualize generic geospatial DataFrames (scatter plots, trajectories) without writing a full backend plugin.
 
 **How do I get live planes?**
 

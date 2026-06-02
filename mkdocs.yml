@@ -18,6 +18,7 @@ nav:
       - "plugins/system.md"
       - "plugins/history.md"
       - "plugins/jet1090.md"
+      - "plugins/datalink.md"
       - "plugins/ship162.md"
       - "plugins/weather.md"
       - "plugins/airports.md"
@@ -30,6 +31,7 @@ nav:
     - "api/core.md"
     - "api/system.md"
     - "api/jet1090.md"
+    - "api/datalink.md"
     - "api/ship162.md"
     - "api/history.md"
     - "api/explore.md"
@@ -92,6 +94,7 @@ plugins:
             - packages/tangram_globe/src
             - packages/tangram_system/src
             - packages/tangram_ship162/src
+            - packages/tangram_datalink/src
             - packages/tangram_explore/src
           inventories:
             - https://docs.python.org/3/objects.inv

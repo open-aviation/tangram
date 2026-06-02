@@ -10,6 +10,7 @@ plugins = [
     "tangram_airports",
     "tangram_globe",
     # "tangram_ship162",
+    # "tangram_datalink",
     # "tangram_weather",
     # "tangram_example",
 ]
