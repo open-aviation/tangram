@@ -10,19 +10,36 @@ import DatalinkInfoWidget from "./DatalinkInfoWidget.vue";
 import DatalinkCountWidget from "./DatalinkCountWidget.vue";
 import { datalinkStore, type DatalinkMessage } from "./store";
 
-const ENTITY_TYPE = "datalink_aircraft";
+export const ENTITY_TYPE = "datalink_entity";
 
-export interface DatalinkAircraft {
+export type DatalinkEntityKind = "aircraft" | "station";
+
+export interface DatalinkAircraftInfo {
   icao24?: string | null;
   registration?: string | null;
   aircraft_id?: string | null;
   flight_id?: string | null;
+}
+
+export interface DatalinkStationInfo {
+  station: string;
+  airport?: string | null;
+  provider?: string | null;
+  frequency_mhz?: number | null;
+}
+
+export interface DatalinkEntity {
+  kind: DatalinkEntityKind;
+  id: string;
+  label: string;
   lastseen: number;
   latitude?: number | null;
   longitude?: number | null;
   altitude_ft?: number | null;
   track?: number | null;
   messages: number;
+  aircraft?: DatalinkAircraftInfo | null;
+  station?: DatalinkStationInfo | null;
 }
 
 export interface DatalinkFrontendConfig {
@@ -30,24 +47,33 @@ export interface DatalinkFrontendConfig {
   sidebar_order?: number;
 }
 
-function normalizeAircraftId(value: string | number | null | undefined) {
+function normalizeId(value: string | number | null | undefined) {
   if (value == null || value === "") return null;
   return String(value);
 }
 
-function getAircraftEntityId(msg: {
-  aircraft?: {
-    icao24?: string | null;
-    registration?: string | null;
-    aircraft_id?: string | number | null;
-  };
-  flight_id?: string | number | null;
-}) {
+function getSquitterPayload(msg: DatalinkMessage): any | null {
+  const app = msg.app as any;
+  if (app && typeof app === "object") {
+    if (app.Squitter) return app.Squitter;
+    if (app.SQ) return app.SQ;
+    if (app.station) return app;
+  }
+  if ((msg as any).Squitter) return (msg as any).Squitter;
+  if ((msg as any).SQ) return (msg as any).SQ;
+  return null;
+}
+
+export function getMessageEntityId(msg: DatalinkMessage) {
+  const squitter = getSquitterPayload(msg);
+  if (squitter?.station) return String(squitter.station);
+  if (squitter?.airport) return String(squitter.airport);
+
   return (
-    msg.aircraft?.icao24 ||
-    msg.aircraft?.registration ||
-    normalizeAircraftId(msg.flight_id) ||
-    normalizeAircraftId(msg.aircraft?.aircraft_id) ||
+    normalizeId(msg.aircraft?.icao24) ||
+    normalizeId(msg.aircraft?.registration) ||
+    normalizeId(msg.flight_id) ||
+    normalizeId(msg.aircraft?.aircraft_id) ||
     "unknown"
   );
 }
@@ -63,7 +89,7 @@ export function install(ctx: PluginContext, config?: DatalinkFrontendConfig) {
   api.ui.registerWidget("datalink-info-widget", "SideBar", DatalinkInfoWidget, {
     pluginId: ctx.id,
     priority: config?.sidebar_order,
-    title: "Datalink Aircraft",
+    title: "Datalink",
     relevantFor: ENTITY_TYPE
   });
 
@@ -77,9 +103,7 @@ export function install(ctx: PluginContext, config?: DatalinkFrontendConfig) {
     ctx.onDispose(await bindDatalinkStreaming(api));
     ctx.onDispose(
       await api.realtime.subscribe<DatalinkMessage>("datalink:feed:message", msg => {
-        // we dont have a reliable unique id and we should let the backend filter out
-        // aircraft with unknown identifiers
-        const id = getAircraftEntityId(msg);
+        const id = getMessageEntityId(msg);
         const data = datalinkStore.selected.get(id);
         if (data) {
           // ephermal frontend only history store, tangram history probably isn't a good fit
@@ -121,23 +145,23 @@ async function bindDatalinkStreaming(api: TangramApi) {
   const connectionId = await api.realtime.ensureConnected();
   const topic = `streaming-${connectionId}:new-datalink-data`;
   const subscription = await api.realtime.subscribe<{
-    aircraft: DatalinkAircraft[];
+    entities: DatalinkEntity[];
     count: number;
   }>(topic, payload => {
-    const entities: Entity[] = payload.aircraft.map(ac => ({
-      id: getAircraftEntityId({ aircraft: ac, flight_id: ac.flight_id }),
+    const entities: Entity[] = payload.entities.map(entity => ({
+      id: entity.id,
       type: ENTITY_TYPE,
-      state: ac
+      state: entity
     }));
     api.state.replaceAllEntitiesByType(ENTITY_TYPE, entities);
     api.state.setTotalCount(ENTITY_TYPE, payload.count);
 
-    const entityMap = api.state.getEntitiesByType<DatalinkAircraft>(ENTITY_TYPE).value;
+    const entityMap = api.state.getEntitiesByType<DatalinkEntity>(ENTITY_TYPE).value;
 
     let hasUpdates = false;
     for (const [id, data] of datalinkStore.selected) {
       const entity = entityMap.get(id);
-      if (!entity) continue;
+      if (!entity || entity.state.kind !== "aircraft") continue;
 
       if (entity.state.latitude != null && entity.state.longitude != null) {
         const updated = entity.state;
