@@ -595,9 +595,9 @@ checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
 
 [[package]]
 name = "buoyant_kernel"
-version = "0.21.103"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "091ea1cbe1aa4ccda750be5267761d1508b94e98f3c004f08264ac9630ae5da5"
+checksum = "0d3ca37afa82755db7b4fd51a4eab9e53eeb0aa1898fae15d373bd6df4bdf0f8"
 dependencies = [
  "arrow",
  "buoyant_kernel_derive",
@@ -609,6 +609,7 @@ dependencies = [
  "itertools 0.14.0",
  "object_store",
  "parquet",
+ "percent-encoding",
  "rand 0.9.2",
  "reqwest 0.13.2",
  "roaring",
@@ -618,35 +619,6 @@ dependencies = [
  "strum 0.27.2",
  "thiserror 2.0.18",
  "tokio",
- "tracing",
- "url",
- "uuid",
- "z85",
-]
-
-[[package]]
-name = "buoyant_kernel"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d3ca37afa82755db7b4fd51a4eab9e53eeb0aa1898fae15d373bd6df4bdf0f8"
-dependencies = [
- "arrow",
- "buoyant_kernel_derive",
- "bytes",
- "chrono",
- "crc",
- "indexmap",
- "itertools 0.14.0",
- "object_store",
- "parquet",
- "percent-encoding",
- "rand 0.9.2",
- "roaring",
- "rustc_version",
- "serde",
- "serde_json",
- "strum 0.27.2",
- "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",
  "url",
@@ -1833,20 +1805,20 @@ dependencies = [
 
 [[package]]
 name = "deltalake"
-version = "0.32.3"
+version = "0.32.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33449d2bcc676a8a0088ed644c3f7c5bf094ae4b115c1730735ba30e8a1866bb"
+checksum = "2695b91fd02afd5b4726a190fd58019674492d824e30598391390b0307644da8"
 dependencies = [
- "buoyant_kernel 0.22.0",
+ "buoyant_kernel",
  "ctor",
  "deltalake-core",
 ]
 
 [[package]]
 name = "deltalake-core"
-version = "0.32.1"
+version = "0.32.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b6f1d41164959efaaae6d77fc00f9609ec59159ad4d0278924e79a0738f61b0"
+checksum = "4588e95ff3b2ccdba56d9ec262bd3467c0593000f729402528706f62be8be1ca"
 dependencies = [
  "arrow",
  "arrow-arith",
@@ -1860,7 +1832,7 @@ dependencies = [
  "arrow-schema",
  "arrow-select",
  "async-trait",
- "buoyant_kernel 0.21.103",
+ "buoyant_kernel",
  "bytes",
  "cfg-if",
  "chrono",
