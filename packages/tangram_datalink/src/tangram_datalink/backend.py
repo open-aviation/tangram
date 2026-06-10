@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Any, Optional
 
 import tangram_core
 from fastapi import APIRouter
@@ -29,6 +29,8 @@ class DatalinkFrontendConfig(
 ):
     topbar_order: Annotated[int, FrontendMutable()]
     sidebar_order: Annotated[int, FrontendMutable()]
+    # Anchor for the entity filter custom widget; actual state lives in the frontend store.
+    filter_ui: Annotated[Optional[Any], FrontendMutable(widget="datalink-filter")] = None
 
 
 def into_frontend(config: DatalinkConfig) -> DatalinkFrontendConfig:

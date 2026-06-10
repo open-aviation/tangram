@@ -1,18 +1,68 @@
 <script setup lang="ts">
 import { inject, watch, onUnmounted, ref, reactive, type Ref } from "vue";
-import { IconLayer } from "@deck.gl/layers";
+import { IconLayer, LineLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { TangramApi, Disposable, Entity } from "@open-aviation/tangram-core/api";
 import type { PickingInfo } from "@deck.gl/core";
 import { getModifierKeys } from "@open-aviation/tangram-core/utils";
 import { html, svg, render } from "lit-html";
 import { ENTITY_TYPE, type DatalinkEntity } from "./index";
 import { airportName } from "./airport";
-import { datalinkStore } from "./store";
+import { datalinkStore, type MessageCategoryId } from "./store";
+
+const entityPassesFilter = (entity: { id: string; state: DatalinkEntity }) => {
+  const { filter } = datalinkStore;
+  if (!filter.enabled) return true;
+
+  if (entity.state.kind === "station") {
+    const linkType = entity.state.station?.link_type;
+    const stationCat = linkType === "VDL2" ? "vdl2" : "sq";
+    return filter.stations[stationCat] ?? true;
+  }
+
+  // aircraft: show if any checked category matches
+  const hist = datalinkStore.history.get(entity.id);
+  if (!hist || hist.categories.size === 0) return false;
+  for (const cat of hist.categories) {
+    if (filter.categories[cat as MessageCategoryId]) return true;
+  }
+  return false;
+};
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) throw new Error("assert: tangram api not provided");
 
 const layerDisposable: Ref<Disposable | null> = ref(null);
+const routeLayerDisposable: Ref<Disposable | null> = ref(null);
+const dotsLayerDisposable: Ref<Disposable | null> = ref(null);
+
+// ── Geometry helpers ──────────────────────────────────────────
+
+const DEG = Math.PI / 180;
+const EARTH_NM = 3440.065;
+
+/** Great-circle initial bearing from point A to point B, degrees [0, 360) */
+function bearingTo(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const dLon = (lon2 - lon1) * DEG;
+  const l1 = lat1 * DEG, l2 = lat2 * DEG;
+  const y = Math.sin(dLon) * Math.cos(l2);
+  const x = Math.cos(l1) * Math.sin(l2) - Math.sin(l1) * Math.cos(l2) * Math.cos(dLon);
+  return (Math.atan2(y, x) / DEG + 360) % 360;
+}
+
+/** Project a point along a great-circle bearing for distanceNm nautical miles */
+function projectPoint(
+  lat: number,
+  lon: number,
+  bearingDeg: number,
+  distanceNm: number
+): [number, number] {
+  const d = distanceNm / EARTH_NM;
+  const brng = bearingDeg * DEG;
+  const lat1 = lat * DEG, lon1 = lon * DEG;
+  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
+  const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+  return [lon2 / DEG, lat2 / DEG];
+}
 const tooltip = reactive({
   x: 0,
   y: 0,
@@ -111,7 +161,8 @@ watch(
   [
     () => tangramApi.state.getEntitiesByType<DatalinkEntity>(ENTITY_TYPE).value,
     () => datalinkStore.selectedIds,
-    () => tangramApi.map.isReady.value
+    () => tangramApi.map.isReady.value,
+    () => datalinkStore.version
   ],
   ([entities, selectedIds, isMapReady]) => {
     if (!isMapReady) return;
@@ -121,6 +172,7 @@ watch(
 
     for (const entity of entities.values()) {
       if (entity.state.longitude != null && entity.state.latitude != null) {
+        if (!entityPassesFilter(entity)) continue;
         if (selectedIds.has(entity.id)) {
           selectedData.push(entity);
         } else {
@@ -139,7 +191,27 @@ watch(
       getSize: 32,
       getIcon: d => createIcon(d.state.kind, selectedIds.has(d.id)),
       getPosition: d => [d.state.longitude!, d.state.latitude!],
-      getAngle: d => (d.state.kind === "station" ? 0 : -(d.state.track ?? 0) + 180),
+      getAngle: d => {
+        if (d.state.kind === "station") return 0;
+        // Fallback chain: entity state track → last ADS-C report track
+        //   → bearing toward next known waypoint → 0
+        const track = d.state.track;
+        if (track != null) return -(track) + 180;
+        const hist = datalinkStore.history.get(d.id);
+        const adsc = hist?.adsc[0];
+        if (adsc?.track != null) return -(adsc.track) + 180;
+        // bearing fallback: current position → next waypoint
+        if (adsc?.position && adsc?.next) {
+          const b = bearingTo(adsc.position.latitude, adsc.position.longitude, adsc.next.latitude, adsc.next.longitude);
+          return -b + 180;
+        }
+        if (adsc?.position && adsc?.fixed_projections?.length) {
+          const fp = adsc.fixed_projections[0];
+          const b = bearingTo(adsc.position.latitude, adsc.position.longitude, fp.latitude, fp.longitude);
+          return -b + 180;
+        }
+        return 180; // nose up, no rotation
+      },
       onClick: onLiveClick,
       onHover: (info: PickingInfo<Entity<DatalinkEntity>>) => {
         if (info.object) {
@@ -160,12 +232,114 @@ watch(
     layerDisposable.value = tangramApi.map.setLayer(layer, {
       slot: "entities"
     });
+
+/** Unwrap a longitude so it takes the short arc (<180°) relative to a reference longitude.
+ * Works with coordinates outside ±180° — deck.gl handles those correctly. */
+function unwrapLon(lon: number, ref: number): number {
+  while (lon - ref >  180) lon -= 360;
+  while (ref - lon >  180) lon += 360;
+  return lon;
+}
+
+    // ── predicted route overlay: lines + dots ───────────────────────────────
+    type Seg = { from: [number, number]; to: [number, number] };
+    type Dot = { pos: [number, number]; eta_secs?: number; altitude_ft?: number };
+    const routeSegments: Seg[] = [];
+    const routeDots: Dot[] = [];
+
+    for (const id of selectedIds) {
+      const entity = entities.get(id);
+      if (!entity || entity.state.kind !== "aircraft") continue;
+      if (entity.state.longitude == null || entity.state.latitude == null) continue;
+      const hist = datalinkStore.history.get(id);
+      const adsc = hist?.adsc.find(r => r.next != null || r.intermediate_projections?.length || r.fixed_projections?.length);
+      if (!adsc) continue;
+
+      const curLon = entity.state.longitude;
+      const curLat = entity.state.latitude;
+      const cur: [number, number] = [curLon, curLat];
+
+      // Collect all waypoints in ETA order
+      type Wpt = { lon: number; lat: number; eta_secs?: number; altitude_ft?: number };
+      const waypoints: Wpt[] = [];
+
+      // PredictedRoute: next + next_next (no absolute ETA for next_next)
+      if (adsc.next) {
+        waypoints.push({ lon: adsc.next.longitude, lat: adsc.next.latitude, eta_secs: adsc.next.eta_secs, altitude_ft: adsc.next.altitude_ft });
+        if (adsc.next_next) {
+          waypoints.push({ lon: adsc.next_next.longitude, lat: adsc.next_next.latitude, altitude_ft: adsc.next_next.altitude_ft });
+        }
+      }
+
+      // IntermediateProjection: project from current position
+      for (const ip of adsc.intermediate_projections ?? []) {
+        if (!ip.track_invalid) {
+          const [pLon, pLat] = projectPoint(curLat, curLon, ip.track_degrees, ip.distance_nm);
+          waypoints.push({ lon: pLon, lat: pLat, eta_secs: ip.eta_secs, altitude_ft: ip.altitude_ft });
+        }
+      }
+
+      // FixedProjection: absolute coordinates
+      for (const fp of adsc.fixed_projections ?? []) {
+        waypoints.push({ lon: fp.longitude, lat: fp.latitude, eta_secs: fp.eta_secs, altitude_ft: fp.altitude_ft });
+      }
+
+      // Sort by ETA when available; keep unknowns at end
+      waypoints.sort((a, b) => {
+        if (a.eta_secs == null && b.eta_secs == null) return 0;
+        if (a.eta_secs == null) return 1;
+        if (b.eta_secs == null) return -1;
+        return a.eta_secs - b.eta_secs;
+      });
+
+      // Build segments: unwrap each longitude relative to the previous point
+      // so no segment ever crosses the antimeridian the long way around.
+      let prev = cur;
+      for (const wpt of waypoints) {
+        const lon = unwrapLon(wpt.lon, prev[0]);
+        const next: [number, number] = [lon, wpt.lat];
+        routeSegments.push({ from: prev, to: next });
+        routeDots.push({ pos: next, eta_secs: wpt.eta_secs, altitude_ft: wpt.altitude_ft });
+        prev = next;
+      }
+    }
+
+    const routeLayer = new LineLayer<Seg>({
+      id: "datalink-predicted-route",
+      data: routeSegments,
+      getSourcePosition: d => d.from,
+      getTargetPosition: d => d.to,
+      getColor: [100, 180, 255, 180],
+      getWidth: 1.5,
+      widthUnits: "pixels",
+      parameters: { cullMode: "none" }
+    });
+    routeLayerDisposable.value?.dispose();
+    routeLayerDisposable.value = tangramApi.map.setLayer(routeLayer, { slot: "routes" });
+
+    const dotsLayer = new ScatterplotLayer<Dot>({
+      id: "datalink-route-dots",
+      data: routeDots,
+      getPosition: d => d.pos,
+      getFillColor: [100, 180, 255, 220],
+      getLineColor: [30, 80, 160, 255],
+      stroked: true,
+      getLineWidth: 1,
+      lineWidthUnits: "pixels",
+      getRadius: 4,
+      radiusUnits: "pixels",
+      parameters: { cullMode: "none" }
+    });
+    dotsLayerDisposable.value?.dispose();
+    dotsLayerDisposable.value = tangramApi.map.setLayer(dotsLayer, { slot: "routes" });
   },
   { deep: true, immediate: true }
 );
 
 onUnmounted(() => {
   layerDisposable.value?.dispose();
+  routeLayerDisposable.value?.dispose();
+  dotsLayerDisposable.value?.dispose();
 });
 </script>
 

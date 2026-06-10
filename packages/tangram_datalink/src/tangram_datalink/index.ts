@@ -8,7 +8,8 @@ import { TrajectoryApi } from "@open-aviation/tangram-core/api";
 import DatalinkLayer from "./DatalinkLayer.vue";
 import DatalinkInfoWidget from "./DatalinkInfoWidget.vue";
 import DatalinkCountWidget from "./DatalinkCountWidget.vue";
-import { datalinkStore, type DatalinkMessage } from "./store";
+import DatalinkFilterWidget from "./DatalinkFilterWidget.vue";
+import { datalinkStore, classifyAndStore, ensureHistory, type DatalinkMessage } from "./store";
 
 export const ENTITY_TYPE = "datalink_entity";
 
@@ -100,6 +101,8 @@ export function install(ctx: PluginContext, config?: DatalinkFrontendConfig) {
     pluginId: ctx.id
   });
 
+  api.ui.registerSettingsWidget("datalink-filter", DatalinkFilterWidget);
+
   api.state.registerEntityType(ENTITY_TYPE, { pluginId: ctx.id });
 
   void (async () => {
@@ -107,14 +110,13 @@ export function install(ctx: PluginContext, config?: DatalinkFrontendConfig) {
     ctx.onDispose(
       await api.realtime.subscribe<DatalinkMessage>("datalink:feed:message", msg => {
         const id = getMessageEntityId(msg);
+        // always store in universal history regardless of selection
+        classifyAndStore(id, msg);
+        // also mirror into selected data for live feed tab
         const data = datalinkStore.selected.get(id);
         if (data) {
-          // ephermal frontend only history store, tangram history probably isn't a good fit
-          // for highly unstructured data
           data.messages.unshift(msg);
-          if (data.messages.length > 500) {
-            data.messages.pop();
-          }
+          if (data.messages.length > 500) data.messages.pop();
         }
       })
     );
@@ -132,11 +134,13 @@ export function install(ctx: PluginContext, config?: DatalinkFrontendConfig) {
 
     for (const id of currentIds) {
       if (!datalinkStore.selected.has(id)) {
+        // pre-populate messages from universal history
+        const hist = ensureHistory(id);
         datalinkStore.selected.set(id, {
           trajectory: [],
           loading: false,
           error: null,
-          messages: []
+          messages: [...hist.messages]
         });
       }
     }
