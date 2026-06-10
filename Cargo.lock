@@ -5,14 +5,12 @@ version = 4
 [[package]]
 name = "acars"
 version = "0.1.0"
-source = "git+https://github.com/xoolive/datalink.git?rev=8e78d6d053e9c235d5a98a8d8d4c4e3942e06dee#8e78d6d053e9c235d5a98a8d8d4c4e3942e06dee"
+source = "git+https://github.com/xoolive/datalink.git?rev=6e137c7e94f68d5621757bcdcb3d33b47edf15eb#6e137c7e94f68d5621757bcdcb3d33b47edf15eb"
 dependencies = [
- "base64 0.21.7",
+ "base64",
  "deku",
- "desperado 0.4.1",
  "flate2",
  "hex",
- "num-complex",
  "rasn",
  "rasn-atn-cpdlc",
  "serde",
@@ -200,7 +198,7 @@ dependencies = [
  "arrow-schema",
  "arrow-select",
  "atoi",
- "base64 0.22.1",
+ "base64",
  "chrono",
  "comfy-table",
  "half",
@@ -442,7 +440,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31b698c5f9a010f6573133b09e0de5408834d0c82f8d7475a89fc1867a71cd90"
 dependencies = [
  "axum-core",
- "base64 0.22.1",
+ "base64",
  "bytes",
  "form_urlencoded",
  "futures-util",
@@ -492,12 +490,6 @@ dependencies = [
 
 [[package]]
 name = "base64"
-version = "0.21.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
-
-[[package]]
-name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
@@ -512,15 +504,6 @@ dependencies = [
  "libm",
  "num-bigint",
  "num-integer",
- "num-traits",
-]
-
-[[package]]
-name = "biquad"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8580925877eb35ab50f987a1c2c193eb46000c8827c871bc3425070f086408cc"
-dependencies = [
  "num-traits",
 ]
 
@@ -1458,7 +1441,7 @@ checksum = "f28aa4e10384e782774b10e72aca4d93ef7b31aa653095d9d4536b0a3dbc51b6"
 dependencies = [
  "arrow",
  "arrow-buffer",
- "base64 0.22.1",
+ "base64",
  "blake2",
  "blake3",
  "chrono",
@@ -1935,22 +1918,6 @@ dependencies = [
  "futures",
  "num-complex",
  "tokio",
-]
-
-[[package]]
-name = "desperado"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "691720d69766cea4a1da208c1958a641fc589fdb7f93ec035b0b11c7caca43e2"
-dependencies = [
- "biquad",
- "dirs",
- "futures",
- "num-complex",
- "serde",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -2491,7 +2458,7 @@ version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "727805d60e7938b76b826a6ef209eb70eaa1812794f9424d4a4e2d740662df5f"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "bytes",
  "futures-channel",
  "futures-core",
@@ -2816,7 +2783,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eba32bfb4ffdeaca3e34431072faf01745c9b26d25504aa7a6cf5684334fc4fc"
 dependencies = [
  "aws-lc-rs",
- "base64 0.22.1",
+ "base64",
  "getrandom 0.2.16",
  "js-sys",
  "pem",
@@ -3296,7 +3263,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "622acbc9100d3c10e2ee15804b0caa40e55c933d5aa53814cd520805b7958a49"
 dependencies = [
  "async-trait",
- "base64 0.22.1",
+ "base64",
  "bytes",
  "chrono",
  "form_urlencoded",
@@ -3401,7 +3368,7 @@ dependencies = [
  "arrow-ipc",
  "arrow-schema",
  "arrow-select",
- "base64 0.22.1",
+ "base64",
  "brotli",
  "bytes",
  "chrono",
@@ -3436,7 +3403,7 @@ version = "3.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d30c53c26bc5b31a98cd02d20f25a7c8567146caf63ed593a9d87b2775291be"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "serde_core",
 ]
 
@@ -4219,7 +4186,7 @@ version = "0.12.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6eff9328d40131d43bd911d42d79eb6a47312002a4daefc9e37f17e74a7701a"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "bytes",
  "futures-core",
  "futures-util",
@@ -4261,7 +4228,7 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab3f43e3283ab1488b624b44b0e988d0acea0b3214e694730a055cb6b2efa801"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "bytes",
  "encoding_rs",
  "futures-core",
@@ -4348,7 +4315,7 @@ version = "0.1.2"
 source = "git+https://github.com/xoolive/ship162?rev=0cb1eac88716687cd9df2d129fa7a5abd66b0fa9#0cb1eac88716687cd9df2d129fa7a5abd66b0fa9"
 dependencies = [
  "deku",
- "desperado 0.2.0",
+ "desperado",
  "futures",
  "num-complex",
  "once_cell",
@@ -5082,7 +5049,7 @@ dependencies = [
  "arrow-ipc",
  "arrow-json",
  "arrow-schema",
- "base64 0.22.1",
+ "base64",
  "chrono",
  "dashmap",
  "deltalake",

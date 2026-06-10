@@ -168,6 +168,7 @@ onUnmounted(() => {
     <div class="tooltip-grid">
       <div class="callsign">
         {{
+          tooltip.object.state.aircraft_id ||
           tooltip.object.state.flight_id ||
           tooltip.object.state.registration ||
           tooltip.object.state.icao24 ||

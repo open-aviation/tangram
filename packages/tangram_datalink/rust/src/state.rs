@@ -1,15 +1,30 @@
-use crate::message::DatalinkMessage;
-use serde::{Deserialize, Serialize};
+use acars::decode::compact::Kinematics;
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use tangram_core::stream::{Identifiable, Positioned, StateCollection, Tracked};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-// we should add groundspeed, vertical_rate, heading, ias, tas, mach, wind, temperature
-// origin, destination etc. but we don't observe it from airframes yet
-// so we hold it off for now
+pub struct Aircraft {
+    pub icao24: Option<String>,
+    pub registration: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
+    pub aircraft_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DecodedEvent {
+    pub timestamp: Option<f64>,
+    pub aircraft: Option<Aircraft>,
+    pub kinematics: Option<Kinematics>,
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
+    pub flight_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatalinkAircraft {
     pub icao24: Option<String>,
     pub registration: Option<String>,
+    pub aircraft_id: Option<String>,
     pub flight_id: Option<String>,
     pub lastseen: f64,
     pub latitude: Option<f64>,
@@ -35,7 +50,8 @@ impl Identifiable for DatalinkAircraft {
             .clone()
             .or_else(|| self.registration.clone())
             .or_else(|| self.flight_id.clone())
-            .unwrap_or_else(|| "unknown".into()) // TODO: discard it instead?
+            .or_else(|| self.aircraft_id.clone())
+            .unwrap_or_else(|| "unknown".into())
     }
 }
 
@@ -48,7 +64,7 @@ impl Tracked for DatalinkAircraft {
 pub struct DatalinkStateVectors {
     pub aircraft: HashMap<String, DatalinkAircraft>,
     pub expire: u16,
-    pub aliases: HashMap<String, String>, // TODO: expire old aliases
+    pub aliases: HashMap<String, String>,
 }
 
 impl DatalinkStateVectors {
@@ -136,18 +152,23 @@ impl DatalinkStateVectors {
         }
     }
 
-    pub fn add(&mut self, env: &DatalinkMessage) {
-        let icao24 = env.icao24.as_deref();
-        let reg = env.registration.as_deref();
-        let flt = env.flight_id.as_deref();
+    pub fn add(&mut self, env: &DecodedEvent) {
+        let icao24 = env.aircraft.as_ref().and_then(|a| a.icao24.as_deref());
+        let reg = env
+            .aircraft
+            .as_ref()
+            .and_then(|a| a.registration.as_deref());
+        let aircraft_id = env.aircraft.as_ref().and_then(|a| a.aircraft_id.as_deref());
+        let flight_id = env.flight_id.as_deref();
 
-        let key = self.resolve_id(icao24, reg, flt);
+        let key = self.resolve_id(icao24, reg, flight_id.or(aircraft_id));
 
         if let Some(id) = key {
             let ac = self.aircraft.entry(id).or_insert_with(|| DatalinkAircraft {
                 icao24: icao24.map(String::from),
                 registration: reg.map(String::from),
-                flight_id: flt.map(String::from),
+                aircraft_id: aircraft_id.map(String::from),
+                flight_id: flight_id.map(String::from),
                 lastseen: 0.0,
                 latitude: None,
                 longitude: None,
@@ -157,11 +178,16 @@ impl DatalinkStateVectors {
                 position_time: None,
             });
 
-            ac.lastseen = ac.lastseen.max(env.timestamp);
+            if let Some(ts) = env.timestamp {
+                ac.lastseen = ac.lastseen.max(ts);
+            }
             ac.messages += 1;
 
-            if ac.flight_id.is_none() && flt.is_some() {
-                ac.flight_id = flt.map(String::from);
+            if ac.aircraft_id.is_none() && aircraft_id.is_some() {
+                ac.aircraft_id = aircraft_id.map(String::from);
+            }
+            if ac.flight_id.is_none() && flight_id.is_some() {
+                ac.flight_id = flight_id.map(String::from);
             }
             if ac.icao24.is_none() && icao24.is_some() {
                 ac.icao24 = icao24.map(String::from);
@@ -171,10 +197,12 @@ impl DatalinkStateVectors {
             }
 
             if let Some(pos) = &env.kinematics {
-                if pos.latitude.is_some() && pos.longitude.is_some() {
-                    ac.latitude = pos.latitude;
-                    ac.longitude = pos.longitude;
-                    ac.position_time = Some(env.timestamp);
+                if let Some(position) = pos.position {
+                    ac.latitude = Some(position.latitude);
+                    ac.longitude = Some(position.longitude);
+                    if let Some(ts) = env.timestamp {
+                        ac.position_time = Some(ts);
+                    }
                 }
                 if pos.altitude_ft.is_some() {
                     ac.altitude_ft = pos.altitude_ft;
@@ -204,4 +232,20 @@ impl StateCollection for DatalinkStateVectors {
     fn state_vector_expire_secs(&self) -> u64 {
         self.expire as u64
     }
+}
+
+// TODO figure out a better way to do this
+fn deserialize_optional_id<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(match value {
+        None | Some(serde_json::Value::Null) => None,
+        Some(serde_json::Value::String(value)) if value.is_empty() => None,
+        Some(serde_json::Value::String(value)) => Some(value),
+        Some(serde_json::Value::Number(value)) => Some(value.to_string()),
+        Some(serde_json::Value::Bool(value)) => Some(value.to_string()),
+        Some(other) => Some(other.to_string()),
+    })
 }

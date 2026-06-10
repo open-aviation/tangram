@@ -1,4 +1,3 @@
-pub mod message;
 pub mod run_service;
 pub mod state;
 
