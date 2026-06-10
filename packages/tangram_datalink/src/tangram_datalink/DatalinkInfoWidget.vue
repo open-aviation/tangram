@@ -1,7 +1,7 @@
 <template>
   <div class="datalink-list">
     <div
-      v-for="item in aircraftList"
+      v-for="item in entityList"
       :key="item.id"
       class="list-item"
       :class="{ expanded: isExpanded(item.id) }"
@@ -9,32 +9,44 @@
       <div class="header" @click="toggleExpand(item.id)">
         <div class="row main-row">
           <div class="left-group">
-            <span class="flight-id">{{
-              item.state.aircraft_id ||
-              item.state.flight_id ||
-              item.state.registration ||
-              item.state.icao24 ||
-              "Unknown"
-            }}</span>
-            <span v-if="item.state.registration" class="chip blue">{{
-              item.state.registration
-            }}</span>
-            <span v-if="item.state.icao24" class="chip yellow">{{
-              item.state.icao24
-            }}</span>
+            <span class="flight-id">{{ item.state.label }}</span>
+            <template v-if="item.state.kind === 'aircraft'">
+              <span v-if="item.state.aircraft?.registration" class="chip blue">{{
+                item.state.aircraft.registration
+              }}</span>
+              <span v-if="item.state.aircraft?.icao24" class="chip yellow">{{
+                item.state.aircraft.icao24
+              }}</span>
+            </template>
+            <template v-else>
+              <span class="chip blue">SQ</span>
+              <span
+                v-if="item.state.station?.airport"
+                class="chip yellow"
+                :title="airportName(item.state.station.airport)"
+                >{{ item.state.station.airport }}</span
+              >
+            </template>
           </div>
           <div class="right-group">
-            <span v-if="item.state.altitude_ft !== undefined"
-              >{{ item.state.altitude_ft }} ft</span
-            >
-            <span
-              v-if="item.state.altitude_ft !== undefined && item.state.track != null"
-              class="sep"
-              >·</span
-            >
-            <span v-if="item.state.track != null"
-              >{{ Math.round(item.state.track) }}°</span
-            >
+            <template v-if="item.state.kind === 'aircraft'">
+              <span v-if="item.state.altitude_ft !== undefined"
+                >{{ item.state.altitude_ft }} ft</span
+              >
+              <span
+                v-if="item.state.altitude_ft !== undefined && item.state.track != null"
+                class="sep"
+                >·</span
+              >
+              <span v-if="item.state.track != null"
+                >{{ Math.round(item.state.track) }}°</span
+              >
+            </template>
+            <template v-else>
+              <span v-if="item.state.station?.frequency_mhz"
+                >{{ item.state.station.frequency_mhz.toFixed(3) }} MHz</span
+              >
+            </template>
           </div>
         </div>
       </div>
@@ -69,7 +81,8 @@
 import { computed, inject, reactive, watch } from "vue";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
 import { datalinkStore, type DatalinkMessage } from "./store";
-import type { DatalinkAircraft } from "./index";
+import { ENTITY_TYPE, type DatalinkEntity } from "./index";
+import { airportName } from "./airport";
 import TreeView from "./TreeView.vue";
 
 const tangramApi = inject<TangramApi>("tangramApi");
@@ -77,10 +90,10 @@ if (!tangramApi) throw new Error("assert: tangram api not provided");
 
 const expandedIds = reactive(new Set<string>());
 
-const aircraftList = computed(() => {
+const entityList = computed(() => {
   const list = [];
   const entities =
-    tangramApi.state.getEntitiesByType<DatalinkAircraft>("datalink_aircraft").value;
+    tangramApi.state.getEntitiesByType<DatalinkEntity>(ENTITY_TYPE).value;
   for (const id of datalinkStore.selectedIds) {
     const entity = entities.get(id);
     if (entity) {
@@ -91,11 +104,11 @@ const aircraftList = computed(() => {
 });
 
 const isExpanded = (id: string) => {
-  return aircraftList.value.length === 1 || expandedIds.has(id);
+  return entityList.value.length === 1 || expandedIds.has(id);
 };
 
 const toggleExpand = (id: string) => {
-  if (aircraftList.value.length === 1) return;
+  if (entityList.value.length === 1) return;
   if (expandedIds.has(id)) {
     expandedIds.delete(id);
   } else {
@@ -169,7 +182,7 @@ const getMessageSummary = (msg: DatalinkMessage) => {
     else if (pData.MIAM) appVariant = "MIAM";
     else if (pData.OHMA) appVariant = "OHMA";
     else if (pData.SA) appVariant = "SA";
-    else if (pData.SQ) appVariant = "SQ";
+    else if (pData.SQ || pData.Squitter) appVariant = "SQ";
     else if (pData.AOC80) appVariant = "AOC80";
   }
 
@@ -211,7 +224,7 @@ const getMessageSummary = (msg: DatalinkMessage) => {
 };
 
 watch(
-  () => aircraftList.value.length,
+  () => entityList.value.length,
   (newLen, oldLen) => {
     if (oldLen === 1 && newLen === 2) {
       expandedIds.clear();

@@ -1,5 +1,5 @@
 import { reactive } from "vue";
-import type { DatalinkAircraft } from "./index";
+import type { DatalinkEntity } from "./index";
 
 export interface DatalinkKinematics {
   position?: {
@@ -45,7 +45,7 @@ export interface DatalinkMessage {
 }
 
 export interface DatalinkSelectionData {
-  trajectory: DatalinkAircraft[];
+  trajectory: DatalinkEntity[];
   loading: boolean;
   error: string | null;
   messages: DatalinkMessage[];

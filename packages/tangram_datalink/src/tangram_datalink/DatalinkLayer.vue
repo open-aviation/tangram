@@ -5,7 +5,8 @@ import type { TangramApi, Disposable, Entity } from "@open-aviation/tangram-core
 import type { PickingInfo } from "@deck.gl/core";
 import { getModifierKeys } from "@open-aviation/tangram-core/utils";
 import { html, svg, render } from "lit-html";
-import type { DatalinkAircraft } from "./index";
+import { ENTITY_TYPE, type DatalinkEntity } from "./index";
+import { airportName } from "./airport";
 import { datalinkStore } from "./store";
 
 const tangramApi = inject<TangramApi>("tangramApi");
@@ -15,13 +16,14 @@ const layerDisposable: Ref<Disposable | null> = ref(null);
 const tooltip = reactive({
   x: 0,
   y: 0,
-  object: null as Entity<DatalinkAircraft> | null
+  object: null as Entity<DatalinkEntity> | null
 });
 
 // stealing from jet1090 and hardcoding until we find a reliable way to determine the aircraft type
-
 const A320_PATH =
   "M12,28 13,26 14,23 14,18 16,17 16,19 18,19 18,16 24,11 24,10 23,10 15,13 14,13 13,6 13,5 16,2 16,0 13,2 12,0 11,2 8,0 8,2 11,5 11,6 10,13 9,13 1,10 0,10 0,11 6,16 6,19 8,19 8,17 10,18 10,23 11,26 12,28z";
+const STATION_PATH =
+  "M12,28 14,28 14,12 18,21 20,21 15,9 15,5 17,3 14,0 11,3 13,5 13,9 8,21 10,21 12,12z M7,17 4,14 4,10 7,7 8,9 6,11 6,13 9,16z M21,16 24,13 24,10 21,7 20,9 22,11 22,13 19,16z";
 
 const bboxCache = new Map<string, DOMRect>();
 
@@ -40,11 +42,12 @@ const getPathBBox = (d: string): DOMRect => {
   return bbox;
 };
 
-const createIcon = (isSelected: boolean) => {
-  const scale = 0.75;
-  const ofX = -0.4;
-  const ofY = -0.9;
-  const bbox = getPathBBox(A320_PATH);
+const createIcon = (kind: "aircraft" | "station", isSelected: boolean) => {
+  const iconPath = kind === "station" ? STATION_PATH : A320_PATH;
+  const scale = kind === "station" ? 0.85 : 0.75;
+  const ofX = kind === "station" ? 0 : -0.4;
+  const ofY = kind === "station" ? 0 : -0.9;
+  const bbox = getPathBBox(iconPath);
   const centerX = bbox.x + bbox.width / 2.0;
   const centerY = bbox.y + bbox.height / 2.0;
 
@@ -55,7 +58,7 @@ const createIcon = (isSelected: boolean) => {
   const fillColor = isSelected ? "#ff6464" : "#f9fd15";
   const transform = `scale(${scale}) translate(${tx}, ${ty})`;
 
-  const svgPath = svg`<path stroke="#0014aa" fill="${fillColor}" stroke-width="${strokeWidth}" d="${A320_PATH}" transform="${transform}"/>`;
+  const svgPath = svg`<path stroke="#0014aa" fill="${fillColor}" stroke-width="${strokeWidth}" d="${iconPath}" transform="${transform}"/>`;
   const template = html`<svg
     version="1.1"
     shape-rendering="geometricPrecision"
@@ -71,7 +74,7 @@ const createIcon = (isSelected: boolean) => {
 
   return {
     url: `data:image/svg+xml;base64,${btoa(container.innerHTML)}`,
-    id: `plane-${isSelected}`,
+    id: `${kind}-${isSelected}`,
     width: 64,
     height: 64,
     anchorY: 32,
@@ -79,7 +82,7 @@ const createIcon = (isSelected: boolean) => {
   };
 };
 
-const onLiveClick = (info: PickingInfo<Entity<DatalinkAircraft>>, event: unknown) => {
+const onLiveClick = (info: PickingInfo<Entity<DatalinkEntity>>, event: unknown) => {
   if (!info.object) return;
   const mods = getModifierKeys(event);
   const exclusive = !mods.ctrlKey && !mods.altKey && !mods.metaKey;
@@ -89,7 +92,7 @@ const onLiveClick = (info: PickingInfo<Entity<DatalinkAircraft>>, event: unknown
     tangramApi.selection.selectEntity(entity, true);
   } else {
     if (datalinkStore.selectedIds.has(entity.id)) {
-      tangramApi.selection.deselect({ id: entity.id, type: "datalink_aircraft" });
+      tangramApi.selection.deselect({ id: entity.id, type: ENTITY_TYPE });
     } else {
       tangramApi.selection.selectEntity(entity, false);
     }
@@ -98,16 +101,15 @@ const onLiveClick = (info: PickingInfo<Entity<DatalinkAircraft>>, event: unknown
 
 watch(
   [
-    () =>
-      tangramApi.state.getEntitiesByType<DatalinkAircraft>("datalink_aircraft").value,
+    () => tangramApi.state.getEntitiesByType<DatalinkEntity>(ENTITY_TYPE).value,
     () => datalinkStore.selectedIds,
     () => tangramApi.map.isReady.value
   ],
   ([entities, selectedIds, isMapReady]) => {
     if (!isMapReady) return;
 
-    const baseData: Entity<DatalinkAircraft>[] = [];
-    const selectedData: Entity<DatalinkAircraft>[] = [];
+    const baseData: Entity<DatalinkEntity>[] = [];
+    const selectedData: Entity<DatalinkEntity>[] = [];
 
     for (const entity of entities.values()) {
       if (entity.state.longitude != null && entity.state.latitude != null) {
@@ -121,17 +123,17 @@ watch(
 
     const data = baseData.concat(selectedData);
 
-    const layer = new IconLayer<Entity<DatalinkAircraft>>({
-      id: "datalink-aircraft-layer",
+    const layer = new IconLayer<Entity<DatalinkEntity>>({
+      id: "datalink-entity-layer",
       data,
       pickable: true,
       sizeScale: 1,
       getSize: 32,
-      getIcon: d => createIcon(selectedIds.has(d.id)),
+      getIcon: d => createIcon(d.state.kind, selectedIds.has(d.id)),
       getPosition: d => [d.state.longitude!, d.state.latitude!],
-      getAngle: d => -(d.state.track ?? 0) + 180,
+      getAngle: d => (d.state.kind === "station" ? 0 : -(d.state.track ?? 0) + 180),
       onClick: onLiveClick,
-      onHover: (info: PickingInfo<Entity<DatalinkAircraft>>) => {
+      onHover: (info: PickingInfo<Entity<DatalinkEntity>>) => {
         if (info.object) {
           tooltip.object = info.object;
           tooltip.x = info.x;
@@ -166,20 +168,24 @@ onUnmounted(() => {
     :style="{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }"
   >
     <div class="tooltip-grid">
-      <div class="callsign">
-        {{
-          tooltip.object.state.aircraft_id ||
-          tooltip.object.state.flight_id ||
-          tooltip.object.state.registration ||
-          tooltip.object.state.icao24 ||
-          "Unknown"
-        }}
-      </div>
-      <div class="registration">{{ tooltip.object.state.registration }}</div>
-      <div class="icao24">{{ tooltip.object.state.icao24 }}</div>
-      <div v-if="(tooltip.object.state.altitude_ft ?? 0) > 0" class="metric right">
-        FL{{ Math.round(((tooltip.object.state.altitude_ft ?? 0) / 1000) * 10) }}
-      </div>
+      <template v-if="tooltip.object.state.kind === 'station'">
+        <div class="callsign">{{ tooltip.object.state.label }}</div>
+        <div class="registration">SQ</div>
+        <div class="icao24" :title="airportName(tooltip.object.state.station?.airport)">
+          {{ tooltip.object.state.station?.airport }}
+        </div>
+        <div v-if="tooltip.object.state.station?.frequency_mhz" class="metric right">
+          {{ tooltip.object.state.station.frequency_mhz.toFixed(3) }} MHz
+        </div>
+      </template>
+      <template v-else>
+        <div class="callsign">{{ tooltip.object.state.label }}</div>
+        <div class="registration">{{ tooltip.object.state.aircraft?.registration }}</div>
+        <div class="icao24">{{ tooltip.object.state.aircraft?.icao24 }}</div>
+        <div v-if="(tooltip.object.state.altitude_ft ?? 0) > 0" class="metric right">
+          FL{{ Math.round(((tooltip.object.state.altitude_ft ?? 0) / 1000) * 10) }}
+        </div>
+      </template>
     </div>
   </div>
 </template>

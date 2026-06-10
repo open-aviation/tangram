@@ -75,8 +75,8 @@ pub async fn run_service(config: DatalinkConfig) -> anyhow::Result<()> {
         StreamConfig {
             redis_url: config.redis_url.clone(),
             stream_interval_secs: config.stream_interval_secs,
-            entity_type_name: "aircraft".to_string(),
-            entity_type: "datalink_aircraft".to_string(),
+            entity_type_name: "entities".to_string(),
+            entity_type: "datalink_entity".to_string(),
             broadcast_channel_suffix: "new-datalink-data".to_string(),
         },
         bbox_state,
@@ -103,8 +103,8 @@ pub async fn run_service(config: DatalinkConfig) -> anyhow::Result<()> {
                 .unwrap_or_default()
                 .as_secs();
             state
-                .aircraft
-                .retain(|_, ac| ac.lastseen > now.saturating_sub(expire_secs) as f64);
+                .entities
+                .retain(|_, entity| entity.lastseen > now.saturating_sub(expire_secs) as f64);
         }
     });
 

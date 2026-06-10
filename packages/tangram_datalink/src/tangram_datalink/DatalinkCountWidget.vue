@@ -20,13 +20,13 @@ if (!tangramApi) {
 }
 
 const totalCount = computed(
-  () => tangramApi.state.totalCounts.value?.get("datalink_aircraft") ?? 0
+  () => tangramApi.state.totalCounts.value?.get("datalink_entity") ?? 0
 );
 
 const isLive = computed(() => tangramApi.time.isLive.value);
 
 const visibleCount = computed(
-  () => tangramApi.state.getEntitiesByType("datalink_aircraft").value?.size ?? 0
+  () => tangramApi.state.getEntitiesByType("datalink_entity").value?.size ?? 0
 );
 </script>
 
