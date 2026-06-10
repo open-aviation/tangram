@@ -19,12 +19,12 @@
               }}</span>
             </template>
             <template v-else>
-              <span class="chip blue">SQ</span>
+              <span class="chip blue">{{ stationKindLabel(item.state.station?.link_type) }}</span>
               <span
-                v-if="item.state.station?.airport"
+                v-if="item.state.station?.hexcode || item.state.station?.airport"
                 class="chip yellow"
-                :title="airportName(item.state.station.airport)"
-                >{{ item.state.station.airport }}</span
+                :title="!item.state.station?.hexcode ? airportName(item.state.station?.airport) : undefined"
+                >{{ item.state.station.hexcode || item.state.station.airport }}</span
               >
             </template>
           </div>
@@ -43,7 +43,17 @@
               >
             </template>
             <template v-else>
-              <span v-if="item.state.station?.frequency_mhz"
+              <span v-if="item.state.station?.airport" :title="airportName(item.state.station.airport)">{{
+                item.state.station.airport
+              }}</span>
+              <span
+                v-if="item.state.station?.airport && item.state.station?.frequency_mhz"
+                class="sep"
+                >·</span
+              >
+              <span
+                v-if="item.state.station?.frequency_mhz"
+                :title="item.state.station?.supported_frequencies_mhz?.length ? `Supported: ${formatFrequencies(item.state.station.supported_frequencies_mhz)}` : undefined"
                 >{{ item.state.station.frequency_mhz.toFixed(3) }} MHz</span
               >
             </template>
@@ -114,6 +124,14 @@ const toggleExpand = (id: string) => {
   } else {
     expandedIds.add(id);
   }
+};
+
+const stationKindLabel = (linkType: string | null | undefined) => {
+  return linkType === "VDL2" ? "VDL2" : `SQ: ${linkType || "?"}`;
+};
+
+const formatFrequencies = (frequencies: number[]) => {
+  return frequencies.map(freq => `${freq.toFixed(3)} MHz`).join(", ");
 };
 
 const formatTime = (ts: number | undefined) => {

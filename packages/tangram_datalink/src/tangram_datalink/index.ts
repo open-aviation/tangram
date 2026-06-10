@@ -24,8 +24,11 @@ export interface DatalinkAircraftInfo {
 export interface DatalinkStationInfo {
   station: string;
   airport?: string | null;
+  hexcode?: string | null;
+  link_type?: string | null;
   provider?: string | null;
   frequency_mhz?: number | null;
+  supported_frequencies_mhz?: number[];
 }
 
 export interface DatalinkEntity {

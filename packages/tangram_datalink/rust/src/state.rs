@@ -6,7 +6,9 @@ use tangram_core::stream::{Identifiable, Positioned, StateCollection, Tracked};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Aircraft {
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
     pub icao24: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
     pub registration: Option<String>,
     #[serde(default, deserialize_with = "deserialize_optional_id")]
     pub aircraft_id: Option<String>,
@@ -22,6 +24,12 @@ pub struct SourceMetadata {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReceiverMetadata {
+    pub bearer: Option<String>,
+    pub channel_hz: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecodedEvent {
     pub timestamp: Option<f64>,
     pub aircraft: Option<Aircraft>,
@@ -29,6 +37,7 @@ pub struct DecodedEvent {
     #[serde(default, deserialize_with = "deserialize_optional_id")]
     pub flight_id: Option<String>,
     pub source: Option<SourceMetadata>,
+    pub receiver: Option<ReceiverMetadata>,
     #[serde(flatten)]
     pub message: HashMap<String, Value>,
 }
@@ -52,8 +61,11 @@ pub struct DatalinkAircraftInfo {
 pub struct DatalinkStationInfo {
     pub station: String,
     pub airport: Option<String>,
+    pub hexcode: Option<String>,
+    pub link_type: Option<String>,
     pub provider: Option<String>,
     pub frequency_mhz: Option<f64>,
+    pub supported_frequencies_mhz: Vec<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -113,8 +125,11 @@ struct StationUpdate {
     label: String,
     station: String,
     airport: Option<String>,
+    hexcode: Option<String>,
+    link_type: Option<String>,
     provider: Option<String>,
     frequency_mhz: Option<f64>,
+    supported_frequencies_mhz: Vec<f64>,
     latitude: Option<f64>,
     longitude: Option<f64>,
 }
@@ -206,6 +221,10 @@ impl DatalinkStateVectors {
 
     pub fn add(&mut self, env: &DecodedEvent) {
         if let Some(update) = extract_station_update(env) {
+            self.add_station(env, update);
+            return;
+        }
+        if let Some(update) = extract_gsif_station_update(env) {
             self.add_station(env, update);
             return;
         }
@@ -313,8 +332,11 @@ impl DatalinkStateVectors {
                 station: Some(DatalinkStationInfo {
                     station: update.station.clone(),
                     airport: update.airport.clone(),
+                    hexcode: update.hexcode.clone(),
+                    link_type: update.link_type.clone(),
                     provider: update.provider.clone(),
                     frequency_mhz: update.frequency_mhz,
+                    supported_frequencies_mhz: update.supported_frequencies_mhz.clone(),
                 }),
             });
 
@@ -323,8 +345,11 @@ impl DatalinkStateVectors {
         station.station = Some(DatalinkStationInfo {
             station: update.station,
             airport: update.airport,
+            hexcode: update.hexcode,
+            link_type: update.link_type,
             provider: update.provider,
             frequency_mhz: update.frequency_mhz,
+            supported_frequencies_mhz: update.supported_frequencies_mhz,
         });
         if let Some(ts) = env.timestamp {
             station.lastseen = station.lastseen.max(ts);
@@ -377,6 +402,8 @@ fn extract_station_update(env: &DecodedEvent) -> Option<StationUpdate> {
     let station_value = string_field(squitter, &["station"]);
     let airport = string_field(squitter, &["airport"]);
     let station = station_value.clone().or_else(|| airport.clone())?;
+    let hexcode = ground_station_hexcode(env);
+    let link_type = squitter_link_type(squitter);
     let provider = string_field(squitter, &["provider"]);
     let frequency_mhz = number_field(squitter, &["frequency_mhz"]);
 
@@ -402,10 +429,76 @@ fn extract_station_update(env: &DecodedEvent) -> Option<StationUpdate> {
         label,
         station,
         airport,
+        hexcode,
+        link_type,
         provider,
         frequency_mhz,
+        supported_frequencies_mhz: Vec::new(),
         latitude,
         longitude,
+    })
+}
+
+fn extract_gsif_station_update(env: &DecodedEvent) -> Option<StationUpdate> {
+    let xid = env.message.get("Xid")?;
+    (xid.get("xid_type").and_then(Value::as_str) == Some("GSIF")).then_some(())?;
+    let vdl_params = xid.get("vdl_params")?;
+    let hexcode = ground_station_hexcode(env)?;
+    let airport = string_field(vdl_params, &["airport_coverage"]);
+    let location = vdl_params.get("gs_location");
+    let latitude = location.and_then(|v| number_field(v, &["lat", "latitude"]));
+    let longitude = location.and_then(|v| number_field(v, &["lon", "longitude"]));
+    let supported_frequencies_mhz = supported_frequencies(vdl_params);
+    let frequency_mhz = env
+        .receiver
+        .as_ref()
+        .and_then(|r| r.channel_hz)
+        .map(|hz| hz as f64 / 1_000_000.0)
+        .or_else(|| supported_frequencies_mhz.first().copied());
+
+    Some(StationUpdate {
+        id: hexcode.clone(),
+        label: hexcode.clone(),
+        station: hexcode.clone(),
+        airport,
+        hexcode: Some(hexcode),
+        link_type: Some("VDL2".into()),
+        provider: None,
+        frequency_mhz,
+        supported_frequencies_mhz,
+        latitude,
+        longitude,
+    })
+}
+
+fn supported_frequencies(vdl_params: &Value) -> Vec<f64> {
+    let Some(values) = vdl_params
+        .get("freq_support_list")
+        .and_then(Value::as_array)
+    else {
+        return Vec::new();
+    };
+    let mut frequencies = Vec::new();
+    for value in values {
+        if let Some(freq) = number_field(value, &["freq_mhz"]) {
+            if !frequencies
+                .iter()
+                .any(|existing: &f64| (*existing - freq).abs() < 0.0005)
+            {
+                frequencies.push(freq);
+            }
+        }
+    }
+    frequencies
+}
+
+fn ground_station_hexcode(env: &DecodedEvent) -> Option<String> {
+    ["src", "dst"].iter().find_map(|key| {
+        let addr = env.message.get(*key)?;
+        (addr.get("type").and_then(Value::as_str) == Some("ground_station"))
+            .then(|| addr.get("icao24").and_then(Value::as_str))
+            .flatten()
+            .map(|s| s.to_ascii_lowercase())
     })
 }
 
@@ -428,6 +521,24 @@ fn squitter_payload(env: &DecodedEvent) -> Option<&Value> {
     None
 }
 
+fn squitter_link_type(value: &Value) -> Option<String> {
+    let link = value.get("link")?;
+    match link {
+        Value::String(value) => match value.as_str() {
+            "Vhf" | "VHF" => Some("VHF".into()),
+            "Satellite" | "SAT" => Some("SAT".into()),
+            other if !other.trim().is_empty() => Some(other.trim().to_string()),
+            _ => None,
+        },
+        Value::Object(map) => map
+            .get("Other")
+            .and_then(Value::as_str)
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.trim().to_string()),
+        _ => None,
+    }
+}
+
 fn string_field(value: &Value, keys: &[&str]) -> Option<String> {
     keys.iter()
         .find_map(|key| value.get(*key).and_then(Value::as_str))
@@ -437,7 +548,13 @@ fn string_field(value: &Value, keys: &[&str]) -> Option<String> {
 }
 
 fn number_field(value: &Value, keys: &[&str]) -> Option<f64> {
-    keys.iter().find_map(|key| value.get(*key).and_then(Value::as_f64))
+    keys.iter().find_map(|key| {
+        value.get(*key).and_then(|value| {
+            value
+                .as_f64()
+                .or_else(|| value.as_str().and_then(|s| s.trim().parse::<f64>().ok()))
+        })
+    })
 }
 
 impl StateCollection for DatalinkStateVectors {
@@ -458,8 +575,8 @@ where
     let value = Option::<serde_json::Value>::deserialize(deserializer)?;
     Ok(match value {
         None | Some(serde_json::Value::Null) => None,
-        Some(serde_json::Value::String(value)) if value.is_empty() => None,
-        Some(serde_json::Value::String(value)) => Some(value),
+        Some(serde_json::Value::String(value)) if value.trim().is_empty() => None,
+        Some(serde_json::Value::String(value)) => Some(value.trim().to_string()),
         Some(serde_json::Value::Number(value)) => Some(value.to_string()),
         Some(serde_json::Value::Bool(value)) => Some(value.to_string()),
         Some(other) => Some(other.to_string()),

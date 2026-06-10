@@ -82,6 +82,14 @@ const createIcon = (kind: "aircraft" | "station", isSelected: boolean) => {
   };
 };
 
+const stationKindLabel = (linkType: string | null | undefined) => {
+  return linkType === "VDL2" ? "VDL2" : `SQ: ${linkType || "?"}`;
+};
+
+const formatFrequencies = (frequencies: number[]) => {
+  return frequencies.map(freq => `${freq.toFixed(3)} MHz`).join(", ");
+};
+
 const onLiveClick = (info: PickingInfo<Entity<DatalinkEntity>>, event: unknown) => {
   if (!info.object) return;
   const mods = getModifierKeys(event);
@@ -170,11 +178,25 @@ onUnmounted(() => {
     <div class="tooltip-grid">
       <template v-if="tooltip.object.state.kind === 'station'">
         <div class="callsign">{{ tooltip.object.state.label }}</div>
-        <div class="registration">SQ</div>
-        <div class="icao24" :title="airportName(tooltip.object.state.station?.airport)">
-          {{ tooltip.object.state.station?.airport }}
+        <div class="registration">
+          {{ stationKindLabel(tooltip.object.state.station?.link_type) }}<span v-if="tooltip.object.state.station?.airport">
+            ·
+            <span :title="airportName(tooltip.object.state.station.airport)">{{
+              tooltip.object.state.station.airport
+            }}</span>
+          </span>
         </div>
-        <div v-if="tooltip.object.state.station?.frequency_mhz" class="metric right">
+        <div
+          class="icao24"
+          :title="!tooltip.object.state.station?.hexcode ? airportName(tooltip.object.state.station?.airport) : undefined"
+        >
+          {{ tooltip.object.state.station?.hexcode || tooltip.object.state.station?.airport }}
+        </div>
+        <div
+          v-if="tooltip.object.state.station?.frequency_mhz"
+          class="metric right"
+          :title="tooltip.object.state.station.supported_frequencies_mhz?.length ? `Supported frequencies: ${formatFrequencies(tooltip.object.state.station.supported_frequencies_mhz)}` : undefined"
+        >
           {{ tooltip.object.state.station.frequency_mhz.toFixed(3) }} MHz
         </div>
       </template>
