@@ -1,5 +1,4 @@
-use crate::message::parse_message;
-use crate::{state::DatalinkStateVectors, DatalinkConfig};
+use crate::{state::DatalinkStateVectors, state::DecodedEvent, DatalinkConfig};
 use futures::StreamExt;
 use redis::AsyncCommands;
 use std::sync::Arc;
@@ -16,8 +15,8 @@ pub async fn datalink_redis_subscriber(
 ) -> anyhow::Result<()> {
     let client = redis::Client::open(redis_url)?;
     let mut pubsub = client.get_async_pubsub().await?;
-    pubsub.subscribe("from:datalink:live").await?;
-    let mut publisher = client.get_multiplexed_async_connection().await?;
+    pubsub.psubscribe("datalink-*").await?;
+    let mut publisher = None;
 
     let mut stream = pubsub.on_message();
     loop {
@@ -25,16 +24,25 @@ pub async fn datalink_redis_subscriber(
             msg = stream.next() => {
                 let Some(msg) = msg else { break; };
                 let payload: String = msg.get_payload()?;
-                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&payload) {
-                    if let Some(feed) = parse_message(&val) {
+
+                // HACK: tolerate duplicate `timestamp` keys for now
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&payload) {
+                    if let Ok(feed) = serde_json::from_value::<DecodedEvent>(value) {
+                    if publisher.is_none() {
+                        publisher = client.get_multiplexed_async_connection().await.ok();
+                    }
+                    if let Some(publisher) = publisher.as_mut() {
                         if let Ok(serialized) = serde_json::to_string(&feed) {
                             let _: Result<(), _> = publisher.publish("to:datalink:feed:message", &serialized).await;
                         }
-                        let mut state = state_vectors.lock().await;
-                        state.add(&feed);
+                    }
+                    let mut state = state_vectors.lock().await;
+                    state.add(&feed);
+                    } else {
+                        warn!("Failed to parse datalink event from redis");
                     }
                 } else {
-                    warn!("Failed to parse JSON message from redis");
+                    warn!("Failed to parse datalink event from redis");
                 }
             }
             _ = shutdown.changed() => break,

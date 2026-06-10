@@ -1,6 +1,8 @@
 # tangram_datalink
 
-Adds support for aviation datalink data (ACARS, VDL2).
+Adds support for normalized aviation datalink feeds published by the
+[`datalink`](https://github.com/xoolive/datalink) pipeline, including ACARS,
+VDL2, HFDL, and Airframes-backed traffic.
 
 Installation:
 
@@ -16,11 +18,12 @@ Setup the producer:
 ```sh
 # in tangram root
 git clone https://github.com/xoolive/datalink ../datalink
-# this is a hack (very slow!), awaiting proper redis impl
-cargo run --release --manifest-path ../datalink/crates/vdl136/Cargo.toml -- 'airframes://live?event=message' --raw \
-  | while IFS= read -r line; do
-      podman exec -i redis redis-cli PUBLISH from:datalink:live "$line" >/dev/null
-    done
-# to debug
-podman exec -i redis redis-cli SUBSCRIBE from:datalink:live
+
+# in the datalink checkout
+cd ../datalink
+git checkout 6e137c7e94f68d5621757bcdcb3d33b47edf15eb
+cargo run --release -- airframes --redis-url redis://127.0.0.1:6379
+
+# optional: inspect the normalized event stream in redis
+podman exec -i redis redis-cli PSUBSCRIBE 'datalink-*'
 ```

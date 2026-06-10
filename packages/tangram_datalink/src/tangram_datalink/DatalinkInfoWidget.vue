@@ -10,6 +10,7 @@
         <div class="row main-row">
           <div class="left-group">
             <span class="flight-id">{{
+              item.state.aircraft_id ||
               item.state.flight_id ||
               item.state.registration ||
               item.state.icao24 ||
@@ -42,17 +43,17 @@
         <div class="message-feed">
           <div
             v-for="msg in getMessages(item.id)"
-            :key="msg.timestamp + (msg.raw_frame_hex || '')"
+            :key="(msg.timestamp || 0) + (msg.raw_frame_hex || '')"
             class="message-item"
           >
             <div class="message-header">
               <span class="time">{{ getMessageHeader(msg) }}</span>
             </div>
-            <div v-if="hasAppPayload(msg.app_data)" class="message-payload">
-              <TreeView :data="msg.app_data" />
+            <div v-if="hasAppPayload(getPayloadData(msg))" class="message-payload">
+              <TreeView :data="getPayloadData(msg)" />
             </div>
-            <div v-if="msg.text" class="raw-text">
-              {{ msg.text }}
+            <div v-if="msg.txt || msg.text" class="raw-text">
+              {{ msg.txt || msg.text }}
             </div>
           </div>
           <div v-if="getMessages(item.id).length === 0" class="no-data">
@@ -102,7 +103,8 @@ const toggleExpand = (id: string) => {
   }
 };
 
-const formatTime = (ts: number) => {
+const formatTime = (ts: number | undefined) => {
+  if (!ts) return "N/A";
   return new Date(ts * 1000).toISOString().substring(11, 19) + "Z";
 };
 
@@ -112,6 +114,21 @@ const hasAppPayload = (data: unknown) => {
   if (Array.isArray(data) && data.length === 0) return false;
   if (typeof data === "object" && Object.keys(data).length === 0) return false;
   return true;
+};
+
+const getPayloadData = (msg: DatalinkMessage) => {
+  const {
+    event,
+    timestamp,
+    bearer,
+    source,
+    receiver,
+    aircraft,
+    kinematics,
+    raw_frame_hex,
+    ...rest
+  } = msg;
+  return rest;
 };
 
 const getMessages = (id: string) => {
@@ -132,36 +149,64 @@ const withMessageMeta = (
 ) => {
   const extras = [];
   if (includeLabel && msg.label) extras.push(msg.label);
-  if (msg.app_protocol) extras.push(msg.app_protocol);
   return extras.length > 0 ? `${summary} ${extras.join(" ")}` : summary;
 };
 
 // TODO its a bit confusing so maybe we can use pills instead
 const getMessageSummary = (msg: DatalinkMessage) => {
-  const p = msg.app_protocol?.toLowerCase();
+  const pData = getPayloadData(msg) as any;
+  let appVariant = null;
+  let imi = null;
+
+  if (pData.app && typeof pData.app === "object") {
+    const keys = Object.keys(pData.app);
+    if (keys.length === 1) appVariant = keys[0];
+    else if (typeof pData.app === "string") appVariant = pData.app;
+  }
+
+  if (!appVariant) {
+    if (pData.Arinc622) appVariant = "Arinc622";
+    else if (pData.MIAM) appVariant = "MIAM";
+    else if (pData.OHMA) appVariant = "OHMA";
+    else if (pData.SA) appVariant = "SA";
+    else if (pData.SQ) appVariant = "SQ";
+    else if (pData.AOC80) appVariant = "AOC80";
+  }
+
+  if (appVariant === "Arinc622" && pData.app?.Arinc622) imi = pData.app.Arinc622.imi;
+  else if (appVariant === "Arinc622" && pData.Arinc622) imi = pData.Arinc622.imi;
+  else if (pData.imi) imi = pData.imi;
+
   if (
-    p === "atn_cpdlc" ||
-    p === "cpdlc" ||
-    msg.imi === "AT1" ||
-    msg.imi === "CR1" ||
-    msg.imi === "CC1" ||
-    msg.imi === "DR1"
+    appVariant === "Cpdlc" ||
+    imi === "AT1" ||
+    imi === "CR1" ||
+    imi === "CC1" ||
+    imi === "DR1"
   )
     return withMessageMeta("CPDLC Message", msg);
-  if (p === "ads_c" || msg.imi === "ADS") return withMessageMeta("ADS-C Report", msg);
-  if (p === "x25") return withMessageMeta("X.25 Packet", msg);
-  if (p === "xid") return withMessageMeta("XID Frame", msg);
-  if (p === "miam") return withMessageMeta("MIAM Frame", msg);
-  if (p === "ohma") return withMessageMeta("Boeing OHMA", msg);
-  if (p === "sa") return withMessageMeta("Media Advisory", msg);
-  if (p === "sq") return withMessageMeta("Squitter", msg);
-  if (p === "afn") return withMessageMeta("AFN Logon", msg);
-  if (p === "oc1") return withMessageMeta("Oceanic Clearance", msg);
-  if (p === "oooi_qf" || p === "oooi_qq") return withMessageMeta("OOOI Report", msg);
-  if (msg.label && msg.text)
-    return withMessageMeta(`ACARS Label ${msg.label}`, msg, false);
-  if (msg.label && !msg.text)
+  if (appVariant === "Adsc" || imi === "ADS")
+    return withMessageMeta("ADS-C Report", msg);
+
+  if (pData.payload && typeof pData.payload === "object") {
+    if ("X25" in pData.payload) return withMessageMeta("X.25 Packet", msg);
+    if ("Xid" in pData.payload) return withMessageMeta("XID Frame", msg);
+  }
+
+  if (appVariant === "MIAM") return withMessageMeta("MIAM Frame", msg);
+  if (appVariant === "OHMA") return withMessageMeta("Boeing OHMA", msg);
+  if (appVariant === "SA") return withMessageMeta("Media Advisory", msg);
+  if (appVariant === "SQ") return withMessageMeta("Squitter", msg);
+  if (appVariant === "AFN") return withMessageMeta("AFN Logon", msg);
+  if (appVariant === "OC1") return withMessageMeta("Oceanic Clearance", msg);
+  if (appVariant === "QF" || appVariant === "QQ")
+    return withMessageMeta("OOOI Report", msg);
+
+  const text = msg.txt || msg.text;
+  if (msg.label && text) return withMessageMeta(`ACARS Label ${msg.label}`, msg, false);
+  if (msg.label && !text)
     return withMessageMeta(`ACARS Label ${msg.label} (Empty)`, msg, false);
+
   return withMessageMeta("Data Frame", msg);
 };
 

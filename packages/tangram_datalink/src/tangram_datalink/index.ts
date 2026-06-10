@@ -15,6 +15,7 @@ const ENTITY_TYPE = "datalink_aircraft";
 export interface DatalinkAircraft {
   icao24?: string | null;
   registration?: string | null;
+  aircraft_id?: string | null;
   flight_id?: string | null;
   lastseen: number;
   latitude?: number | null;
@@ -27,6 +28,28 @@ export interface DatalinkAircraft {
 export interface DatalinkFrontendConfig {
   topbar_order?: number;
   sidebar_order?: number;
+}
+
+function normalizeAircraftId(value: string | number | null | undefined) {
+  if (value == null || value === "") return null;
+  return String(value);
+}
+
+function getAircraftEntityId(msg: {
+  aircraft?: {
+    icao24?: string | null;
+    registration?: string | null;
+    aircraft_id?: string | number | null;
+  };
+  flight_id?: string | number | null;
+}) {
+  return (
+    msg.aircraft?.icao24 ||
+    msg.aircraft?.registration ||
+    normalizeAircraftId(msg.flight_id) ||
+    normalizeAircraftId(msg.aircraft?.aircraft_id) ||
+    "unknown"
+  );
 }
 
 export function install(ctx: PluginContext, config?: DatalinkFrontendConfig) {
@@ -56,7 +79,7 @@ export function install(ctx: PluginContext, config?: DatalinkFrontendConfig) {
       await api.realtime.subscribe<DatalinkMessage>("datalink:feed:message", msg => {
         // we dont have a reliable unique id and we should let the backend filter out
         // aircraft with unknown identifiers
-        const id = msg.icao24 || msg.registration || msg.flight_id || "unknown";
+        const id = getAircraftEntityId(msg);
         const data = datalinkStore.selected.get(id);
         if (data) {
           // ephermal frontend only history store, tangram history probably isn't a good fit
@@ -102,7 +125,7 @@ async function bindDatalinkStreaming(api: TangramApi) {
     count: number;
   }>(topic, payload => {
     const entities: Entity[] = payload.aircraft.map(ac => ({
-      id: ac.icao24 || ac.registration || ac.flight_id || "unknown",
+      id: getAircraftEntityId({ aircraft: ac, flight_id: ac.flight_id }),
       type: ENTITY_TYPE,
       state: ac
     }));

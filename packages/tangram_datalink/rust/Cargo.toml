@@ -16,7 +16,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 tangram_core_rs = { path = "../../tangram_core/rust" }
 # acars = { path = "../../../../datalink/crates/acars" }
-acars = { git = "https://github.com/xoolive/datalink.git", rev = "8e78d6d053e9c235d5a98a8d8d4c4e3942e06dee" }
+acars = { git = "https://github.com/xoolive/datalink.git", rev = "6e137c7e94f68d5621757bcdcb3d33b47edf15eb" }
 
 anyhow = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
