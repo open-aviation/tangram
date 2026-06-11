@@ -5,16 +5,21 @@ import type { TangramApi, Disposable, Entity } from "@open-aviation/tangram-core
 import type { PickingInfo } from "@deck.gl/core";
 import { getModifierKeys } from "@open-aviation/tangram-core/utils";
 import { html, svg, render } from "lit-html";
-import { ENTITY_TYPE, type DatalinkEntity } from "./index";
+import {
+  ENTITY_TYPE,
+  isAircraftEntity,
+  isStationEntity,
+  type DatalinkEntity
+} from "./index";
 import { airportName } from "./airport";
-import { datalinkStore, type MessageCategoryId } from "./store";
+import { datalinkStore } from "./store";
 
 const entityPassesFilter = (entity: { id: string; state: DatalinkEntity }) => {
   const { filter } = datalinkStore;
   if (!filter.enabled) return true;
 
-  if (entity.state.kind === "station") {
-    const linkType = entity.state.station?.link_type;
+  if (isStationEntity(entity.state)) {
+    const linkType = entity.state.details.data.link_type;
     const stationCat = linkType === "VDL2" ? "vdl2" : "sq";
     return filter.stations[stationCat] ?? true;
   }
@@ -23,7 +28,7 @@ const entityPassesFilter = (entity: { id: string; state: DatalinkEntity }) => {
   const hist = datalinkStore.history.get(entity.id);
   if (!hist || hist.categories.size === 0) return false;
   for (const cat of hist.categories) {
-    if (filter.categories[cat as MessageCategoryId]) return true;
+    if (filter.categories[cat]) return true;
   }
   return false;
 };
@@ -43,7 +48,8 @@ const EARTH_NM = 3440.065;
 /** Great-circle initial bearing from point A to point B, degrees [0, 360) */
 function bearingTo(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const dLon = (lon2 - lon1) * DEG;
-  const l1 = lat1 * DEG, l2 = lat2 * DEG;
+  const l1 = lat1 * DEG,
+    l2 = lat2 * DEG;
   const y = Math.sin(dLon) * Math.cos(l2);
   const x = Math.cos(l1) * Math.sin(l2) - Math.sin(l1) * Math.cos(l2) * Math.cos(dLon);
   return (Math.atan2(y, x) / DEG + 360) % 360;
@@ -58,9 +64,17 @@ function projectPoint(
 ): [number, number] {
   const d = distanceNm / EARTH_NM;
   const brng = bearingDeg * DEG;
-  const lat1 = lat * DEG, lon1 = lon * DEG;
-  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
-  const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+  const lat1 = lat * DEG,
+    lon1 = lon * DEG;
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng)
+  );
+  const lon2 =
+    lon1 +
+    Math.atan2(
+      Math.sin(brng) * Math.sin(d) * Math.cos(lat1),
+      Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
+    );
   return [lon2 / DEG, lat2 / DEG];
 }
 const tooltip = reactive({
@@ -189,25 +203,35 @@ watch(
       pickable: true,
       sizeScale: 1,
       getSize: 32,
-      getIcon: d => createIcon(d.state.kind, selectedIds.has(d.id)),
+      getIcon: d => createIcon(d.state.details.kind, selectedIds.has(d.id)),
       getPosition: d => [d.state.longitude!, d.state.latitude!],
       getAngle: d => {
-        if (d.state.kind === "station") return 0;
+        if (isStationEntity(d.state)) return 0;
         // Fallback chain: entity state track → last ADS-C report track
         //   → bearing toward next known waypoint → 0
         const track = d.state.track;
-        if (track != null) return -(track) + 180;
+        if (track != null) return -track + 180;
         const hist = datalinkStore.history.get(d.id);
         const adsc = hist?.adsc[0];
-        if (adsc?.track != null) return -(adsc.track) + 180;
+        if (adsc?.track != null) return -adsc.track + 180;
         // bearing fallback: current position → next waypoint
         if (adsc?.position && adsc?.next) {
-          const b = bearingTo(adsc.position.latitude, adsc.position.longitude, adsc.next.latitude, adsc.next.longitude);
+          const b = bearingTo(
+            adsc.position.latitude,
+            adsc.position.longitude,
+            adsc.next.latitude,
+            adsc.next.longitude
+          );
           return -b + 180;
         }
         if (adsc?.position && adsc?.fixed_projections?.length) {
           const fp = adsc.fixed_projections[0];
-          const b = bearingTo(adsc.position.latitude, adsc.position.longitude, fp.latitude, fp.longitude);
+          const b = bearingTo(
+            adsc.position.latitude,
+            adsc.position.longitude,
+            fp.latitude,
+            fp.longitude
+          );
           return -b + 180;
         }
         return 180; // nose up, no rotation
@@ -233,13 +257,13 @@ watch(
       slot: "entities"
     });
 
-/** Unwrap a longitude so it takes the short arc (<180°) relative to a reference longitude.
- * Works with coordinates outside ±180° — deck.gl handles those correctly. */
-function unwrapLon(lon: number, ref: number): number {
-  while (lon - ref >  180) lon -= 360;
-  while (ref - lon >  180) lon += 360;
-  return lon;
-}
+    /** Unwrap a longitude so it takes the short arc (<180°) relative to a reference longitude.
+     * Works with coordinates outside ±180° — deck.gl handles those correctly. */
+    function unwrapLon(lon: number, ref: number): number {
+      while (lon - ref > 180) lon -= 360;
+      while (ref - lon > 180) lon += 360;
+      return lon;
+    }
 
     // ── predicted route overlay: lines + dots ───────────────────────────────
     type Seg = { from: [number, number]; to: [number, number] };
@@ -249,10 +273,15 @@ function unwrapLon(lon: number, ref: number): number {
 
     for (const id of selectedIds) {
       const entity = entities.get(id);
-      if (!entity || entity.state.kind !== "aircraft") continue;
+      if (!entity || !isAircraftEntity(entity.state)) continue;
       if (entity.state.longitude == null || entity.state.latitude == null) continue;
       const hist = datalinkStore.history.get(id);
-      const adsc = hist?.adsc.find(r => r.next != null || r.intermediate_projections?.length || r.fixed_projections?.length);
+      const adsc = hist?.adsc.find(
+        r =>
+          r.next != null ||
+          r.intermediate_projections?.length ||
+          r.fixed_projections?.length
+      );
       if (!adsc) continue;
 
       const curLon = entity.state.longitude;
@@ -265,23 +294,47 @@ function unwrapLon(lon: number, ref: number): number {
 
       // PredictedRoute: next + next_next (no absolute ETA for next_next)
       if (adsc.next) {
-        waypoints.push({ lon: adsc.next.longitude, lat: adsc.next.latitude, eta_secs: adsc.next.eta_secs, altitude_ft: adsc.next.altitude_ft });
+        waypoints.push({
+          lon: adsc.next.longitude,
+          lat: adsc.next.latitude,
+          eta_secs: adsc.next.eta_secs,
+          altitude_ft: adsc.next.altitude_ft
+        });
         if (adsc.next_next) {
-          waypoints.push({ lon: adsc.next_next.longitude, lat: adsc.next_next.latitude, altitude_ft: adsc.next_next.altitude_ft });
+          waypoints.push({
+            lon: adsc.next_next.longitude,
+            lat: adsc.next_next.latitude,
+            altitude_ft: adsc.next_next.altitude_ft
+          });
         }
       }
 
       // IntermediateProjection: project from current position
       for (const ip of adsc.intermediate_projections ?? []) {
         if (!ip.track_invalid) {
-          const [pLon, pLat] = projectPoint(curLat, curLon, ip.track_degrees, ip.distance_nm);
-          waypoints.push({ lon: pLon, lat: pLat, eta_secs: ip.eta_secs, altitude_ft: ip.altitude_ft });
+          const [pLon, pLat] = projectPoint(
+            curLat,
+            curLon,
+            ip.track_degrees,
+            ip.distance_nm
+          );
+          waypoints.push({
+            lon: pLon,
+            lat: pLat,
+            eta_secs: ip.eta_secs,
+            altitude_ft: ip.altitude_ft
+          });
         }
       }
 
       // FixedProjection: absolute coordinates
       for (const fp of adsc.fixed_projections ?? []) {
-        waypoints.push({ lon: fp.longitude, lat: fp.latitude, eta_secs: fp.eta_secs, altitude_ft: fp.altitude_ft });
+        waypoints.push({
+          lon: fp.longitude,
+          lat: fp.latitude,
+          eta_secs: fp.eta_secs,
+          altitude_ft: fp.altitude_ft
+        });
       }
 
       // Sort by ETA when available; keep unknowns at end
@@ -299,7 +352,11 @@ function unwrapLon(lon: number, ref: number): number {
         const lon = unwrapLon(wpt.lon, prev[0]);
         const next: [number, number] = [lon, wpt.lat];
         routeSegments.push({ from: prev, to: next });
-        routeDots.push({ pos: next, eta_secs: wpt.eta_secs, altitude_ft: wpt.altitude_ft });
+        routeDots.push({
+          pos: next,
+          eta_secs: wpt.eta_secs,
+          altitude_ft: wpt.altitude_ft
+        });
         prev = next;
       }
     }
@@ -315,7 +372,9 @@ function unwrapLon(lon: number, ref: number): number {
       parameters: { cullMode: "none" }
     });
     routeLayerDisposable.value?.dispose();
-    routeLayerDisposable.value = tangramApi.map.setLayer(routeLayer, { slot: "routes" });
+    routeLayerDisposable.value = tangramApi.map.setLayer(routeLayer, {
+      slot: "routes"
+    });
 
     const dotsLayer = new ScatterplotLayer<Dot>({
       id: "datalink-route-dots",
@@ -350,34 +409,48 @@ onUnmounted(() => {
     :style="{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }"
   >
     <div class="tooltip-grid">
-      <template v-if="tooltip.object.state.kind === 'station'">
+      <template v-if="tooltip.object.state.details.kind === 'station'">
         <div class="callsign">{{ tooltip.object.state.label }}</div>
         <div class="registration">
-          {{ stationKindLabel(tooltip.object.state.station?.link_type) }}<span v-if="tooltip.object.state.station?.airport">
+          {{ stationKindLabel(tooltip.object.state.details.data.link_type)
+          }}<span v-if="tooltip.object.state.details.data.airport">
             ·
-            <span :title="airportName(tooltip.object.state.station.airport)">{{
-              tooltip.object.state.station.airport
+            <span :title="airportName(tooltip.object.state.details.data.airport)">{{
+              tooltip.object.state.details.data.airport
             }}</span>
           </span>
         </div>
         <div
           class="icao24"
-          :title="!tooltip.object.state.station?.hexcode ? airportName(tooltip.object.state.station?.airport) : undefined"
+          :title="
+            !tooltip.object.state.details.data.hexcode
+              ? airportName(tooltip.object.state.details.data.airport)
+              : undefined
+          "
         >
-          {{ tooltip.object.state.station?.hexcode || tooltip.object.state.station?.airport }}
+          {{
+            tooltip.object.state.details.data.hexcode ||
+            tooltip.object.state.details.data.airport
+          }}
         </div>
         <div
-          v-if="tooltip.object.state.station?.frequency_mhz"
+          v-if="tooltip.object.state.details.data.frequency_mhz"
           class="metric right"
-          :title="tooltip.object.state.station.supported_frequencies_mhz?.length ? `Supported frequencies: ${formatFrequencies(tooltip.object.state.station.supported_frequencies_mhz)}` : undefined"
+          :title="
+            tooltip.object.state.details.data.supported_frequencies_mhz?.length
+              ? `Supported frequencies: ${formatFrequencies(tooltip.object.state.details.data.supported_frequencies_mhz ?? [])}`
+              : undefined
+          "
         >
-          {{ tooltip.object.state.station.frequency_mhz.toFixed(3) }} MHz
+          {{ tooltip.object.state.details.data.frequency_mhz?.toFixed(3) }} MHz
         </div>
       </template>
       <template v-else>
         <div class="callsign">{{ tooltip.object.state.label }}</div>
-        <div class="registration">{{ tooltip.object.state.aircraft?.registration }}</div>
-        <div class="icao24">{{ tooltip.object.state.aircraft?.icao24 }}</div>
+        <div class="registration">
+          {{ tooltip.object.state.details.data.registration }}
+        </div>
+        <div class="icao24">{{ tooltip.object.state.details.data.icao24 }}</div>
         <div v-if="(tooltip.object.state.altitude_ft ?? 0) > 0" class="metric right">
           FL{{ Math.round(((tooltip.object.state.altitude_ft ?? 0) / 1000) * 10) }}
         </div>

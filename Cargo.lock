@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "acars"
 version = "0.1.0"
-source = "git+https://github.com/xoolive/datalink.git?rev=6e137c7e94f68d5621757bcdcb3d33b47edf15eb#6e137c7e94f68d5621757bcdcb3d33b47edf15eb"
+source = "git+https://github.com/xoolive/datalink.git?rev=12745c72e1b329b25dee6104db1c558b047c632e#12745c72e1b329b25dee6104db1c558b047c632e"
 dependencies = [
  "base64",
  "deku",

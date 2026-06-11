@@ -10,37 +10,41 @@
         <div class="row main-row">
           <div class="left-group">
             <span class="flight-id">{{ item.state.label }}</span>
-            <template v-if="item.state.kind === 'aircraft'">
-              <span v-if="item.state.aircraft?.registration" class="chip blue">{{
-                item.state.aircraft.registration
+            <template v-if="item.state.details.kind === 'aircraft'">
+              <span v-if="item.state.details.data.registration" class="chip blue">{{
+                item.state.details.data.registration
               }}</span>
-              <span v-if="item.state.aircraft?.icao24" class="chip yellow">{{
-                item.state.aircraft.icao24
+              <span v-if="item.state.details.data.icao24" class="chip yellow">{{
+                item.state.details.data.icao24
               }}</span>
             </template>
             <template v-else>
               <span class="chip blue">{{
-                stationKindLabel(item.state.station?.link_type)
+                stationKindLabel(item.state.details.data.link_type)
               }}</span>
               <span
-                v-if="item.state.station?.hexcode || item.state.station?.airport"
+                v-if="
+                  item.state.details.data.hexcode || item.state.details.data.airport
+                "
                 class="chip yellow"
                 :title="
-                  !item.state.station?.hexcode
-                    ? airportName(item.state.station?.airport)
+                  !item.state.details.data.hexcode
+                    ? airportName(item.state.details.data.airport)
                     : undefined
                 "
-                >{{ item.state.station.hexcode || item.state.station.airport }}</span
+                >{{
+                  item.state.details.data.hexcode || item.state.details.data.airport
+                }}</span
               >
             </template>
           </div>
           <div class="right-group">
-            <template v-if="item.state.kind === 'aircraft'">
-              <span v-if="item.state.altitude_ft !== undefined"
+            <template v-if="item.state.details.kind === 'aircraft'">
+              <span v-if="item.state.altitude_ft != null"
                 >{{ item.state.altitude_ft }} ft</span
               >
               <span
-                v-if="item.state.altitude_ft !== undefined && item.state.track != null"
+                v-if="item.state.altitude_ft != null && item.state.track != null"
                 class="sep"
                 >·</span
               >
@@ -50,23 +54,26 @@
             </template>
             <template v-else>
               <span
-                v-if="item.state.station?.airport"
-                :title="airportName(item.state.station.airport)"
-                >{{ item.state.station.airport }}</span
+                v-if="item.state.details.data.airport"
+                :title="airportName(item.state.details.data.airport)"
+                >{{ item.state.details.data.airport }}</span
               >
               <span
-                v-if="item.state.station?.airport && item.state.station?.frequency_mhz"
+                v-if="
+                  item.state.details.data.airport &&
+                  item.state.details.data.frequency_mhz
+                "
                 class="sep"
                 >·</span
               >
               <span
-                v-if="item.state.station?.frequency_mhz"
+                v-if="item.state.details.data.frequency_mhz"
                 :title="
-                  item.state.station?.supported_frequencies_mhz?.length
-                    ? `Supported: ${formatFrequencies(item.state.station.supported_frequencies_mhz)}`
+                  item.state.details.data.supported_frequencies_mhz?.length
+                    ? `Supported: ${formatFrequencies(item.state.details.data.supported_frequencies_mhz ?? [])}`
                     : undefined
                 "
-                >{{ item.state.station.frequency_mhz.toFixed(3) }} MHz</span
+                >{{ item.state.details.data.frequency_mhz?.toFixed(3) }} MHz</span
               >
             </template>
           </div>
@@ -76,7 +83,9 @@
       <div v-if="isExpanded(item.id)" class="details-body" @click.stop>
         <!-- ADS-C subsection -->
         <template
-          v-if="item.state.kind === 'aircraft' && adscHistory(item.id).length > 0"
+          v-if="
+            item.state.details.kind === 'aircraft' && adscHistory(item.id).length > 0
+          "
         >
           <div class="section-header">ADS-C</div>
           <div class="adsc-list">
@@ -87,7 +96,7 @@
               :class="{ uplink: report.is_uplink }"
             >
               <div class="dir-bubble" :class="report.is_uplink ? 'uplink' : 'downlink'">
-                {{ report.is_uplink ? 'uplink' : 'downlink' }}
+                {{ report.is_uplink ? "uplink" : "downlink" }}
               </div>
               <div class="adsc-time">
                 {{ formatTime(report.timestamp) }}
@@ -230,7 +239,9 @@
 
         <!-- CPDLC subsection -->
         <template
-          v-if="item.state.kind === 'aircraft' && cpdlcHistory(item.id).length > 0"
+          v-if="
+            item.state.details.kind === 'aircraft' && cpdlcHistory(item.id).length > 0
+          "
         >
           <div class="section-header">CPDLC</div>
           <div class="cpdlc-list">
@@ -239,8 +250,11 @@
               :key="idx"
               class="cpdlc-msg"
             >
-              <div class="dir-bubble" :class="msg.direction === 'downlink' ? 'downlink' : 'uplink'">
-                {{ msg.direction === 'downlink' ? 'downlink' : 'uplink' }}
+              <div
+                class="dir-bubble"
+                :class="msg.direction === 'downlink' ? 'downlink' : 'uplink'"
+              >
+                {{ msg.direction === "downlink" ? "downlink" : "uplink" }}
               </div>
               <div class="message-header">
                 <span class="time">{{ formatTime(msg.timestamp) }}</span>
@@ -254,16 +268,15 @@
                   class="cpdlc-element"
                   :class="{ additional: el.is_additional }"
                 >
-                  <span class="el-name">{{ formatElName(el.name) }}</span>
-                  <span class="el-sentence">{{ fillTemplate(el) }}</span>
+                  <span class="el-name">#{{ el.id }}</span>
+                  <TreeView v-if="el.body != null" :data="el.body" class="cpdlc-body" />
+                  <span v-else class="el-sentence muted">no body</span>
                 </div>
                 <div
                   v-if="!msg.elements.length && msg.control_type"
                   class="cpdlc-element"
                 >
-                  <span class="el-sentence control">{{
-                    formatControlType(msg.control_type)
-                  }}</span>
+                  <span class="el-sentence control">{{ msg.control_type }}</span>
                 </div>
                 <div v-if="msg.header?.msg_ref != null" class="cpdlc-ref">
                   └ ref #{{ msg.header.msg_ref }}
@@ -291,8 +304,8 @@
             <div v-if="hasAppPayload(getPayloadData(msg))" class="message-payload">
               <TreeView :data="getPayloadData(msg)" />
             </div>
-            <div v-if="msg.txt || msg.text" class="raw-text">
-              {{ msg.txt || msg.text }}
+            <div v-if="messageText(msg)" class="raw-text">
+              {{ messageText(msg) }}
             </div>
           </div>
           <div v-if="getMessages(item.id).length === 0" class="no-data">
@@ -309,9 +322,12 @@ import { computed, inject, reactive, watch } from "vue";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
 import {
   datalinkStore,
+  messageApp,
+  messageData,
+  messageLabel,
   type DatalinkMessage,
   type AdscContractGroupInfo,
-  type DatalinkCpdlcElement
+  type JsonObject
 } from "./store";
 import { ENTITY_TYPE, type DatalinkEntity } from "./index";
 import { airportName } from "./airport";
@@ -359,7 +375,7 @@ const contractGroupLabel: Record<string, string> = {
 };
 
 const formatContractGroup = (g: AdscContractGroupInfo): string => {
-  const label = contractGroupLabel[g.type] ?? g.type;
+  const label = contractGroupLabel[g.kind] ?? g.kind;
   if (g.interval_secs != null) return `${label}: every ${g.interval_secs}s`;
   if (g.modulus != null) return `${label} (mod ${g.modulus})`;
   if (g.threshold_nm != null) return `${label}: ±${g.threshold_nm} nm`;
@@ -367,162 +383,6 @@ const formatContractGroup = (g: AdscContractGroupInfo): string => {
   if (g.ceiling_ft != null) return `${label}: ${g.floor_ft}–${g.ceiling_ft} ft`;
   if (g.projection_time_mins != null) return `${label}: ${g.projection_time_mins} min`;
   return label;
-};
-
-// ── CPDLC element rendering ─────────────────────────────────────────────
-
-/** Format a raw element name like "uM20Altitude" → "uM20" */
-const formatElName = (name: string): string => {
-  // names look like "dM0NULL", "uM163ICAOfacilitydesignationTp4table"
-  const m = name.match(/^([ud]M\d+)/i);
-  return m ? m[1] : name.slice(0, 8);
-};
-
-const formatControlType = (t: string): string => {
-  if (t === "connect_request") return "LOGON REQUEST";
-  if (t === "connect_confirm") return "LOGON ACCEPTED";
-  if (t === "disconnect_request") return "LOGOFF";
-  return t.replace(/_/g, " ").toUpperCase();
-};
-
-/** Format a CpdlcAltitude blob → string */
-const fmtAltitude = (a: any): string => {
-  if (!a) return "?";
-  if (a.FL != null) return `FL${a.FL}`;
-  if (a.ft != null) return `${a.ft} ft`;
-  if (a.Metric) return `${a.Metric.value} ${a.Metric.unit}`;
-  const v = a.value ?? a.altitude;
-  return v != null ? `${v} ft` : JSON.stringify(a);
-};
-
-const fmtFrequency = (f: any): string => {
-  if (!f) return "?";
-  const khz = f.value;
-  if (f.type === "VhfKhz") return `${(khz / 1000).toFixed(3)} MHz`;
-  if (f.type === "HfKhz") return `${(khz / 1000).toFixed(3)} MHz`;
-  return `${khz} kHz`;
-};
-
-const fmtFacility = (fac: any): string => {
-  if (!fac) return "?";
-  if (fac.ICAO) return fac.ICAO;
-  if (fac.type === "Name") return fac.value;
-  if (fac.type === "Designation") return fac.value;
-  return JSON.stringify(fac);
-};
-
-const fmtUnit = (u: any): string => {
-  if (!u) return "?";
-  const fac = fmtFacility(u.facility);
-  const fn = u.function ?? "";
-  return fn ? `${fac} ${fn}` : fac;
-};
-
-const fmtPosition = (p: any): string => {
-  if (!p) return "?";
-  if (p.type === "FixName") return p.value;
-  if (p.type === "LatLong") {
-    const lat = p.value?.latitude ?? p.latitude;
-    const lon = p.value?.longitude ?? p.longitude;
-    if (lat != null) return `${lat.toFixed(2)}°/${lon.toFixed(2)}°`;
-  }
-  if (p.type === "PlaceBearingDistance") {
-    return `${fmtPosition(p.value?.place ?? p.place)} / ${p.value?.bearing ?? p.bearing}° / ${p.value?.distance ?? p.distance} nm`;
-  }
-  return p.value ?? JSON.stringify(p);
-};
-
-const fmtTime = (t: any): string => {
-  if (!t) return "?";
-  const h = String(t.hour ?? 0).padStart(2, "0");
-  const m = String(t.minute ?? 0).padStart(2, "0");
-  return `${h}:${m}`;
-};
-
-const fmtSpeed = (s: any): string => {
-  if (!s) return "?";
-  if (s.Knots != null) return `${s.Knots} kt`;
-  if (s.Mach != null) return `M${s.Mach}`;
-  if (s.km_h != null) return `${s.km_h} km/h`;
-  return JSON.stringify(s);
-};
-
-const fmtTp4Table = (t: any): string => {
-  if (!t) return "";
-  if (t === "LabelA") return "label A";
-  if (t === "LabelB") return "label B";
-  return String(t);
-};
-
-/** Replace one [placeholder] token with its value from the body */
-const fillToken = (token: string, body: any): string => {
-  if (!body) return `[${token}]`;
-  switch (token) {
-    case "altitude":
-      return fmtAltitude(body.altitude ?? body.first ?? body);
-    case "altitude2":
-      return fmtAltitude(body.second);
-    case "frequency":
-      return fmtFrequency(body.frequency);
-    case "icaofacilitydesignation":
-      return fmtFacility(body.facility);
-    case "icaounitname":
-      return fmtUnit(body.icao_unit ?? body.unit);
-    case "position":
-      return fmtPosition(
-        body.position ?? (Array.isArray(body.positions) ? body.positions[0] : null)
-      );
-    case "position2":
-      return fmtPosition(Array.isArray(body.positions) ? body.positions[1] : null);
-    case "time":
-      return fmtTime(body.time ?? (Array.isArray(body.times) ? body.times[0] : null));
-    case "time2":
-      return fmtTime(Array.isArray(body.times) ? body.times[1] : null);
-    case "speed":
-      return fmtSpeed(
-        body.speed ?? (Array.isArray(body.speeds) ? body.speeds[0] : null)
-      );
-    case "speed2":
-      return fmtSpeed(Array.isArray(body.speeds) ? body.speeds[1] : null);
-    case "beaconcode":
-      return body.beacon_code ?? "?";
-    case "tp4table":
-      return fmtTp4Table(body.tp4_table ?? body.tp4table);
-    case "direction":
-      return String(body.direction ?? "?");
-    case "degrees":
-      return body.degrees != null ? `${body.degrees}°` : "?";
-    case "distance":
-      return body.distance?.value != null ? `${body.distance.value} nm` : "?";
-    case "errorinformation":
-      return String(body.error_information ?? "?");
-    case "atisdesignator":
-      return body.atis_code ?? body.atis ?? "?";
-    case "procedurename":
-      return body.procedure_name?.name ?? JSON.stringify(body.procedure_name);
-    default:
-      return `[${token}]`;
-  }
-};
-
-/**
- * Fill a CPDLC template string like
- *   "CONTACT [icaounitname] [frequency]"
- * with body values, returning a human-readable sentence.
- */
-const fillTemplate = (el: DatalinkCpdlcElement): string => {
-  const body = el.body as any;
-  // Free-text elements: body carries the text directly
-  if (body?.free_text) return body.free_text;
-  // No template: fall back to formatted name
-  if (!el.template) {
-    if (!body) return formatElName(el.name).toUpperCase();
-    return formatElName(el.name);
-  }
-  // Fill [placeholder] tokens
-  return el.template.replace(/\[([a-z0-9]+)\]/gi, (_, token) =>
-    fillToken(token.toLowerCase(), body)
-  );
 };
 
 const entityList = computed(() => {
@@ -559,7 +419,7 @@ const toggleFeed = (id: string) => {
 const adscHistory = (id: string) => datalinkStore.history.get(id)?.adsc ?? [];
 const cpdlcHistory = (id: string) => datalinkStore.history.get(id)?.cpdlc ?? [];
 
-const formatTime = (ts: number | undefined) => {
+const formatTime = (ts: number | null | undefined) => {
   if (!ts) return "N/A";
   return new Date(ts * 1000).toISOString().substring(11, 19) + "Z";
 };
@@ -580,19 +440,36 @@ const hasAppPayload = (data: unknown) => {
   return true;
 };
 
-const getPayloadData = (msg: DatalinkMessage) => {
-  const {
-    event,
-    timestamp,
-    bearer,
-    source,
-    receiver,
-    aircraft,
-    kinematics,
-    raw_frame_hex,
-    ...rest
-  } = msg;
-  return rest;
+const isRecord = (value: unknown): value is JsonObject =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+const variantName = (value: unknown): string | null => {
+  if (typeof value === "string") return value;
+  if (!isRecord(value)) return null;
+  const keys = Object.keys(value);
+  return keys.length === 1 ? keys[0] : null;
+};
+
+const variantPayload = (value: unknown, key: string): unknown =>
+  isRecord(value) ? value[key] : undefined;
+
+const stringField = (value: unknown, key: string): string | undefined => {
+  if (!isRecord(value)) return undefined;
+  const field = value[key];
+  return typeof field === "string" ? field : undefined;
+};
+
+const getPayloadData = (msg: DatalinkMessage) => msg.message;
+
+const messageText = (msg: DatalinkMessage): string | undefined => {
+  const data = messageData(msg);
+  const payload = isRecord(data?.payload) ? data.payload : null;
+  return (
+    stringField(data, "text") ??
+    stringField(data, "txt") ??
+    stringField(payload, "text") ??
+    stringField(payload, "txt")
+  );
 };
 
 const getMessages = (id: string) => {
@@ -606,71 +483,30 @@ const getMessageHeader = (msg: DatalinkMessage) => {
     : formatTime(msg.timestamp);
 };
 
-const withMessageMeta = (
-  summary: string,
-  msg: DatalinkMessage,
-  includeLabel = true
-) => {
-  const extras = [];
-  if (includeLabel && msg.label) extras.push(msg.label);
-  return extras.length > 0 ? `${summary} ${extras.join(" ")}` : summary;
+const withMessageMeta = (parts: string[], msg: DatalinkMessage) => {
+  const label = messageLabel(msg);
+  if (label) parts.push(label);
+  return parts.join(" ");
 };
 
 const getMessageSummary = (msg: DatalinkMessage) => {
-  const pData = getPayloadData(msg) as any;
-  let appVariant = null;
-  let imi = null;
+  const app = messageApp(msg);
+  const appKind = variantName(app);
+  const arinc = variantPayload(app, "Arinc622");
+  const imi = stringField(arinc, "imi");
+  const payloadKind = stringField(isRecord(arinc) ? arinc.payload : undefined, "kind");
 
-  if (pData.app && typeof pData.app === "object") {
-    const keys = Object.keys(pData.app);
-    if (keys.length === 1) appVariant = keys[0];
-    else if (typeof pData.app === "string") appVariant = pData.app;
-  }
+  const parts = [msg.message.kind];
+  if (appKind) parts.push(appKind);
+  if (imi) parts.push(imi);
+  if (payloadKind) parts.push(payloadKind);
 
-  if (!appVariant) {
-    if (pData.Arinc622) appVariant = "Arinc622";
-    else if (pData.MIAM) appVariant = "MIAM";
-    else if (pData.OHMA) appVariant = "OHMA";
-    else if (pData.SA) appVariant = "SA";
-    else if (pData.SQ || pData.Squitter) appVariant = "SQ";
-    else if (pData.AOC80) appVariant = "AOC80";
-  }
+  const data = messageData(msg);
+  const avlcPayload = isRecord(data?.payload) ? data.payload : null;
+  if (msg.message.kind === "avlc" && avlcPayload?.X25) parts.push("X25");
+  if (msg.message.kind === "avlc" && avlcPayload?.Xid) parts.push("XID");
 
-  if (appVariant === "Arinc622" && pData.app?.Arinc622) imi = pData.app.Arinc622.imi;
-  else if (appVariant === "Arinc622" && pData.Arinc622) imi = pData.Arinc622.imi;
-  else if (pData.imi) imi = pData.imi;
-
-  if (
-    appVariant === "Cpdlc" ||
-    imi === "AT1" ||
-    imi === "CR1" ||
-    imi === "CC1" ||
-    imi === "DR1"
-  )
-    return withMessageMeta("CPDLC Message", msg);
-  if (appVariant === "Adsc" || imi === "ADS")
-    return withMessageMeta("ADS-C Report", msg);
-
-  if (pData.payload && typeof pData.payload === "object") {
-    if ("X25" in pData.payload) return withMessageMeta("X.25 Packet", msg);
-    if ("Xid" in pData.payload) return withMessageMeta("XID Frame", msg);
-  }
-
-  if (appVariant === "MIAM") return withMessageMeta("MIAM Frame", msg);
-  if (appVariant === "OHMA") return withMessageMeta("Boeing OHMA", msg);
-  if (appVariant === "SA") return withMessageMeta("Media Advisory", msg);
-  if (appVariant === "SQ") return withMessageMeta("Squitter", msg);
-  if (appVariant === "AFN") return withMessageMeta("AFN Logon", msg);
-  if (appVariant === "OC1") return withMessageMeta("Oceanic Clearance", msg);
-  if (appVariant === "QF" || appVariant === "QQ")
-    return withMessageMeta("OOOI Report", msg);
-
-  const text = msg.txt || msg.text;
-  if (msg.label && text) return withMessageMeta(`ACARS Label ${msg.label}`, msg, false);
-  if (msg.label && !text)
-    return withMessageMeta(`ACARS Label ${msg.label} (Empty)`, msg, false);
-
-  return withMessageMeta("Data Frame", msg);
+  return withMessageMeta(parts, msg);
 };
 
 watch(

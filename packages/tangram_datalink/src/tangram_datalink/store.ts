@@ -12,20 +12,145 @@ export interface DatalinkKinematics {
   derived_from?: string;
 }
 
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+export type JsonObject = Record<string, unknown>;
+
+export interface AdjacentPayload<K extends string = string, D = JsonValue> {
+  kind: K;
+  data: D;
+}
+
+export type ExternalPayload<K extends string, D = JsonValue> = { [P in K]: D };
+
+export type AirframesAddrType = "aircraft" | "ground_station" | "unknown";
+
+export interface AirframesAddr {
+  icao24: string;
+  addr_type: AirframesAddrType;
+}
+
+export interface AirframesPayload {
+  label?: string | null;
+  text?: string | null;
+  from_hex?: string | null;
+  to_hex?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  altitude?: number | null;
+  track?: number | null;
+  frequency?: number | null;
+  id?: string | number | null;
+  airframe_id?: string | number | null;
+  flight_id?: string | number | null;
+  tail?: string | null;
+  link_direction?: string | null;
+}
+
+export interface SquitterPayload extends JsonObject {
+  station?: string | null;
+  airport?: string | null;
+  provider?: string | null;
+  link?: string | null;
+  frequency_mhz?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface AirframesMessage {
+  payload: AirframesPayload;
+  src?: AirframesAddr | null;
+  dst?: AirframesAddr | null;
+  app?: AcarsAppPayload | null;
+}
+
+export interface AcarsMessage {
+  label?: string | null;
+  txt?: string | null;
+  text?: string | null;
+  app?: AcarsAppPayload | null;
+  payload?: JsonValue;
+}
+
+export type AvlcPayload =
+  | ExternalPayload<"Acars", AcarsMessage>
+  | ExternalPayload<"Xid", JsonObject>
+  | ExternalPayload<"X25", JsonObject>;
+
+export interface AvlcFrame {
+  src?: { icao24: string; addr_type: string };
+  dst?: { icao24: string; addr_type: string };
+  payload?: AvlcPayload | null;
+}
+
+export interface Arinc622Message extends JsonObject {
+  atsu_address?: string;
+  imi?: string;
+  registration?: string;
+  payload?: Arinc622Payload;
+}
+
+export type Arinc622Payload =
+  | AdjacentPayload<"Adsc", AdscPayload>
+  | AdjacentPayload<"Cpdlc", CpdlcPayload>
+  | AdjacentPayload<"Aoc" | "Unknown", { payload_hex?: string }>;
+
+export interface AdscPayload extends JsonObject {
+  tags?: AdscTag[];
+}
+
+export type AdscTag = JsonObject;
+
+export interface CpdlcPayload extends JsonObject {
+  downlink?: CpdlcSide | null;
+  uplink?: CpdlcSide | null;
+  control?: AdjacentPayload<string, { message?: CpdlcPayload | null }> | null;
+}
+
+export interface CpdlcSide extends JsonObject {
+  header?: DatalinkCpdlcMessage["header"];
+  elements?: DatalinkCpdlcElement[];
+}
+
+export type AcarsAppPayload =
+  | "None"
+  | ExternalPayload<"Arinc622", Arinc622Message>
+  | ExternalPayload<"SQ", SquitterPayload>
+  | ExternalPayload<"Squitter", SquitterPayload>
+  | ExternalPayload<"AFN", JsonValue>
+  | ExternalPayload<"Text", string>
+  | ExternalPayload<"MIAM", JsonValue>
+  | ExternalPayload<"SA", JsonValue>
+  | ExternalPayload<"AocPosition", JsonValue>
+  | ExternalPayload<"QF", JsonValue>
+  | ExternalPayload<"QQ", JsonValue>
+  | ExternalPayload<"AOC80", JsonValue>
+  | ExternalPayload<"OC1", JsonValue>
+  | ExternalPayload<"A9", JsonValue>
+  | ExternalPayload<"B9", JsonValue>
+  | ExternalPayload<"A0", JsonValue>;
+
+export type DatalinkProtocolMessage =
+  | AdjacentPayload<"airframes", AirframesMessage>
+  | AdjacentPayload<"avlc", AvlcFrame>
+  | AdjacentPayload<"acars", AcarsMessage>
+  | AdjacentPayload<"hfdl", JsonObject>
+  | AdjacentPayload<"app", AcarsAppPayload>;
+
 export interface DatalinkMessage {
-  event: string;
-  timestamp?: number;
-  bearer: string;
-  source: {
-    id: string;
-    name: string;
-    class: string;
-    format?: string;
-  };
+  event?: string | null;
+  timestamp?: number | null;
+  bearer?: string | null;
+  source?: {
+    id?: string | null;
+    name?: string | null;
+    class?: string | null;
+    format?: string | null;
+  } | null;
   receiver?: {
-    bearer: string;
-    channel_hz?: number;
-  };
+    bearer?: string | null;
+    channel_hz?: number | null;
+  } | null;
   aircraft?: {
     icao24?: string | null;
     registration?: string | null;
@@ -34,17 +159,11 @@ export interface DatalinkMessage {
   flight_id?: string | number | null;
   kinematics?: DatalinkKinematics;
   raw_frame_hex?: string;
-  label?: string;
-  txt?: string;
-  text?: string;
-  app?: unknown;
-  payload?: unknown;
-  imi?: string;
-  [key: string]: any;
+  message: DatalinkProtocolMessage;
 }
 
 export interface AdscContractGroupInfo {
-  type: string;
+  kind: string;
   interval_secs?: number;
   modulus?: number;
   threshold_nm?: number;
@@ -55,7 +174,7 @@ export interface AdscContractGroupInfo {
 }
 
 export interface AdscContractInfo {
-  kind: 'periodic' | 'event' | 'emergency' | 'cancel_all' | 'cancel';
+  kind: "periodic" | "event" | "emergency" | "cancel_all" | "cancel";
   number?: number;
   groups: AdscContractGroupInfo[];
 }
@@ -89,7 +208,12 @@ export interface DatalinkAdscReport {
   /** ATSU address (ground station) */
   atsu_address?: string;
   /** PredictedRoute next waypoint (absolute lat/lon) */
-  next?: { latitude: number; longitude: number; altitude_ft?: number; eta_secs?: number };
+  next?: {
+    latitude: number;
+    longitude: number;
+    altitude_ft?: number;
+    eta_secs?: number;
+  };
   /** PredictedRoute next+1 waypoint (absolute lat/lon) */
   next_next?: { latitude: number; longitude: number; altitude_ft?: number };
   /** IntermediateProjection entries (relative: distance + bearing from current position) */
@@ -106,11 +230,11 @@ export interface DatalinkAdscReport {
   raw_tags: string[];
 }
 
+export type CpdlcElementBody = JsonObject;
+
 export interface DatalinkCpdlcElement {
   id: number;
-  name: string;
-  template?: string | null;
-  body?: unknown;
+  body?: CpdlcElementBody | null;
   is_additional: boolean;
 }
 
@@ -119,7 +243,7 @@ export interface DatalinkCpdlcMessage {
   atsu_address?: string;
   registration?: string;
   imi?: string;
-  direction?: string;
+  direction?: "downlink" | "uplink";
   header?: { msg_id?: number; msg_ref?: number; timestamp?: string };
   elements: DatalinkCpdlcElement[];
   control_type?: string;
@@ -141,16 +265,24 @@ const CPDLC_LIMIT = 100;
 // ── Message categories ─────────────────────────────────────────────────────────
 
 export const MESSAGE_CATEGORIES = [
-  { id: "adsc",     label: "ADS-C",      description: "ADS Contract position & route reports" },
-  { id: "cpdlc",    label: "CPDLC",     description: "Controller-Pilot Data Link Communications" },
-  { id: "afn",      label: "AFN",       description: "ATN/FANS logon & addressing" },
-  { id: "text",     label: "Free Text",  description: "Free-text ACARS messages" },
-  { id: "miam",     label: "MIAM",      description: "Media Independent Aircraft Messaging" },
-  { id: "position", label: "Position",  description: "AOC position & service advisory reports" },
-  { id: "aoc",      label: "AOC",       description: "Airline Operational Control" },
-  { id: "oooi",     label: "OOOI",      description: "Out/Off/On/In operational reports" },
-  { id: "xid",      label: "VDL2 XID",  description: "VDL2 link management frames" },
-  { id: "other",    label: "Other",     description: "Other decoded frames" },
+  { id: "adsc", label: "ADS-C", description: "ADS Contract position & route reports" },
+  {
+    id: "cpdlc",
+    label: "CPDLC",
+    description: "Controller-Pilot Data Link Communications"
+  },
+  { id: "afn", label: "AFN", description: "ATN/FANS logon & addressing" },
+  { id: "text", label: "Free Text", description: "Free-text ACARS messages" },
+  { id: "miam", label: "MIAM", description: "Media Independent Aircraft Messaging" },
+  {
+    id: "position",
+    label: "Position",
+    description: "AOC position & service advisory reports"
+  },
+  { id: "aoc", label: "AOC", description: "Airline Operational Control" },
+  { id: "oooi", label: "OOOI", description: "Out/Off/On/In operational reports" },
+  { id: "xid", label: "VDL2 XID", description: "VDL2 link management frames" },
+  { id: "other", label: "Other", description: "Other decoded frames" }
 ] as const;
 
 export type MessageCategoryId = (typeof MESSAGE_CATEGORIES)[number]["id"];
@@ -162,8 +294,8 @@ function defaultCategories(): Record<MessageCategoryId, boolean> {
 }
 
 export const STATION_CATEGORIES = [
-  { id: "sq",   label: "SQ stations",   description: "VHF squitter ground stations" },
-  { id: "vdl2", label: "VDL2 stations", description: "VDL2 GSIF ground stations" },
+  { id: "sq", label: "SQ stations", description: "VHF squitter ground stations" },
+  { id: "vdl2", label: "VDL2 stations", description: "VDL2 GSIF ground stations" }
 ] as const;
 
 export type StationCategoryId = (typeof STATION_CATEGORIES)[number]["id"];
@@ -182,7 +314,11 @@ export interface DatalinkFilter {
 }
 
 function makeDefaultFilter(): DatalinkFilter {
-  return { enabled: false, stations: defaultStationCategories(), categories: defaultCategories() };
+  return {
+    enabled: false,
+    stations: defaultStationCategories(),
+    categories: defaultCategories()
+  };
 }
 
 export interface DatalinkSelectionData {
@@ -204,7 +340,12 @@ export const datalinkStore = reactive({
 
 export function ensureHistory(id: string): DatalinkEntityHistory {
   if (!datalinkStore.history.has(id)) {
-    datalinkStore.history.set(id, { adsc: [], cpdlc: [], messages: [], categories: new Set() });
+    datalinkStore.history.set(id, {
+      adsc: [],
+      cpdlc: [],
+      messages: [],
+      categories: new Set()
+    });
   }
   return datalinkStore.history.get(id)!;
 }
@@ -214,220 +355,401 @@ function ringPrepend<T>(arr: T[], item: T, limit: number) {
   if (arr.length > limit) arr.length = limit;
 }
 
+const isObject = (value: unknown): value is JsonObject =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+const hasOwn = (value: object, key: string): boolean =>
+  Object.prototype.hasOwnProperty.call(value, key);
+
+const hasExternalPayload = <K extends string>(
+  value: unknown,
+  variant: K
+): value is ExternalPayload<K, unknown> => isObject(value) && hasOwn(value, variant);
+
+const externalPayload = <T>(value: unknown, variant: string): T | undefined =>
+  hasExternalPayload(value, variant) ? (value[variant] as T) : undefined;
+
+const adjacentData = (value: unknown): JsonObject | null => {
+  if (!isObject(value)) return null;
+  return isObject(value.data) ? value.data : null;
+};
+
+const asObject = (value: unknown): JsonObject | null =>
+  isObject(value) ? value : null;
+
+export const messageData = (msg: DatalinkMessage): JsonObject | null =>
+  asObject(msg.message.data);
+
+const avlcAcarsMessage = (msg: DatalinkMessage): AcarsMessage | undefined => {
+  if (msg.message.kind !== "avlc") return undefined;
+  return externalPayload<AcarsMessage>(msg.message.data.payload, "Acars");
+};
+
+export const messageLabel = (msg: DatalinkMessage): string | undefined => {
+  switch (msg.message.kind) {
+    case "airframes":
+      return msg.message.data.payload.label ?? undefined;
+    case "acars":
+      return msg.message.data.label ?? undefined;
+    case "avlc":
+      return avlcAcarsMessage(msg)?.label ?? undefined;
+    case "app":
+    case "hfdl":
+      return undefined;
+  }
+};
+
+export const messageApp = (
+  msg: DatalinkMessage
+): AcarsAppPayload | null | undefined => {
+  switch (msg.message.kind) {
+    case "app":
+      return msg.message.data;
+    case "acars":
+    case "airframes":
+      return msg.message.data.app;
+    case "avlc":
+      return avlcAcarsMessage(msg)?.app;
+    case "hfdl":
+      return undefined;
+  }
+};
+
+export const getSquitterPayload = (msg: DatalinkMessage): SquitterPayload | null => {
+  const app = messageApp(msg);
+  return (
+    externalPayload<SquitterPayload>(app, "Squitter") ??
+    externalPayload<SquitterPayload>(app, "SQ") ??
+    null
+  );
+};
+
+const arinc622Payload = (
+  app: AcarsAppPayload | null | undefined
+): Arinc622Message | null => externalPayload<Arinc622Message>(app, "Arinc622") ?? null;
+
+const stringField = (obj: JsonObject, key: string): string | undefined => {
+  const value = obj[key];
+  return typeof value === "string" ? value : undefined;
+};
+
+const numberField = (obj: JsonObject, key: string): number | undefined => {
+  const value = obj[key];
+  return typeof value === "number" ? value : undefined;
+};
+
+const arrayField = (obj: JsonObject, key: string): unknown[] => {
+  const value = obj[key];
+  return Array.isArray(value) ? value : [];
+};
+
 export function classifyCategory(msg: DatalinkMessage): MessageCategoryId {
-  const app = msg.app as any;
+  const app = messageApp(msg);
   if (!app || app === "None") return "other";
 
-  // Squitter / station frames — treated as "other" for aircraft history
-  if (app.SQ || app.Squitter || app.station) return "other";
+  if (getSquitterPayload(msg)) return "other";
 
-  // VDL2 XID management frames
-  const payload = (msg as any).payload;
-  if (payload?.Xid || payload?.X25) return "xid";
-
-  if (typeof app === "object") {
-    // Arinc622 envelope — discriminate by IMI
-    const arinc = app.Arinc622;
-    if (arinc) {
-      const imi: string = arinc.imi ?? "";
-      if (imi === "ADS") return "adsc";
-      if (["AT1", "CR1", "CC1", "DR1"].includes(imi)) return "cpdlc";
-      if (imi === "AFN" || imi === "ATS") return "afn";
-      return "other";
-    }
-
-    if (app.AFN) return "afn";
-    if (app.Text) return "text";
-    if (app.MIAM) return "miam";
-    // Service Advisory / position reports
-    if (app.SA || app.AocPosition) return "position";
-    // OOOI
-    if (app.QF || app.QQ) return "oooi";
-    // AOC labels
-    if (app.AOC80 || app.OC1 || app.A9 || app.B9 || app.A0) return "aoc";
+  if (
+    msg.message.kind === "avlc" &&
+    (hasExternalPayload(msg.message.data.payload, "Xid") ||
+      hasExternalPayload(msg.message.data.payload, "X25"))
+  ) {
+    return "xid";
   }
 
-  // Fallback: use label-based heuristics
-  const label = msg.label;
+  const arinc = arinc622Payload(app);
+  if (arinc) {
+    const imi = stringField(arinc, "imi") ?? "";
+    if (imi === "ADS") return "adsc";
+    if (["AT1", "CR1", "CC1", "DR1"].includes(imi)) return "cpdlc";
+    if (imi === "AFN" || imi === "ATS") return "afn";
+    return "other";
+  }
+
+  if (hasExternalPayload(app, "AFN")) return "afn";
+  if (hasExternalPayload(app, "Text")) return "text";
+  if (hasExternalPayload(app, "MIAM")) return "miam";
+  if (hasExternalPayload(app, "SA") || hasExternalPayload(app, "AocPosition"))
+    return "position";
+  if (hasExternalPayload(app, "QF") || hasExternalPayload(app, "QQ")) return "oooi";
+  if (
+    hasExternalPayload(app, "AOC80") ||
+    hasExternalPayload(app, "OC1") ||
+    hasExternalPayload(app, "A9") ||
+    hasExternalPayload(app, "B9") ||
+    hasExternalPayload(app, "A0")
+  ) {
+    return "aoc";
+  }
+
+  const label = messageLabel(msg);
   if (label) {
     if (["SA", "S1"].includes(label)) return "position";
     if (["QF", "QQ", "Q0"].includes(label)) return "oooi";
-    if (["H1"].includes(label)) return "cpdlc"; // H1 = FANS/ACARS CPDLC
+    if (label === "H1") return "cpdlc";
   }
 
   return "other";
 }
 
+const objectField = (obj: JsonObject, key: string): JsonObject | null => {
+  const value = obj[key];
+  return isObject(value) ? value : null;
+};
+
+const cpdlcHeader = (value: unknown): DatalinkCpdlcMessage["header"] => {
+  const header = asObject(value);
+  if (!header) return undefined;
+  return {
+    msg_id: numberField(header, "msg_id"),
+    msg_ref: numberField(header, "msg_ref"),
+    timestamp: stringField(header, "timestamp")
+  };
+};
+
+const cpdlcElement = (value: unknown): DatalinkCpdlcElement | null => {
+  const element = asObject(value);
+  if (!element) return null;
+  const id = numberField(element, "id");
+  if (id == null) return null;
+  return {
+    id,
+    body: asObject(element.body),
+    is_additional: element.is_additional === true
+  };
+};
+
+const isPresent = <T>(value: T | null | undefined): value is T => value != null;
+
 export function classifyAndStore(id: string, msg: DatalinkMessage) {
   const hist = ensureHistory(id);
   ringPrepend(hist.messages, msg, HISTORY_LIMIT);
 
-  // track category for filter
   hist.categories.add(classifyCategory(msg));
-  // bump version so the layer re-renders when a new category is acquired
   datalinkStore.version++;
 
-  const app = msg.app as any;
-  if (!app || app === "None") return;
+  const arinc = arinc622Payload(messageApp(msg));
+  if (!arinc) return;
 
-  const arinc = app?.Arinc622;
-  if (arinc) {
-    const imi = arinc.imi;
-    const payload = arinc.payload;
+  const imi = stringField(arinc, "imi");
+  const payload = objectField(arinc, "payload");
+  const decodedPayload = payload ? adjacentData(payload) : null;
 
-    if (imi === "ADS") {
-      const tags: any[] = payload?.data?.tags ?? [];
-      const report: DatalinkAdscReport = {
-        timestamp: msg.timestamp,
-        registration: arinc.registration,
-        atsu_address: arinc.atsu_address,
-        raw_tags: tags.map((t: any) => Object.keys(t)[0]).filter(Boolean)
-      };
+  if (imi === "ADS" && decodedPayload) {
+    const tags = arrayField(decodedPayload, "tags").filter(isObject);
+    const report: DatalinkAdscReport = {
+      timestamp: msg.timestamp ?? undefined,
+      registration: stringField(arinc, "registration"),
+      atsu_address: stringField(arinc, "atsu_address"),
+      raw_tags: tags.map(tag => Object.keys(tag)[0]).filter(Boolean)
+    };
 
-      for (const tag of tags) {
-        if (tag.BasicReport || tag.EmergencyBasicReport) {
-          const b = tag.BasicReport ?? tag.EmergencyBasicReport;
-          report.position = { latitude: b.latitude, longitude: b.longitude };
-          report.altitude_ft = b.altitude_ft;
+    for (const tag of tags) {
+      const basic =
+        objectField(tag, "BasicReport") ?? objectField(tag, "EmergencyBasicReport");
+      if (basic) {
+        const latitude = numberField(basic, "latitude");
+        const longitude = numberField(basic, "longitude");
+        if (latitude != null && longitude != null) {
+          report.position = { latitude, longitude };
         }
-        if (tag.WaypointChangeEvent || tag.LateralDeviationChangeEvent ||
-            tag.VerticalRateChangeEvent || tag.AltitudeRangeEvent) {
-          const b = tag.WaypointChangeEvent ?? tag.LateralDeviationChangeEvent ??
-                    tag.VerticalRateChangeEvent ?? tag.AltitudeRangeEvent;
-          report.position = { latitude: b.latitude, longitude: b.longitude };
-          report.altitude_ft = b.altitude_ft;
+        report.altitude_ft = numberField(basic, "altitude_ft");
+      }
+
+      const event =
+        objectField(tag, "WaypointChangeEvent") ??
+        objectField(tag, "LateralDeviationChangeEvent") ??
+        objectField(tag, "VerticalRateChangeEvent") ??
+        objectField(tag, "AltitudeRangeEvent");
+      if (event) {
+        const latitude = numberField(event, "latitude");
+        const longitude = numberField(event, "longitude");
+        if (latitude != null && longitude != null) {
+          report.position = { latitude, longitude };
         }
-        if (tag.FlightId) {
-          report.flight_id = tag.FlightId.id;
-        }
-        if (tag.PredictedRoute) {
-          const p = tag.PredictedRoute;
+        report.altitude_ft = numberField(event, "altitude_ft");
+      }
+
+      const flightId = objectField(tag, "FlightId");
+      if (flightId) report.flight_id = stringField(flightId, "id");
+
+      const predictedRoute = objectField(tag, "PredictedRoute");
+      if (predictedRoute) {
+        const latitude = numberField(predictedRoute, "next_latitude");
+        const longitude = numberField(predictedRoute, "next_longitude");
+        if (latitude != null && longitude != null) {
           report.next = {
-            latitude: p.next_latitude,
-            longitude: p.next_longitude,
-            altitude_ft: p.next_altitude_ft,
-            eta_secs: p.next_eta_seconds
+            latitude,
+            longitude,
+            altitude_ft: numberField(predictedRoute, "next_altitude_ft"),
+            eta_secs: numberField(predictedRoute, "next_eta_seconds")
           };
-          if (p.next_next_latitude != null) {
-            report.next_next = {
-              latitude: p.next_next_latitude,
-              longitude: p.next_next_longitude,
-              altitude_ft: p.next_next_altitude_ft
-            };
-          }
         }
-        if (tag.EarthReferenceData) {
-          const e = tag.EarthReferenceData;
-          if (!e.heading_invalid) report.track = e.heading_or_track_degrees;
-          report.ground_speed_kt = e.speed;
-          report.vertical_speed_fpm = e.vertical_speed_ft_per_min;
+        const nextLatitude = numberField(predictedRoute, "next_next_latitude");
+        const nextLongitude = numberField(predictedRoute, "next_next_longitude");
+        if (nextLatitude != null && nextLongitude != null) {
+          report.next_next = {
+            latitude: nextLatitude,
+            longitude: nextLongitude,
+            altitude_ft: numberField(predictedRoute, "next_next_altitude_ft")
+          };
         }
-        if (tag.AirReferenceData && report.track == null) {
-          const a = tag.AirReferenceData;
-          if (!a.heading_invalid) report.track = a.heading_or_track_degrees;
+      }
+
+      const earthReference = objectField(tag, "EarthReferenceData");
+      if (earthReference) {
+        if (earthReference.heading_invalid !== true) {
+          report.track = numberField(earthReference, "heading_or_track_degrees");
         }
-        if (tag.IntermediateProjection) {
-          const ip = tag.IntermediateProjection;
-          if (!report.intermediate_projections) report.intermediate_projections = [];
+        report.ground_speed_kt = numberField(earthReference, "speed");
+        report.vertical_speed_fpm = numberField(
+          earthReference,
+          "vertical_speed_ft_per_min"
+        );
+      }
+
+      const airReference = objectField(tag, "AirReferenceData");
+      if (
+        airReference &&
+        report.track == null &&
+        airReference.heading_invalid !== true
+      ) {
+        report.track = numberField(airReference, "heading_or_track_degrees");
+      }
+
+      const intermediateProjection = objectField(tag, "IntermediateProjection");
+      if (intermediateProjection) {
+        const distance_nm = numberField(intermediateProjection, "distance_nm");
+        const track_degrees = numberField(intermediateProjection, "track_degrees");
+        if (distance_nm != null && track_degrees != null) {
+          report.intermediate_projections ??= [];
           report.intermediate_projections.push({
-            distance_nm: ip.distance_nm,
-            track_degrees: ip.track_degrees,
-            track_invalid: ip.track_invalid,
-            altitude_ft: ip.altitude_ft,
-            eta_secs: ip.eta_seconds
+            distance_nm,
+            track_degrees,
+            track_invalid: intermediateProjection.track_invalid === true,
+            altitude_ft: numberField(intermediateProjection, "altitude_ft"),
+            eta_secs: numberField(intermediateProjection, "eta_seconds")
           });
         }
-        if (tag.FixedProjection) {
-          const fp = tag.FixedProjection;
-          if (!report.fixed_projections) report.fixed_projections = [];
+      }
+
+      const fixedProjection = objectField(tag, "FixedProjection");
+      if (fixedProjection) {
+        const latitude = numberField(fixedProjection, "latitude");
+        const longitude = numberField(fixedProjection, "longitude");
+        if (latitude != null && longitude != null) {
+          report.fixed_projections ??= [];
           report.fixed_projections.push({
-            latitude: fp.latitude,
-            longitude: fp.longitude,
-            altitude_ft: fp.altitude_ft,
-            eta_secs: fp.eta_seconds
+            latitude,
+            longitude,
+            altitude_ft: numberField(fixedProjection, "altitude_ft"),
+            eta_secs: numberField(fixedProjection, "eta_seconds")
           });
         }
-        if (tag.MeteoData) {
-          const m = tag.MeteoData;
-          report.wind_speed_kt = m.wind_speed_kt;
-          if (!m.wind_direction_invalid) report.wind_direction_deg = m.wind_direction_true_degrees;
-          report.temperature_c = m.temperature_c;
-        }
-        // ── Uplink contract tags ──
-        const contractTag =
-          tag.PeriodicContractRequest ?   { kind: 'periodic' as const,   req: tag.PeriodicContractRequest } :
-          tag.EventContractRequest ?      { kind: 'event' as const,      req: tag.EventContractRequest } :
-          tag.EmergencyPeriodicContractRequest ? { kind: 'emergency' as const, req: tag.EmergencyPeriodicContractRequest } :
-          null;
-        if (contractTag) {
-          report.is_uplink = true;
-          report.contract = {
-            kind: contractTag.kind,
-            number: contractTag.req.contract_number,
-            groups: (contractTag.req.groups ?? []).map((g: any) => ({
-              type: g.type,
-              interval_secs: g.value?.interval_secs,
-              modulus: g.value?.modulus,
-              threshold_nm: g.value?.threshold_nm,
-              threshold_fpm: g.value?.threshold_ft_per_min,
-              ceiling_ft: g.value?.ceiling_ft,
-              floor_ft: g.value?.floor_ft,
-              projection_time_mins: g.value?.projection_time_mins
-            }))
-          };
-        }
-        if (tag.CancelAllContracts != null) {
-          report.is_uplink = true;
-          report.contract = { kind: 'cancel_all', groups: [] };
-        }
-        if (tag.CancelContract != null) {
-          report.is_uplink = true;
-          report.contract = { kind: 'cancel', number: tag.CancelContract.contract_number ?? tag.CancelContract, groups: [] };
-        }
       }
 
-      // Fallback track: IntermediateProjection track when EarthReferenceData heading was invalid
-      if (report.track == null && report.intermediate_projections) {
-        const first = report.intermediate_projections.find(ip => !ip.track_invalid);
-        if (first) report.track = first.track_degrees;
+      const meteo = objectField(tag, "MeteoData");
+      if (meteo) {
+        report.wind_speed_kt = numberField(meteo, "wind_speed_kt");
+        if (meteo.wind_direction_invalid !== true) {
+          report.wind_direction_deg = numberField(meteo, "wind_direction_true_degrees");
+        }
+        report.temperature_c = numberField(meteo, "temperature_c");
       }
 
-      ringPrepend(hist.adsc, report, ADSC_LIMIT);
-      return;
+      const periodicContract = objectField(tag, "PeriodicContractRequest");
+      const eventContract = objectField(tag, "EventContractRequest");
+      const emergencyContract = objectField(tag, "EmergencyPeriodicContractRequest");
+      const contractTag = periodicContract
+        ? { kind: "periodic" as const, req: periodicContract }
+        : eventContract
+          ? { kind: "event" as const, req: eventContract }
+          : emergencyContract
+            ? { kind: "emergency" as const, req: emergencyContract }
+            : null;
+
+      if (contractTag) {
+        report.is_uplink = true;
+        report.contract = {
+          kind: contractTag.kind,
+          number: numberField(contractTag.req, "contract_number"),
+          groups: arrayField(contractTag.req, "groups")
+            .filter(isObject)
+            .map(group => {
+              const value = objectField(group, "value") ?? {};
+              return {
+                kind: stringField(group, "kind") ?? "unknown",
+                interval_secs: numberField(value, "interval_secs"),
+                modulus: numberField(value, "modulus"),
+                threshold_nm: numberField(value, "threshold_nm"),
+                threshold_fpm: numberField(value, "threshold_ft_per_min"),
+                ceiling_ft: numberField(value, "ceiling_ft"),
+                floor_ft: numberField(value, "floor_ft"),
+                projection_time_mins: numberField(value, "projection_time_mins")
+              };
+            })
+        };
+      }
+
+      if (tag.CancelAllContracts != null) {
+        report.is_uplink = true;
+        report.contract = { kind: "cancel_all", groups: [] };
+      }
+
+      const cancelContract = asObject(tag.CancelContract);
+      if (cancelContract || typeof tag.CancelContract === "number") {
+        report.is_uplink = true;
+        report.contract = {
+          kind: "cancel",
+          number: cancelContract
+            ? numberField(cancelContract, "contract_number")
+            : Number(tag.CancelContract),
+          groups: []
+        };
+      }
     }
 
-    if (["AT1", "CR1", "CC1", "DR1"].includes(imi)) {
-      const cpdlcMsg: DatalinkCpdlcMessage = {
-        timestamp: msg.timestamp,
-        atsu_address: arinc.atsu_address,
-        registration: arinc.registration,
-        imi,
-        elements: []
-      };
-      const cpdlc = payload?.Cpdlc ?? payload?.data;
-      if (cpdlc) {
-        // control messages (CR1/CC1/DR1)
-        if (cpdlc.control) {
-          cpdlcMsg.control_type = cpdlc.control.type;
-        }
-        const side = cpdlc.downlink ?? cpdlc.uplink ?? cpdlc.control?.message?.downlink ?? cpdlc.control?.message?.uplink;
-        if (side) {
-          cpdlcMsg.direction = cpdlc.downlink ? "downlink" : "uplink";
-          cpdlcMsg.header = side.header;
-          cpdlcMsg.elements = (side.elements ?? []).map((e: any) => ({
-            id: e.id,
-            name: e.name ?? "?",
-            template: e.template ?? null,
-            body: e.body ?? null,
-            is_additional: e.is_additional ?? false
-          }));
-        } else if (cpdlc.control && !cpdlcMsg.elements.length) {
-          // bare control (e.g. disconnect_request) — no elements
-          cpdlcMsg.direction = "downlink";
-        }
-      }
-      ringPrepend(hist.cpdlc, cpdlcMsg, CPDLC_LIMIT);
-      return;
+    if (report.track == null && report.intermediate_projections) {
+      const first = report.intermediate_projections.find(ip => !ip.track_invalid);
+      if (first) report.track = first.track_degrees;
     }
+
+    ringPrepend(hist.adsc, report, ADSC_LIMIT);
+    return;
+  }
+
+  if (["AT1", "CR1", "CC1", "DR1"].includes(imi ?? "") && decodedPayload) {
+    const cpdlcMsg: DatalinkCpdlcMessage = {
+      timestamp: msg.timestamp ?? undefined,
+      atsu_address: stringField(arinc, "atsu_address"),
+      registration: stringField(arinc, "registration"),
+      imi,
+      elements: []
+    };
+
+    const control = objectField(decodedPayload, "control");
+    if (control) cpdlcMsg.control_type = stringField(control, "kind");
+
+    const downlink = objectField(decodedPayload, "downlink");
+    const uplink = objectField(decodedPayload, "uplink");
+    const controlData = control ? objectField(control, "data") : null;
+    const controlMessage = controlData ? objectField(controlData, "message") : null;
+    const controlDownlink = controlMessage
+      ? objectField(controlMessage, "downlink")
+      : null;
+    const controlUplink = controlMessage ? objectField(controlMessage, "uplink") : null;
+    const side = downlink ?? uplink ?? controlDownlink ?? controlUplink;
+
+    if (side) {
+      cpdlcMsg.direction = downlink || controlDownlink ? "downlink" : "uplink";
+      cpdlcMsg.header = cpdlcHeader(side.header);
+      cpdlcMsg.elements = arrayField(side, "elements")
+        .map(cpdlcElement)
+        .filter(isPresent);
+    } else if (control && !cpdlcMsg.elements.length) {
+      cpdlcMsg.direction = "downlink";
+    }
+
+    ringPrepend(hist.cpdlc, cpdlcMsg, CPDLC_LIMIT);
   }
 }

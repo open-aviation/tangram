@@ -29,8 +29,11 @@ class DatalinkFrontendConfig(
 ):
     topbar_order: Annotated[int, FrontendMutable()]
     sidebar_order: Annotated[int, FrontendMutable()]
-    # Anchor for the entity filter custom widget; actual state lives in the frontend store.
-    filter_ui: Annotated[Optional[Any], FrontendMutable(widget="datalink-filter")] = None
+    # Anchor for the entity filter custom widget;
+    # actual state lives in the frontend store.
+    filter_ui: Annotated[Optional[Any], FrontendMutable(widget="datalink-filter")] = (
+        None
+    )
 
 
 def into_frontend(config: DatalinkConfig) -> DatalinkFrontendConfig:

@@ -25,24 +25,20 @@ pub async fn datalink_redis_subscriber(
                 let Some(msg) = msg else { break; };
                 let payload: String = msg.get_payload()?;
 
-                // HACK: tolerate duplicate `timestamp` keys for now
-                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&payload) {
-                    if let Ok(feed) = serde_json::from_value::<DecodedEvent>(value) {
-                    if publisher.is_none() {
-                        publisher = client.get_multiplexed_async_connection().await.ok();
-                    }
-                    if let Some(publisher) = publisher.as_mut() {
-                        if let Ok(serialized) = serde_json::to_string(&feed) {
-                            let _: Result<(), _> = publisher.publish("to:datalink:feed:message", &serialized).await;
+                match serde_json::from_str::<DecodedEvent>(&payload) {
+                    Ok(feed) => {
+                        if publisher.is_none() {
+                            publisher = client.get_multiplexed_async_connection().await.ok();
                         }
+                        if let Some(publisher) = publisher.as_mut() {
+                            let _: Result<(), _> = publisher
+                                .publish("to:datalink:feed:message", &payload)
+                                .await;
+                        }
+                        let mut state = state_vectors.lock().await;
+                        state.add(&feed);
                     }
-                    let mut state = state_vectors.lock().await;
-                    state.add(&feed);
-                    } else {
-                        warn!("Failed to parse datalink event from redis");
-                    }
-                } else {
-                    warn!("Failed to parse datalink event from redis");
+                    Err(err) => warn!(error = %err, "Failed to parse datalink event from redis"),
                 }
             }
             _ = shutdown.changed() => break,
