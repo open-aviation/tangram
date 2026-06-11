@@ -9,7 +9,13 @@ import DatalinkLayer from "./DatalinkLayer.vue";
 import DatalinkInfoWidget from "./DatalinkInfoWidget.vue";
 import DatalinkCountWidget from "./DatalinkCountWidget.vue";
 import DatalinkFilterWidget from "./DatalinkFilterWidget.vue";
-import { datalinkStore, classifyAndStore, ensureHistory, type DatalinkMessage } from "./store";
+import {
+  datalinkStore,
+  classifyAndStore,
+  ensureHistory,
+  getSquitterPayload,
+  type DatalinkMessage
+} from "./store";
 
 export const ENTITY_TYPE = "datalink_entity";
 
@@ -32,8 +38,7 @@ export interface DatalinkStationInfo {
   supported_frequencies_mhz?: number[];
 }
 
-export interface DatalinkEntity {
-  kind: DatalinkEntityKind;
+interface DatalinkEntityBase {
   id: string;
   label: string;
   lastseen: number;
@@ -42,9 +47,25 @@ export interface DatalinkEntity {
   altitude_ft?: number | null;
   track?: number | null;
   messages: number;
-  aircraft?: DatalinkAircraftInfo | null;
-  station?: DatalinkStationInfo | null;
 }
+
+export type DatalinkAircraftEntity = DatalinkEntityBase & {
+  details: { kind: "aircraft"; data: DatalinkAircraftInfo };
+};
+
+export type DatalinkStationEntity = DatalinkEntityBase & {
+  details: { kind: "station"; data: DatalinkStationInfo };
+};
+
+export type DatalinkEntity = DatalinkAircraftEntity | DatalinkStationEntity;
+
+export const isAircraftEntity = (
+  entity: DatalinkEntity
+): entity is DatalinkAircraftEntity => entity.details.kind === "aircraft";
+
+export const isStationEntity = (
+  entity: DatalinkEntity
+): entity is DatalinkStationEntity => entity.details.kind === "station";
 
 export interface DatalinkFrontendConfig {
   topbar_order?: number;
@@ -54,18 +75,6 @@ export interface DatalinkFrontendConfig {
 function normalizeId(value: string | number | null | undefined) {
   if (value == null || value === "") return null;
   return String(value);
-}
-
-function getSquitterPayload(msg: DatalinkMessage): any | null {
-  const app = msg.app as any;
-  if (app && typeof app === "object") {
-    if (app.Squitter) return app.Squitter;
-    if (app.SQ) return app.SQ;
-    if (app.station) return app;
-  }
-  if ((msg as any).Squitter) return (msg as any).Squitter;
-  if ((msg as any).SQ) return (msg as any).SQ;
-  return null;
 }
 
 export function getMessageEntityId(msg: DatalinkMessage) {
@@ -168,7 +177,7 @@ async function bindDatalinkStreaming(api: TangramApi) {
     let hasUpdates = false;
     for (const [id, data] of datalinkStore.selected) {
       const entity = entityMap.get(id);
-      if (!entity || entity.state.kind !== "aircraft") continue;
+      if (!entity || !isAircraftEntity(entity.state)) continue;
 
       if (entity.state.latitude != null && entity.state.longitude != null) {
         const updated = entity.state;

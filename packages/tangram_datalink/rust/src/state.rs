@@ -1,6 +1,11 @@
+use acars::decode::acars::AcarsMessage;
+use acars::decode::avlc::{AvlcFrame, AvlcPayload};
 use acars::decode::compact::Kinematics;
+use acars::decode::hfdl::HfdlMessage;
+use acars::decode::payload::arinc620::squitter::{SquitterLink, SquitterMessage};
+use acars::decode::payload::AcarsAppPayload;
 use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::Value;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use tangram_core::stream::{Identifiable, Positioned, StateCollection, Tracked};
 
@@ -31,22 +36,74 @@ pub struct ReceiverMetadata {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecodedEvent {
+    pub event: Option<String>,
     pub timestamp: Option<f64>,
+    pub bearer: Option<String>,
     pub aircraft: Option<Aircraft>,
     pub kinematics: Option<Kinematics>,
     #[serde(default, deserialize_with = "deserialize_optional_id")]
     pub flight_id: Option<String>,
     pub source: Option<SourceMetadata>,
     pub receiver: Option<ReceiverMetadata>,
-    #[serde(flatten)]
-    pub message: HashMap<String, Value>,
+    pub raw_frame_hex: Option<String>,
+    pub message: ProtocolMessage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum DatalinkEntityKind {
+#[serde(tag = "kind", content = "data", rename_all = "snake_case")]
+pub enum ProtocolMessage {
+    Airframes(Box<AirframesMessage>),
+    Avlc(Box<AvlcFrame>),
+    Acars(Box<AcarsMessage>),
+    Hfdl(Box<HfdlMessage>),
+    App(Box<AcarsAppPayload>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AirframesMessage {
+    pub payload: AirframesPayload,
+    pub src: Option<AirframesAddr>,
+    pub dst: Option<AirframesAddr>,
+    pub app: Option<AcarsAppPayload>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AirframesPayload {
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
+    pub label: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
+    pub text: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
+    pub from_hex: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
+    pub to_hex: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    pub altitude: Option<f64>,
+    pub track: Option<f64>,
+    pub frequency: Option<f64>,
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
+    pub id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
+    pub airframe_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
+    pub flight_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_id")]
+    pub tail: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AirframesAddr {
+    pub icao24: String,
+    pub addr_type: AirframesAddrType,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AirframesAddrType {
     Aircraft,
-    Station,
+    GroundStation,
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,8 +126,14 @@ pub struct DatalinkStationInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "data", rename_all = "lowercase")]
+pub enum DatalinkEntityDetails {
+    Aircraft(DatalinkAircraftInfo),
+    Station(DatalinkStationInfo),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatalinkEntity {
-    pub kind: DatalinkEntityKind,
     pub id: String,
     pub label: String,
     pub lastseen: f64,
@@ -80,8 +143,24 @@ pub struct DatalinkEntity {
     pub track: Option<f64>,
     pub messages: usize,
     pub position_time: Option<f64>,
-    pub aircraft: Option<DatalinkAircraftInfo>,
-    pub station: Option<DatalinkStationInfo>,
+    pub details: DatalinkEntityDetails,
+}
+
+impl DatalinkEntity {
+    fn aircraft_info(&self) -> Option<&DatalinkAircraftInfo> {
+        match &self.details {
+            DatalinkEntityDetails::Aircraft(info) => Some(info),
+            DatalinkEntityDetails::Station(_) => None,
+        }
+    }
+
+    fn set_aircraft_info(&mut self, info: DatalinkAircraftInfo) {
+        self.details = DatalinkEntityDetails::Aircraft(info);
+    }
+
+    fn set_station_info(&mut self, info: DatalinkStationInfo) {
+        self.details = DatalinkEntityDetails::Station(info);
+    }
 }
 
 impl Positioned for DatalinkEntity {
@@ -149,72 +228,57 @@ impl DatalinkStateVectors {
         reg: Option<&str>,
         flt: Option<&str>,
     ) -> Option<String> {
-        let mut best_id = icao.map(String::from);
+        let final_id = icao
+            .or(reg)
+            .or(flt)
+            .map(|value| self.aliases.get(value).map_or(value, String::as_str))?
+            .to_string();
 
-        if best_id.is_none() {
-            if let Some(r) = reg {
-                best_id = Some(
-                    self.aliases
-                        .get(r)
-                        .cloned()
-                        .unwrap_or_else(|| r.to_string()),
-                );
-            }
+        match (icao, reg, flt) {
+            (Some(icao), Some(reg), _) if reg != icao => self.alias(reg, icao),
+            _ => {}
         }
-
-        if best_id.is_none() {
-            if let Some(f) = flt {
-                best_id = Some(
-                    self.aliases
-                        .get(f)
-                        .cloned()
-                        .unwrap_or_else(|| f.to_string()),
-                );
-            }
+        match (icao, flt) {
+            (Some(icao), Some(flt)) if flt != icao => self.alias(flt, icao),
+            _ => {}
         }
-
-        let final_id = best_id?;
-
-        if let Some(i) = icao {
-            if let Some(r) = reg {
-                if r != i && self.aliases.get(r) != Some(&i.to_string()) {
-                    self.aliases.insert(r.to_string(), i.to_string());
-                    self.merge_state(r, i);
-                }
-            }
-            if let Some(f) = flt {
-                if f != i && self.aliases.get(f) != Some(&i.to_string()) {
-                    self.aliases.insert(f.to_string(), i.to_string());
-                    self.merge_state(f, i);
-                }
-            }
-        } else if let Some(r) = reg {
-            if let Some(f) = flt {
-                if f != r && self.aliases.get(f) != Some(&r.to_string()) {
-                    self.aliases.insert(f.to_string(), r.to_string());
-                    self.merge_state(f, r);
-                }
-            }
+        match (icao, reg, flt) {
+            (None, Some(reg), Some(flt)) if flt != reg => self.alias(flt, reg),
+            _ => {}
         }
 
         Some(final_id)
     }
 
+    fn alias(&mut self, from: &str, to: &str) {
+        if self.aliases.get(from).is_some_and(|known| known == to) {
+            return;
+        }
+        self.aliases.insert(from.to_string(), to.to_string());
+        self.merge_state(from, to);
+    }
+
     fn merge_state(&mut self, from: &str, to: &str) {
-        if let Some(old) = self.entities.remove(from) {
-            let target = self
-                .entities
-                .entry(to.to_string())
-                .or_insert_with(|| old.clone());
-            target.messages += old.messages;
-            if old.lastseen > target.lastseen {
-                target.lastseen = old.lastseen;
+        let Some(mut old) = self.entities.remove(from) else {
+            return;
+        };
+        old.id = to.to_string();
+
+        match self.entities.entry(to.to_string()) {
+            Entry::Vacant(slot) => {
+                slot.insert(old);
             }
-            if target.latitude.is_none() {
-                target.latitude = old.latitude;
-                target.longitude = old.longitude;
-                target.altitude_ft = old.altitude_ft;
-                target.position_time = old.position_time;
+            Entry::Occupied(mut slot) => {
+                let target = slot.get_mut();
+                target.messages += old.messages;
+                target.lastseen = target.lastseen.max(old.lastseen);
+                if target.latitude.is_none() {
+                    target.latitude = old.latitude;
+                    target.longitude = old.longitude;
+                    target.altitude_ft = old.altitude_ft;
+                    target.track = old.track;
+                    target.position_time = old.position_time;
+                }
             }
         }
     }
@@ -267,7 +331,6 @@ impl DatalinkStateVectors {
             .entities
             .entry(update.id.clone())
             .or_insert_with(|| DatalinkEntity {
-                kind: DatalinkEntityKind::Aircraft,
                 id: update.id.clone(),
                 label: update.label.clone(),
                 lastseen: 0.0,
@@ -277,35 +340,30 @@ impl DatalinkStateVectors {
                 track: None,
                 messages: 0,
                 position_time: None,
-                aircraft: Some(DatalinkAircraftInfo {
+                details: DatalinkEntityDetails::Aircraft(DatalinkAircraftInfo {
                     icao24: update.icao24.clone(),
                     registration: update.registration.clone(),
                     aircraft_id: update.aircraft_id.clone(),
                     flight_id: update.flight_id.clone(),
                 }),
-                station: None,
             });
 
-        ac.kind = DatalinkEntityKind::Aircraft;
+        let current = ac.aircraft_info().cloned();
         ac.label = update.label;
-        ac.aircraft = Some(DatalinkAircraftInfo {
-            icao24: ac
-                .aircraft
+        ac.set_aircraft_info(DatalinkAircraftInfo {
+            icao24: current
                 .as_ref()
                 .and_then(|a| a.icao24.clone())
                 .or(update.icao24),
-            registration: ac
-                .aircraft
+            registration: current
                 .as_ref()
                 .and_then(|a| a.registration.clone())
                 .or(update.registration),
-            aircraft_id: ac
-                .aircraft
+            aircraft_id: current
                 .as_ref()
                 .and_then(|a| a.aircraft_id.clone())
                 .or(update.aircraft_id),
-            flight_id: ac
-                .aircraft
+            flight_id: current
                 .as_ref()
                 .and_then(|a| a.flight_id.clone())
                 .or(update.flight_id),
@@ -318,7 +376,6 @@ impl DatalinkStateVectors {
             .entities
             .entry(update.id.clone())
             .or_insert_with(|| DatalinkEntity {
-                kind: DatalinkEntityKind::Station,
                 id: update.id.clone(),
                 label: update.label.clone(),
                 lastseen: 0.0,
@@ -328,8 +385,7 @@ impl DatalinkStateVectors {
                 track: None,
                 messages: 0,
                 position_time: None,
-                aircraft: None,
-                station: Some(DatalinkStationInfo {
+                details: DatalinkEntityDetails::Station(DatalinkStationInfo {
                     station: update.station.clone(),
                     airport: update.airport.clone(),
                     hexcode: update.hexcode.clone(),
@@ -340,9 +396,8 @@ impl DatalinkStateVectors {
                 }),
             });
 
-        station.kind = DatalinkEntityKind::Station;
         station.label = update.label;
-        station.station = Some(DatalinkStationInfo {
+        station.set_station_info(DatalinkStationInfo {
             station: update.station,
             airport: update.airport,
             hexcode: update.hexcode,
@@ -398,25 +453,20 @@ fn apply_kinematics(entity: &mut DatalinkEntity, env: &DecodedEvent, expire: u16
 }
 
 fn extract_station_update(env: &DecodedEvent) -> Option<StationUpdate> {
-    let squitter = squitter_payload(env)?;
-    let station_value = string_field(squitter, &["station"]);
-    let airport = string_field(squitter, &["airport"]);
+    let squitter = squitter_payload(&env.message)?;
+    let station_value = squitter.station.clone();
+    let airport = squitter.airport.clone();
     let station = station_value.clone().or_else(|| airport.clone())?;
-    let hexcode = ground_station_hexcode(env);
-    let link_type = squitter_link_type(squitter);
-    let provider = string_field(squitter, &["provider"]);
-    let frequency_mhz = number_field(squitter, &["frequency_mhz"]);
+    let hexcode = ground_station_hexcode(&env.message);
+    let link_type = squitter.link.map(squitter_link_type);
+    let provider = squitter.provider.clone();
+    let frequency_mhz = squitter.frequency_mhz;
 
     let (latitude, longitude) = env
         .kinematics
         .as_ref()
         .and_then(|k| k.position.map(|p| (Some(p.latitude), Some(p.longitude))))
-        .unwrap_or_else(|| {
-            (
-                number_field(squitter, &["latitude", "lat"]),
-                number_field(squitter, &["longitude", "lon"]),
-            )
-        });
+        .unwrap_or((squitter.latitude, squitter.longitude));
 
     let id = station.clone();
     let label = station_value
@@ -440,15 +490,32 @@ fn extract_station_update(env: &DecodedEvent) -> Option<StationUpdate> {
 }
 
 fn extract_gsif_station_update(env: &DecodedEvent) -> Option<StationUpdate> {
-    let xid = env.message.get("Xid")?;
-    (xid.get("xid_type").and_then(Value::as_str) == Some("GSIF")).then_some(())?;
-    let vdl_params = xid.get("vdl_params")?;
-    let hexcode = ground_station_hexcode(env)?;
-    let airport = string_field(vdl_params, &["airport_coverage"]);
-    let location = vdl_params.get("gs_location");
-    let latitude = location.and_then(|v| number_field(v, &["lat", "latitude"]));
-    let longitude = location.and_then(|v| number_field(v, &["lon", "longitude"]));
-    let supported_frequencies_mhz = supported_frequencies(vdl_params);
+    let ProtocolMessage::Avlc(frame) = &env.message else {
+        return None;
+    };
+    let Some(AvlcPayload::Xid(xid)) = frame.payload.as_ref() else {
+        return None;
+    };
+    (xid.xid_type == "GSIF").then_some(())?;
+
+    let hexcode = ground_station_hexcode(&env.message)?;
+    let airport = xid.vdl_params.airport_coverage.clone();
+    let latitude = xid
+        .vdl_params
+        .gs_location
+        .as_ref()
+        .map(|location| location.lat as f64);
+    let longitude = xid
+        .vdl_params
+        .gs_location
+        .as_ref()
+        .map(|location| location.lon as f64);
+    let supported_frequencies_mhz = xid
+        .vdl_params
+        .freq_support_list
+        .iter()
+        .map(|freq| freq.freq_mhz as f64)
+        .fold(Vec::new(), push_unique_frequency);
     let frequency_mhz = env
         .receiver
         .as_ref()
@@ -471,90 +538,57 @@ fn extract_gsif_station_update(env: &DecodedEvent) -> Option<StationUpdate> {
     })
 }
 
-fn supported_frequencies(vdl_params: &Value) -> Vec<f64> {
-    let Some(values) = vdl_params
-        .get("freq_support_list")
-        .and_then(Value::as_array)
-    else {
-        return Vec::new();
-    };
-    let mut frequencies = Vec::new();
-    for value in values {
-        if let Some(freq) = number_field(value, &["freq_mhz"]) {
-            if !frequencies
-                .iter()
-                .any(|existing: &f64| (*existing - freq).abs() < 0.0005)
-            {
-                frequencies.push(freq);
-            }
-        }
+fn push_unique_frequency(mut frequencies: Vec<f64>, freq: f64) -> Vec<f64> {
+    if !frequencies
+        .iter()
+        .any(|existing| (*existing - freq).abs() < 0.0005)
+    {
+        frequencies.push(freq);
     }
     frequencies
 }
 
-fn ground_station_hexcode(env: &DecodedEvent) -> Option<String> {
-    ["src", "dst"].iter().find_map(|key| {
-        let addr = env.message.get(*key)?;
-        (addr.get("type").and_then(Value::as_str) == Some("ground_station"))
-            .then(|| addr.get("icao24").and_then(Value::as_str))
-            .flatten()
-            .map(|s| s.to_ascii_lowercase())
-    })
-}
-
-fn squitter_payload(env: &DecodedEvent) -> Option<&Value> {
-    for key in ["Squitter", "SQ"] {
-        if let Some(value) = env.message.get(key) {
-            return Some(value);
-        }
-    }
-
-    if let Some(app) = env.message.get("app") {
-        if let Some(value) = app.get("Squitter").or_else(|| app.get("SQ")) {
-            return Some(value);
-        }
-        if app.get("station").is_some() && app.get("airport").is_some() {
-            return Some(app);
-        }
-    }
-
-    None
-}
-
-fn squitter_link_type(value: &Value) -> Option<String> {
-    let link = value.get("link")?;
-    match link {
-        Value::String(value) => match value.as_str() {
-            "Vhf" | "VHF" => Some("VHF".into()),
-            "Satellite" | "SAT" => Some("SAT".into()),
-            other if !other.trim().is_empty() => Some(other.trim().to_string()),
+fn squitter_payload(message: &ProtocolMessage) -> Option<&SquitterMessage> {
+    match message {
+        ProtocolMessage::App(app) => squitter_from_app(app),
+        ProtocolMessage::Acars(acars) => squitter_from_app(&acars.app),
+        ProtocolMessage::Avlc(frame) => match frame.payload.as_ref()? {
+            AvlcPayload::Acars(acars) => squitter_from_app(&acars.app),
             _ => None,
         },
-        Value::Object(map) => map
-            .get("Other")
-            .and_then(Value::as_str)
-            .filter(|s| !s.trim().is_empty())
-            .map(|s| s.trim().to_string()),
+        ProtocolMessage::Airframes(airframes) => airframes.app.as_ref().and_then(squitter_from_app),
+        ProtocolMessage::Hfdl(_) => None,
+    }
+}
+
+fn squitter_from_app(app: &AcarsAppPayload) -> Option<&SquitterMessage> {
+    match app {
+        AcarsAppPayload::Squitter(squitter) => Some(squitter),
         _ => None,
     }
 }
 
-fn string_field(value: &Value, keys: &[&str]) -> Option<String> {
-    keys.iter()
-        .find_map(|key| value.get(*key).and_then(Value::as_str))
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(String::from)
+fn ground_station_hexcode(message: &ProtocolMessage) -> Option<String> {
+    match message {
+        ProtocolMessage::Avlc(frame) => [&frame.src, &frame.dst]
+            .into_iter()
+            .find(|addr| addr.is_ground())
+            .map(|addr| format!("{:06x}", addr.icao24)),
+        ProtocolMessage::Airframes(airframes) => [airframes.src.as_ref(), airframes.dst.as_ref()]
+            .into_iter()
+            .flatten()
+            .find(|addr| addr.addr_type == AirframesAddrType::GroundStation)
+            .map(|addr| addr.icao24.to_ascii_lowercase()),
+        ProtocolMessage::Acars(_) | ProtocolMessage::App(_) | ProtocolMessage::Hfdl(_) => None,
+    }
 }
 
-fn number_field(value: &Value, keys: &[&str]) -> Option<f64> {
-    keys.iter().find_map(|key| {
-        value.get(*key).and_then(|value| {
-            value
-                .as_f64()
-                .or_else(|| value.as_str().and_then(|s| s.trim().parse::<f64>().ok()))
-        })
-    })
+fn squitter_link_type(link: SquitterLink) -> String {
+    match link {
+        SquitterLink::Vhf => "VHF".into(),
+        SquitterLink::Satellite => "SAT".into(),
+        SquitterLink::Other(value) => value.to_string(),
+    }
 }
 
 impl StateCollection for DatalinkStateVectors {
@@ -567,18 +601,76 @@ impl StateCollection for DatalinkStateVectors {
     }
 }
 
-// TODO figure out a better way to do this
 fn deserialize_optional_id<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
-    Ok(match value {
-        None | Some(serde_json::Value::Null) => None,
-        Some(serde_json::Value::String(value)) if value.trim().is_empty() => None,
-        Some(serde_json::Value::String(value)) => Some(value.trim().to_string()),
-        Some(serde_json::Value::Number(value)) => Some(value.to_string()),
-        Some(serde_json::Value::Bool(value)) => Some(value.to_string()),
-        Some(other) => Some(other.to_string()),
-    })
+    struct OptionalIdVisitor;
+
+    impl<'de> serde::de::Visitor<'de> for OptionalIdVisitor {
+        type Value = Option<String>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("null, a string, or a scalar identifier")
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_unit<E>(self) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_some<D2>(self, deserializer: D2) -> Result<Self::Value, D2::Error>
+        where
+            D2: Deserializer<'de>,
+        {
+            deserializer.deserialize_any(self)
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            let trimmed = value.trim();
+            Ok((!trimmed.is_empty()).then(|| trimmed.to_string()))
+        }
+
+        fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            self.visit_str(&value)
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(Some(value.to_string()))
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(Some(value.to_string()))
+        }
+
+        fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(Some(value.to_string()))
+        }
+    }
+
+    deserializer.deserialize_any(OptionalIdVisitor)
 }

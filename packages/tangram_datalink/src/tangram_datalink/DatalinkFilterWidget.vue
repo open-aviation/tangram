@@ -61,8 +61,19 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { datalinkStore, MESSAGE_CATEGORIES, STATION_CATEGORIES, type MessageCategoryId, type StationCategoryId } from "./store";
-import { ENTITY_TYPE, type DatalinkEntity } from "./index";
+import {
+  datalinkStore,
+  MESSAGE_CATEGORIES,
+  STATION_CATEGORIES,
+  type MessageCategoryId,
+  type StationCategoryId
+} from "./store";
+import {
+  ENTITY_TYPE,
+  isAircraftEntity,
+  isStationEntity,
+  type DatalinkEntity
+} from "./index";
 import { inject } from "vue";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
 
@@ -102,10 +113,11 @@ const selectNone = () => {
 /** count aircraft entities in a given category */
 const countFor = (id: MessageCategoryId): number => {
   if (!tangramApi) return 0;
-  const entities = tangramApi.state.getEntitiesByType<DatalinkEntity>(ENTITY_TYPE).value;
+  const entities =
+    tangramApi.state.getEntitiesByType<DatalinkEntity>(ENTITY_TYPE).value;
   let n = 0;
   for (const [eid, entity] of entities) {
-    if (entity.state.kind !== "aircraft") continue;
+    if (!isAircraftEntity(entity.state)) continue;
     const hist = datalinkStore.history.get(eid);
     if (hist?.categories.has(id)) n++;
   }
@@ -115,11 +127,12 @@ const countFor = (id: MessageCategoryId): number => {
 /** count station entities for a given station category */
 const countStations = (id: StationCategoryId): number => {
   if (!tangramApi) return 0;
-  const entities = tangramApi.state.getEntitiesByType<DatalinkEntity>(ENTITY_TYPE).value;
+  const entities =
+    tangramApi.state.getEntitiesByType<DatalinkEntity>(ENTITY_TYPE).value;
   let n = 0;
   for (const [, entity] of entities) {
-    if (entity.state.kind !== "station") continue;
-    const linkType = entity.state.station?.link_type;
+    if (!isStationEntity(entity.state)) continue;
+    const linkType = entity.state.details.data.link_type;
     const cat = linkType === "VDL2" ? "vdl2" : "sq";
     if (cat === id) n++;
   }
