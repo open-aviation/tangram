@@ -659,7 +659,6 @@ watch(
   align-items: center;
   gap: 5px;
 }
-/* dir-badge removed — replaced by dir-bubble */
 .adsc-reg {
   font-family: "Inconsolata", monospace;
   color: var(--t-muted);

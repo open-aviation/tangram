@@ -262,8 +262,6 @@ const HISTORY_LIMIT = 200;
 const ADSC_LIMIT = 50;
 const CPDLC_LIMIT = 100;
 
-// ── Message categories ─────────────────────────────────────────────────────────
-
 export const MESSAGE_CATEGORIES = [
   { id: "adsc", label: "ADS-C", description: "ADS Contract position & route reports" },
   {
@@ -325,7 +323,6 @@ export interface DatalinkSelectionData {
   trajectory: DatalinkEntity[];
   loading: boolean;
   error: string | null;
-  /** legacy: kept for compatibility, mirrors history.messages */
   messages: DatalinkMessage[];
 }
 
