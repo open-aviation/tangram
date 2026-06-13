@@ -263,24 +263,53 @@ const ADSC_LIMIT = 50;
 const CPDLC_LIMIT = 100;
 
 export const MESSAGE_CATEGORIES = [
-  { id: "adsc", label: "ADS-C", description: "ADS Contract position & route reports" },
+  {
+    id: "adsc",
+    label: "ADS-C",
+    description: "Automatic Dependent Surveillance Contract position and route reports"
+  },
   {
     id: "cpdlc",
     label: "CPDLC",
     description: "Controller-Pilot Data Link Communications"
   },
-  { id: "afn", label: "AFN", description: "ATN/FANS logon & addressing" },
-  { id: "text", label: "Free Text", description: "Free-text ACARS messages" },
-  { id: "miam", label: "MIAM", description: "Media Independent Aircraft Messaging" },
+  {
+    id: "afn",
+    label: "AFN",
+    description:
+      "ATN/FANS logon and addressing: Aeronautical Telecommunication Network / Future Air Navigation System"
+  },
+  {
+    id: "text",
+    label: "Free Text",
+    description: "Free-text ACARS messages"
+  },
+  {
+    id: "miam",
+    label: "MIAM",
+    description: "Media Independent Aircraft Messaging"
+  },
   {
     id: "position",
     label: "Position",
     description: "AOC position & service advisory reports"
   },
-  { id: "aoc", label: "AOC", description: "Airline Operational Control" },
-  { id: "oooi", label: "OOOI", description: "Out/Off/On/In operational reports" },
-  { id: "xid", label: "VDL2 XID", description: "VDL2 link management frames" },
-  { id: "other", label: "Other", description: "Other decoded frames" }
+  {
+    id: "aoc",
+    label: "AOC",
+    description: "Airline Operational Control"
+  },
+  {
+    id: "oooi",
+    label: "OOOI",
+    description: "Out/Off/On/In operational reports"
+  },
+  {
+    id: "xid",
+    label: "VDL2 XID",
+    description: "VHF Data Link Mode 2 exchange identification link management frames"
+  },
+  { id: "other", label: "Other" }
 ] as const;
 
 export type MessageCategoryId = (typeof MESSAGE_CATEGORIES)[number]["id"];
@@ -292,8 +321,12 @@ function defaultCategories(): Record<MessageCategoryId, boolean> {
 }
 
 export const STATION_CATEGORIES = [
-  { id: "sq", label: "SQ stations", description: "VHF squitter ground stations" },
-  { id: "vdl2", label: "VDL2 stations", description: "VDL2 GSIF ground stations" }
+  { id: "sq", label: "SQ", description: "VHF squitter ground stations" },
+  {
+    id: "vdl2",
+    label: "VDL2",
+    description: "VHF Data Link Mode 2 GSIF ground stations"
+  }
 ] as const;
 
 export type StationCategoryId = (typeof STATION_CATEGORIES)[number]["id"];
@@ -303,17 +336,14 @@ function defaultStationCategories(): Record<StationCategoryId, boolean> {
 }
 
 export interface DatalinkFilter {
-  /** when false, all entities are visible regardless of the categories below */
-  enabled: boolean;
-  /** per-station-type visibility */
+  /** Per-station-type visibility; all true is the unfiltered default. */
   stations: Record<StationCategoryId, boolean>;
-  /** one toggle per message category; aircraft shown if ≥1 checked category matches */
+  /** Per-aircraft category visibility; all true is the unfiltered default. */
   categories: Record<MessageCategoryId, boolean>;
 }
 
 function makeDefaultFilter(): DatalinkFilter {
   return {
-    enabled: false,
     stations: defaultStationCategories(),
     categories: defaultCategories()
   };

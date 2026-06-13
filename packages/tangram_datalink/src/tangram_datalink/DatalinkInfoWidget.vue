@@ -1,5 +1,15 @@
 <template>
-  <div class="datalink-list">
+  <div
+    ref="listRef"
+    class="datalink-list"
+    tabindex="0"
+    @mouseenter="onListEnter"
+    @mouseleave="onListLeave"
+    @focusin="onListEnter"
+    @focusout="onListFocusOut"
+    @keydown.escape.stop.prevent="clearActiveCallout"
+    @scroll="refreshActiveCallout"
+  >
     <div
       v-for="item in entityList"
       :key="item.id"
@@ -81,309 +91,96 @@
       </div>
 
       <div v-if="isExpanded(item.id)" class="details-body" @click.stop>
-        <!-- ADS-C subsection -->
-        <template
-          v-if="
-            item.state.details.kind === 'aircraft' && adscHistory(item.id).length > 0
-          "
-        >
-          <div class="section-header">ADS-C</div>
-          <div class="adsc-list">
-            <div
-              v-for="(report, idx) in adscHistory(item.id)"
-              :key="idx"
-              class="adsc-report"
-              :class="{ uplink: report.is_uplink }"
-            >
-              <div class="dir-bubble" :class="report.is_uplink ? 'uplink' : 'downlink'">
-                {{ report.is_uplink ? "uplink" : "downlink" }}
-              </div>
-              <div class="adsc-time">
-                {{ formatTime(report.timestamp) }}
-                <span v-if="report.registration" class="adsc-reg">{{
-                  report.registration
-                }}</span>
-                <span v-if="report.atsu_address" class="atsu">{{
-                  report.atsu_address
-                }}</span>
-              </div>
-
-              <!-- Uplink: contract request -->
-              <template v-if="report.is_uplink && report.contract">
-                <span class="adsc-field contract-type">{{
-                  report.contract.kind === "periodic"
-                    ? "Request periodic reports"
-                    : report.contract.kind === "event"
-                      ? "Request event reports"
-                      : report.contract.kind === "emergency"
-                        ? "Request emergency reports"
-                        : report.contract.kind === "cancel_all"
-                          ? "Cancel all contracts"
-                          : report.contract.kind === "cancel"
-                            ? `Cancel contract #${report.contract.number}`
-                            : report.contract.kind
-                }}</span>
-                <span
-                  v-if="
-                    report.contract.number != null &&
-                    !['cancel', 'cancel_all'].includes(report.contract.kind)
-                  "
-                  class="adsc-field muted"
-                  >contract #{{ report.contract.number }}</span
-                >
-                <template v-for="(g, gi) in report.contract.groups" :key="gi">
-                  <span class="adsc-field contract-group">
-                    {{ formatContractGroup(g) }}
-                  </span>
-                </template>
-              </template>
-
-              <!-- Downlink: position report -->
-              <template v-else>
-                <div class="adsc-fields">
-                  <span v-if="report.flight_id" class="adsc-field muted"
-                    >flight {{ report.flight_id }}</span
-                  >
-                  <span v-if="report.position" class="adsc-field">
-                    {{ report.position.latitude.toFixed(4) }}°
-                    {{ report.position.longitude.toFixed(4) }}°
-                    <span v-if="report.altitude_ft">
-                      · FL{{ Math.round(report.altitude_ft / 100) }}</span
-                    >
-                  </span>
-                  <span
-                    v-if="report.track != null || report.ground_speed_kt != null"
-                    class="adsc-field"
-                  >
-                    <span v-if="report.track != null"
-                      >{{ Math.round(report.track) }}°</span
-                    >
-                    <span v-if="report.track != null && report.ground_speed_kt != null">
-                      ·
-                    </span>
-                    <span v-if="report.ground_speed_kt != null"
-                      >{{ Math.round(report.ground_speed_kt) }} kt</span
-                    >
-                    <span
-                      v-if="
-                        report.vertical_speed_fpm != null &&
-                        report.vertical_speed_fpm !== 0
-                      "
-                    >
-                      {{ report.vertical_speed_fpm > 0 ? " ↑" : " ↓"
-                      }}{{ Math.abs(report.vertical_speed_fpm) }} fpm
-                    </span>
-                  </span>
-                  <span v-if="report.next" class="adsc-field next-wpt">
-                    next {{ report.next.latitude.toFixed(3) }}°
-                    {{ report.next.longitude.toFixed(3) }}°
-                    <span v-if="report.next.altitude_ft">
-                      FL{{ Math.round(report.next.altitude_ft / 100) }}</span
-                    >
-                    <span v-if="report.next.eta_secs != null">
-                      in {{ Math.round(report.next.eta_secs / 60) }} min</span
-                    >
-                  </span>
-                  <template v-if="report.intermediate_projections?.length">
-                    <span
-                      v-for="(ip, i) in report.intermediate_projections"
-                      :key="i"
-                      class="adsc-field next-wpt"
-                    >
-                      intmd {{ Math.round(ip.distance_nm) }} nm /
-                      {{ Math.round(ip.track_degrees) }}°
-                      <span v-if="ip.altitude_ft">
-                        FL{{ Math.round(ip.altitude_ft / 100) }}</span
-                      >
-                      <span v-if="ip.eta_secs != null">
-                        in {{ Math.round(ip.eta_secs / 60) }} min</span
-                      >
-                    </span>
-                  </template>
-                  <template v-if="report.fixed_projections?.length">
-                    <span
-                      v-for="(fp, i) in report.fixed_projections"
-                      :key="i"
-                      class="adsc-field next-wpt"
-                    >
-                      fixed {{ fp.latitude.toFixed(3) }}° {{ fp.longitude.toFixed(3) }}°
-                      <span v-if="fp.altitude_ft">
-                        FL{{ Math.round(fp.altitude_ft / 100) }}</span
-                      >
-                      <span v-if="fp.eta_secs != null">
-                        in {{ Math.round(fp.eta_secs / 60) }} min</span
-                      >
-                    </span>
-                  </template>
-                  <span v-if="report.wind_speed_kt != null" class="adsc-field meteo">
-                    <span v-if="report.wind_direction_deg != null"
-                      >{{ Math.round(report.wind_direction_deg) }}° </span
-                    >{{ Math.round(report.wind_speed_kt) }} kt
-                    <span v-if="report.temperature_c != null">
-                      · {{ report.temperature_c }}°C</span
-                    >
-                  </span>
-                  <span
-                    v-if="report.raw_tags.some(t => !knownDownlinkTags.has(t))"
-                    class="adsc-field muted"
-                  >
-                    {{
-                      report.raw_tags.filter(t => !knownDownlinkTags.has(t)).join(", ")
-                    }}
-                  </span>
-                </div>
-              </template>
-            </div>
-          </div>
-        </template>
-
-        <!-- CPDLC subsection -->
-        <template
-          v-if="
-            item.state.details.kind === 'aircraft' && cpdlcHistory(item.id).length > 0
-          "
-        >
-          <div class="section-header">CPDLC</div>
-          <div class="cpdlc-list">
-            <div
-              v-for="(msg, idx) in cpdlcHistory(item.id)"
-              :key="idx"
-              class="cpdlc-msg"
-            >
-              <div
-                class="dir-bubble"
-                :class="msg.direction === 'downlink' ? 'downlink' : 'uplink'"
-              >
-                {{ msg.direction === "downlink" ? "downlink" : "uplink" }}
-              </div>
-              <div class="message-header">
-                <span class="time">{{ formatTime(msg.timestamp) }}</span>
-                <span class="imi-badge">{{ msg.imi }}</span>
-                <span v-if="msg.atsu_address" class="atsu">{{ msg.atsu_address }}</span>
-              </div>
-              <div class="cpdlc-elements">
-                <div
-                  v-for="(el, ei) in msg.elements"
-                  :key="ei"
-                  class="cpdlc-element"
-                  :class="{ additional: el.is_additional }"
-                >
-                  <span class="el-name">#{{ el.id }}</span>
-                  <TreeView v-if="el.body != null" :data="el.body" class="cpdlc-body" />
-                  <span v-else class="el-sentence muted">no body</span>
-                </div>
-                <div
-                  v-if="!msg.elements.length && msg.control_type"
-                  class="cpdlc-element"
-                >
-                  <span class="el-sentence control">{{ msg.control_type }}</span>
-                </div>
-                <div v-if="msg.header?.msg_ref != null" class="cpdlc-ref">
-                  └ ref #{{ msg.header.msg_ref }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <!-- General message feed (collapsible, collapsed by default) -->
-        <div class="section-header feed-header" @click.stop="toggleFeed(item.id)">
-          <span>Feed</span>
-          <span class="feed-count">({{ getMessages(item.id).length }})</span>
-          <span class="feed-chevron">{{ feedExpanded.has(item.id) ? "▾" : "▸" }}</span>
-        </div>
-        <div v-if="feedExpanded.has(item.id)" class="message-feed">
-          <div
-            v-for="msg in getMessages(item.id)"
-            :key="(msg.timestamp || 0) + (msg.raw_frame_hex || '')"
-            class="message-item"
-          >
-            <div class="message-header">
-              <span class="time">{{ getMessageHeader(msg) }}</span>
-            </div>
-            <div v-if="hasAppPayload(getPayloadData(msg))" class="message-payload">
-              <TreeView :data="getPayloadData(msg)" />
-            </div>
-            <div v-if="messageText(msg)" class="raw-text">
-              {{ messageText(msg) }}
-            </div>
-          </div>
-          <div v-if="getMessages(item.id).length === 0" class="no-data">
-            No recent messages.
-          </div>
+        <div v-if="feedRowsByEntity(item.id).length > 0" class="message-feed">
+          <DatalinkFeedRow
+            v-for="row in feedRowsByEntity(item.id)"
+            :key="row.key"
+            :row="row"
+            @register="setFeedRowRef"
+            @preview="previewFeedRow"
+            @clear-preview="clearFeedPreview"
+            @toggle="togglePinnedFeedRow"
+          />
         </div>
       </div>
     </div>
+
+    <Teleport to="body">
+      <DatalinkFeedCallout
+        v-if="activeFeedRow"
+        :row="activeFeedRow"
+        :active-key="activeFeedKey"
+        :tree-key="treeFeedKey"
+        :pinned="Boolean(pinnedFeedKey)"
+        :hitbox-style="calloutHitboxStyle"
+        :bridge-style="calloutBridgeStyle"
+        :panel-style="calloutPanelStyle"
+        @keep-open="keepCalloutOpen"
+        @schedule-close="scheduleHoverClear"
+        @clear="clearActiveCallout"
+      />
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, inject, reactive, watch } from "vue";
-import type { TangramApi } from "@open-aviation/tangram-core/api";
 import {
+  computed,
+  inject,
+  markRaw,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  reactive,
+  ref,
+  toRaw,
+  watch,
+  type Component,
+  type CSSProperties
+} from "vue";
+import type { TangramApi } from "@open-aviation/tangram-core/api";
+import { useVimList } from "@open-aviation/tangram-core/keyboard";
+import {
+  MESSAGE_CATEGORIES,
+  classifyCategory,
   datalinkStore,
-  messageApp,
-  messageData,
-  messageLabel,
   type DatalinkMessage,
-  type AdscContractGroupInfo,
-  type JsonObject
+  type MessageCategoryId
 } from "./store";
 import { ENTITY_TYPE, type DatalinkEntity } from "./index";
 import { airportName } from "./airport";
-import TreeView from "./TreeView.vue";
+import DatalinkFeedCallout from "./DatalinkFeedCallout.vue";
+import DatalinkFeedRow, { type DatalinkFeedRowModel } from "./DatalinkFeedRow.vue";
+import AdscSummary from "./AdscSummary.vue";
+import CpdlcSummary from "./CpdlcSummary.vue";
+import DefaultMessageSummary from "./DefaultMessageSummary.vue";
+import { messageKeyParts, messageText } from "./summary_helpers";
+import { createImperativeRowClassSync } from "./useImperativeRowClasses";
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) throw new Error("assert: tangram api not provided");
 
 const expandedIds = reactive(new Set<string>());
-const feedExpanded = reactive(new Set<string>());
+const listRef = ref<HTMLElement | null>(null);
+const isFeedNavigationActive = ref(false);
+const hoveredFeedKey = ref<string | null>(null);
+const pinnedFeedKey = ref<string | null>(null);
+const treeFeedKey = ref<string | null>(null);
+const calloutHitboxStyle = ref<CSSProperties>({});
+const calloutBridgeStyle = ref<CSSProperties>({});
+const calloutPanelStyle = ref<CSSProperties>({});
+const feedRowRefs = new Map<string, HTMLElement>();
+let treeFrame: number | null = null;
+let hoverClearTimer: number | null = null;
+const rowClasses = createImperativeRowClassSync(feedRowRefs);
 
-// Tags that have structured rendering; all others shown as a muted fallback line
-const knownDownlinkTags = new Set([
-  "BasicReport",
-  "EmergencyBasicReport",
-  "WaypointChangeEvent",
-  "LateralDeviationChangeEvent",
-  "VerticalRateChangeEvent",
-  "AltitudeRangeEvent",
-  "FlightId",
-  "PredictedRoute",
-  "EarthReferenceData",
-  "AirReferenceData",
-  "IntermediateProjection",
-  "FixedProjection",
-  "MeteoData",
-  "Acknowledgement",
-  "NegativeAcknowledgement",
-  "NoncomplianceNotification"
-]);
+const messageCategoryLabel = new Map<MessageCategoryId, string>(
+  MESSAGE_CATEGORIES.map(category => [category.id, category.label])
+);
 
-const contractGroupLabel: Record<string, string> = {
-  report_interval: "Report interval",
-  flight_id: "Flight ID",
-  predicted_route: "Predicted route",
-  earth_reference_data: "Earth ref data",
-  air_reference_data: "Air ref data",
-  meteo_data: "Meteo data",
-  airframe_id: "Airframe ID",
-  lateral_deviation_change: "Lateral deviation",
-  vertical_speed_change: "Vertical speed change",
-  altitude_range: "Altitude range",
-  report_waypoint_changes: "Waypoint changes",
-  aircraft_intent_data: "Aircraft intent"
-};
+type FeedRow = DatalinkFeedRowModel;
 
-const formatContractGroup = (g: AdscContractGroupInfo): string => {
-  const label = contractGroupLabel[g.kind] ?? g.kind;
-  if (g.interval_secs != null) return `${label}: every ${g.interval_secs}s`;
-  if (g.modulus != null) return `${label} (mod ${g.modulus})`;
-  if (g.threshold_nm != null) return `${label}: ±${g.threshold_nm} nm`;
-  if (g.threshold_fpm != null) return `${label}: >${g.threshold_fpm} fpm`;
-  if (g.ceiling_ft != null) return `${label}: ${g.floor_ft}–${g.ceiling_ft} ft`;
-  if (g.projection_time_mins != null) return `${label}: ${g.projection_time_mins} min`;
-  return label;
-};
+const EMPTY_FEED_ROWS: FeedRow[] = [];
 
 const entityList = computed(() => {
   const list = [];
@@ -411,19 +208,6 @@ const toggleExpand = (id: string) => {
   }
 };
 
-const toggleFeed = (id: string) => {
-  if (feedExpanded.has(id)) feedExpanded.delete(id);
-  else feedExpanded.add(id);
-};
-
-const adscHistory = (id: string) => datalinkStore.history.get(id)?.adsc ?? [];
-const cpdlcHistory = (id: string) => datalinkStore.history.get(id)?.cpdlc ?? [];
-
-const formatTime = (ts: number | null | undefined) => {
-  if (!ts) return "N/A";
-  return new Date(ts * 1000).toISOString().substring(11, 19) + "Z";
-};
-
 const stationKindLabel = (linkType: string | null | undefined) => {
   return linkType === "VDL2" ? "VDL2" : `SQ: ${linkType || "?"}`;
 };
@@ -432,82 +216,260 @@ const formatFrequencies = (frequencies: number[]) => {
   return frequencies.map(freq => `${freq.toFixed(3)} MHz`).join(", ");
 };
 
-const hasAppPayload = (data: unknown) => {
-  if (!data) return false;
-  if (typeof data === "string") return false;
-  if (Array.isArray(data) && data.length === 0) return false;
-  if (typeof data === "object" && Object.keys(data).length === 0) return false;
-  return true;
-};
-
-const isRecord = (value: unknown): value is JsonObject =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
-
-const variantName = (value: unknown): string | null => {
-  if (typeof value === "string") return value;
-  if (!isRecord(value)) return null;
-  const keys = Object.keys(value);
-  return keys.length === 1 ? keys[0] : null;
-};
-
-const variantPayload = (value: unknown, key: string): unknown =>
-  isRecord(value) ? value[key] : undefined;
-
-const stringField = (value: unknown, key: string): string | undefined => {
-  if (!isRecord(value)) return undefined;
-  const field = value[key];
-  return typeof field === "string" ? field : undefined;
-};
-
-const getPayloadData = (msg: DatalinkMessage) => msg.message;
-
-const messageText = (msg: DatalinkMessage): string | undefined => {
-  const data = messageData(msg);
-  const payload = isRecord(data?.payload) ? data.payload : null;
-  return (
-    stringField(data, "text") ??
-    stringField(data, "txt") ??
-    stringField(payload, "text") ??
-    stringField(payload, "txt")
-  );
-};
-
 const getMessages = (id: string) => {
   return datalinkStore.selected.get(id)?.messages || [];
 };
 
-const getMessageHeader = (msg: DatalinkMessage) => {
-  const summary = getMessageSummary(msg);
-  return summary
-    ? `${formatTime(msg.timestamp)} · ${summary}`
-    : formatTime(msg.timestamp);
+const feedMessageKey = (entityId: string, msg: DatalinkMessage) =>
+  `${entityId}:${messageKeyParts(msg)}`;
+
+const summaryComponentByCategory: Partial<Record<MessageCategoryId, Component>> = {
+  adsc: markRaw(AdscSummary),
+  cpdlc: markRaw(CpdlcSummary)
 };
 
-const withMessageMeta = (parts: string[], msg: DatalinkMessage) => {
-  const label = messageLabel(msg);
-  if (label) parts.push(label);
-  return parts.join(" ");
+const defaultSummaryComponent = markRaw(DefaultMessageSummary);
+
+const summaryComponentFor = (category: MessageCategoryId) =>
+  category === "text"
+    ? undefined
+    : (summaryComponentByCategory[category] ?? defaultSummaryComponent);
+
+const feedRows = computed<FeedRow[]>(() => {
+  const rows: FeedRow[] = [];
+  const keyCounts = new Map<string, number>();
+  for (const item of entityList.value) {
+    for (const msg of getMessages(item.id)) {
+      const rawMsg = markRaw(toRaw(msg) as DatalinkMessage);
+      const category = classifyCategory(rawMsg);
+      const baseKey = feedMessageKey(item.id, rawMsg);
+      const keyCount = keyCounts.get(baseKey) ?? 0;
+      keyCounts.set(baseKey, keyCount + 1);
+      rows.push({
+        entityId: item.id,
+        key: keyCount === 0 ? baseKey : `${baseKey}:${keyCount}`,
+        index: rows.length,
+        msg: rawMsg,
+        category,
+        categoryLabel: messageCategoryLabel.get(category) ?? category,
+        summaryComponent: summaryComponentFor(category),
+        text: messageText(rawMsg)
+      });
+    }
+  }
+  return rows;
+});
+
+const feedRowsByEntityMap = computed(() => {
+  const rowsByEntity = new Map<string, FeedRow[]>();
+  for (const row of feedRows.value) {
+    const rows = rowsByEntity.get(row.entityId);
+    if (rows) rows.push(row);
+    else rowsByEntity.set(row.entityId, [row]);
+  }
+  return rowsByEntity;
+});
+
+const feedRowsByKey = computed(() => {
+  const rowsByKey = new Map<string, FeedRow>();
+  for (const row of feedRows.value) rowsByKey.set(row.key, row);
+  return rowsByKey;
+});
+
+const feedRowsByEntity = (entityId: string) =>
+  feedRowsByEntityMap.value.get(entityId) ?? EMPTY_FEED_ROWS;
+
+const updateCalloutAnchor = (key: string | null) => {
+  if (key == null) return;
+  const row = feedRowRefs.get(key);
+  if (!row) return;
+
+  const rect = row.getBoundingClientRect();
+  const gap = 10;
+  const panelLeft = Math.min(rect.right + gap, window.innerWidth - 320);
+  const panelTop = Math.max(8, Math.min(rect.top, window.innerHeight - 180));
+  const panelWidth = Math.max(280, Math.min(520, window.innerWidth - panelLeft - 8));
+  const hitboxLeft = Math.min(rect.right, panelLeft);
+  const bridgeWidth = Math.max(0, panelLeft - hitboxLeft);
+  const maxHeight = Math.max(180, window.innerHeight - panelTop - 8);
+  calloutHitboxStyle.value = {
+    left: `${hitboxLeft}px`,
+    top: `${panelTop}px`,
+    width: `${bridgeWidth + panelWidth}px`,
+    maxHeight: `${maxHeight}px`
+  };
+  calloutBridgeStyle.value = { width: `${bridgeWidth}px` };
+  calloutPanelStyle.value = {
+    width: `${panelWidth}px`,
+    maxHeight: `${maxHeight}px`
+  };
 };
 
-const getMessageSummary = (msg: DatalinkMessage) => {
-  const app = messageApp(msg);
-  const appKind = variantName(app);
-  const arinc = variantPayload(app, "Arinc622");
-  const imi = stringField(arinc, "imi");
-  const payloadKind = stringField(isRecord(arinc) ? arinc.payload : undefined, "kind");
-
-  const parts = [msg.message.kind];
-  if (appKind) parts.push(appKind);
-  if (imi) parts.push(imi);
-  if (payloadKind) parts.push(payloadKind);
-
-  const data = messageData(msg);
-  const avlcPayload = isRecord(data?.payload) ? data.payload : null;
-  if (msg.message.kind === "avlc" && avlcPayload?.X25) parts.push("X25");
-  if (msg.message.kind === "avlc" && avlcPayload?.Xid) parts.push("XID");
-
-  return withMessageMeta(parts, msg);
+const refreshActiveCallout = () => {
+  updateCalloutAnchor(activeFeedKey.value);
 };
+
+const cancelTreeFrame = () => {
+  if (treeFrame == null) return;
+  window.cancelAnimationFrame(treeFrame);
+  treeFrame = null;
+};
+
+const cancelHoverClear = () => {
+  if (hoverClearTimer == null) return;
+  window.clearTimeout(hoverClearTimer);
+  hoverClearTimer = null;
+};
+
+const scheduleHoverClear = () => {
+  if (pinnedFeedKey.value) return;
+  cancelHoverClear();
+  hoverClearTimer = window.setTimeout(() => {
+    hoveredFeedKey.value = null;
+    hoverClearTimer = null;
+  }, 140);
+};
+
+const keepCalloutOpen = () => {
+  cancelHoverClear();
+};
+
+const scheduleTreeRender = (key: string | null) => {
+  cancelTreeFrame();
+  treeFeedKey.value = null;
+  if (key == null) return;
+
+  treeFrame = window.requestAnimationFrame(() => {
+    treeFrame = null;
+    if (activeFeedKey.value === key) treeFeedKey.value = key;
+  });
+};
+
+const setFeedRowRef = (key: string, element: Element | null) => {
+  if (element instanceof HTMLElement) {
+    feedRowRefs.set(key, element);
+    if (activeFeedKey.value === key) updateCalloutAnchor(key);
+  } else {
+    feedRowRefs.delete(key);
+  }
+};
+
+const previewFeedRow = (key: string) => {
+  cancelHoverClear();
+  if (pinnedFeedKey.value && pinnedFeedKey.value !== key) return;
+  hoveredFeedKey.value = key;
+  updateCalloutAnchor(key);
+};
+
+const clearFeedPreview = (key: string) => {
+  if (pinnedFeedKey.value === key) return;
+  if (hoveredFeedKey.value === key) scheduleHoverClear();
+};
+
+const clearActiveCallout = () => {
+  cancelHoverClear();
+  hoveredFeedKey.value = null;
+  pinnedFeedKey.value = null;
+  setFocus(null);
+};
+
+const togglePinnedFeedRow = (key: string) => {
+  if (pinnedFeedKey.value === key) {
+    clearActiveCallout();
+    return;
+  }
+
+  pinnedFeedKey.value = key;
+  hoveredFeedKey.value = null;
+  updateCalloutAnchor(key);
+  const index = feedRows.value.findIndex(row => row.key === key);
+  if (index >= 0) setFocus(index);
+};
+
+const onListEnter = () => {
+  isFeedNavigationActive.value = true;
+  listRef.value?.focus({ preventScroll: true });
+};
+
+const onListLeave = () => {
+  isFeedNavigationActive.value = false;
+  if (pinnedFeedKey.value == null) scheduleHoverClear();
+  setFocus(null);
+};
+
+const onListFocusOut = (event: FocusEvent) => {
+  const nextTarget = event.relatedTarget;
+  if (nextTarget instanceof Node && listRef.value?.contains(nextTarget)) return;
+  onListLeave();
+};
+
+const { focusedIndex, setFocus } = useVimList(feedRows, {
+  isActive: isFeedNavigationActive,
+  target: listRef,
+  actionBindings: {
+    space: "select",
+    enter: "select"
+  },
+  onAction: (action, start) => {
+    if (action !== "select") return;
+    const row = feedRows.value[start];
+    if (row) togglePinnedFeedRow(row.key);
+  }
+});
+
+const focusedFeedKey = computed(() => {
+  const index = focusedIndex.value;
+  return index == null ? null : (feedRows.value[index]?.key ?? null);
+});
+
+const activeFeedKey = computed(
+  () => pinnedFeedKey.value ?? hoveredFeedKey.value ?? focusedFeedKey.value
+);
+
+const activeFeedRow = computed(() =>
+  activeFeedKey.value == null
+    ? null
+    : (feedRowsByKey.value.get(activeFeedKey.value) ?? null)
+);
+
+watch(focusedFeedKey, async key => {
+  rowClasses.setFocused(key);
+  if (key == null) return;
+
+  await nextTick();
+  const row = feedRowRefs.get(key);
+  row?.scrollIntoView({ block: "nearest" });
+  updateCalloutAnchor(key);
+});
+
+watch(activeFeedKey, key => {
+  rowClasses.setActive(key);
+  rowClasses.setPinned(pinnedFeedKey.value);
+  updateCalloutAnchor(key);
+  scheduleTreeRender(key);
+});
+
+watch(pinnedFeedKey, key => {
+  rowClasses.setPinned(key);
+});
+
+watch(feedRowsByKey, rowsByKey => {
+  if (hoveredFeedKey.value && !rowsByKey.has(hoveredFeedKey.value))
+    hoveredFeedKey.value = null;
+  if (pinnedFeedKey.value && !rowsByKey.has(pinnedFeedKey.value))
+    pinnedFeedKey.value = null;
+  rowClasses.sync(activeFeedKey.value, focusedFeedKey.value, pinnedFeedKey.value);
+});
+
+onMounted(() => {
+  window.addEventListener("resize", refreshActiveCallout);
+});
+
+onUnmounted(() => {
+  cancelTreeFrame();
+  cancelHoverClear();
+  window.removeEventListener("resize", refreshActiveCallout);
+});
 
 watch(
   () => entityList.value.length,
@@ -592,246 +554,13 @@ watch(
   border: 1px solid var(--t-accent2);
 }
 .details-body {
-  padding: 6px 8px 10px;
+  padding: 4px 5px 5px;
   cursor: default;
 }
 
-/* ── Section headers ── */
-.section-header {
-  font-size: 0.7em;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--t-muted);
-  border-top: 1px solid var(--t-border);
-  padding: 6px 0 3px;
-  margin-bottom: 4px;
-}
-
-/* ── ADS-C ── */
-.adsc-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-.adsc-report {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border-left: 2px solid var(--t-accent2);
-  padding-left: 8px;
-  padding-right: 36px;
-}
-.adsc-report.uplink {
-  border-left-color: var(--t-muted);
-  opacity: 0.85;
-}
-.dir-bubble {
-  position: absolute;
-  top: 2px;
-  right: 0;
-  font-family: "Inconsolata", monospace;
-  font-size: 0.72em;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  padding: 1px 5px;
-  border-radius: 4px;
-  line-height: 1.5;
-  pointer-events: none;
-}
-.dir-bubble.downlink {
-  background: color-mix(in oklch, var(--t-accent1) 18%, transparent);
-  color: color-mix(in oklch, var(--t-accent1) 80%, var(--t-fg));
-  border: 1px solid color-mix(in oklch, var(--t-accent1) 40%, transparent);
-}
-.dir-bubble.uplink {
-  background: color-mix(in oklch, var(--t-muted) 12%, transparent);
-  color: var(--t-muted);
-  border: 1px solid color-mix(in oklch, var(--t-muted) 30%, transparent);
-}
-.adsc-time {
-  font-family: "Inconsolata", monospace;
-  font-size: 0.8em;
-  color: var(--t-muted);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.adsc-reg {
-  font-family: "Inconsolata", monospace;
-  color: var(--t-muted);
-}
-.adsc-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.adsc-field {
-  font-family: "B612", monospace;
-  color: var(--t-fg);
-}
-.adsc-field.next-wpt {
-  color: color-mix(in oklch, var(--t-accent1), var(--t-fg) 30%);
-}
-.adsc-field.meteo {
-  color: var(--t-muted);
-}
-.adsc-field.muted {
-  color: var(--t-muted);
-  font-size: 0.8em;
-}
-.adsc-field.contract-type {
-  font-weight: 600;
-  color: var(--t-fg);
-}
-.adsc-field.contract-group {
-  color: var(--t-muted);
-  font-size: 0.82em;
-  padding-left: 8px;
-}
-
-/* ── CPDLC ── */
-.cpdlc-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-.cpdlc-msg {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border-left: 2px solid var(--t-accent1);
-  padding-left: 8px;
-  padding-right: 36px;
-}
-.cpdlc-msg .message-header {
-  font-family: "Inconsolata", monospace;
-  color: var(--t-muted);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: nowrap;
-}
-.cpdlc-msg .time {
-  font-family: "Inconsolata", monospace;
-  font-size: 1em;
-  color: var(--t-muted);
-}
-.imi-badge {
-  font-family: "Inconsolata", monospace;
-  font-size: 1em;
-  color: var(--t-muted);
-  border: 1px solid var(--t-border);
-  border-radius: 3px;
-  padding: 0 3px;
-}
-.atsu {
-  font-family: "Inconsolata", monospace;
-  font-size: 1em;
-  color: var(--t-muted);
-}
-.cpdlc-elements {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.cpdlc-element {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  font-family: "B612", monospace;
-  color: var(--t-fg);
-}
-.cpdlc-element.additional {
-  opacity: 0.8;
-}
-.el-name {
-  font-family: "Inconsolata", monospace;
-  font-size: 0.8em;
-  color: var(--t-muted);
-  white-space: nowrap;
-  flex-shrink: 0;
-  min-width: 36px;
-}
-.el-sentence {
-  color: var(--t-fg);
-}
-.el-sentence.control {
-  font-style: italic;
-  color: var(--t-muted);
-}
-.cpdlc-ref {
-  font-family: "Inconsolata", monospace;
-  font-size: 0.75em;
-  color: var(--t-muted);
-  padding-left: 4px;
-}
-
-/* ── General feed ── */
-.feed-header {
-  cursor: pointer;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.feed-header:hover {
-  color: var(--t-fg);
-}
-.feed-count {
-  font-size: 0.85em;
-  color: var(--t-muted);
-}
-.feed-chevron {
-  font-size: 0.7em;
-  color: var(--t-muted);
-  margin-left: auto;
-}
 .message-feed {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-.message-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border-left: 2px solid var(--t-border);
-  padding-left: 8px;
-}
-.message-header {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 0.85em;
-  flex-wrap: wrap;
-}
-.time {
-  color: var(--t-muted);
-  font-family: "Inconsolata", monospace;
-}
-.message-payload {
-  margin-top: 4px;
-  padding: 2px 0 2px 8px;
-  border-left: 2px solid var(--t-border);
-  overflow-x: auto;
-}
-.raw-text {
-  font-family: "Inconsolata", monospace;
-  font-size: 0.85em;
-  color: var(--t-fg);
-  white-space: pre-wrap;
-  word-break: break-word;
-  margin-top: 4px;
-}
-.no-data {
-  color: var(--t-muted);
-  font-style: italic;
-  font-size: 0.9em;
-  text-align: center;
+  gap: 5px;
 }
 </style>

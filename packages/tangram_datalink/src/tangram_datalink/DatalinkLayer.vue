@@ -16,7 +16,6 @@ import { datalinkStore } from "./store";
 
 const entityPassesFilter = (entity: { id: string; state: DatalinkEntity }) => {
   const { filter } = datalinkStore;
-  if (!filter.enabled) return true;
 
   if (isStationEntity(entity.state)) {
     const linkType = entity.state.details.data.link_type;
@@ -24,9 +23,10 @@ const entityPassesFilter = (entity: { id: string; state: DatalinkEntity }) => {
     return filter.stations[stationCat] ?? true;
   }
 
-  // aircraft: show if any checked category matches
   const hist = datalinkStore.history.get(entity.id);
-  if (!hist || hist.categories.size === 0) return false;
+  if (!hist || hist.categories.size === 0) {
+    return Object.values(filter.categories).every(Boolean);
+  }
   for (const cat of hist.categories) {
     if (filter.categories[cat]) return true;
   }
@@ -255,8 +255,6 @@ watch(
       slot: "entities"
     });
 
-    /** Unwrap a longitude so it takes the short arc (<180°) relative to a reference longitude.
-     * Works with coordinates outside ±180° — deck.gl handles those correctly. */
     function unwrapLon(lon: number, ref: number): number {
       while (lon - ref > 180) lon -= 360;
       while (ref - lon > 180) lon += 360;
