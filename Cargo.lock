@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "acars"
 version = "0.1.0"
-source = "git+https://github.com/xoolive/datalink.git?rev=12745c72e1b329b25dee6104db1c558b047c632e#12745c72e1b329b25dee6104db1c558b047c632e"
+source = "git+https://github.com/xoolive/datalink.git?rev=688407cf58bf13a99000c4c98104f12e33d074cd#688407cf58bf13a99000c4c98104f12e33d074cd"
 dependencies = [
  "base64",
  "deku",
@@ -1794,6 +1794,16 @@ dependencies = [
  "recursive",
  "regex",
  "sqlparser",
+]
+
+[[package]]
+name = "datalink"
+version = "0.1.0"
+source = "git+https://github.com/xoolive/datalink.git?rev=688407cf58bf13a99000c4c98104f12e33d074cd#688407cf58bf13a99000c4c98104f12e33d074cd"
+dependencies = [
+ "acars",
+ "chrono",
+ "serde",
 ]
 
 [[package]]
@@ -5024,9 +5034,9 @@ dependencies = [
 name = "tangram_datalink"
 version = "0.4.1"
 dependencies = [
- "acars",
  "anyhow",
  "chrono",
+ "datalink",
  "futures",
  "hex",
  "pyo3",

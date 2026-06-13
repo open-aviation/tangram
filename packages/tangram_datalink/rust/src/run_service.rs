@@ -1,4 +1,5 @@
-use crate::{state::DatalinkStateVectors, state::DecodedEvent, DatalinkConfig};
+use crate::{state::DatalinkStateVectors, DatalinkConfig};
+use datalink::event::DecodedEvent;
 use futures::StreamExt;
 use redis::AsyncCommands;
 use std::sync::Arc;
