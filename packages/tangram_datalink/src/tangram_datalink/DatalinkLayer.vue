@@ -40,8 +40,6 @@ const layerDisposable: Ref<Disposable | null> = ref(null);
 const routeLayerDisposable: Ref<Disposable | null> = ref(null);
 const dotsLayerDisposable: Ref<Disposable | null> = ref(null);
 
-// ── Geometry helpers ──────────────────────────────────────────
-
 const DEG = Math.PI / 180;
 const EARTH_NM = 3440.065;
 
@@ -265,7 +263,6 @@ watch(
       return lon;
     }
 
-    // ── predicted route overlay: lines + dots ───────────────────────────────
     type Seg = { from: [number, number]; to: [number, number] };
     type Dot = { pos: [number, number]; eta_secs?: number; altitude_ft?: number };
     const routeSegments: Seg[] = [];
