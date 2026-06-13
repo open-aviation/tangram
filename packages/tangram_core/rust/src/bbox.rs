@@ -115,6 +115,30 @@ pub fn is_within_bbox<T: Positioned>(
 
     bbox.south_west_lat <= lat
         && lat <= bbox.north_east_lat
-        && bbox.south_west_lng <= lng
-        && lng <= bbox.north_east_lng
+        && longitude_within_bbox(lng, bbox.south_west_lng, bbox.north_east_lng)
+}
+
+fn longitude_within_bbox(lng: f64, west: f64, east: f64) -> bool {
+    if (east - west).abs() >= 360.0 {
+        return true;
+    }
+
+    let lng = normalize_longitude(lng);
+    let west = normalize_longitude(west);
+    let east = normalize_longitude(east);
+
+    if west <= east {
+        west <= lng && lng <= east
+    } else {
+        west <= lng || lng <= east
+    }
+}
+
+fn normalize_longitude(lng: f64) -> f64 {
+    let lng = (lng + 180.0).rem_euclid(360.0) - 180.0;
+    if lng == -180.0 {
+        180.0
+    } else {
+        lng
+    }
 }
