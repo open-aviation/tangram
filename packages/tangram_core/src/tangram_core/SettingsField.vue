@@ -7,9 +7,7 @@
     <!-- skip the header if this component is rendering a selected union member 
          because the parent's selector already acts as the label/header. -->
     <div v-if="!props.isUnionMember" class="field-header">
-      <div class="field-label" :title="schema.description">
-        {{ label }}
-      </div>
+      <HoverLabel class="field-label" :label="label" :description="description" />
 
       <div class="field-control">
         <div v-if="effectiveSchema.tangram_widget" class="widget-container">
@@ -146,6 +144,7 @@
 import { computed, inject, ref, watch } from "vue";
 import type { TangramApi, JsonSchema } from "./api";
 import ColorPicker from "./ColorPicker.vue";
+import HoverLabel from "./HoverLabel.vue";
 
 const props = defineProps<{
   fieldKey?: string;
@@ -246,6 +245,7 @@ const label = computed(() => {
   if (props.isUnionMember) return ""; // handled by parent selector
   return (resolvedBaseSchema.value.title as string) || props.fieldKey || "Field";
 });
+const description = computed(() => resolvedBaseSchema.value.description);
 const currentPath = computed(() => {
   if (!props.fieldKey) return props.parentPath || "";
   return props.parentPath ? `${props.parentPath}.${props.fieldKey}` : props.fieldKey;

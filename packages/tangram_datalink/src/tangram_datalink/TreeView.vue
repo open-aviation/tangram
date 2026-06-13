@@ -1,71 +1,122 @@
+<!-- TODO we migrated away from recursive rendering for now, which looks ugly
+but so we might want to revisit later -->
 <template>
-  <div class="tree-view">
-    <template v-if="isObject(data)">
-      <div v-if="Object.keys(data).length === 0" class="tree-row">
-        <span class="tree-val null">{}</span>
-      </div>
-      <div v-for="(val, key) in data" :key="key" class="tree-row">
-        <span class="tree-key">{{ key }}:</span>
-        <span v-if="val === null" class="tree-val null">null</span>
-        <TreeView v-else-if="isComplex(val)" :data="val" class="tree-child" />
-        <span v-else-if="isObject(val)" class="tree-val null">{}</span>
-        <span v-else class="tree-val">{{ String(val) }}</span>
-      </div>
-    </template>
-    <template v-else-if="Array.isArray(data)">
-      <div v-if="data.length === 0" class="tree-row">
-        <span class="tree-val null">[]</span>
-      </div>
-      <div v-for="(val, idx) in data" :key="idx" class="tree-row">
-        <span class="tree-key">[{{ idx }}]</span>
-        <span v-if="val === null" class="tree-val null">null</span>
-        <TreeView v-else-if="isComplex(val)" :data="val" class="tree-child" />
-        <span v-else-if="isObject(val)" class="tree-val null">{}</span>
-        <span v-else class="tree-val">{{ String(val) }}</span>
-      </div>
-    </template>
-    <span v-else-if="data === null" class="tree-val null">null</span>
-    <span v-else class="tree-val">{{ String(data) }}</span>
-  </div>
+  <pre class="tree-view">{{ text }}</pre>
 </template>
 
 <script setup lang="ts">
-defineProps<{ data: unknown }>();
-const isObject = (v: unknown): v is Record<string, unknown> =>
-  v !== null && typeof v === "object" && !Array.isArray(v);
-const isComplex = (v: unknown): v is object =>
-  v !== null && typeof v === "object" && Object.keys(v).length > 0;
+import { shallowRef, toRaw, watch } from "vue";
+
+const props = withDefaults(
+  defineProps<{
+    data: unknown;
+    maxRows?: number;
+  }>(),
+  { maxRows: 800 }
+);
+
+type Frame = {
+  value: unknown;
+  depth: number;
+  label: string;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+const primitiveValue = (value: unknown) => {
+  if (value === null) return "null";
+  if (typeof value === "string") return value;
+  return String(value);
+};
+
+const rowText = (depth: number, label: string, value: string) => {
+  const indent = "  ".repeat(depth);
+  return label ? `${indent}${label}: ${value}` : `${indent}${value}`;
+};
+
+const flattenTree = (data: unknown, maxRows: number) => {
+  const lines: string[] = [];
+  const stack: Frame[] = [{ value: toRaw(data), depth: 0, label: "" }];
+  const seen = new WeakSet<object>();
+
+  while (stack.length > 0) {
+    if (lines.length >= maxRows) {
+      lines.push(`truncated after ${maxRows} rows`);
+      break;
+    }
+
+    const frame = stack.pop()!;
+    const value = toRaw(frame.value);
+
+    if (Array.isArray(value)) {
+      if (frame.label || value.length === 0) {
+        lines.push(rowText(frame.depth, frame.label, value.length === 0 ? "[]" : ""));
+      }
+
+      if (seen.has(value)) {
+        lines.push(rowText(frame.depth + 1, "", "[circular]"));
+        continue;
+      }
+      seen.add(value);
+
+      for (let i = value.length - 1; i >= 0; i--) {
+        stack.push({
+          value: value[i],
+          depth: frame.label ? frame.depth + 1 : frame.depth,
+          label: `[${i}]`
+        });
+      }
+      continue;
+    }
+
+    if (isRecord(value)) {
+      const entries = Object.entries(value);
+      if (frame.label || entries.length === 0) {
+        lines.push(rowText(frame.depth, frame.label, entries.length === 0 ? "{}" : ""));
+      }
+
+      if (seen.has(value)) {
+        lines.push(rowText(frame.depth + 1, "", "[circular]"));
+        continue;
+      }
+      seen.add(value);
+
+      for (let i = entries.length - 1; i >= 0; i--) {
+        const [key, child] = entries[i];
+        stack.push({
+          value: child,
+          depth: frame.label ? frame.depth + 1 : frame.depth,
+          label: key
+        });
+      }
+      continue;
+    }
+
+    lines.push(rowText(frame.depth, frame.label, primitiveValue(value)));
+  }
+
+  return lines.join("\n");
+};
+
+const text = shallowRef("");
+
+watch(
+  () => [props.data, props.maxRows] as const,
+  ([data, maxRows]) => {
+    text.value = flattenTree(data, maxRows);
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>
 .tree-view {
+  margin: 0;
   font-family: "Inconsolata", monospace;
   line-height: 1.3;
-}
-.tree-row {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  margin-bottom: 0px;
-}
-.tree-child {
-  flex: 1 1 100%;
-  padding-left: 8px;
-  border-left: 1px solid color-mix(in srgb, var(--t-border) 60%, transparent);
-  margin-left: 4px;
-  margin-top: 1px;
-}
-.tree-key {
-  color: color-mix(in srgb, var(--t-fg) 70%, transparent);
-  margin-right: 4px;
-  font-weight: 500;
-}
-.tree-val {
   color: var(--t-fg);
-  word-break: break-word;
-}
-.tree-val.null {
-  color: var(--t-muted);
-  font-style: italic;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 </style>

@@ -1,66 +1,75 @@
 <template>
   <div class="filter-widget">
-    <!-- master toggle -->
-    <div class="master-row">
-      <label class="toggle-label">
-        <input type="checkbox" :checked="filter.enabled" @change="toggle('enabled')" />
-        <span>Filter entities by message type</span>
-      </label>
-    </div>
-
-    <template v-if="filter.enabled">
-      <div class="divider" />
-
-      <!-- station toggles -->
+    <section class="filter-section">
       <div class="section-title">Stations</div>
       <div class="cat-list">
+        <label class="cat-row group-row">
+          <input
+            type="checkbox"
+            :checked="allStationsSelected"
+            :indeterminate.prop="someStationsSelected && !allStationsSelected"
+            @change="setAllStationsFromEvent"
+          />
+          <span class="cat-text">Show all stations</span>
+        </label>
+
         <div v-for="sc in STATION_CATEGORIES" :key="sc.id" class="cat-row">
-          <label class="checkbox-label">
+          <label class="checkbox-label cat-text">
             <input
               type="checkbox"
               :checked="filter.stations[sc.id]"
               @change="toggleStation(sc.id)"
             />
-            <span class="cat-label">{{ sc.label }}</span>
-            <span class="cat-desc">{{ sc.description }}</span>
+            <HoverLabel
+              class="cat-label"
+              :label="sc.label"
+              :description="sc.description"
+            />
           </label>
           <span class="cat-count" :class="{ zero: countStations(sc.id) === 0 }">
             {{ countStations(sc.id) }}
           </span>
         </div>
       </div>
+    </section>
 
-      <div class="divider" />
-
-      <!-- per-category toggles -->
-      <div class="section-title">Aircraft — show if received at least one:</div>
+    <section class="filter-section">
+      <div class="section-title">Filter aircraft by message type</div>
       <div class="cat-list">
+        <label class="cat-row group-row">
+          <input
+            type="checkbox"
+            :checked="allAircraftSelected"
+            :indeterminate.prop="someAircraftSelected && !allAircraftSelected"
+            @change="setAllAircraftFromEvent"
+          />
+          <span class="cat-text">Show all aircraft</span>
+        </label>
+
         <div v-for="cat in MESSAGE_CATEGORIES" :key="cat.id" class="cat-row">
-          <label class="checkbox-label">
+          <label class="checkbox-label cat-text">
             <input
               type="checkbox"
               :checked="filter.categories[cat.id]"
               @change="toggleCategory(cat.id)"
             />
-            <span class="cat-label">{{ cat.label }}</span>
-            <span class="cat-desc">{{ cat.description }}</span>
+            <HoverLabel
+              class="cat-label"
+              :label="cat.label"
+              :description="cat.description"
+            />
           </label>
           <span class="cat-count" :class="{ zero: countFor(cat.id) === 0 }">
             {{ countFor(cat.id) }}
           </span>
         </div>
       </div>
-
-      <div class="actions">
-        <button class="action-btn" @click="selectAll">All</button>
-        <button class="action-btn" @click="selectNone">None</button>
-      </div>
-    </template>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, inject } from "vue";
 import {
   datalinkStore,
   MESSAGE_CATEGORIES,
@@ -74,8 +83,8 @@ import {
   isStationEntity,
   type DatalinkEntity
 } from "./index";
-import { inject } from "vue";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
+import { HoverLabel } from "@open-aviation/tangram-core/components";
 
 // modelValue/emit are required by the settings panel framework but we manage state via the store
 defineProps<{ modelValue?: unknown }>();
@@ -85,10 +94,19 @@ const tangramApi = inject<TangramApi>("tangramApi");
 
 const filter = computed(() => datalinkStore.filter);
 
-const toggle = (key: "enabled") => {
-  datalinkStore.filter[key] = !datalinkStore.filter[key];
-  datalinkStore.version++;
-};
+const allStationsSelected = computed(() =>
+  STATION_CATEGORIES.every(sc => datalinkStore.filter.stations[sc.id])
+);
+const someStationsSelected = computed(() =>
+  STATION_CATEGORIES.some(sc => datalinkStore.filter.stations[sc.id])
+);
+
+const allAircraftSelected = computed(() =>
+  MESSAGE_CATEGORIES.every(cat => datalinkStore.filter.categories[cat.id])
+);
+const someAircraftSelected = computed(() =>
+  MESSAGE_CATEGORIES.some(cat => datalinkStore.filter.categories[cat.id])
+);
 
 const toggleStation = (id: StationCategoryId) => {
   datalinkStore.filter.stations[id] = !datalinkStore.filter.stations[id];
@@ -100,17 +118,25 @@ const toggleCategory = (id: MessageCategoryId) => {
   datalinkStore.version++;
 };
 
-const selectAll = () => {
-  for (const cat of MESSAGE_CATEGORIES) datalinkStore.filter.categories[cat.id] = true;
+const setAllStations = (checked: boolean) => {
+  for (const sc of STATION_CATEGORIES) datalinkStore.filter.stations[sc.id] = checked;
   datalinkStore.version++;
 };
 
-const selectNone = () => {
-  for (const cat of MESSAGE_CATEGORIES) datalinkStore.filter.categories[cat.id] = false;
+const setAllAircraft = (checked: boolean) => {
+  for (const cat of MESSAGE_CATEGORIES)
+    datalinkStore.filter.categories[cat.id] = checked;
   datalinkStore.version++;
 };
 
-/** count aircraft entities in a given category */
+const setAllStationsFromEvent = (event: Event) => {
+  setAllStations((event.target as HTMLInputElement).checked);
+};
+
+const setAllAircraftFromEvent = (event: Event) => {
+  setAllAircraft((event.target as HTMLInputElement).checked);
+};
+
 const countFor = (id: MessageCategoryId): number => {
   if (!tangramApi) return 0;
   const entities =
@@ -124,7 +150,6 @@ const countFor = (id: MessageCategoryId): number => {
   return n;
 };
 
-/** count station entities for a given station category */
 const countStations = (id: StationCategoryId): number => {
   if (!tangramApi) return 0;
   const entities =
@@ -144,95 +169,85 @@ const countStations = (id: StationCategoryId): number => {
 .filter-widget {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 2px 0;
+  gap: 10px;
+  padding: 0;
+  font-size: 0.8rem;
 }
-.master-row {
+
+.filter-section {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
 }
-.toggle-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 0.9em;
-  font-weight: 600;
-}
-.divider {
-  border-top: 1px solid var(--t-border);
-  margin: 2px 0;
-}
+
 .section-title {
   font-size: 0.75em;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--t-muted);
-  margin-bottom: 2px;
 }
+
 .cat-list {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
+
 .cat-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px;
-}
-.checkbox-label {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  cursor: pointer;
-  flex: 1;
-  min-width: 0;
-}
-.cat-label {
-  font-size: 0.9em;
-  font-weight: 600;
-  white-space: nowrap;
-  min-width: 80px;
-}
-.cat-desc {
-  font-size: 0.78em;
-  color: var(--t-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cat-count {
-  font-size: 0.78em;
-  font-family: "Inconsolata", monospace;
-  color: var(--t-muted);
-  background: var(--t-surface);
-  border: 1px solid var(--t-border);
-  border-radius: 4px;
-  padding: 0 5px;
-  min-width: 22px;
-  text-align: center;
-  flex-shrink: 0;
-}
-.cat-count.zero {
-  opacity: 0.4;
-}
-.actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
-  margin-top: 2px;
+  align-items: start;
 }
-.action-btn {
-  font-size: 0.8em;
-  padding: 1px 8px;
-  border: 1px solid var(--t-border);
-  border-radius: 4px;
-  background: var(--t-surface);
+
+.group-row {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  margin-bottom: 2px;
   color: var(--t-fg);
   cursor: pointer;
+  padding: 1px 0 2px;
 }
-.action-btn:hover {
-  background: var(--t-hover);
+
+.checkbox-label {
+  display: flex;
+  align-items: start;
+  gap: 7px;
+  cursor: pointer;
+  min-width: 0;
+}
+.checkbox-label input,
+.group-row input {
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.cat-text {
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.group-row .cat-text {
+  padding-top: 1px;
+}
+
+.cat-label {
+  display: inline;
+  color: var(--t-fg);
+  font-weight: 400;
+}
+
+.cat-count {
+  font-size: 1em;
+  font-family: "Inconsolata", monospace;
+  color: var(--t-muted);
+  line-height: 1.25;
+  padding-top: 1px;
+  min-width: 1.5rem;
+  text-align: right;
+}
+.cat-count.zero {
+  opacity: 0.45;
 }
 </style>
