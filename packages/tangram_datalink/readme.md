@@ -21,7 +21,7 @@ git clone https://github.com/xoolive/datalink ../datalink
 
 # in the datalink checkout
 cd ../datalink
-git checkout 6e137c7e94f68d5621757bcdcb3d33b47edf15eb
+git checkout 688407cf58bf13a99000c4c98104f12e33d074cd
 cargo run --release -- airframes --redis-url redis://127.0.0.1:6379
 
 # optional: inspect the normalized event stream in redis

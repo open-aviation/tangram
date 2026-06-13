@@ -1,111 +1,11 @@
-use acars::decode::acars::AcarsMessage;
-use acars::decode::avlc::{AvlcFrame, AvlcPayload};
-use acars::decode::compact::Kinematics;
-use acars::decode::hfdl::HfdlMessage;
-use acars::decode::payload::arinc620::squitter::{SquitterLink, SquitterMessage};
-use acars::decode::payload::AcarsAppPayload;
-use serde::{Deserialize, Deserializer, Serialize};
+use datalink::acars::decode::avlc::AvlcPayload;
+use datalink::acars::decode::payload::arinc620::squitter::{SquitterLink, SquitterMessage};
+use datalink::acars::decode::payload::AcarsAppPayload;
+use datalink::event::{AirframesAddrType, DecodedEvent, ProtocolMessage};
+use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use tangram_core::stream::{Identifiable, Positioned, StateCollection, Tracked};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Aircraft {
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub icao24: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub registration: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub aircraft_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SourceMetadata {
-    pub id: String,
-    pub name: Option<String>,
-    #[serde(rename = "class")]
-    pub class_name: Option<String>,
-    pub format: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReceiverMetadata {
-    pub bearer: Option<String>,
-    pub channel_hz: Option<u32>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DecodedEvent {
-    pub event: Option<String>,
-    pub timestamp: Option<f64>,
-    pub bearer: Option<String>,
-    pub aircraft: Option<Aircraft>,
-    pub kinematics: Option<Kinematics>,
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub flight_id: Option<String>,
-    pub source: Option<SourceMetadata>,
-    pub receiver: Option<ReceiverMetadata>,
-    pub raw_frame_hex: Option<String>,
-    pub message: ProtocolMessage,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "data", rename_all = "snake_case")]
-pub enum ProtocolMessage {
-    Airframes(Box<AirframesMessage>),
-    Avlc(Box<AvlcFrame>),
-    Acars(Box<AcarsMessage>),
-    Hfdl(Box<HfdlMessage>),
-    App(Box<AcarsAppPayload>),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AirframesMessage {
-    pub payload: AirframesPayload,
-    pub src: Option<AirframesAddr>,
-    pub dst: Option<AirframesAddr>,
-    pub app: Option<AcarsAppPayload>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AirframesPayload {
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub label: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub text: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub from_hex: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub to_hex: Option<String>,
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
-    pub altitude: Option<f64>,
-    pub track: Option<f64>,
-    pub frequency: Option<f64>,
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub id: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub airframe_id: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub flight_id: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_optional_id")]
-    pub tail: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AirframesAddr {
-    pub icao24: String,
-    pub addr_type: AirframesAddrType,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AirframesAddrType {
-    Aircraft,
-    GroundStation,
-    Unknown,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatalinkAircraftInfo {
     pub icao24: Option<String>,
@@ -300,8 +200,15 @@ impl DatalinkStateVectors {
     fn extract_aircraft_update(&mut self, env: &DecodedEvent) -> Option<AircraftUpdate> {
         let icao24 = env.aircraft.as_ref().and_then(|a| a.icao24.clone());
         let registration = env.aircraft.as_ref().and_then(|a| a.registration.clone());
-        let aircraft_id = env.aircraft.as_ref().and_then(|a| a.aircraft_id.clone());
-        let flight_id = env.flight_id.clone();
+        let aircraft_id = env
+            .aircraft
+            .as_ref()
+            .and_then(|a| a.aircraft_id.map(|id| id.to_string()));
+        let flight_id = if let ProtocolMessage::Airframes(airframes) = &env.message {
+            airframes.payload.flight_id.map(|id| id.to_string())
+        } else {
+            None
+        };
 
         let id = self.resolve_aircraft_id(
             icao24.as_deref(),
@@ -599,78 +506,4 @@ impl StateCollection for DatalinkStateVectors {
     fn state_vector_expire_secs(&self) -> u64 {
         self.expire as u64
     }
-}
-
-fn deserialize_optional_id<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct OptionalIdVisitor;
-
-    impl<'de> serde::de::Visitor<'de> for OptionalIdVisitor {
-        type Value = Option<String>;
-
-        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            formatter.write_str("null, a string, or a scalar identifier")
-        }
-
-        fn visit_none<E>(self) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            Ok(None)
-        }
-
-        fn visit_unit<E>(self) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            Ok(None)
-        }
-
-        fn visit_some<D2>(self, deserializer: D2) -> Result<Self::Value, D2::Error>
-        where
-            D2: Deserializer<'de>,
-        {
-            deserializer.deserialize_any(self)
-        }
-
-        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            let trimmed = value.trim();
-            Ok((!trimmed.is_empty()).then(|| trimmed.to_string()))
-        }
-
-        fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            self.visit_str(&value)
-        }
-
-        fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            Ok(Some(value.to_string()))
-        }
-
-        fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            Ok(Some(value.to_string()))
-        }
-
-        fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            Ok(Some(value.to_string()))
-        }
-    }
-
-    deserializer.deserialize_any(OptionalIdVisitor)
 }
