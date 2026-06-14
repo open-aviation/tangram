@@ -1,13 +1,6 @@
 import { toRaw } from "vue";
-import {
-  arinc622Payload,
-  messageApp,
-  messageData,
-  messageLabel,
-  type Arinc622Message,
-  type DatalinkMessage,
-  type JsonObject
-} from "./store";
+import { arinc622Payload, messageApp, messageData, messageLabel } from "./store";
+import type { Arinc622Message, DatalinkMessage, JsonObject } from "./types";
 
 export const rawMessage = (msg: DatalinkMessage) => toRaw(msg) as DatalinkMessage;
 
@@ -54,7 +47,7 @@ export const appKind = (msg: DatalinkMessage): string | null => {
 export const messageText = (msg: DatalinkMessage): string | undefined => {
   const raw = rawMessage(msg);
   const data = messageData(raw);
-  const payload = isRecord(data?.payload) ? data.payload : null;
+  const payload = data && isRecord(data.payload) ? data.payload : null;
   return (
     stringField(data, "text") ??
     stringField(data, "txt") ??

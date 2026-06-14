@@ -1,372 +1,21 @@
 import { reactive } from "vue";
 import type { DatalinkEntity } from "./index";
-
-export interface DatalinkKinematics {
-  position?: {
-    latitude: number;
-    longitude: number;
-  };
-  altitude_ft?: number;
-  track?: number;
-  ground_speed_knots?: number;
-  derived_from?: string;
-}
-
-export type JsonPrimitive = string | number | boolean | null;
-export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
-export type JsonObject = Record<string, unknown>;
-
-export interface AdjacentPayload<K extends string = string, D = JsonValue> {
-  kind: K;
-  data: D;
-}
-
-export interface UnitPayload<K extends string = string> {
-  kind: K;
-}
-
-export type AirframesAddrType = "aircraft" | "ground_station" | "unknown";
-
-export interface AirframesAddr {
-  icao24: string;
-  addr_type: AirframesAddrType;
-}
-
-export interface AirframesPayload {
-  label?: string | null;
-  text?: string | null;
-  from_hex?: string | null;
-  to_hex?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  altitude?: number | null;
-  track?: number | null;
-  frequency?: number | null;
-  id?: string | number | null;
-  airframe_id?: string | number | null;
-  flight_id?: string | number | null;
-  tail?: string | null;
-  link_direction?: string | null;
-}
-
-export interface SquitterPayload extends JsonObject {
-  station?: string | null;
-  airport?: string | null;
-  provider?: string | null;
-  link?: string | null;
-  frequency_mhz?: number | null;
-  latitude?: number | null;
-  longitude?: number | null;
-}
-
-export interface AirframesMessage {
-  payload: AirframesPayload;
-  src?: AirframesAddr | null;
-  dst?: AirframesAddr | null;
-  app?: AcarsAppPayload | null;
-}
-
-export interface AcarsMessage {
-  label?: string | null;
-  txt?: string | null;
-  text?: string | null;
-  app?: AcarsAppPayload | null;
-  payload?: JsonValue;
-}
-
-export type AvlcPayload =
-  | AdjacentPayload<"acars", AcarsMessage>
-  | AdjacentPayload<"xid", JsonObject>
-  | AdjacentPayload<"x25", JsonObject>
-  | AdjacentPayload<"unknown", string>;
-
-export interface AvlcFrame {
-  src?: { icao24: string; addr_type: string };
-  dst?: { icao24: string; addr_type: string };
-  payload?: AvlcPayload | null;
-}
-
-export interface Arinc622Message extends JsonObject {
-  atsu_address?: string;
-  imi?: string;
-  registration?: string;
-  payload?: Arinc622Payload;
-}
-
-export type Arinc622Payload =
-  | AdjacentPayload<"adsc", AdscPayload>
-  | AdjacentPayload<"cpdlc", CpdlcPayload>
-  | AdjacentPayload<string, JsonObject>;
-
-export interface AdscPositionReport {
-  latitude: number;
-  longitude: number;
-  altitude_ft?: number;
-  timestamp_seconds_past_hour?: number;
-  nav_redundancy_ok?: boolean;
-  position_accuracy_code?: number;
-  tcas_ok?: boolean;
-}
-
-export interface AdscPredictedRoute {
-  next_latitude: number;
-  next_longitude: number;
-  next_altitude_ft?: number;
-  next_eta_seconds?: number;
-  next_next_latitude?: number;
-  next_next_longitude?: number;
-  next_next_altitude_ft?: number;
-}
-
-export interface AdscReferenceData {
-  heading_or_track_degrees?: number;
-  heading_invalid?: boolean;
-  speed?: number;
-  vertical_speed_ft_per_min?: number;
-}
-
-export interface AdscMeteoData {
-  wind_speed_kt?: number;
-  wind_direction_true_degrees?: number;
-  wind_direction_invalid?: boolean;
-  temperature_c?: number;
-}
-
-export interface AdscFlightId {
-  id?: string;
-}
-
-export interface AdscAcknowledgement {
-  contract_number?: number;
-}
-
-export interface AdscNegativeAcknowledgement {
-  contract_request_number?: number;
-  reason?: string;
-}
-
-export interface AdscCancelContract {
-  contract_number?: number;
-}
-
-export type AdscContractGroup =
-  | AdjacentPayload<"report_interval", { interval_secs?: number }>
-  | AdjacentPayload<"flight_id", { modulus?: number }>
-  | AdjacentPayload<"predicted_route", { modulus?: number }>
-  | AdjacentPayload<"earth_reference_data", { modulus?: number }>
-  | AdjacentPayload<"air_reference_data", { modulus?: number }>
-  | AdjacentPayload<"meteo_data", { modulus?: number }>
-  | AdjacentPayload<"airframe_id", { modulus?: number }>
-  | AdjacentPayload<"lateral_deviation_change", { threshold_nm?: number }>
-  | AdjacentPayload<"vertical_speed_change", { threshold_ft_per_min?: number }>
-  | AdjacentPayload<"altitude_range", { ceiling_ft?: number; floor_ft?: number }>
-  | UnitPayload<"report_waypoint_changes">
-  | AdjacentPayload<
-      "aircraft_intent_data",
-      { modulus?: number; projection_time_mins?: number }
-    >
-  | AdjacentPayload<string, JsonObject>;
-
-export interface AdscContractRequest {
-  contract_number?: number;
-  groups?: AdscContractGroup[];
-}
-
-export type AdscTag =
-  | AdjacentPayload<"acknowledgement", AdscAcknowledgement>
-  | AdjacentPayload<"negative_acknowledgement", AdscNegativeAcknowledgement>
-  | AdjacentPayload<"noncompliance_notification", JsonObject>
-  | UnitPayload<"cancel_emergency_mode">
-  | AdjacentPayload<"basic_report", AdscPositionReport>
-  | AdjacentPayload<"emergency_basic_report", AdscPositionReport>
-  | AdjacentPayload<"lateral_deviation_change_event", AdscPositionReport>
-  | AdjacentPayload<"flight_id", AdscFlightId>
-  | AdjacentPayload<"predicted_route", AdscPredictedRoute>
-  | AdjacentPayload<"earth_reference_data", AdscReferenceData>
-  | AdjacentPayload<"air_reference_data", AdscReferenceData>
-  | AdjacentPayload<"meteo_data", AdscMeteoData>
-  | AdjacentPayload<"airframe_id", JsonObject>
-  | AdjacentPayload<"vertical_rate_change_event", AdscPositionReport>
-  | AdjacentPayload<"altitude_range_event", AdscPositionReport>
-  | AdjacentPayload<"waypoint_change_event", AdscPositionReport>
-  | AdjacentPayload<"intermediate_projection", JsonObject>
-  | AdjacentPayload<"fixed_projection", JsonObject>
-  | UnitPayload<"cancel_all_contracts">
-  | AdjacentPayload<"cancel_contract", AdscCancelContract>
-  | AdjacentPayload<"periodic_contract_request", AdscContractRequest>
-  | AdjacentPayload<"event_contract_request", AdscContractRequest>
-  | AdjacentPayload<"emergency_periodic_contract_request", AdscContractRequest>
-  | AdjacentPayload<string, JsonObject>;
-
-export interface AdscPayload extends JsonObject {
-  tags?: AdscTag[];
-}
-
-export interface CpdlcPayload extends JsonObject {
-  downlink?: CpdlcSide | null;
-  uplink?: CpdlcSide | null;
-  control?: AdjacentPayload<string, { message?: CpdlcSide | null }> | null;
-}
-
-export interface CpdlcSide extends JsonObject {
-  header?: DatalinkCpdlcMessage["header"];
-  elements?: DatalinkCpdlcElement[];
-}
-
-export type AcarsAppPayload =
-  | UnitPayload<"none" | "link_test">
-  | AdjacentPayload<"arinc622", Arinc622Message>
-  | AdjacentPayload<"squitter", SquitterPayload>
-  | AdjacentPayload<"text", string>
-  | AdjacentPayload<
-      | "miam"
-      | "ohma"
-      | "media_advisory"
-      | "aoc_report"
-      | "weather"
-      | "label_5z"
-      | "aoc_position"
-      | "label_32"
-      | "label_16"
-      | "label_37"
-      | "oooi_off_destination"
-      | "oooi_off_report"
-      | "atis_request"
-      | "atis_delivery"
-      | "afn"
-      | "oceanic_clearance",
-      JsonValue
-    >;
-
-export type DatalinkProtocolMessage =
-  | AdjacentPayload<"airframes", AirframesMessage>
-  | AdjacentPayload<"avlc", AvlcFrame>
-  | AdjacentPayload<"acars", AcarsMessage>
-  | AdjacentPayload<"hfdl", JsonObject>
-  | AdjacentPayload<"app", AcarsAppPayload>;
-
-export interface DatalinkMessage {
-  event?: string | null;
-  timestamp?: number | null;
-  bearer?: string | null;
-  source?: {
-    id?: string | null;
-    name?: string | null;
-    class?: string | null;
-    format?: string | null;
-  } | null;
-  receiver?: {
-    bearer?: string | null;
-    channel_hz?: number | null;
-  } | null;
-  aircraft?: {
-    icao24?: string | null;
-    registration?: string | null;
-    aircraft_id?: string | number | null;
-  };
-  flight_id?: string | number | null;
-  kinematics?: DatalinkKinematics;
-  raw_frame_hex?: string;
-  message: DatalinkProtocolMessage;
-}
-
-export interface AdscContractGroupInfo {
-  kind: string;
-  interval_secs?: number;
-  modulus?: number;
-  threshold_nm?: number;
-  threshold_fpm?: number;
-  ceiling_ft?: number;
-  floor_ft?: number;
-  projection_time_mins?: number;
-}
-
-export interface AdscContractInfo {
-  kind: "periodic" | "event" | "emergency" | "cancel_all" | "cancel";
-  number?: number;
-  groups: AdscContractGroupInfo[];
-}
-
-export interface AdscIntermediateProjection {
-  distance_nm: number;
-  track_degrees: number;
-  track_invalid: boolean;
-  altitude_ft?: number;
-  eta_secs?: number;
-}
-
-export interface AdscFixedProjection {
-  latitude: number;
-  longitude: number;
-  altitude_ft?: number;
-  eta_secs?: number;
-}
-
-export interface DatalinkAdscReport {
-  timestamp?: number;
-  registration?: string;
-  position?: { latitude: number; longitude: number };
-  altitude_ft?: number;
-  /** resolved track: EarthReferenceData (valid) → IntermediateProjection[0] → null */
-  track?: number;
-  ground_speed_kt?: number;
-  vertical_speed_fpm?: number;
-  /** FlightId tag content */
-  flight_id?: string;
-  /** ATSU address (ground station) */
-  atsu_address?: string;
-  /** PredictedRoute next waypoint (absolute lat/lon) */
-  next?: {
-    latitude: number;
-    longitude: number;
-    altitude_ft?: number;
-    eta_secs?: number;
-  };
-  /** PredictedRoute next+1 waypoint (absolute lat/lon) */
-  next_next?: { latitude: number; longitude: number; altitude_ft?: number };
-  /** IntermediateProjection entries (relative: distance + bearing from current position) */
-  intermediate_projections?: AdscIntermediateProjection[];
-  /** FixedProjection entries (absolute lat/lon) */
-  fixed_projections?: AdscFixedProjection[];
-  wind_speed_kt?: number;
-  wind_direction_deg?: number;
-  temperature_c?: number;
-  /** true when this is an uplink (ground→aircraft) contract request */
-  is_uplink?: boolean;
-  /** structured contract info for uplink messages */
-  contract?: AdscContractInfo;
-  raw_tags: string[];
-}
-
-export type CpdlcElementBody = AdjacentPayload<string, JsonValue>;
-export type CpdlcPhraseFragment =
-  | AdjacentPayload<"text", string>
-  | AdjacentPayload<"value", string>;
-
-export interface DatalinkCpdlcElement {
-  id: number;
-  catalog_name?: string;
-  fragments: CpdlcPhraseFragment[];
-  body?: CpdlcElementBody | null;
-  is_additional: boolean;
-}
-
-export interface CpdlcTimestamp {
-  hour?: number;
-  minute?: number;
-  second?: number;
-}
-
-export interface DatalinkCpdlcMessage {
-  timestamp?: number;
-  atsu_address?: string;
-  registration?: string;
-  imi?: string;
-  direction?: "downlink" | "uplink";
-  header?: { msg_id?: number; msg_ref?: number; timestamp?: CpdlcTimestamp };
-  elements: DatalinkCpdlcElement[];
-  control_type?: string;
-}
+import type {
+  AcarsAppPayload,
+  AcarsMessage,
+  AdscContractGroup,
+  AdscTag,
+  Arinc622Message,
+  CpdlcElementBody,
+  CpdlcPhraseFragment,
+  CpdlcTimestamp,
+  DatalinkAdscReport,
+  DatalinkCpdlcElement,
+  DatalinkCpdlcMessage,
+  DatalinkMessage,
+  JsonObject,
+  SquitterPayload
+} from "./types";
 
 export interface DatalinkEntityHistory {
   adsc: DatalinkAdscReport[];
@@ -475,6 +124,14 @@ export interface DatalinkSelectionData {
   messages: DatalinkMessage[];
 }
 
+export interface DatalinkStore {
+  selected: Map<string, DatalinkSelectionData>;
+  selectedIds: Set<string>;
+  history: Map<string, DatalinkEntityHistory>;
+  filter: DatalinkFilter;
+  version: number;
+}
+
 export const datalinkStore = reactive({
   selected: new Map<string, DatalinkSelectionData>(),
   selectedIds: new Set<string>(),
@@ -482,7 +139,7 @@ export const datalinkStore = reactive({
   history: new Map<string, DatalinkEntityHistory>(),
   filter: makeDefaultFilter() as DatalinkFilter,
   version: 0
-});
+}) as DatalinkStore;
 
 export function ensureHistory(id: string): DatalinkEntityHistory {
   if (!datalinkStore.history.has(id)) {
@@ -572,13 +229,13 @@ const arrayField = (obj: JsonObject, key: string): unknown[] => {
 };
 
 export function classifyCategory(msg: DatalinkMessage): MessageCategoryId {
+  const avlcPayload = msg.message.kind === "avlc" ? msg.message.data.payload : null;
+  if (avlcPayload?.kind === "xid" || avlcPayload?.kind === "x25") return "xid";
+
   const app = messageApp(msg);
   if (!app || app.kind === "none") return "other";
 
   if (getSquitterPayload(msg)) return "other";
-
-  const avlcPayload = msg.message.kind === "avlc" ? msg.message.data.payload : null;
-  if (avlcPayload?.kind === "xid" || avlcPayload?.kind === "x25") return "xid";
 
   const arinc = arinc622Payload(app);
   if (arinc) {
@@ -589,18 +246,34 @@ export function classifyCategory(msg: DatalinkMessage): MessageCategoryId {
     return "other";
   }
 
-  if (app.kind === "afn") return "afn";
-  if (app.kind === "text") return "text";
-  if (app.kind === "miam") return "miam";
-  if (app.kind === "media_advisory" || app.kind === "aoc_position") return "position";
-  if (app.kind === "oooi_off_destination" || app.kind === "oooi_off_report")
-    return "oooi";
-  if (
-    ["aoc_report", "oceanic_clearance", "atis_delivery", "atis_request"].includes(
-      app.kind
-    )
-  )
-    return "aoc";
+  switch (app.kind) {
+    case "afn":
+      return "afn";
+    case "text":
+      return "text";
+    case "miam":
+    case "ohma":
+      return "miam";
+    case "media_advisory":
+    case "aoc_position":
+      return "position";
+    case "label_32":
+      return app.data.latitude != null && app.data.longitude != null
+        ? "position"
+        : "aoc";
+    case "oooi_off_destination":
+    case "oooi_off_report":
+      return "oooi";
+    case "aoc_report":
+    case "oceanic_clearance":
+    case "atis_delivery":
+    case "atis_request":
+    case "weather":
+    case "label_5z":
+    case "label_16":
+    case "label_37":
+      return "aoc";
+  }
 
   const label = messageLabel(msg);
   if (label) {
@@ -648,8 +321,10 @@ const cpdlcElement = (value: unknown): DatalinkCpdlcElement | null => {
       if (!value) return null;
       const kind = stringField(value, "kind");
       const data = value.data;
-      if (kind === "text" && typeof data === "string") return { kind, data };
-      if (kind === "value" && typeof data === "string") return { kind, data };
+      if (kind === "text" && typeof data === "string")
+        return { kind: "text", data } satisfies CpdlcPhraseFragment;
+      if (kind === "value" && typeof data === "string")
+        return { kind: "value", data } satisfies CpdlcPhraseFragment;
       return null;
     })
     .filter(isPresent);
@@ -679,7 +354,7 @@ export function classifyAndStore(id: string, msg: DatalinkMessage) {
   const payload = arinc.payload;
 
   if (imi === "ADS" && payload?.kind === "adsc") {
-    const tags = payload.data.tags ?? [];
+    const tags = (payload.data.tags ?? []) as AdscTag[];
     const report: DatalinkAdscReport = {
       timestamp: msg.timestamp ?? undefined,
       registration: arinc.registration,
@@ -736,30 +411,28 @@ export function classifyAndStore(id: string, msg: DatalinkMessage) {
           }
           break;
         case "intermediate_projection": {
-          const distance_nm = numberField(tag.data, "distance_nm");
-          const track_degrees = numberField(tag.data, "track_degrees");
+          const { distance_nm, track_degrees } = tag.data;
           if (distance_nm != null && track_degrees != null) {
             report.intermediate_projections ??= [];
             report.intermediate_projections.push({
               distance_nm,
               track_degrees,
               track_invalid: tag.data.track_invalid === true,
-              altitude_ft: numberField(tag.data, "altitude_ft"),
-              eta_secs: numberField(tag.data, "eta_seconds")
+              altitude_ft: tag.data.altitude_ft,
+              eta_secs: tag.data.eta_seconds
             });
           }
           break;
         }
         case "fixed_projection": {
-          const latitude = numberField(tag.data, "latitude");
-          const longitude = numberField(tag.data, "longitude");
+          const { latitude, longitude } = tag.data;
           if (latitude != null && longitude != null) {
             report.fixed_projections ??= [];
             report.fixed_projections.push({
               latitude,
               longitude,
-              altitude_ft: numberField(tag.data, "altitude_ft"),
-              eta_secs: numberField(tag.data, "eta_seconds")
+              altitude_ft: tag.data.altitude_ft,
+              eta_secs: tag.data.eta_seconds
             });
           }
           break;
@@ -783,8 +456,8 @@ export function classifyAndStore(id: string, msg: DatalinkMessage) {
                   ? "event"
                   : "emergency",
             number: tag.data.contract_number,
-            groups: (tag.data.groups ?? []).map(group => {
-              const value = "data" in group ? group.data : {};
+            groups: (tag.data.groups ?? []).map((group: AdscContractGroup) => {
+              const value = "data" in group && isObject(group.data) ? group.data : {};
               return {
                 kind: group.kind,
                 interval_secs: numberField(value, "interval_secs"),

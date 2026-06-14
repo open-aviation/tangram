@@ -11,7 +11,9 @@
 </template>
 
 <script setup lang="ts">
-import type { SummaryRow } from "./summary_rows";
+import type { SummaryRow } from "../types";
+
+defineOptions({ name: "DatalinkSummaryRows" });
 
 defineProps<{
   rows: SummaryRow[];
