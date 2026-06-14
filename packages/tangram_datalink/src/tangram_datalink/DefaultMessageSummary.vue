@@ -1,29 +1,27 @@
 <template>
-  <MessageSummaryParts :parts="parts" />
+  <SummaryRows :rows="rows" empty="message" />
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import MessageSummaryParts from "./MessageSummaryParts.vue";
 import type { DatalinkMessage } from "./store";
-import { arinc622Message, isRecord, rawMessage, stringField } from "./summary_helpers";
+import { arinc622Message, rawMessage } from "./summary_helpers";
+import SummaryRows from "./SummaryRows.vue";
+import type { SummaryRow } from "./summary_rows";
 
 const props = defineProps<{ msg: DatalinkMessage }>();
 
-const parts = computed(() => {
+const rows = computed<SummaryRow[]>(() => {
   const raw = rawMessage(props.msg);
   const arinc = arinc622Message(raw);
-  const payloadKind = stringField(
-    isRecord(arinc?.payload) ? arinc.payload : undefined,
-    "kind"
-  );
   const seen = new Set<string>();
-  return [arinc?.imi, payloadKind].filter((value): value is string => {
+  const parts = [arinc?.imi, arinc?.payload?.kind].filter((value): value is string => {
     if (!value) return false;
     const key = value.toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+  return parts.length ? [{ meta: "message", detail: parts.join(" · ") }] : [];
 });
 </script>

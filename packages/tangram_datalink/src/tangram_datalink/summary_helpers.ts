@@ -1,9 +1,9 @@
 import { toRaw } from "vue";
 import {
+  arinc622Payload,
   messageApp,
   messageData,
   messageLabel,
-  type AcarsAppPayload,
   type Arinc622Message,
   type DatalinkMessage,
   type JsonObject
@@ -14,18 +14,20 @@ export const rawMessage = (msg: DatalinkMessage) => toRaw(msg) as DatalinkMessag
 export const isRecord = (value: unknown): value is JsonObject =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
-export const externalPayload = <T>(value: unknown, key: string): T | null =>
-  isRecord(value) && key in value ? (value[key] as T) : null;
-
 export const adjacentData = (value: unknown): unknown =>
   isRecord(value) && typeof value.kind === "string" && "data" in value
     ? value.data
     : value;
 
-export const arinc622Payload = (
-  app: AcarsAppPayload | null | undefined
-): Arinc622Message | null => externalPayload<Arinc622Message>(app, "Arinc622");
+export const arinc622Message = (msg: DatalinkMessage): Arinc622Message | null =>
+  arinc622Payload(messageApp(rawMessage(msg)));
 
+export const decodedArincPayload = (msg: DatalinkMessage) =>
+  arinc622Message(msg)?.payload?.data ?? null;
+
+// these field readers are deliberately small compatibility shims for loose
+// Airframes payloads and unknown protocol branches.
+// new protocol-specific renderers should prefer typed payload unions from store.ts.
 export const stringField = (value: unknown, key: string): string | undefined => {
   if (!isRecord(value)) return undefined;
   const field = value[key];
@@ -46,18 +48,7 @@ export const arrayField = (value: unknown, key: string): unknown[] => {
 
 export const appKind = (msg: DatalinkMessage): string | null => {
   const app = messageApp(rawMessage(msg));
-  if (typeof app === "string") return app === "None" ? null : app;
-  if (!isRecord(app)) return null;
-  const keys = Object.keys(app);
-  return keys.length === 1 ? keys[0] : null;
-};
-
-export const arinc622Message = (msg: DatalinkMessage) =>
-  arinc622Payload(messageApp(rawMessage(msg)));
-
-export const decodedArincPayload = (msg: DatalinkMessage) => {
-  const payload = arinc622Message(msg)?.payload;
-  return payload == null ? null : adjacentData(payload);
+  return app?.kind === "none" ? null : (app?.kind ?? null);
 };
 
 export const messageText = (msg: DatalinkMessage): string | undefined => {

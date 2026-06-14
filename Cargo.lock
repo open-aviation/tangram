@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "acars"
 version = "0.1.0"
-source = "git+https://github.com/xoolive/datalink.git?rev=688407cf58bf13a99000c4c98104f12e33d074cd#688407cf58bf13a99000c4c98104f12e33d074cd"
+source = "git+https://github.com/xoolive/datalink.git?rev=5398704615f21218ab6915dc02b6e91c00ce749a#5398704615f21218ab6915dc02b6e91c00ce749a"
 dependencies = [
  "base64",
  "deku",
@@ -1799,7 +1799,7 @@ dependencies = [
 [[package]]
 name = "datalink"
 version = "0.1.0"
-source = "git+https://github.com/xoolive/datalink.git?rev=688407cf58bf13a99000c4c98104f12e33d074cd#688407cf58bf13a99000c4c98104f12e33d074cd"
+source = "git+https://github.com/xoolive/datalink.git?rev=5398704615f21218ab6915dc02b6e91c00ce749a#5398704615f21218ab6915dc02b6e91c00ce749a"
 dependencies = [
  "acars",
  "chrono",
