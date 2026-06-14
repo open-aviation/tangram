@@ -148,6 +148,13 @@ const stationKindLabel = (linkType: string | null | undefined) => {
   return linkType === "VDL2" ? "VDL2" : `SQ: ${linkType || "?"}`;
 };
 
+const FLIGHT_LEVEL_MIN_FEET = 10_000;
+
+const formatTooltipAltitude = (feet: number) =>
+  feet < FLIGHT_LEVEL_MIN_FEET
+    ? `${Math.round(feet)} ft`
+    : `FL${Math.round(feet / 100)}`;
+
 const formatFrequencies = (frequencies: number[]) => {
   return frequencies.map(freq => `${freq.toFixed(3)} MHz`).join(", ");
 };
@@ -287,7 +294,10 @@ watch(
       type Wpt = { lon: number; lat: number; eta_secs?: number; altitude_ft?: number };
       const waypoints: Wpt[] = [];
 
-      // PredictedRoute: next + next_next (no absolute ETA for next_next)
+      const hasPredictedRoute = adsc.next != null;
+
+      // PredictedRoute carries the actual next/next+1 waypoints. Projection tags
+      // are aircraft intent points and can duplicate/interleave with those waypoints.
       if (adsc.next) {
         waypoints.push({
           lon: adsc.next.longitude,
@@ -304,32 +314,34 @@ watch(
         }
       }
 
-      // IntermediateProjection: project from current position
-      for (const ip of adsc.intermediate_projections ?? []) {
-        if (!ip.track_invalid) {
-          const [pLon, pLat] = projectPoint(
-            curLat,
-            curLon,
-            ip.track_degrees,
-            ip.distance_nm
-          );
+      if (!hasPredictedRoute) {
+        // IntermediateProjection: project from current position
+        for (const ip of adsc.intermediate_projections ?? []) {
+          if (!ip.track_invalid) {
+            const [pLon, pLat] = projectPoint(
+              curLat,
+              curLon,
+              ip.track_degrees,
+              ip.distance_nm
+            );
+            waypoints.push({
+              lon: pLon,
+              lat: pLat,
+              eta_secs: ip.eta_secs,
+              altitude_ft: ip.altitude_ft
+            });
+          }
+        }
+
+        // FixedProjection: absolute coordinates
+        for (const fp of adsc.fixed_projections ?? []) {
           waypoints.push({
-            lon: pLon,
-            lat: pLat,
-            eta_secs: ip.eta_secs,
-            altitude_ft: ip.altitude_ft
+            lon: fp.longitude,
+            lat: fp.latitude,
+            eta_secs: fp.eta_secs,
+            altitude_ft: fp.altitude_ft
           });
         }
-      }
-
-      // FixedProjection: absolute coordinates
-      for (const fp of adsc.fixed_projections ?? []) {
-        waypoints.push({
-          lon: fp.longitude,
-          lat: fp.latitude,
-          eta_secs: fp.eta_secs,
-          altitude_ft: fp.altitude_ft
-        });
       }
 
       // Sort by ETA when available; keep unknowns at end
@@ -447,7 +459,7 @@ onUnmounted(() => {
         </div>
         <div class="icao24">{{ tooltip.object.state.details.data.icao24 }}</div>
         <div v-if="(tooltip.object.state.altitude_ft ?? 0) > 0" class="metric right">
-          FL{{ Math.round(((tooltip.object.state.altitude_ft ?? 0) / 1000) * 10) }}
+          {{ formatTooltipAltitude(tooltip.object.state.altitude_ft ?? 0) }}
         </div>
       </template>
     </div>
@@ -462,7 +474,7 @@ onUnmounted(() => {
   border: 1px solid var(--t-border);
   padding: 4px 8px;
   border-radius: 10px;
-  font-size: 11px;
+  font-size: 0.9em;
   font-family: "B612", sans-serif;
   pointer-events: none;
   transform: translate(10px, -20px);
@@ -475,7 +487,7 @@ onUnmounted(() => {
   grid-template-columns: auto auto;
   align-items: baseline;
   column-gap: 0.5rem;
-  font-size: 11px;
+  font-size: 0.9em;
   min-width: 120px;
 }
 .callsign {

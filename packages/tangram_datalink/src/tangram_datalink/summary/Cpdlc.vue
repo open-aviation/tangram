@@ -186,7 +186,7 @@ const rows = computed(() => {
   if (payload.uplink) out.push(...sideRows(payload.uplink.elements ?? [], "uplink"));
 
   const control = payload.control;
-  const controlSide = control?.data.message;
+  const controlSide = control?.data?.message;
   if (controlSide) {
     out.push(...sideRows(controlSide.elements ?? [], control.kind));
   }

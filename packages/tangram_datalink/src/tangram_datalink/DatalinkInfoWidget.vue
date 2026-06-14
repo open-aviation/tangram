@@ -117,6 +117,8 @@
         :panel-style="calloutPanelStyle"
         @keep-open="keepCalloutOpen"
         @schedule-close="scheduleHoverClear"
+        @interaction-start="startCalloutInteraction"
+        @interaction-end="endCalloutInteraction"
         @clear="clearActiveCallout"
       />
     </Teleport>
@@ -173,6 +175,7 @@ const calloutPanelStyle = ref<CSSProperties>({});
 const feedRowRefs = new Map<string, HTMLElement>();
 let treeFrame: number | null = null;
 let hoverClearTimer: number | null = null;
+const isCalloutInteracting = ref(false);
 const rowClasses = createImperativeRowClassSync(feedRowRefs);
 
 type FeedRow = DatalinkFeedRowModel;
@@ -241,12 +244,12 @@ const messageCategoryLabel = new Map<MessageCategoryId, string>(
   MESSAGE_CATEGORIES.map(category => [category.id, category.label])
 );
 
-const messageCategoryLabelFor = (category: MessageCategoryId, msg: DatalinkMessage) => {
-  const base = messageCategoryLabel.get(category) ?? category;
-  if (category !== "adsc" && category !== "cpdlc" && category !== "afn") return base;
+const messageCategoryLabelFor = (category: MessageCategoryId) =>
+  messageCategoryLabel.get(category) ?? category;
 
-  const atsu = arinc622Message(msg)?.atsu_address;
-  return atsu ? `${base} · ${atsu}` : base;
+const messageAtsuAddress = (category: MessageCategoryId, msg: DatalinkMessage) => {
+  if (category !== "adsc" && category !== "cpdlc" && category !== "afn") return null;
+  return arinc622Message(msg)?.atsu_address ?? null;
 };
 
 const feedRows = computed<FeedRow[]>(() => {
@@ -267,7 +270,8 @@ const feedRows = computed<FeedRow[]>(() => {
         index: rows.length,
         msg: rawMsg,
         category,
-        categoryLabel: messageCategoryLabelFor(category, rawMsg),
+        categoryLabel: messageCategoryLabelFor(category),
+        atsuAddress: messageAtsuAddress(category, rawMsg),
         summaryComponent: summaryComponentFor(category),
         text
       });
@@ -337,10 +341,13 @@ const cancelHoverClear = () => {
   hoverClearTimer = null;
 };
 
+const hasTextSelection = () => Boolean(window.getSelection()?.toString().trim());
+
 const scheduleHoverClear = () => {
-  if (pinnedFeedKey.value) return;
+  if (pinnedFeedKey.value || isCalloutInteracting.value || hasTextSelection()) return;
   cancelHoverClear();
   hoverClearTimer = window.setTimeout(() => {
+    if (isCalloutInteracting.value || hasTextSelection()) return;
     hoveredFeedKey.value = null;
     hoverClearTimer = null;
   }, 140);
@@ -348,6 +355,15 @@ const scheduleHoverClear = () => {
 
 const keepCalloutOpen = () => {
   cancelHoverClear();
+};
+
+const startCalloutInteraction = () => {
+  isCalloutInteracting.value = true;
+  keepCalloutOpen();
+};
+
+const endCalloutInteraction = () => {
+  isCalloutInteracting.value = false;
 };
 
 const scheduleTreeRender = (key: string | null) => {
@@ -384,6 +400,7 @@ const clearFeedPreview = (key: string) => {
 
 const clearActiveCallout = () => {
   cancelHoverClear();
+  isCalloutInteracting.value = false;
   hoveredFeedKey.value = null;
   pinnedFeedKey.value = null;
   setFocus(null);
@@ -416,6 +433,8 @@ const onListLeave = () => {
 const onListFocusOut = (event: FocusEvent) => {
   const nextTarget = event.relatedTarget;
   if (nextTarget instanceof Node && listRef.value?.contains(nextTarget)) return;
+  if (nextTarget instanceof Element && nextTarget.closest(".feed-callout-hitbox"))
+    return;
   onListLeave();
 };
 
@@ -523,20 +542,22 @@ watch(
   display: flex;
   justify-content: space-between;
   align-items: center;
-  line-height: 1.4;
+  line-height: 1;
 }
 .main-row {
-  margin-bottom: 2px;
+  min-height: 24px;
 }
 .left-group {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 .right-group {
   text-align: right;
   display: flex;
+  align-items: center;
   gap: 4px;
   font-family: "B612", monospace;
   font-size: 0.9em;
@@ -546,14 +567,22 @@ watch(
   color: var(--t-muted);
 }
 .flight-id {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
   font-size: 1.1em;
   font-weight: bold;
+  line-height: 1;
 }
 .chip {
+  display: inline-flex;
+  min-height: 18px;
+  align-items: center;
   border-radius: 5px;
-  padding: 0px 5px;
+  padding: 0 5px;
   font-family: "Inconsolata", monospace;
   font-size: 1em;
+  line-height: 1;
 }
 .chip.small {
   font-size: 0.8em;

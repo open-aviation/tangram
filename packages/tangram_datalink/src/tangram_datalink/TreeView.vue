@@ -114,6 +114,7 @@ watch(
 .tree-view {
   margin: 0;
   font-family: "Inconsolata", monospace;
+  font-size: 0.9em;
   line-height: 1.3;
   color: var(--t-fg);
   white-space: pre-wrap;

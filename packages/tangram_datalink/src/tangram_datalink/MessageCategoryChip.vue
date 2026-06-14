@@ -1,5 +1,7 @@
 <template>
-  <span class="message-category-chip" :class="`cat-${category}`">{{ label }}</span>
+  <span class="message-category-chip" :class="`cat-${category}`"
+    ><span>{{ label }}</span></span
+  >
 </template>
 
 <script setup lang="ts">
@@ -17,15 +19,21 @@ defineProps<{
   --cat-bg: color-mix(in oklch, var(--cat-color) 14%, var(--t-bg));
   --cat-border: color-mix(in oklch, var(--cat-color) 38%, var(--t-border));
   --cat-fg: color-mix(in oklch, var(--cat-color) 76%, var(--t-fg));
+  display: inline-flex;
+  max-width: min(20rem, 100%);
+  height: 17px;
+  align-items: center;
   border: 1px solid var(--cat-border);
-  border-radius: 5px;
+  border-radius: 4px;
   background: var(--cat-bg);
   color: var(--cat-fg);
   font-family: "Inconsolata", monospace;
-  font-size: 0.82em;
+  font-size: 0.8em;
   font-weight: 700;
-  line-height: 1.15;
-  padding: 0 5px;
+  line-height: 1;
+  padding: 1px 4px 0;
+  box-sizing: border-box;
+  vertical-align: middle;
   white-space: nowrap;
   word-break: keep-all;
 }

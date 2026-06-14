@@ -36,7 +36,12 @@ const tags = (msg: DatalinkMessage): AdscTag[] => {
   return ((payload.data as AdscPayload).tags ?? []) as AdscTag[];
 };
 
-const formatAltitude = (feet: number) => `FL${Math.round(feet / 100)}`;
+const FLIGHT_LEVEL_MIN_FEET = 10_000;
+
+const formatAltitude = (feet: number) =>
+  feet < FLIGHT_LEVEL_MIN_FEET
+    ? `${Math.round(feet)} ft`
+    : `FL${Math.round(feet / 100)}`;
 
 const formatSigned = (value: number, suffix: string) =>
   `${value > 0 ? "+" : ""}${Math.round(value)}${suffix}`;
@@ -129,6 +134,33 @@ const meteoDetail = (value: AdscMeteoData) => {
   return parts.length ? parts.join(" ") : "meteo data";
 };
 
+const contractGroupLabel = (group: AdscContractGroup) => {
+  switch (group.kind) {
+    case "report_interval":
+      return group.data.interval_secs == null
+        ? "interval"
+        : `every ${group.data.interval_secs}s`;
+    case "flight_id":
+      return "flight id";
+    case "predicted_route":
+      return "route";
+    case "earth_reference_data":
+      return "earth ref";
+    case "air_reference_data":
+      return "air ref";
+    case "meteo_data":
+      return "meteo";
+    case "airframe_id":
+      return "airframe";
+    case "aircraft_intent_data":
+      return group.data.projection_time_mins == null
+        ? "intent"
+        : `intent +${group.data.projection_time_mins}m`;
+    default:
+      return null;
+  }
+};
+
 const groupDetail = (group: AdscContractGroup) => {
   switch (group.kind) {
     case "report_interval":
@@ -170,6 +202,14 @@ const groupDetail = (group: AdscContractGroup) => {
   }
 };
 
+const contractFeatureSummary = (groups: AdscContractGroup[]) => {
+  const labels = groups
+    .map(contractGroupLabel)
+    .filter((label): label is string => Boolean(label));
+  if (!labels.length) return null;
+  return `request ${labels.join(", ")}`;
+};
+
 const contractRows = (
   tag: Extract<
     AdscTag,
@@ -187,12 +227,15 @@ const contractRows = (
       : tag.kind === "event_contract_request"
         ? "event contract"
         : "emergency contract";
+  const groups = tag.data.groups ?? [];
+  const reportInterval = groups.find(group => group.kind === "report_interval");
   return [
     {
       meta: label,
       detail: [
         tag.data.contract_number == null ? null : `#${tag.data.contract_number}`,
-        ...(tag.data.groups ?? []).map(groupDetail).slice(0, 4)
+        reportInterval ? groupDetail(reportInterval) : null,
+        contractFeatureSummary(groups.filter(group => group.kind !== "report_interval"))
       ]
         .filter(Boolean)
         .join(" · ")
