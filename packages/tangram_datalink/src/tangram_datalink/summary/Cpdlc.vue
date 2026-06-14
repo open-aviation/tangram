@@ -214,10 +214,11 @@ const rows = computed(() => {
   display: inline-block;
   max-width: 100%;
   margin: 0 1px;
-  border: 1px solid oklch(54% 0.1 300 / 0.32);
+  --cpdlc-value-color: oklch(56% 0.15 300);
+  border: 1px solid color-mix(in oklch, var(--cpdlc-value-color) 42%, var(--t-border));
   border-radius: 5px;
-  background: oklch(47% 0.1 300 / 0.2);
-  color: oklch(90% 0.05 300);
+  background: color-mix(in oklch, var(--cpdlc-value-color) 14%, var(--t-bg));
+  color: color-mix(in oklch, var(--cpdlc-value-color) 76%, var(--t-fg));
   font-family: "Inconsolata", monospace;
   font-weight: 700;
   line-height: 1.12;

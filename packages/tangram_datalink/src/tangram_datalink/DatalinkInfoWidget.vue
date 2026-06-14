@@ -155,7 +155,7 @@ import DefaultMessageSummary from "./summary/DefaultMessage.vue";
 import MiamSummary from "./summary/Miam.vue";
 import OooiSummary from "./summary/Oooi.vue";
 import PositionSummary from "./summary/Position.vue";
-import { messageKeyParts, messageText } from "./summary_helpers";
+import { arinc622Message, messageKeyParts, messageText } from "./summary_helpers";
 import { createImperativeRowClassSync } from "./useImperativeRowClasses";
 
 const tangramApi = inject<TangramApi>("tangramApi");
@@ -174,10 +174,6 @@ const feedRowRefs = new Map<string, HTMLElement>();
 let treeFrame: number | null = null;
 let hoverClearTimer: number | null = null;
 const rowClasses = createImperativeRowClassSync(feedRowRefs);
-
-const messageCategoryLabel = new Map<MessageCategoryId, string>(
-  MESSAGE_CATEGORIES.map(category => [category.id, category.label])
-);
 
 type FeedRow = DatalinkFeedRowModel;
 
@@ -241,6 +237,18 @@ const summaryComponentFor = (category: MessageCategoryId) =>
     ? undefined
     : (summaryComponentByCategory[category] ?? defaultSummaryComponent);
 
+const messageCategoryLabel = new Map<MessageCategoryId, string>(
+  MESSAGE_CATEGORIES.map(category => [category.id, category.label])
+);
+
+const messageCategoryLabelFor = (category: MessageCategoryId, msg: DatalinkMessage) => {
+  const base = messageCategoryLabel.get(category) ?? category;
+  if (category !== "adsc" && category !== "cpdlc" && category !== "afn") return base;
+
+  const atsu = arinc622Message(msg)?.atsu_address;
+  return atsu ? `${base} · ${atsu}` : base;
+};
+
 const feedRows = computed<FeedRow[]>(() => {
   const rows: FeedRow[] = [];
   const keyCounts = new Map<string, number>();
@@ -259,7 +267,7 @@ const feedRows = computed<FeedRow[]>(() => {
         index: rows.length,
         msg: rawMsg,
         category,
-        categoryLabel: messageCategoryLabel.get(category) ?? category,
+        categoryLabel: messageCategoryLabelFor(category, rawMsg),
         summaryComponent: summaryComponentFor(category),
         text
       });

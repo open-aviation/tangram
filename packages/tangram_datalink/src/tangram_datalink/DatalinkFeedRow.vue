@@ -86,7 +86,7 @@ onBeforeUnmount(() => emit("register", props.row.key, null));
 .message-header {
   display: flex;
   gap: 7px;
-  align-items: center;
+  align-items: baseline;
   font-size: 0.88em;
 }
 .time {
@@ -98,9 +98,8 @@ onBeforeUnmount(() => emit("register", props.row.key, null));
   color: var(--t-fg);
   display: block;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .raw-text {
   font-family: "Inconsolata", monospace;

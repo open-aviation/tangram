@@ -13,8 +13,11 @@ defineProps<{
 
 <style scoped>
 .message-category-chip {
-  --cat-bg: oklch(45% 0.02 260 / 0.34);
-  --cat-fg: var(--t-fg);
+  --cat-color: color-mix(in oklch, var(--t-muted) 80%, var(--t-fg));
+  --cat-bg: color-mix(in oklch, var(--cat-color) 14%, var(--t-bg));
+  --cat-border: color-mix(in oklch, var(--cat-color) 38%, var(--t-border));
+  --cat-fg: color-mix(in oklch, var(--cat-color) 76%, var(--t-fg));
+  border: 1px solid var(--cat-border);
   border-radius: 5px;
   background: var(--cat-bg);
   color: var(--cat-fg);
@@ -22,42 +25,36 @@ defineProps<{
   font-size: 0.82em;
   font-weight: 700;
   line-height: 1.15;
-  padding: 1px 5px;
+  padding: 0 5px;
   white-space: nowrap;
   word-break: keep-all;
 }
 .cat-adsc {
-  --cat-bg: oklch(47% 0.15 250 / 0.42);
-  --cat-fg: oklch(86% 0.07 250);
+  --cat-color: oklch(54% 0.16 250);
 }
 .cat-cpdlc {
-  --cat-bg: oklch(47% 0.15 300 / 0.42);
-  --cat-fg: oklch(88% 0.07 300);
+  --cat-color: oklch(56% 0.15 300);
 }
 .cat-afn {
-  --cat-bg: oklch(48% 0.13 155 / 0.42);
-  --cat-fg: oklch(88% 0.08 155);
+  --cat-color: oklch(54% 0.13 155);
 }
 .cat-text {
-  --cat-bg: oklch(48% 0.03 250 / 0.42);
-  --cat-fg: oklch(88% 0.02 250);
+  --cat-color: color-mix(in oklch, var(--t-muted) 84%, var(--t-fg));
 }
 .cat-position {
-  --cat-bg: oklch(50% 0.13 85 / 0.42);
-  --cat-fg: oklch(90% 0.08 85);
+  --cat-color: oklch(58% 0.14 85);
 }
 .cat-aoc,
 .cat-oooi {
-  --cat-bg: oklch(47% 0.12 35 / 0.42);
-  --cat-fg: oklch(88% 0.08 35);
+  --cat-color: oklch(55% 0.13 35);
 }
 .cat-miam,
 .cat-xid {
-  --cat-bg: oklch(47% 0.1 210 / 0.42);
-  --cat-fg: oklch(88% 0.06 210);
+  --cat-color: oklch(56% 0.11 210);
 }
 .cat-other {
-  --cat-bg: oklch(43% 0.02 250 / 0.34);
-  --cat-fg: var(--t-muted);
+  --cat-color: color-mix(in oklch, var(--t-muted) 70%, var(--t-fg));
+  --cat-bg: color-mix(in oklch, var(--t-muted) 10%, var(--t-bg));
+  --cat-fg: color-mix(in oklch, var(--t-muted) 80%, var(--t-fg));
 }
 </style>
