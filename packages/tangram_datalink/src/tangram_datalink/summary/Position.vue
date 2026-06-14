@@ -6,7 +6,7 @@
 import { computed } from "vue";
 import { messageApp } from "../store";
 import type { DatalinkMessage } from "../types";
-import type { PositionLikePayload } from "../types";
+import type { LinkType, PositionLikePayload } from "../types";
 import SummaryRows from "./Rows.vue";
 import type { SummaryRow } from "../types";
 
@@ -16,6 +16,39 @@ const props = defineProps<{ msg: DatalinkMessage }>();
 
 const formatCoord = (value: number, pos: string, neg: string) =>
   `${Math.abs(value).toFixed(2)}°${value < 0 ? neg : pos}`;
+
+const linkLabel = (link: LinkType) => {
+  switch (link) {
+    case "VhfAcars":
+      return "VHF ACARS";
+    case "Vdl2":
+      return "VDL2";
+    case "Hf":
+      return "HF";
+    case "IcoSatcom":
+      return "ICO SATCOM";
+    default:
+      return link.toUpperCase();
+  }
+};
+
+const mediaAdvisoryDetail = (data: {
+  state: string;
+  current_link: LinkType;
+  time_utc: string;
+  available_links: LinkType[];
+  text?: string;
+}) => {
+  const alternates = data.available_links.filter(link => link !== data.current_link);
+  return [
+    `${data.state.toLowerCase()} ${linkLabel(data.current_link)}`,
+    `${data.time_utc}Z`,
+    alternates.length ? `also ${alternates.map(linkLabel).join("/")}` : null,
+    data.text
+  ]
+    .filter(Boolean)
+    .join(" · ");
+};
 
 const positionRow = (
   meta: string,
@@ -59,17 +92,7 @@ const rows = computed<SummaryRow[]>(() => {
     return [
       {
         meta: "media",
-        detail: [
-          app.data.state.toLowerCase(),
-          app.data.current_link,
-          `${app.data.time_utc}Z`,
-          app.data.available_links.length
-            ? `available ${app.data.available_links.join("/")}`
-            : null,
-          app.data.text
-        ]
-          .filter(Boolean)
-          .join(" · ")
+        detail: mediaAdvisoryDetail(app.data)
       }
     ];
   }

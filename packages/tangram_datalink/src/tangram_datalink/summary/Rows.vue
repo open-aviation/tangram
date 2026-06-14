@@ -34,20 +34,18 @@ defineProps<{
   grid-template-columns: 6.8em minmax(0, 1fr);
   gap: 6px;
   min-width: 0;
-  align-items: baseline;
+  align-items: start;
 }
 .summary-meta {
   color: var(--t-muted);
   font-family: "Inconsolata", monospace;
   font-size: 0.92em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .summary-detail {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 </style>
