@@ -4,14 +4,17 @@
     class="message-item"
     :data-feed-index="row.index"
     tabindex="-1"
-    @mouseenter="$emit('preview', row.key)"
-    @mouseleave="$emit('clearPreview', row.key)"
-    @focus="$emit('preview', row.key)"
-    @click.stop="$emit('toggle', row.key)"
+    @mouseenter="emit('preview', row.key)"
+    @mouseleave="emit('clearPreview', row.key)"
+    @focus="emit('preview', row.key)"
+    @click.stop="emit('toggle', row.key)"
   >
     <div class="message-header">
       <span class="time">{{ formatTime(row.msg.timestamp) }}</span>
-      <MessageCategoryChip :category="row.category" :label="row.categoryLabel" />
+      <span class="chip-group">
+        <MessageCategoryChip :category="row.category" :label="row.categoryLabel" />
+        <AtsuChip v-if="row.atsuAddress" :address="row.atsuAddress" />
+      </span>
     </div>
     <component
       :is="row.summaryComponent"
@@ -19,7 +22,7 @@
       class="feed-summary"
       :msg="row.msg"
     />
-    <div v-if="row.text" class="raw-text feed-text">
+    <div v-if="row.text && !row.summaryComponent" class="raw-text feed-text">
       {{ row.text }}
     </div>
   </div>
@@ -29,6 +32,7 @@
 import { onBeforeUnmount, onMounted, onUpdated, ref, type Component } from "vue";
 import type { MessageCategoryId } from "./store";
 import type { DatalinkMessage } from "./types";
+import AtsuChip from "./AtsuChip.vue";
 import MessageCategoryChip from "./MessageCategoryChip.vue";
 
 export type DatalinkFeedRowModel = {
@@ -38,6 +42,7 @@ export type DatalinkFeedRowModel = {
   msg: DatalinkMessage;
   category: MessageCategoryId;
   categoryLabel: string;
+  atsuAddress?: string | null;
   summaryComponent?: Component;
   text?: string;
 };
@@ -69,9 +74,9 @@ onBeforeUnmount(() => emit("register", props.row.key, null));
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   border-radius: 6px;
-  padding: 4px 5px;
+  padding: 3px 5px;
   cursor: pointer;
   outline: none;
 }
@@ -85,11 +90,21 @@ onBeforeUnmount(() => emit("register", props.row.key, null));
 }
 .message-header {
   display: flex;
-  gap: 7px;
-  align-items: baseline;
-  font-size: 0.88em;
+  gap: 5px;
+  align-items: center;
+  font-size: 0.9em;
+  line-height: 1;
+}
+.chip-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 17px;
 }
 .time {
+  display: inline-flex;
+  align-items: center;
+  min-height: 17px;
   color: var(--t-fg);
   font-family: "Inconsolata", monospace;
   font-weight: 600;
@@ -103,7 +118,7 @@ onBeforeUnmount(() => emit("register", props.row.key, null));
 }
 .raw-text {
   font-family: "Inconsolata", monospace;
-  font-size: 0.85em;
+  font-size: 0.9em;
   color: var(--t-fg);
   white-space: pre-wrap;
   word-break: break-word;

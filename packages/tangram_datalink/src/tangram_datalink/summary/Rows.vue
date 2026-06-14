@@ -39,7 +39,7 @@ defineProps<{
 .summary-meta {
   color: var(--t-muted);
   font-family: "Inconsolata", monospace;
-  font-size: 0.92em;
+  font-size: 1em;
   overflow-wrap: anywhere;
   white-space: normal;
 }
