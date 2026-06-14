@@ -6,16 +6,19 @@
 import { computed } from "vue";
 import type {
   AdscContractGroup,
+  AdscMeteoData,
+  AdscPayload,
   AdscPositionReport,
   AdscPredictedRoute,
   AdscReferenceData,
-  AdscMeteoData,
   AdscTag,
   DatalinkMessage
-} from "./store";
-import { arinc622Message } from "./summary_helpers";
-import SummaryRows from "./SummaryRows.vue";
-import type { SummaryRow } from "./summary_rows";
+} from "../types";
+import { arinc622Message } from "../summary_helpers";
+import SummaryRows from "./Rows.vue";
+import type { SummaryRow } from "../types";
+
+defineOptions({ name: "DatalinkSummaryAdsc" });
 
 const props = defineProps<{ msg: DatalinkMessage }>();
 
@@ -29,7 +32,8 @@ const props = defineProps<{ msg: DatalinkMessage }>();
 
 const tags = (msg: DatalinkMessage): AdscTag[] => {
   const payload = arinc622Message(msg)?.payload;
-  return payload?.kind === "adsc" ? (payload.data.tags ?? []) : [];
+  if (payload?.kind !== "adsc") return [];
+  return ((payload.data as AdscPayload).tags ?? []) as AdscTag[];
 };
 
 const formatAltitude = (feet: number) => `FL${Math.round(feet / 100)}`;

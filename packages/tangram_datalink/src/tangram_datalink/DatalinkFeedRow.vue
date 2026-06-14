@@ -27,7 +27,8 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, onUpdated, ref, type Component } from "vue";
-import type { DatalinkMessage, MessageCategoryId } from "./store";
+import type { MessageCategoryId } from "./store";
+import type { DatalinkMessage } from "./types";
 import MessageCategoryChip from "./MessageCategoryChip.vue";
 
 export type DatalinkFeedRowModel = {

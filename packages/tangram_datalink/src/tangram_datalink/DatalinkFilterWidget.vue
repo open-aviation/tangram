@@ -56,7 +56,7 @@
             <HoverLabel
               class="cat-label"
               :label="cat.label"
-              :description="cat.description"
+              :description="descriptionForCategory(cat)"
             />
           </label>
           <span class="cat-count" :class="{ zero: countFor(cat.id) === 0 }">
@@ -93,6 +93,9 @@ defineEmits(["update:modelValue"]);
 const tangramApi = inject<TangramApi>("tangramApi");
 
 const filter = computed(() => datalinkStore.filter);
+
+const descriptionForCategory = (category: (typeof MESSAGE_CATEGORIES)[number]) =>
+  "description" in category ? category.description : category.label;
 
 const allStationsSelected = computed(() =>
   STATION_CATEGORIES.every(sc => datalinkStore.filter.stations[sc.id])

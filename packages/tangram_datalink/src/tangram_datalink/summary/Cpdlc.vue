@@ -14,19 +14,24 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type {
+  AdjacentPayload,
+  Arinc622Payload,
+  CpdlcPayload,
   DatalinkCpdlcElement,
   DatalinkMessage,
   JsonObject,
-  JsonValue
-} from "./store";
-import { arinc622Message, isRecord } from "./summary_helpers";
-import SummaryRows from "./SummaryRows.vue";
-import type { SummaryRow } from "./summary_rows";
+  JsonValue,
+  PhraseSummaryRow,
+  SummaryPhrasePart
+} from "../types";
+import { arinc622Message, isRecord } from "../summary_helpers";
+import SummaryRows from "./Rows.vue";
+defineOptions({ name: "DatalinkSummaryCpdlc" });
 
 const props = defineProps<{ msg: DatalinkMessage }>();
 
-type PhrasePart = { kind: "text" | "value"; text: string };
-type PhraseRow = SummaryRow & { parts: PhrasePart[] };
+type PhrasePart = SummaryPhrasePart;
+type PhraseRow = PhraseSummaryRow;
 
 const label = (value: string) => value.replaceAll("_", " ");
 
@@ -153,7 +158,7 @@ const renderElement = (element: DatalinkCpdlcElement): PhrasePart[] => {
       const value = resolveSlot(element, fragment.data);
       return {
         kind: "value",
-        text: value === undefined ? `[${fragment.data}]` : formatValue(value)
+        text: value === undefined ? `${label(fragment.data)}?` : formatValue(value)
       };
     });
   }
@@ -166,9 +171,13 @@ const sideRows = (elements: DatalinkCpdlcElement[], direction: string): PhraseRo
     parts: renderElement(element)
   }));
 
+const isCpdlcPayload = (
+  payload: Arinc622Payload | undefined
+): payload is AdjacentPayload<"cpdlc", CpdlcPayload> => payload?.kind === "cpdlc";
+
 const rows = computed(() => {
   const arinc = arinc622Message(props.msg);
-  const payload = arinc?.payload?.kind === "cpdlc" ? arinc.payload.data : null;
+  const payload = isCpdlcPayload(arinc?.payload) ? arinc.payload.data : null;
   if (!payload) return [];
 
   const out: PhraseRow[] = [];
@@ -176,14 +185,15 @@ const rows = computed(() => {
     out.push(...sideRows(payload.downlink.elements ?? [], "downlink"));
   if (payload.uplink) out.push(...sideRows(payload.uplink.elements ?? [], "uplink"));
 
-  const controlSide = payload.control?.data.message;
+  const control = payload.control;
+  const controlSide = control?.data.message;
   if (controlSide) {
-    out.push(...sideRows(controlSide.elements ?? [], payload.control.kind));
+    out.push(...sideRows(controlSide.elements ?? [], control.kind));
   }
-  if (!out.length && payload.control) {
+  if (!out.length && control) {
     out.push({
       meta: "control",
-      parts: [{ kind: "text", text: controlLabel(payload.control.kind) }]
+      parts: [{ kind: "text", text: controlLabel(control.kind) }]
     });
   }
   return out.slice(0, 4);

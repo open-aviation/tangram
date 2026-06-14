@@ -140,20 +140,21 @@ import {
 } from "vue";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
 import { useVimList } from "@open-aviation/tangram-core/keyboard";
-import {
-  MESSAGE_CATEGORIES,
-  classifyCategory,
-  datalinkStore,
-  type DatalinkMessage,
-  type MessageCategoryId
-} from "./store";
+import { MESSAGE_CATEGORIES, classifyCategory, datalinkStore } from "./store";
+import type { MessageCategoryId } from "./store";
+import type { DatalinkMessage } from "./types";
 import { ENTITY_TYPE, type DatalinkEntity } from "./index";
 import { airportName } from "./airport";
 import DatalinkFeedCallout from "./DatalinkFeedCallout.vue";
 import DatalinkFeedRow, { type DatalinkFeedRowModel } from "./DatalinkFeedRow.vue";
-import AdscSummary from "./AdscSummary.vue";
-import CpdlcSummary from "./CpdlcSummary.vue";
-import DefaultMessageSummary from "./DefaultMessageSummary.vue";
+import AdscSummary from "./summary/Adsc.vue";
+import AfnSummary from "./summary/Afn.vue";
+import AocSummary from "./summary/Aoc.vue";
+import CpdlcSummary from "./summary/Cpdlc.vue";
+import DefaultMessageSummary from "./summary/DefaultMessage.vue";
+import MiamSummary from "./summary/Miam.vue";
+import OooiSummary from "./summary/Oooi.vue";
+import PositionSummary from "./summary/Position.vue";
 import { messageKeyParts, messageText } from "./summary_helpers";
 import { createImperativeRowClassSync } from "./useImperativeRowClasses";
 
@@ -225,13 +226,18 @@ const feedMessageKey = (entityId: string, msg: DatalinkMessage) =>
 
 const summaryComponentByCategory: Partial<Record<MessageCategoryId, Component>> = {
   adsc: markRaw(AdscSummary),
-  cpdlc: markRaw(CpdlcSummary)
+  cpdlc: markRaw(CpdlcSummary),
+  afn: markRaw(AfnSummary),
+  position: markRaw(PositionSummary),
+  aoc: markRaw(AocSummary),
+  oooi: markRaw(OooiSummary),
+  miam: markRaw(MiamSummary)
 };
 
 const defaultSummaryComponent = markRaw(DefaultMessageSummary);
 
 const summaryComponentFor = (category: MessageCategoryId) =>
-  category === "text"
+  category === "text" || category === "other"
     ? undefined
     : (summaryComponentByCategory[category] ?? defaultSummaryComponent);
 
@@ -245,6 +251,8 @@ const feedRows = computed<FeedRow[]>(() => {
       const baseKey = feedMessageKey(item.id, rawMsg);
       const keyCount = keyCounts.get(baseKey) ?? 0;
       keyCounts.set(baseKey, keyCount + 1);
+      const text = messageText(rawMsg);
+      if (category === "other" && !text) continue;
       rows.push({
         entityId: item.id,
         key: keyCount === 0 ? baseKey : `${baseKey}:${keyCount}`,
@@ -253,7 +261,7 @@ const feedRows = computed<FeedRow[]>(() => {
         category,
         categoryLabel: messageCategoryLabel.get(category) ?? category,
         summaryComponent: summaryComponentFor(category),
-        text: messageText(rawMsg)
+        text
       });
     }
   }
@@ -410,7 +418,7 @@ const { focusedIndex, setFocus } = useVimList(feedRows, {
     space: "select",
     enter: "select"
   },
-  onAction: (action, start) => {
+  onAction: (action: string, start: number) => {
     if (action !== "select") return;
     const row = feedRows.value[start];
     if (row) togglePinnedFeedRow(row.key);

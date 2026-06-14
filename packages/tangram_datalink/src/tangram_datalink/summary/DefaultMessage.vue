@@ -4,10 +4,12 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { DatalinkMessage } from "./store";
-import { arinc622Message, rawMessage } from "./summary_helpers";
-import SummaryRows from "./SummaryRows.vue";
-import type { SummaryRow } from "./summary_rows";
+import type { DatalinkMessage } from "../types";
+import { arinc622Message, rawMessage } from "../summary_helpers";
+import SummaryRows from "./Rows.vue";
+import type { SummaryRow } from "../types";
+
+defineOptions({ name: "DatalinkSummaryDefaultMessage" });
 
 const props = defineProps<{ msg: DatalinkMessage }>();
 

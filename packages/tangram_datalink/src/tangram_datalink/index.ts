@@ -13,9 +13,9 @@ import {
   datalinkStore,
   classifyAndStore,
   ensureHistory,
-  getSquitterPayload,
-  type DatalinkMessage
+  getSquitterPayload
 } from "./store";
+import type { DatalinkMessage } from "./types";
 
 export const ENTITY_TYPE = "datalink_entity";
 
