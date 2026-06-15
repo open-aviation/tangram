@@ -24,7 +24,7 @@ lint = ["ruff>=0.15.15"]
 typing = ["mypy>=2.1.0"]
 docs = [
     "mkdocs-material[imaging]>=9.7.6",
-    "mkdocstrings-python>=2.0.3",
+    "mkdocstrings-python>=2.0.4",
 ]
 
 [tool.uv]
