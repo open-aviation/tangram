@@ -24,7 +24,7 @@ arrow-schema = "58.0.0"
 anyhow = "1.0"
 futures = "0.3"
 redis = { version = "1.0.2", features = ["tokio-comp"] }
-rs162 = { git = "https://github.com/xoolive/ship162", rev = "0cb1eac88716687cd9df2d129fa7a5abd66b0fa9" }
+rs162 = "0.1.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
@@ -34,20 +34,13 @@ tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 nucleo-matcher = "0.3.1"
 
-pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
-pyo3-async-runtimes = { version = "0.27", features = [
+pyo3 = { version = "0.29", features = ["extension-module", "experimental-inspect"], optional = true }
+pyo3-async-runtimes = { version = "0.29", features = [
     "attributes",
     "tokio-runtime",
 ], optional = true }
-# NOTE: v0.17 introduced support for overloading but that caused an odd post-compile
-# runtime issue, do not upgrade yet.
-pyo3-stub-gen = { version = "0.16", optional = true }
 
-[[bin]]
-name = "stub_gen_ships"
-path = "src/bin/stub_gen.rs"
-required-features = ["stubgen"]
 
 [features]
 pyo3 = ["dep:pyo3", "dep:pyo3-async-runtimes", "tangram_history/pyo3"]
-stubgen = ["pyo3", "dep:pyo3-stub-gen"]
+stubgen = ["pyo3"]

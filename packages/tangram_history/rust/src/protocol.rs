@@ -4,11 +4,8 @@ use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
 #[cfg(feature = "pyo3")]
 use pyo3::{exceptions::PyValueError, types::PyBytes};
-#[cfg(feature = "stubgen")]
-use pyo3_stub_gen::derive::*;
 
-#[cfg_attr(feature = "stubgen", gen_stub_pyclass_complex_enum)]
-#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
+#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all, from_py_object))]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum ControlMessage {
@@ -43,7 +40,6 @@ pub enum ControlMessage {
 }
 
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pymethods)]
 #[pymethods]
 impl ControlMessage {
     #[staticmethod]
@@ -60,8 +56,7 @@ impl ControlMessage {
     }
 }
 
-#[cfg_attr(feature = "stubgen", gen_stub_pyclass_complex_enum)]
-#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
+#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all, from_py_object))]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum ControlResponse {
@@ -99,7 +94,6 @@ pub enum ControlResponse {
 }
 
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pymethods)]
 #[pymethods]
 impl ControlResponse {
     #[staticmethod]
@@ -116,8 +110,7 @@ impl ControlResponse {
     }
 }
 
-#[cfg_attr(feature = "stubgen", gen_stub_pyclass)]
-#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
+#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all, from_py_object))]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TableInfo {
     pub name: String,
@@ -128,7 +121,6 @@ pub struct TableInfo {
 }
 
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pymethods)]
 #[pymethods]
 impl TableInfo {
     #[staticmethod]
@@ -144,8 +136,7 @@ impl TableInfo {
     }
 }
 
-#[cfg_attr(feature = "stubgen", gen_stub_pyclass)]
-#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
+#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all, from_py_object))]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RegisterTable {
     pub sender_id: String,
@@ -161,7 +152,6 @@ pub struct RegisterTable {
 }
 
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pymethods)]
 #[pymethods]
 impl RegisterTable {
     #[staticmethod]

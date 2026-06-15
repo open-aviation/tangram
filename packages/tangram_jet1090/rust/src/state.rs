@@ -8,8 +8,6 @@ use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config, Matcher, Utf32Str};
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
-#[cfg(feature = "stubgen")]
-use pyo3_stub_gen::derive::*;
 use rs1090::data::patterns::aircraft_information;
 use rs1090::decode::bds::bds09::AirborneVelocitySubType::{AirspeedSubsonic, GroundSpeedDecoding};
 use rs1090::decode::bds::bds09::AirspeedType::{IAS, TAS};
@@ -25,8 +23,7 @@ use std::{
 use tangram_core::stream::{Identifiable, Positioned, StateCollection, Tracked};
 use tangram_history::client::{HistoryBuffer, HistoryFrame};
 
-#[cfg_attr(feature = "stubgen", gen_stub_pyclass)]
-#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
+#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all, from_py_object))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Aircraft {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -36,7 +33,6 @@ pub struct Aircraft {
 }
 
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pymethods)]
 #[pymethods]
 impl Aircraft {
     #[new]

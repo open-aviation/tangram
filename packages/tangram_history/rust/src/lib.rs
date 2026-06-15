@@ -12,9 +12,6 @@ use pyo3::exceptions::PyRuntimeError;
 #[cfg(feature = "pyo3")]
 use pyo3::{exceptions::PyOSError, prelude::*};
 
-#[cfg(feature = "stubgen")]
-use pyo3_stub_gen::derive::*;
-
 #[cfg(feature = "pyo3")]
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
@@ -26,7 +23,6 @@ use std::path::PathBuf;
 use crate::protocol::{ControlResponse, TableInfo};
 
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
 fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
     tracing_subscriber::registry()
@@ -38,7 +34,6 @@ fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
 
 #[cfg(feature = "server")]
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
 /// List history tables by inspecting the on-disk Delta Lake directory.
 ///
@@ -100,7 +95,6 @@ fn list_tables_offline(base_path: String) -> PyResult<Vec<TableInfo>> {
 
 #[cfg(feature = "server")]
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
 /// Delete rows from a history table stored on disk.
 ///
@@ -148,8 +142,7 @@ fn delete_rows_offline(
 
 #[cfg(feature = "server")]
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pyclass)]
-#[pyclass(get_all, set_all)]
+#[pyclass(get_all, set_all, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct HistoryConfig {
     pub redis_url: String,
@@ -161,7 +154,6 @@ pub struct HistoryConfig {
 
 #[cfg(feature = "server")]
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pymethods)]
 #[pymethods]
 impl HistoryConfig {
     #[new]
@@ -192,10 +184,6 @@ impl HistoryConfig {
 // but:
 // - it is unclear how to make pyo3-exposed objects compatible with pydantic
 //   TypeAdapter: https://github.com/pydantic/pydantic/discussions/8854
-// - for some reason pyo3-stubgen has linking issues when generating the .pyi:
-//   https://github.com/Jij-Inc/pyo3-stub-gen/issues/161 (not exact the same
-//   but similar)
-//
 // so for sadly we have to accept manually duplicating `history_*` in all plugin
 // configs.
 #[derive(Debug, Clone)]
@@ -217,7 +205,6 @@ async fn _run_service(config: IngestConfig) -> anyhow::Result<()> {
 
 #[cfg(feature = "server")]
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
 /// Start the history ingest service.
 ///
@@ -239,26 +226,35 @@ fn run_history(py: Python<'_>, config: HistoryConfig) -> PyResult<Bound<'_, PyAn
 
 #[cfg(feature = "pyo3")]
 #[pymodule]
-fn _history(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(init_tracing_stderr, m)?)?;
-    m.add_class::<protocol::ControlMessage>()?;
-    m.add_class::<protocol::ControlResponse>()?;
-    m.add_class::<protocol::TableInfo>()?;
-    m.add_class::<protocol::RegisterTable>()?;
+mod _history {
+    #[pymodule_export]
+    use super::init_tracing_stderr;
+
+    #[pymodule_export]
+    use super::protocol::ControlMessage;
+
+    #[pymodule_export]
+    use super::protocol::ControlResponse;
+
+    #[pymodule_export]
+    use super::protocol::TableInfo;
+
+    #[pymodule_export]
+    use super::protocol::RegisterTable;
 
     #[cfg(feature = "server")]
-    {
-        m.add_function(wrap_pyfunction!(run_history, m)?)?;
-        m.add_function(wrap_pyfunction!(list_tables_offline, m)?)?;
-        m.add_function(wrap_pyfunction!(delete_rows_offline, m)?)?;
-        m.add_class::<HistoryConfig>()?;
-    }
-    Ok(())
-}
+    #[pymodule_export]
+    use super::run_history;
 
-#[cfg(feature = "stubgen")]
-pub fn stub_info() -> pyo3_stub_gen::Result<pyo3_stub_gen::StubInfo> {
-    let manifest_dir: &::std::path::Path = env!("CARGO_MANIFEST_DIR").as_ref();
-    let pyproject_path = manifest_dir.parent().unwrap().join("pyproject.toml");
-    pyo3_stub_gen::StubInfo::from_pyproject_toml(pyproject_path)
+    #[cfg(feature = "server")]
+    #[pymodule_export]
+    use super::list_tables_offline;
+
+    #[cfg(feature = "server")]
+    #[pymodule_export]
+    use super::delete_rows_offline;
+
+    #[cfg(feature = "server")]
+    #[pymodule_export]
+    use super::HistoryConfig;
 }

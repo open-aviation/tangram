@@ -42,12 +42,11 @@ rand = { version = "0.10", optional = true }
 itertools = { version = "0.14", optional = true }
 
 # pyo3
-pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
-pyo3-async-runtimes = { version = "0.27", features = [
+pyo3 = { version = "0.29", features = ["extension-module", "experimental-inspect"], optional = true }
+pyo3-async-runtimes = { version = "0.29", features = [
     "attributes",
     "tokio-runtime",
 ], optional = true }
-pyo3-stub-gen = { version = "0.16", optional = true }
 tracing-subscriber = { version = "0.3", features = [
     "env-filter",
 ], optional = true }
@@ -56,10 +55,6 @@ tracing-subscriber = { version = "0.3", features = [
 tokio-tungstenite = "0.29" # for unit tests in websocket.rs
 
 
-[[bin]]
-name = "stub_gen_core"
-path = "src/bin/stub_gen.rs"
-required-features = ["stubgen"]
 
 [features]
 default = []
@@ -80,4 +75,4 @@ pyo3 = [
     "dep:tracing-subscriber",
     "channel",
 ]
-stubgen = ["pyo3", "dep:pyo3-stub-gen"]
+stubgen = ["pyo3"]

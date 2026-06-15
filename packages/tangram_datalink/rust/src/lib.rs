@@ -5,11 +5,8 @@ pub mod state;
 use pyo3::prelude::*;
 #[cfg(feature = "pyo3")]
 use pyo3_async_runtimes::tokio::future_into_py;
-#[cfg(feature = "stubgen")]
-use pyo3_stub_gen::derive::*;
 
-#[cfg_attr(feature = "stubgen", gen_stub_pyclass)]
-#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
+#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all, from_py_object))]
 #[derive(Clone)]
 pub struct DatalinkConfig {
     pub redis_url: String,
@@ -18,7 +15,6 @@ pub struct DatalinkConfig {
 }
 
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pymethods)]
 #[pymethods]
 impl DatalinkConfig {
     #[new]
@@ -32,7 +28,6 @@ impl DatalinkConfig {
 }
 
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
 fn run_datalink(py: Python<'_>, config: DatalinkConfig) -> PyResult<Bound<'_, PyAny>> {
     future_into_py(py, async move {
@@ -44,15 +39,10 @@ fn run_datalink(py: Python<'_>, config: DatalinkConfig) -> PyResult<Bound<'_, Py
 
 #[cfg(feature = "pyo3")]
 #[pymodule]
-fn _datalink(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(run_datalink, m)?)?;
-    m.add_class::<DatalinkConfig>()?;
-    Ok(())
-}
+mod _datalink {
+    #[pymodule_export]
+    use super::run_datalink;
 
-#[cfg(feature = "stubgen")]
-pub fn stub_info() -> pyo3_stub_gen::Result<pyo3_stub_gen::StubInfo> {
-    let manifest_dir: &::std::path::Path = env!("CARGO_MANIFEST_DIR").as_ref();
-    let pyproject_path = manifest_dir.parent().unwrap().join("pyproject.toml");
-    pyo3_stub_gen::StubInfo::from_pyproject_toml(pyproject_path)
+    #[pymodule_export]
+    use super::DatalinkConfig;
 }

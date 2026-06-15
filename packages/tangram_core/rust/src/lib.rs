@@ -23,9 +23,6 @@ use pyo3::{
     prelude::*,
 };
 
-#[cfg(feature = "stubgen")]
-use pyo3_stub_gen::derive::*;
-
 #[cfg(feature = "channel")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "channel")]
@@ -44,7 +41,6 @@ use tower_http::{
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
 fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
     tracing_subscriber::registry()
@@ -55,8 +51,7 @@ fn init_tracing_stderr(filter_str: String) -> PyResult<()> {
 }
 
 #[cfg(feature = "channel")]
-#[cfg_attr(feature = "stubgen", gen_stub_pyclass)]
-#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all))]
+#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all, from_py_object))]
 #[derive(Debug, Clone)]
 pub struct ChannelConfig {
     pub host: String,
@@ -69,7 +64,6 @@ pub struct ChannelConfig {
 
 #[cfg(feature = "channel")]
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pymethods)]
 #[pymethods]
 impl ChannelConfig {
     #[new]
@@ -94,7 +88,6 @@ impl ChannelConfig {
 
 #[cfg(feature = "channel")]
 #[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "stubgen", gen_stub_pyfunction)]
 #[pyfunction]
 fn run(py: Python<'_>, config: ChannelConfig) -> PyResult<Bound<'_, PyAny>> {
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
@@ -253,22 +246,15 @@ impl From<ChannelError> for PyErr {
 
 #[cfg(feature = "pyo3")]
 #[pymodule]
-fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(init_tracing_stderr, m)?)?;
+mod _core {
+    #[pymodule_export]
+    use super::init_tracing_stderr;
 
     #[cfg(feature = "channel")]
-    {
-        m.add_function(wrap_pyfunction!(run, m)?)?;
-        m.add_class::<ChannelConfig>()?;
-    }
-    Ok(())
-}
+    #[pymodule_export]
+    use super::run;
 
-#[cfg(feature = "stubgen")]
-// not using define_stub_info_gatherer! macro, we need to
-// go up one level from `packages/tangram_core/rust` to `packages/tangram_core`
-pub fn stub_info() -> pyo3_stub_gen::Result<pyo3_stub_gen::StubInfo> {
-    let manifest_dir: &::std::path::Path = env!("CARGO_MANIFEST_DIR").as_ref();
-    let pyproject_path = manifest_dir.parent().unwrap().join("pyproject.toml");
-    pyo3_stub_gen::StubInfo::from_pyproject_toml(pyproject_path)
+    #[cfg(feature = "channel")]
+    #[pymodule_export]
+    use super::ChannelConfig;
 }
