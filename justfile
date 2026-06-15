@@ -75,6 +75,16 @@ stubgen:
     cargo build -p tangram_jet1090 --features pyo3; cargo run --manifest-path "$pyo3i" -- target/debug/lib_planes.so _planes "$tmp/planes"; cp "$tmp/planes/__init__.pyi" packages/tangram_jet1090/src/tangram_jet1090/_planes.pyi; \
     cargo build -p tangram_ship162 --features pyo3; cargo run --manifest-path "$pyo3i" -- target/debug/lib_ships.so _ships "$tmp/ships"; cp "$tmp/ships/__init__.pyi" packages/tangram_ship162/src/tangram_ship162/_ships.pyi
 
+# Check code quality (eslint, ruff, clippy) and formatting (prettier, ruff, rustfmt).
+check:
+  uv run ruff check packages
+  uv run ruff format packages --check
+  pnpm typecheck
+  pnpm typecheck:vite
+  cargo check --all-targets --all-features
+  cargo fmt --all -- --check
+  cargo clippy --all-targets --all-features -- -D warnings
+
 # Fix code quality (eslint, ruff, clippy) and formatting (prettier, ruff, rustfmt).
 fmt:
   uv run ruff check packages --fix || true

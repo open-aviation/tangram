@@ -191,7 +191,7 @@ export function detectTrajectoryOptions(
 }
 
 export async function jsonlSample(
-  file: Pick<LazyImportFile, "getText">
+  file: Pick<LazyImportFile, "rawFile" | "getText">
 ): Promise<Record<string, unknown>[]> {
   return parseJsonlRows(file, 20, true);
 }

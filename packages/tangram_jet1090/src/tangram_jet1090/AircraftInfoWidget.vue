@@ -208,12 +208,13 @@ const getLastPointsInfo = (chart: Chart) => {
     const element = meta.data?.[data.length - 1];
     if (!element) return;
 
+    const color = dataset.borderColor ?? dataset.backgroundColor;
     infos.push({
       datasetIndex,
       x: element.x,
       y: element.y,
       valueX: x,
-      color: dataset.borderColor ?? dataset.backgroundColor ?? "#000"
+      color: typeof color === "string" ? color : "#000"
     });
   });
 
@@ -340,7 +341,7 @@ const selectedMetrics = reactive(new Map<string, string>());
 const selectedAircraftIds = ref<Set<string>>(new Set());
 
 const selectionDisposable = tangramApi.selection.onChanged(map => {
-  selectedAircraftIds.value = map.get("jet1090_aircraft") || new Set<string>();
+  selectedAircraftIds.value = new Set(map.get("jet1090_aircraft") ?? []);
 });
 
 onUnmounted(() => {

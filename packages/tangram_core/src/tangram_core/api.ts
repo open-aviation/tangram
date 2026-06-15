@@ -1,7 +1,5 @@
 import {
-  App,
   ref,
-  Component,
   computed,
   markRaw,
   reactive,
@@ -11,7 +9,9 @@ import {
   triggerRef,
   watch,
   type ShallowRef,
-  type Ref
+  type Ref,
+  type App,
+  type Component
 } from "vue";
 import type { Map as MaplibreMap, LngLatBounds, StyleSpecification } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";

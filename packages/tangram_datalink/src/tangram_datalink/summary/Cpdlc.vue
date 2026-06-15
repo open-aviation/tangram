@@ -2,7 +2,7 @@
   <SummaryRows :rows="rows" empty="cpdlc">
     <template #default="{ row }">
       <span class="cpdlc-phrase">
-        <template v-for="(part, partIdx) in row.parts" :key="partIdx">
+        <template v-for="(part, partIdx) in row.parts ?? []" :key="partIdx">
           <span v-if="part.kind === 'value'" class="cpdlc-value">{{ part.text }}</span>
           <span v-else class="cpdlc-text">{{ part.text }}</span>
         </template>

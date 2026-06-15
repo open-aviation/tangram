@@ -87,7 +87,7 @@ const expandedIds = reactive(new Set<string>());
 const selectedIds = ref<Set<string>>(new Set());
 
 const selectionDisposable = tangramApi.selection.onChanged(map => {
-  selectedIds.value = map.get("ship162_ship") || new Set();
+  selectedIds.value = new Set(map.get("ship162_ship") ?? []);
 });
 
 const shipList = computed(() => {

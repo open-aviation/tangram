@@ -19,6 +19,10 @@ defineProps<{
   rows: SummaryRow[];
   empty: string;
 }>();
+
+defineSlots<{
+  default?: (props: { row: SummaryRow; index: number }) => unknown;
+}>();
 </script>
 
 <style scoped>

@@ -123,11 +123,12 @@ const mapLayers = computed(() => {
 
     if (typeof color !== "string") color = undefined;
 
+    const filter = "filter" in l ? l.filter : undefined;
     layers[l.id] = {
       visible: visibility[l.id] ?? l.layout?.visibility !== "none",
       type: l.type,
       color,
-      filter: l?.filter ? JSON.stringify(l.filter) : undefined
+      filter: filter ? JSON.stringify(filter) : undefined
     };
   });
   return layers;

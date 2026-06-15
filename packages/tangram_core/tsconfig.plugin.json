@@ -1,0 +1,26 @@
+{
+  // this config is exposed and used by out-of-tree plugins
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    // vite/rolldown resolves package exports not like plain node
+    "moduleResolution": "bundler",
+    "strict": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    // vite transpiles one file at a time, so reject whole-program emit
+    "isolatedModules": true,
+    // preserve import semantics; use `import type`
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    // our vite plugins are .mjs; resolve it without typechecking js yet
+    "allowJs": true,
+    "checkJs": false,
+    // expose client-side module/env types to plugin source and vue sfc files
+    "types": ["vite/client"]
+  }
+}

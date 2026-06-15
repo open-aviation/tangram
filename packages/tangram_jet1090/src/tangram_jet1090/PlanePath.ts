@@ -13,9 +13,7 @@ export interface AcSymbol {
   sym: string;
 }
 
-type IconEntry = IconProps | AcSymbol;
-
-const acImagePathsR: Record<string, IconEntry> = {
+const acImagePathsR: Record<string, IconProps> = {
   // triangle
   $0: { x: 12, y: 12, scale: 1, rotcorr: 180, path: "M0,0 6,12 12,0z" },
   // small aircraft

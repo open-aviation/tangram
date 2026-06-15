@@ -17,7 +17,9 @@
     "src/tangram_core/*.d.ts",
     "src/tangram_core/*.mjs",
     "src/tangram_core/*.vue",
-    "src/tangram_core/*.css"
+    "src/tangram_core/*.css",
+    "tsconfig.plugin.json",
+    "tsconfig.node.json"
   ],
   "publishConfig": {
     "access": "public",
@@ -31,18 +33,20 @@
     "./trajectory": "./src/tangram_core/trajectory.ts",
     "./types": "./src/tangram_core/types.d.ts",
     "./utils": "./src/tangram_core/utils.ts",
-    "./components": "./src/tangram_core/components.ts"
+    "./components": "./src/tangram_core/components.ts",
+    "./tsconfig.plugin.json": "./tsconfig.plugin.json",
+    "./tsconfig.node.json": "./tsconfig.node.json"
   },
   "dependencies": {
-    "@deck.gl/aggregation-layers": "^9.3.2",
-    "@deck.gl/core": "^9.3.2",
-    "@deck.gl/extensions": "^9.3.2",
-    "@deck.gl/geo-layers": "^9.3.2",
-    "@deck.gl/json": "^9.3.2",
-    "@deck.gl/layers": "^9.3.2",
-    "@deck.gl/mapbox": "^9.3.2",
-    "@deck.gl/mesh-layers": "^9.3.2",
-    "@deck.gl/widgets": "^9.3.2",
+    "@deck.gl/aggregation-layers": "^9.3.3",
+    "@deck.gl/core": "^9.3.3",
+    "@deck.gl/extensions": "^9.3.3",
+    "@deck.gl/geo-layers": "^9.3.3",
+    "@deck.gl/json": "^9.3.3",
+    "@deck.gl/layers": "^9.3.3",
+    "@deck.gl/mapbox": "^9.3.3",
+    "@deck.gl/mesh-layers": "^9.3.3",
+    "@deck.gl/widgets": "^9.3.3",
     "@fontsource/b612": "^5.2.7",
     "@fontsource/inconsolata": "^5.2.8",
     "@fontsource/roboto-condensed": "^5.2.8",
@@ -59,7 +63,7 @@
   "devDependencies": {
     "@types/phoenix": "^1.6.7",
     "vite": "^8.0.16",
-    "vite-plugin-static-copy": "^4.1.0",
-    "vitest": "^4.1.7"
+    "vite-plugin-static-copy": "^4.1.1",
+    "vitest": "^4.1.8"
   }
 }

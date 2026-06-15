@@ -1,21 +1,24 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "useDefineForClassFields": true,
-    "module": "ESNext",
-    "lib": ["ESNext", "DOM"],
-    "moduleResolution": "bundler",
-    "strict": true,
-    "sourceMap": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "noEmit": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "skipLibCheck": true,
-    "customConditions": ["source"],
+    "noImplicitReturns": true
   },
-  "include": ["packages/**/*.ts", "packages/**/*.d.ts", "packages/**/*.vue"]
+  "include": [
+    "packages/**/*.ts",
+    "packages/**/*.d.ts",
+    "packages/**/*.mjs",
+    "packages/**/*.vue"
+  ],
+  "exclude": [
+    "**/dist/**",
+    "**/dist-frontend/**",
+    "site/**",
+    "target/**",
+    ".venv/**",
+    // vite configs run in node; check them with tsconfig.vite.json.
+    "packages/**/vite.config.ts",
+    "packages/**/vite.*.config.ts"
+  ]
 }

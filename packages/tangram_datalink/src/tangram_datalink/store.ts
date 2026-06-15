@@ -1,4 +1,4 @@
-import { reactive } from "vue";
+import { shallowReactive } from "vue";
 import type { DatalinkEntity } from "./index";
 import type {
   AcarsAppPayload,
@@ -132,14 +132,14 @@ export interface DatalinkStore {
   version: number;
 }
 
-export const datalinkStore = reactive({
+export const datalinkStore: DatalinkStore = shallowReactive({
   selected: new Map<string, DatalinkSelectionData>(),
   selectedIds: new Set<string>(),
   /** universal per-entity message history, keyed by entity id, populated regardless of selection */
   history: new Map<string, DatalinkEntityHistory>(),
   filter: makeDefaultFilter() as DatalinkFilter,
   version: 0
-}) as DatalinkStore;
+});
 
 export function ensureHistory(id: string): DatalinkEntityHistory {
   if (!datalinkStore.history.has(id)) {

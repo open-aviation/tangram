@@ -1,0 +1,4 @@
+{
+  // we use the in-tree plugin check on the same config we publish for out-of-tree plugins
+  "extends": "./packages/tangram_core/tsconfig.plugin.json"
+}

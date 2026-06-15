@@ -35,7 +35,7 @@ const selectedId = ref<string | null>(null);
 const selectionDisposable = tangramApi.selection.onChanged(map => {
   const set = map.get("jet1090_aircraft");
   if (set && set.size === 1) {
-    selectedId.value = set.values().next().value;
+    selectedId.value = set.values().next().value ?? null;
   } else {
     selectedId.value = null;
   }

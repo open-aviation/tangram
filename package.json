@@ -4,16 +4,21 @@
   "scripts": {
     "build": "pnpm --filter \"./packages/*\" build",
     "lint": "eslint --fix",
-    "fmt": "prettier --write --cache \"packages/**/*.{js,ts,mjs,vue}\""
+    "fmt": "prettier --write --cache \"packages/**/*.{js,ts,mjs,vue}\"",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "typecheck:vite": "tsc --noEmit -p tsconfig.vite.json"
   },
   "devDependencies": {
+    "@types/node": "^25.9.2",
     "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "eslint": "^10.4.0",
-    "eslint-plugin-vue": "^10.9.1",
-    "jiti": "^2.6.1",
+    "@vue/eslint-config-typescript": "^14.8.0",
+    "eslint": "^10.4.1",
+    "eslint-plugin-vue": "^10.9.2",
+    "jiti": "^2.7.0",
     "prettier": "^3.8.3",
-    "typescript": "^5.9.3",
-    "vite": "^8.0.16"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "8.60.1",
+    "vite": "^8.0.16",
+    "vue-tsc": "3.0.11"
   }
 }

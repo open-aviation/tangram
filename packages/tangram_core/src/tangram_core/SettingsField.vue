@@ -39,8 +39,12 @@
             :value="modelValue"
             @change="updateValue(($event.target as HTMLInputElement).value)"
           >
-            <option v-for="val in effectiveSchema.enum" :key="val" :value="val">
-              {{ val }}
+            <option
+              v-for="val in enumValues"
+              :key="enumKey(val)"
+              :value="enumValue(val)"
+            >
+              {{ enumLabel(val) }}
             </option>
           </select>
           <ColorPicker
@@ -53,9 +57,9 @@
               effectiveSchema.type === 'number' || effectiveSchema.type === 'integer'
             "
             type="number"
-            :value="modelValue"
-            :min="effectiveSchema.minimum"
-            :max="effectiveSchema.maximum"
+            :value="inputValue(modelValue)"
+            :min="numberBound(effectiveSchema.minimum)"
+            :max="numberBound(effectiveSchema.maximum)"
             @input="updateValue(Number(($event.target as HTMLInputElement).value))"
           />
           <input
@@ -100,7 +104,7 @@
               :is="getWidget(item.widget!)"
               :model-value="modelValue?.[item.key]"
               :schema="item.schema"
-              @update:model-value="v => updateNested(item.key, v)"
+              @update:model-value="updateNested(item.key, $event)"
             />
           </div>
           <SettingsField
@@ -111,7 +115,7 @@
             :errors="errors"
             :definitions="definitions"
             :parent-path="currentPath"
-            @update:model-value="v => updateNested(item.key, v)"
+            @update:model-value="updateNested(item.key, $event)"
             @change="$emit('change')"
           />
         </template>
@@ -121,12 +125,12 @@
         <div v-for="(item, idx) in modelValue" :key="idx" class="array-item">
           <div class="array-index">{{ idx }}</div>
           <SettingsField
-            :schema="effectiveSchema.items || {}"
+            :schema="arrayItemSchema(effectiveSchema.items)"
             :model-value="item"
             :definitions="definitions"
             :errors="errors"
             :parent-path="`${currentPath}[${idx}]`"
-            @update:model-value="v => updateArrayItem(idx as number, v)"
+            @update:model-value="updateArrayItem(idx as number, $event)"
             @change="$emit('change')"
           />
         </div>
@@ -230,6 +234,26 @@ const effectiveSchema = computed(() => {
 });
 
 const isComplex = computed(() => isSchemaComplex(effectiveSchema.value));
+
+const enumValues = computed(() =>
+  Array.isArray(effectiveSchema.value.enum) ? effectiveSchema.value.enum : []
+);
+const enumKey = (value: unknown): string =>
+  typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : JSON.stringify(value);
+const enumValue = (value: unknown): string | number | boolean | null | undefined =>
+  value == null || ["string", "number", "boolean"].includes(typeof value)
+    ? (value as string | number | boolean | null | undefined)
+    : JSON.stringify(value);
+const enumLabel = (value: unknown): string =>
+  typeof value === "string" ? value : JSON.stringify(value);
+const inputValue = (value: unknown): string | number | undefined =>
+  typeof value === "string" || typeof value === "number" ? value : undefined;
+const numberBound = (value: unknown): number | undefined =>
+  typeof value === "number" ? value : undefined;
+const arrayItemSchema = (items: JsonSchema | JsonSchema[] | undefined): JsonSchema =>
+  Array.isArray(items) ? (items[0] ?? {}) : (items ?? {});
 function isSchemaComplex(s: JsonSchema): boolean {
   s = resolveRef(s);
   if (s.tangram_widget) return false;

@@ -134,12 +134,22 @@ const meteoDetail = (value: AdscMeteoData) => {
   return parts.length ? parts.join(" ") : "meteo data";
 };
 
+const groupData = (group: AdscContractGroup): Record<string, unknown> =>
+  "data" in group && group.data !== null && typeof group.data === "object"
+    ? group.data
+    : {};
+
+const groupNumber = (group: AdscContractGroup, key: string): number | undefined => {
+  const value = groupData(group)[key];
+  return typeof value === "number" ? value : undefined;
+};
+
 const contractGroupLabel = (group: AdscContractGroup) => {
   switch (group.kind) {
-    case "report_interval":
-      return group.data.interval_secs == null
-        ? "interval"
-        : `every ${group.data.interval_secs}s`;
+    case "report_interval": {
+      const intervalSecs = groupNumber(group, "interval_secs");
+      return intervalSecs == null ? "interval" : `every ${intervalSecs}s`;
+    }
     case "flight_id":
       return "flight id";
     case "predicted_route":
@@ -152,10 +162,10 @@ const contractGroupLabel = (group: AdscContractGroup) => {
       return "meteo";
     case "airframe_id":
       return "airframe";
-    case "aircraft_intent_data":
-      return group.data.projection_time_mins == null
-        ? "intent"
-        : `intent +${group.data.projection_time_mins}m`;
+    case "aircraft_intent_data": {
+      const projectionTimeMins = groupNumber(group, "projection_time_mins");
+      return projectionTimeMins == null ? "intent" : `intent +${projectionTimeMins}m`;
+    }
     default:
       return null;
   }
@@ -163,10 +173,10 @@ const contractGroupLabel = (group: AdscContractGroup) => {
 
 const groupDetail = (group: AdscContractGroup) => {
   switch (group.kind) {
-    case "report_interval":
-      return group.data.interval_secs == null
-        ? "interval"
-        : `every ${group.data.interval_secs}s`;
+    case "report_interval": {
+      const intervalSecs = groupNumber(group, "interval_secs");
+      return intervalSecs == null ? "interval" : `every ${intervalSecs}s`;
+    }
     case "flight_id":
       return "flight id";
     case "predicted_route":
@@ -179,24 +189,29 @@ const groupDetail = (group: AdscContractGroup) => {
       return "meteo";
     case "airframe_id":
       return "airframe";
-    case "lateral_deviation_change":
-      return group.data.threshold_nm == null
-        ? "lat dev"
-        : `lat dev >${group.data.threshold_nm} nm`;
-    case "vertical_speed_change":
-      return group.data.threshold_ft_per_min == null
+    case "lateral_deviation_change": {
+      const thresholdNm = groupNumber(group, "threshold_nm");
+      return thresholdNm == null ? "lat dev" : `lat dev >${thresholdNm} nm`;
+    }
+    case "vertical_speed_change": {
+      const thresholdFpm = groupNumber(group, "threshold_ft_per_min");
+      return thresholdFpm == null
         ? "vs change"
-        : `vs ${formatSigned(group.data.threshold_ft_per_min, " fpm")}`;
-    case "altitude_range":
-      return group.data.floor_ft == null || group.data.ceiling_ft == null
+        : `vs ${formatSigned(thresholdFpm, " fpm")}`;
+    }
+    case "altitude_range": {
+      const floorFt = groupNumber(group, "floor_ft");
+      const ceilingFt = groupNumber(group, "ceiling_ft");
+      return floorFt == null || ceilingFt == null
         ? "alt range"
-        : `alt ${formatAltitude(group.data.floor_ft)}-${formatAltitude(group.data.ceiling_ft)}`;
+        : `alt ${formatAltitude(floorFt)}-${formatAltitude(ceilingFt)}`;
+    }
     case "report_waypoint_changes":
       return "waypoint change";
-    case "aircraft_intent_data":
-      return group.data.projection_time_mins == null
-        ? "intent"
-        : `intent +${group.data.projection_time_mins}m`;
+    case "aircraft_intent_data": {
+      const projectionTimeMins = groupNumber(group, "projection_time_mins");
+      return projectionTimeMins == null ? "intent" : `intent +${projectionTimeMins}m`;
+    }
     default:
       return group.kind.replaceAll("_", " ");
   }

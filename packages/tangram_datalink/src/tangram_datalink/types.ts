@@ -205,7 +205,7 @@ export type AdscTag =
   | AdjacentPayload<"periodic_contract_request", AdscContractRequest>
   | AdjacentPayload<"event_contract_request", AdscContractRequest>
   | AdjacentPayload<"emergency_periodic_contract_request", AdscContractRequest>
-  | AdjacentPayload<string, JsonObject>;
+  | AdjacentPayload<"unknown", JsonObject>;
 
 export interface AdscPayload extends JsonObject {
   tags?: AdscTag[];
@@ -559,14 +559,15 @@ export interface OhmaPayload extends LoosePayloadObject {
   msg_total?: number;
 }
 
-export interface SummaryRow {
-  meta: string;
-  detail?: string;
-}
-
 export interface SummaryPhrasePart {
   kind: "text" | "value";
   text: string;
+}
+
+export interface SummaryRow {
+  meta: string;
+  detail?: string;
+  parts?: SummaryPhrasePart[];
 }
 
 export interface PhraseSummaryRow extends SummaryRow {
