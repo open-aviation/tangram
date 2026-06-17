@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tangram_system"
-version = "0.4.1"
+version = "0.5.0"
 description = "System monitoring plugin for tangram"
 readme = "readme.md"
 requires-python = ">=3.10"
@@ -25,7 +25,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-dependencies = ["tangram_core>=0.2.1", "psutil"]
+dependencies = ["tangram_core>=0.5.0", "psutil"]
 
 [project.entry-points."tangram_core.plugins"]
 tangram_system = "tangram_system:plugin"

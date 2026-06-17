@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tangram_weather"
-version = "0.4.1"
+version = "0.5.0"
 description = "Weather data integration plugin for tangram"
 readme = "readme.md"
 requires-python = ">=3.10"
@@ -26,7 +26,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Visualization",
 ]
 dependencies = [
-    "tangram_core>=0.2.1",
+    "tangram_core>=0.5.0",
     "xarray>=2025.6.1",
     "cfgrib>=0.9.15.0",
     "tqdm>=4.67.1",
