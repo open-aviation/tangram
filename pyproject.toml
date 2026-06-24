@@ -16,7 +16,7 @@ dev = [
     { include-group = "lint" },
 ]
 build = [
-    "maturin[patchelf]>=1.13.3; platform_system != 'Windows'",
+    "maturin[patchelf]>=1.14.0; platform_system != 'Windows'",
     "maturin>=1.9.3; platform_system == 'Windows'",
 ]
 test = ["pytest>=9.0.3", "anyio>=4.13.0"]
