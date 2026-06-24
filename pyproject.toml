@@ -19,7 +19,7 @@ build = [
     "maturin[patchelf]>=1.13.3; platform_system != 'Windows'",
     "maturin>=1.9.3; platform_system == 'Windows'",
 ]
-test = ["pytest>=9.0.3", "anyio>=4.13.0"]
+test = ["pytest>=9.1.0", "anyio>=4.13.0"]
 lint = ["ruff>=0.15.16"]
 typing = ["mypy>=2.1.0"]
 docs = [
