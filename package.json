@@ -9,7 +9,7 @@
     "typecheck:vite": "tsc --noEmit -p tsconfig.vite.json"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
+    "@types/node": "^26.0.0",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.8.0",
     "eslint": "^10.4.1",
