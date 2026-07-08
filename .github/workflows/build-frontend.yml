@@ -33,4 +33,4 @@ jobs:
           path: |
             .
             !node_modules
-          retention-days: 1
+          retention-days: 7

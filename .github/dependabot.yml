@@ -3,14 +3,18 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "cron"
+      cronjob: "every 2 weeks at 8am"
+      timezone: "Etc/UTC"
     cooldown:
       default-days: 7
 
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "cron"
+      cronjob: "every 2 weeks at 8am"
+      timezone: "Etc/UTC"
     cooldown:
       default-days: 7
     groups:
@@ -22,7 +26,9 @@ updates:
   - package-ecosystem: cargo
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "cron"
+      cronjob: "every 2 weeks at 8am"
+      timezone: "Etc/UTC"
     ignore:
       # tangram_{jet1090|ship162} ---> tangram_history ---> deltalake-core ---> arrow
       #             \_______________________________________________________/
@@ -32,4 +38,6 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "cron"
+      cronjob: "every 2 weeks at 8am"
+      timezone: "Etc/UTC"
