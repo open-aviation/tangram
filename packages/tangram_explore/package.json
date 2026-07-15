@@ -16,9 +16,9 @@
     "topojson-client": "^3.1.0"
   },
   "devDependencies": {
-    "@deck.gl/core": "^9.3.5",
-    "@deck.gl/extensions": "^9.3.5",
-    "@deck.gl/layers": "^9.3.5",
+    "@deck.gl/core": "^9.3.6",
+    "@deck.gl/extensions": "^9.3.6",
+    "@deck.gl/layers": "^9.3.6",
     "@types/topojson-client": "^3.1.5",
     "@types/topojson-specification": "^1.0.5",
     "parquet-wasm": "^0.7.2",
