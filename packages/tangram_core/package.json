@@ -57,7 +57,7 @@
     "parquet-wasm": "^0.7.2",
     "phoenix": "^1.8.9",
     "pmtiles": "^4.4.1",
-    "rs1090-wasm": "^0.4.14",
+    "rs1090-wasm": "^0.6.0",
     "vue": "^3.5.38"
   },
   "devDependencies": {
