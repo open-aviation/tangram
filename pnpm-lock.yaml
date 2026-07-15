@@ -52,8 +52,8 @@ importers:
         version: link:../tangram_core
     devDependencies:
       rs1090-wasm:
-        specifier: ^0.4.14
-        version: 0.4.14
+        specifier: ^0.6.0
+        version: 0.6.0
       vue:
         specifier: ^3.5.38
         version: 3.5.38(typescript@6.0.3)
@@ -118,8 +118,8 @@ importers:
         specifier: ^4.4.1
         version: 4.4.1
       rs1090-wasm:
-        specifier: ^0.4.14
-        version: 0.4.14
+        specifier: ^0.6.0
+        version: 0.6.0
       vue:
         specifier: ^3.5.38
         version: 3.5.38(typescript@6.0.3)
@@ -156,8 +156,8 @@ importers:
         specifier: ^3.3.3
         version: 3.3.3
       rs1090-wasm:
-        specifier: ^0.4.14
-        version: 0.4.14
+        specifier: ^0.6.0
+        version: 0.6.0
       vue:
         specifier: ^3.5.38
         version: 3.5.38(typescript@6.0.3)
@@ -250,8 +250,8 @@ importers:
         specifier: ^5.24.0
         version: 5.24.0
       rs1090-wasm:
-        specifier: ^0.4.14
-        version: 0.4.14
+        specifier: ^0.6.0
+        version: 0.6.0
       vue:
         specifier: ^3.5.38
         version: 3.5.38(typescript@6.0.3)
@@ -1814,8 +1814,8 @@ packages:
     engines: {node: '>=10.0.0'}
     hasBin: true
 
-  rs1090-wasm@0.4.14:
-    resolution: {integrity: sha512-bvCduWWjVjdPbjnjxBZr5HdD/upUyuZKInOmtxgQ99m9y1YDxR4wLtgoyXYGVXAuQFosxv/nEABBeqDT3qjc+Q==}
+  rs1090-wasm@0.6.0:
+    resolution: {integrity: sha512-UGR1wdGBcqcjSzx1lm3qAtAcLO3UROtUE0Hh7Eyfrjc2nGxIN02K4n/jYMtW2kAzsWUj2w8Zt7ffD1jJCqrn5g==}
 
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
@@ -3809,7 +3809,7 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
-  rs1090-wasm@0.4.14: {}
+  rs1090-wasm@0.6.0: {}
 
   run-parallel@1.2.0:
     dependencies:
