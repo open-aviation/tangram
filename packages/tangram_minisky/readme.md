@@ -1,13 +1,14 @@
 # tangram_minisky
 
-Displays live traffic from a [MiniSky](https://github.com/open-aviation/minisky) air
-traffic simulator on the tangram map, and lets you control the simulation from
-the sidebar — similar to how `tangram_jet1090` displays live Mode S traffic
-from a `jet1090` instance.
+Displays live traffic from a
+[MiniSky](https://github.com/open-aviation/minisky) air traffic simulator on
+the tangram map, and lets you control the simulation from the sidebar —
+similar to how `tangram_jet1090` displays live Mode S traffic from a
+`jet1090` instance.
 
 ```text
-minisky server --ws /stream--> tangram_minisky service --> redis --> channel --> map
-frontend sidebar --/minisky/stack?cmd=...--> tangram server --> minisky /stack/{cmd}
+minisky server --(ws /stream)--> tangram_minisky service --> redis --> map
+sidebar --(GET /minisky/stack?cmd=...)--> tangram --> minisky /stack/{cmd}
 ```
 
 ## Components
