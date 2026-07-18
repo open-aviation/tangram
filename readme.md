@@ -55,6 +55,14 @@ tangram serve --config tangram.toml
 >
 > We cover how to set this up in detail in our [documentation](https://mode-s.org/tangram/quickstart/#example-2-add-live-aircraft-data).
 
+**Can I visualize simulated traffic?**
+
+> Yes. The `tangram_minisky` plugin connects to a [MiniSky](https://github.com/open-aviation/minisky) air traffic simulator: it subscribes to the simulator's `/stream` WebSocket, republishes aircraft states on Redis, and adds a map layer together with a sidebar widget to control the simulation (run/hold/reset, speed multipliers and a stack command console).
+>
+> `minisky server -> tangram_minisky -> redis -> tangram -> you`
+>
+> See [`packages/tangram_minisky`](./packages/tangram_minisky/readme.md) for setup instructions.
+
 **Is this suitable for offline use?**
 
 > Yes, with preparation. The default configuration uses online tile servers (CartoDB/Protomaps) for the basemap. You can configure `tangram.toml` to serve local vector tiles (PMTiles) or style files. However, plugins relying on external APIs (like `tangram_weather` fetching ARPEGE GRIB files) will naturally require internet access.
