@@ -2,14 +2,13 @@
 
 Displays live traffic from a
 [MiniSky](https://github.com/open-aviation/minisky) air traffic simulator on
-the tangram map, and lets you control the simulation from the sidebar —
-similar to how `tangram_jet1090` displays live Mode S traffic from a
-`jet1090` instance.
+the tangram map, and lets you control the simulation from the sidebar.
 
-```text
-minisky server --(ws /stream)--> tangram_minisky service --> redis --> map
-sidebar --(GET /minisky/stack?cmd=...)--> tangram --> minisky /stack/{cmd}
-```
+Traffic flows in one direction: the plugin's backend service subscribes to the
+MiniSky server's `/stream` WebSocket and republishes each snapshot on Redis,
+where the map frontend picks it up. Control flows the other way: the sidebar
+sends stack commands through tangram's REST proxy, which forwards them to the
+simulator's `/stack/{cmd}` endpoint.
 
 ## Components
 
@@ -36,7 +35,7 @@ Enable the plugin in your `tangram.toml`:
 
 ```toml
 [core]
-plugins = ["tangram_minisky", ...]
+plugins = ["tangram_minisky"]  # add alongside your other plugins
 
 [plugins.tangram_minisky]
 minisky_url = "http://127.0.0.1:8000"  # default
