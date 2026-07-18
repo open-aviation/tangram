@@ -59,8 +59,6 @@ tangram serve --config tangram.toml
 
 > Yes. The `tangram_minisky` plugin connects to a [MiniSky](https://github.com/open-aviation/minisky) air traffic simulator: it subscribes to the simulator's `/stream` WebSocket, republishes aircraft states on Redis, and adds a map layer together with a sidebar widget to control the simulation (run/hold/reset, speed multipliers and a stack command console).
 >
-> `minisky server -> tangram_minisky -> redis -> tangram -> you`
->
 > See [`packages/tangram_minisky`](./packages/tangram_minisky/readme.md) for setup instructions.
 
 **Is this suitable for offline use?**
