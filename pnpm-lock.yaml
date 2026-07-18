@@ -256,6 +256,22 @@ importers:
         specifier: ^3.5.38
         version: 3.5.38(typescript@6.0.3)
 
+  packages/tangram_minisky:
+    dependencies:
+      '@open-aviation/tangram-core':
+        specifier: workspace:*
+        version: link:../tangram_core
+    devDependencies:
+      '@deck.gl/core':
+        specifier: ^9.3.6
+        version: 9.3.6
+      '@deck.gl/layers':
+        specifier: ^9.3.6
+        version: 9.3.6(@deck.gl/core@9.3.6)(@loaders.gl/core@4.4.3)(@luma.gl/core@9.3.6)(@luma.gl/engine@9.3.6(@luma.gl/core@9.3.6)(@luma.gl/shadertools@9.3.6(@luma.gl/core@9.3.6)))
+      vue:
+        specifier: ^3.5.38
+        version: 3.5.38(typescript@6.0.3)
+
   packages/tangram_ship162:
     dependencies:
       '@open-aviation/tangram-core':
