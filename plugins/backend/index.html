@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="an open platform for modular, real-time air traffic management research">
+        <meta name="description" content="An open platform for modular, real-time air traffic management research">
       
       
       
@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../icons/favicon.ico">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="zensical-0.0.50">
     
     
       
@@ -31,10 +31,15 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.62c9b9cc.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.dfe2e883.min.css">
       
       
 
@@ -48,16 +53,14 @@
         
         
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,500,500i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
-    
       <link rel="stylesheet" href="../../css/extra.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
       
 
@@ -78,7 +81,7 @@
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
-    <label class="md-overlay" for="__drawer"></label>
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
     <div data-md-component="skip">
       
         
@@ -100,12 +103,12 @@
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="../.." title="tangram" class="md-header__button md-logo" aria-label="tangram" data-md-component="logo">
       
-  <img src="../../icons/favicon.png" alt="logo">
+  <img src="../../icons/favicon.png" alt="tangram">
 
     </a>
-    <label class="md-header__button md-icon" for="__drawer">
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
       
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
     </label>
     <div class="md-header__title" data-md-component="header-title">
       <div class="md-header__ellipsis">
@@ -167,59 +170,30 @@
     
       
       
-        <label class="md-header__button md-icon" for="__search">
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
           
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
         </label>
-        <div class="md-search" data-md-component="search" role="dialog">
-  <label class="md-search__overlay" for="__search"></label>
-  <div class="md-search__inner" role="search">
-    <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
-      <label class="md-search__icon md-icon" for="__search">
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-      </label>
-      <nav class="md-search__options" aria-label="Search">
-        
-        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
-          
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-        </button>
-      </nav>
-      
-        <div class="md-search__suggest" data-md-component="search-suggest"></div>
-      
-    </form>
-    <div class="md-search__output">
-      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="search-result">
-          <div class="md-search-result__meta">
-            Initializing search
-          </div>
-          <ol class="md-search-result__list" role="presentation"></ol>
-        </div>
-      </div>
-    </div>
-  </div>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
 </div>
       
     
-    
-      <div class="md-header__source">
+    <div class="md-header__source">
+      
         <a href="https://github.com/open-aviation/tangram" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
   </div>
   <div class="md-source__repository">
     open-aviation/tangram
   </div>
 </a>
-      </div>
-    
+      
+    </div>
   </nav>
   
 </header>
@@ -247,7 +221,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../.." title="tangram" class="md-nav__button md-logo" aria-label="tangram" data-md-component="logo">
       
-  <img src="../../icons/favicon.png" alt="logo">
+  <img src="../../icons/favicon.png" alt="tangram">
 
     </a>
     tangram
@@ -257,7 +231,7 @@
       <a href="https://github.com/open-aviation/tangram" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
   </div>
   <div class="md-source__repository">
     open-aviation/tangram
@@ -281,8 +255,7 @@
   <span class="md-ellipsis">
     
   
-    Home
-  
+  Home
 
     
   </span>
@@ -308,8 +281,7 @@
   <span class="md-ellipsis">
     
   
-    Quickstart
-  
+  Quickstart
 
     
   </span>
@@ -335,8 +307,7 @@
   <span class="md-ellipsis">
     
   
-    Configuration
-  
+  Configuration
 
     
   </span>
@@ -384,8 +355,7 @@
   <span class="md-ellipsis">
     
   
-    Architecture
-  
+  Architecture
 
     
   </span>
@@ -400,8 +370,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Architecture
-  
+  Architecture
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
@@ -420,8 +389,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
-  
+  Overview
 
     
   </span>
@@ -448,8 +416,7 @@
   <span class="md-ellipsis">
     
   
-    channel
-  
+  channel
 
     
   </span>
@@ -513,8 +480,7 @@
   <span class="md-ellipsis">
     
   
-    Plugins
-  
+  Plugins
 
     
   </span>
@@ -529,8 +495,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Plugins
-  
+  Plugins
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
@@ -549,8 +514,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
-  
+  Overview
 
     
   </span>
@@ -573,7 +537,7 @@
   
     <li class="md-nav__item md-nav__item--active">
       
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
       
       
       
@@ -584,8 +548,7 @@
   <span class="md-ellipsis">
     
   
-    Backend
-  
+  Backend
 
     
   </span>
@@ -595,15 +558,14 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="./" class="md-nav__link md-nav__link--active">
+      <a href="././" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    Backend
-  
+  Backend
 
     
   </span>
@@ -614,23 +576,24 @@
       
         
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
   <a href="#repository-layout" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Repository layout
-      
+      </span>
     </span>
   </a>
   
@@ -639,9 +602,9 @@
         <li class="md-nav__item">
   <a href="#plugin-anatomy" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Plugin Anatomy
-      
+      </span>
     </span>
   </a>
   
@@ -651,9 +614,9 @@
           <li class="md-nav__item">
   <a href="#1-the-pyprojecttoml-entry-point" class="md-nav__link">
     <span class="md-ellipsis">
-      
-        1. The pyproject.toml Entry Point
-      
+      <span class="md-typeset">
+        1. The <code>pyproject.toml</code> Entry Point
+      </span>
     </span>
   </a>
   
@@ -662,9 +625,9 @@
           <li class="md-nav__item">
   <a href="#2-the-plugin-object" class="md-nav__link">
     <span class="md-ellipsis">
-      
-        2. The Plugin Object
-      
+      <span class="md-typeset">
+        2. The <code>Plugin</code> Object
+      </span>
     </span>
   </a>
   
@@ -678,9 +641,9 @@
         <li class="md-nav__item">
   <a href="#adding-a-frontend" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Adding a frontend
-      
+      </span>
     </span>
   </a>
   
@@ -689,9 +652,9 @@
         <li class="md-nav__item">
   <a href="#adding-api-endpoints" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Adding API Endpoints
-      
+      </span>
     </span>
   </a>
   
@@ -700,9 +663,9 @@
         <li class="md-nav__item">
   <a href="#creating-background-services" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Creating Background Services
-      
+      </span>
     </span>
   </a>
   
@@ -711,9 +674,9 @@
         <li class="md-nav__item">
   <a href="#inter-component-communication-with-redis" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Inter-Component Communication with Redis
-      
+      </span>
     </span>
   </a>
   
@@ -723,9 +686,9 @@
           <li class="md-nav__item">
   <a href="#communicating-with-the-frontend-via-websockets" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Communicating with the Frontend via WebSockets
-      
+      </span>
     </span>
   </a>
   
@@ -734,9 +697,9 @@
           <li class="md-nav__item">
   <a href="#publishing-messages" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Publishing Messages
-      
+      </span>
     </span>
   </a>
   
@@ -745,9 +708,9 @@
           <li class="md-nav__item">
   <a href="#subscribing-to-messages" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Subscribing to Messages
-      
+      </span>
     </span>
   </a>
   
@@ -761,9 +724,9 @@
         <li class="md-nav__item">
   <a href="#using-your-plugin" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Using Your Plugin
-      
+      </span>
     </span>
   </a>
   
@@ -772,9 +735,9 @@
         <li class="md-nav__item">
   <a href="#maintaining-a-plugin" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Maintaining a plugin
-      
+      </span>
     </span>
   </a>
   
@@ -803,8 +766,7 @@
   <span class="md-ellipsis">
     
   
-    Frontend
-  
+  Frontend
 
     
   </span>
@@ -862,8 +824,7 @@
   <span class="md-ellipsis">
     
   
-    Built-in
-  
+  Built-in
 
     
   </span>
@@ -878,8 +839,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Built-in
-  
+  Built-in
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
@@ -898,8 +858,7 @@
   <span class="md-ellipsis">
     
   
-    System Plugin
-  
+  System Plugin
 
     
   </span>
@@ -926,8 +885,7 @@
   <span class="md-ellipsis">
     
   
-    History Plugin
-  
+  History Plugin
 
     
   </span>
@@ -954,8 +912,7 @@
   <span class="md-ellipsis">
     
   
-    Jet1090 Plugin
-  
+  Jet1090 Plugin
 
     
   </span>
@@ -982,8 +939,7 @@
   <span class="md-ellipsis">
     
   
-    Datalink Plugin
-  
+  Datalink Plugin
 
     
   </span>
@@ -1010,8 +966,7 @@
   <span class="md-ellipsis">
     
   
-    Ship162 Plugin
-  
+  Ship162 Plugin
 
     
   </span>
@@ -1038,8 +993,7 @@
   <span class="md-ellipsis">
     
   
-    Weather Plugin
-  
+  Weather Plugin
 
     
   </span>
@@ -1066,8 +1020,7 @@
   <span class="md-ellipsis">
     
   
-    Airports Plugin
-  
+  Airports Plugin
 
     
   </span>
@@ -1094,8 +1047,7 @@
   <span class="md-ellipsis">
     
   
-    Explore Plugin
-  
+  Explore Plugin
 
     
   </span>
@@ -1151,8 +1103,7 @@
   <span class="md-ellipsis">
     
   
-    Examples
-  
+  Examples
 
     
   </span>
@@ -1167,8 +1118,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Examples
-  
+  Examples
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
@@ -1187,8 +1137,7 @@
   <span class="md-ellipsis">
     
   
-    Origin and Destination
-  
+  Origin and Destination
 
     
   </span>
@@ -1215,8 +1164,7 @@
   <span class="md-ellipsis">
     
   
-    Data Receiver Map Layer
-  
+  Data Receiver Map Layer
 
     
   </span>
@@ -1243,8 +1191,7 @@
   <span class="md-ellipsis">
     
   
-    Add a wind field layer
-  
+  Add a wind field layer
 
     
   </span>
@@ -1320,8 +1267,7 @@
   <span class="md-ellipsis">
     
   
-    API Reference
-  
+  API Reference
 
     
   </span>
@@ -1336,8 +1282,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    API Reference
-  
+  API Reference
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
@@ -1356,8 +1301,7 @@
   <span class="md-ellipsis">
     
   
-    Core
-  
+  Core
 
     
   </span>
@@ -1384,8 +1328,7 @@
   <span class="md-ellipsis">
     
   
-    System
-  
+  System
 
     
   </span>
@@ -1412,8 +1355,7 @@
   <span class="md-ellipsis">
     
   
-    Jet1090
-  
+  Jet1090
 
     
   </span>
@@ -1440,8 +1382,7 @@
   <span class="md-ellipsis">
     
   
-    Datalink
-  
+  Datalink
 
     
   </span>
@@ -1468,8 +1409,7 @@
   <span class="md-ellipsis">
     
   
-    Ship162
-  
+  Ship162
 
     
   </span>
@@ -1496,8 +1436,7 @@
   <span class="md-ellipsis">
     
   
-    History
-  
+  History
 
     
   </span>
@@ -1524,8 +1463,7 @@
   <span class="md-ellipsis">
     
   
-    Explore
-  
+  Explore
 
     
   </span>
@@ -1552,8 +1490,7 @@
   <span class="md-ellipsis">
     
   
-    Weather
-  
+  Weather
 
     
   </span>
@@ -1587,8 +1524,7 @@
   <span class="md-ellipsis">
     
   
-    Contribute
-  
+  Contribute
 
     
   </span>
@@ -1610,26 +1546,38 @@
               
               <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
                 <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
   <a href="#repository-layout" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Repository layout
-      
+      </span>
     </span>
   </a>
   
@@ -1638,9 +1586,9 @@
         <li class="md-nav__item">
   <a href="#plugin-anatomy" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Plugin Anatomy
-      
+      </span>
     </span>
   </a>
   
@@ -1650,9 +1598,9 @@
           <li class="md-nav__item">
   <a href="#1-the-pyprojecttoml-entry-point" class="md-nav__link">
     <span class="md-ellipsis">
-      
-        1. The pyproject.toml Entry Point
-      
+      <span class="md-typeset">
+        1. The <code>pyproject.toml</code> Entry Point
+      </span>
     </span>
   </a>
   
@@ -1661,9 +1609,9 @@
           <li class="md-nav__item">
   <a href="#2-the-plugin-object" class="md-nav__link">
     <span class="md-ellipsis">
-      
-        2. The Plugin Object
-      
+      <span class="md-typeset">
+        2. The <code>Plugin</code> Object
+      </span>
     </span>
   </a>
   
@@ -1677,9 +1625,9 @@
         <li class="md-nav__item">
   <a href="#adding-a-frontend" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Adding a frontend
-      
+      </span>
     </span>
   </a>
   
@@ -1688,9 +1636,9 @@
         <li class="md-nav__item">
   <a href="#adding-api-endpoints" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Adding API Endpoints
-      
+      </span>
     </span>
   </a>
   
@@ -1699,9 +1647,9 @@
         <li class="md-nav__item">
   <a href="#creating-background-services" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Creating Background Services
-      
+      </span>
     </span>
   </a>
   
@@ -1710,9 +1658,9 @@
         <li class="md-nav__item">
   <a href="#inter-component-communication-with-redis" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Inter-Component Communication with Redis
-      
+      </span>
     </span>
   </a>
   
@@ -1722,9 +1670,9 @@
           <li class="md-nav__item">
   <a href="#communicating-with-the-frontend-via-websockets" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Communicating with the Frontend via WebSockets
-      
+      </span>
     </span>
   </a>
   
@@ -1733,9 +1681,9 @@
           <li class="md-nav__item">
   <a href="#publishing-messages" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Publishing Messages
-      
+      </span>
     </span>
   </a>
   
@@ -1744,9 +1692,9 @@
           <li class="md-nav__item">
   <a href="#subscribing-to-messages" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Subscribing to Messages
-      
+      </span>
     </span>
   </a>
   
@@ -1760,9 +1708,9 @@
         <li class="md-nav__item">
   <a href="#using-your-plugin" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Using Your Plugin
-      
+      </span>
     </span>
   </a>
   
@@ -1771,9 +1719,9 @@
         <li class="md-nav__item">
   <a href="#maintaining-a-plugin" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Maintaining a plugin
-      
+      </span>
     </span>
   </a>
   
@@ -1793,13 +1741,11 @@
               <article class="md-content__inner md-typeset">
                 
                   
-
-
   
   
 
 
-  <h1>Backend</h1>
+  <h1 id="__skip">Backend</h1>
 
 <p>Backend plugins are the standard way to add new server-side capabilities to <code>tangram</code>. They are self-contained Python packages that <code>tangram</code> discovers and loads at runtime, allowing for clean separation from the core framework.</p>
 <p>This guide covers the key concepts for building and maintaining an out-of-tree plugin.</p>
@@ -1832,12 +1778,12 @@
 </code></pre></div>
 <p>After setting up your <code>tangram.toml</code>, <code>uv run tangram serve --config tangram.toml</code> should then launch your plugin with the latest core.</p>
 <h2 id="plugin-anatomy">Plugin Anatomy<a class="headerlink" href="#plugin-anatomy" title="Permanent link">&para;</a></h2>
-<p>A <code>tangram</code> plugin is a standard Python package that exposes its functionality through two key mechanisms: an entry point and a <a class="autorefs autorefs-internal" title="            Plugin
+<p>A <code>tangram</code> plugin is a standard Python package that exposes its functionality through two key mechanisms: an entry point and a <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Plugin&lt;/span&gt;
 
 
-  
-      dataclass
-  " href="../../api/core/#tangram_core.Plugin"><code>Plugin</code></a> object.</p>
+  &lt;span class=&quot;doc doc-labels&quot;&gt;
+      &lt;small class=&quot;doc doc-label doc-label-dataclass&quot;&gt;&lt;code&gt;dataclass&lt;/code&gt;&lt;/small&gt;
+  &lt;/span&gt;" href="../../api/core/#tangram_core.Plugin"><code>Plugin</code></a> object.</p>
 <p>Assuming you have the following project structure:</p>
 <div class="language-text highlight"><pre><span></span><code>my-tangram-plugin/
 ├── pyproject.toml
@@ -1864,19 +1810,19 @@
 <span class="p">)</span>
 </code></pre></div>
 <h2 id="adding-a-frontend">Adding a frontend<a class="headerlink" href="#adding-a-frontend" title="Permanent link">&para;</a></h2>
-<p>A Python plugin may bundle a Vue frontend in the same wheel. After defining the Python entry point and <a class="autorefs autorefs-internal" title="            Plugin
+<p>A Python plugin may bundle a Vue frontend in the same wheel. After defining the Python entry point and <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Plugin&lt;/span&gt;
 
 
-  
-      dataclass
-  " href="../../api/core/#tangram_core.Plugin"><code>Plugin</code></a> object, continue with the <a href="../frontend/">frontend plugin guide</a>.</p>
+  &lt;span class=&quot;doc doc-labels&quot;&gt;
+      &lt;small class=&quot;doc doc-label doc-label-dataclass&quot;&gt;&lt;code&gt;dataclass&lt;/code&gt;&lt;/small&gt;
+  &lt;/span&gt;" href="../../api/core/#tangram_core.Plugin"><code>Plugin</code></a> object, continue with the <a href="../frontend/">frontend plugin guide</a>.</p>
 <h2 id="adding-api-endpoints">Adding API Endpoints<a class="headerlink" href="#adding-api-endpoints" title="Permanent link">&para;</a></h2>
-<p>To add REST API endpoints, define a standard FastAPI <a class="autorefs autorefs-external" href="https://fastapi.tiangolo.com/reference/apirouter/#fastapi.APIRouter"><code>APIRouter</code></a> and pass a list of routers to the <a class="autorefs autorefs-internal" title="            Plugin
+<p>To add REST API endpoints, define a standard FastAPI <a class="autorefs autorefs-external" href="https://fastapi.tiangolo.com/reference/apirouter/#fastapi.APIRouter"><code>APIRouter</code></a> and pass a list of routers to the <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Plugin&lt;/span&gt;
 
 
-  
-      dataclass
-  " href="../../api/core/#tangram_core.Plugin"><code>Plugin</code></a> constructor. <code>tangram</code> will automatically mount them into the main application.</p>
+  &lt;span class=&quot;doc doc-labels&quot;&gt;
+      &lt;small class=&quot;doc doc-label doc-label-dataclass&quot;&gt;&lt;code&gt;dataclass&lt;/code&gt;&lt;/small&gt;
+  &lt;/span&gt;" href="../../api/core/#tangram_core.Plugin"><code>Plugin</code></a> constructor. <code>tangram</code> will automatically mount them into the main application.</p>
 <div class="language-py highlight"><span class="filename">src/my_plugin/__init__.py</span><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">tangram_core</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">APIRouter</span>
 
@@ -1891,13 +1837,13 @@
 </span><span class="p">)</span>
 </code></pre></div>
 <h2 id="creating-background-services">Creating Background Services<a class="headerlink" href="#creating-background-services" title="Permanent link">&para;</a></h2>
-<p>To run persistent background tasks, use the <a class="autorefs autorefs-internal" title="            register_service" href="../../api/core/#tangram_core.Plugin.register_service"><code>@plugin.register_service</code> decorator</a>. The decorated function will be started as a background task when <code>tangram serve</code> runs.</p>
-<p>The service function receives a <a class="autorefs autorefs-internal" title="            BackendState
+<p>To run persistent background tasks, use the <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;register_service&lt;/span&gt;" href="../../api/core/#tangram_core.Plugin.register_service"><code>@plugin.register_service</code> decorator</a>. The decorated function will be started as a background task when <code>tangram serve</code> runs.</p>
+<p>The service function receives a <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;BackendState&lt;/span&gt;
 
 
-  
-      dataclass
-  " href="../../api/core/#tangram_core.BackendState"><code>tangram_core.BackendState</code></a> object, which provides access to core components like the Redis client.</p>
+  &lt;span class=&quot;doc doc-labels&quot;&gt;
+      &lt;small class=&quot;doc doc-label doc-label-dataclass&quot;&gt;&lt;code&gt;dataclass&lt;/code&gt;&lt;/small&gt;
+  &lt;/span&gt;" href="../../api/core/#tangram_core.BackendState"><code>tangram_core.BackendState</code></a> object, which provides access to core components like the Redis client.</p>
 <div class="language-py highlight"><span class="filename">src/my_plugin/__init__.py</span><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">orjson</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">tangram_core</span>
@@ -1945,12 +1891,12 @@
 <li><strong>Frontend to Backend</strong>: When the frontend sends a message, the <code>channel</code> service relays it to a Redis channel prefixed with <code>from:&lt;channel_name&gt;:&lt;event_name&gt;</code>.</li>
 </ul>
 <h3 id="publishing-messages">Publishing Messages<a class="headerlink" href="#publishing-messages" title="Permanent link">&para;</a></h3>
-<p>You can publish messages from any backend service using the Redis client available in <a class="autorefs autorefs-internal" title="            BackendState
+<p>You can publish messages from any backend service using the Redis client available in <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;BackendState&lt;/span&gt;
 
 
-  
-      dataclass
-  " href="../../api/core/#tangram_core.BackendState"><code>tangram_core.BackendState</code></a>.</p>
+  &lt;span class=&quot;doc doc-labels&quot;&gt;
+      &lt;small class=&quot;doc doc-label doc-label-dataclass&quot;&gt;&lt;code&gt;dataclass&lt;/code&gt;&lt;/small&gt;
+  &lt;/span&gt;" href="../../api/core/#tangram_core.BackendState"><code>tangram_core.BackendState</code></a>.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="python" name="__tabbed_1" type="radio" /><input id="rust" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="python">Python</label><label for="rust">Rust</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -1968,7 +1914,7 @@
 </div>
 </div>
 <h3 id="subscribing-to-messages">Subscribing to Messages<a class="headerlink" href="#subscribing-to-messages" title="Permanent link">&para;</a></h3>
-<p>To handle incoming messages, <code>tangram</code> provides a <a class="autorefs autorefs-internal" title="            Subscriber" href="../../api/core/#tangram_core.redis.Subscriber"><code>Subscriber</code></a> base class. This is the recommended pattern for creating robust, long-running listeners within a service.</p>
+<p>To handle incoming messages, <code>tangram</code> provides a <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Subscriber&lt;/span&gt;" href="../../api/core/#tangram_core.redis.Subscriber"><code>Subscriber</code></a> base class. This is the recommended pattern for creating robust, long-running listeners within a service.</p>
 <div class="language-py highlight"><span class="filename">src/my_plugin/__init__.py</span><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">tangram_core</span>
@@ -2023,6 +1969,8 @@
 
 
 
+
+
                 
               </article>
             </div>
@@ -2033,7 +1981,7 @@
         
           <button type="button" class="md-top md-icon" data-md-component="top" hidden>
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
   Back to top
 </button>
         
@@ -2049,7 +1997,7 @@
           <a href="../overview/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview">
             <div class="md-footer__button md-icon">
               
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
             </div>
             <div class="md-footer__title">
               <span class="md-footer__direction">
@@ -2074,7 +2022,7 @@
             </div>
             <div class="md-footer__button md-icon">
               
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </div>
           </a>
         
@@ -2087,8 +2035,8 @@
   
   
     Made with
-    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
-      Material for MkDocs
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
     </a>
   
 </div>
@@ -2104,7 +2052,7 @@
       
     
     <a href="https://github.com/open-aviation/tangram" target="_blank" rel="noopener" title="github.com" class="md-social__link">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
     </a>
   
 </div>
@@ -2122,10 +2070,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.annotate", "content.code.copy", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "search.highlight", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["content.code.annotate","content.code.copy","navigation.sections","navigation.top","navigation.footer","navigation.indexes","search.highlight","search.suggest"],"search":"../../assets/javascripts/workers/search.b6b7e04f.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7f30b55.min.js"></script>
       
     
   </body>

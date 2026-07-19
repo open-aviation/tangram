@@ -1,0 +1,4 @@
+{
+  "MD013": false, // Line length
+  "MD046": false // Code blocks should be fenced with backticks
+}
