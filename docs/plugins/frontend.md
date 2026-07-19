@@ -1,104 +1,202 @@
 # Frontend
 
-Frontend plugins are standalone NPM packages that add new widgets and functionality to the `tangram` web interface. This system is designed for modularity, allowing you to build and share custom UI components.
+A frontend plugin adds Vue components and Deck.gl layers to the `tangram` web interface. It is normally bundled with a [backend plugin](backend.md), so users install one Python package containing both the plugin entry point and the pre-built frontend assets.
 
-## 1. Project Structure
+## Project structure
 
-A frontend plugin is a standard TypeScript/Vue project that produces a library build.
+Start with the Python package and entry point from the [backend plugin guide](backend.md#plugin-anatomy), then add the frontend files:
 
-```text
-my-tangram-frontend-plugin/
-├── package.json
-├── vite.config.ts
-└── src/
-    ├── MyWidget.vue
-    └── index.ts
+```bash
+my-tangram-plugin/
+├── package.json   # (1)!
+├── pyproject.toml  # (2)!
+├── vite.config.js
+└── src/my_plugin/
+    ├── __init__.py
+    ├── index.js
+    └── MyWidget.vue
 ```
 
-## 2. Plugin Entry Point (`index.ts`)
+1. `package.json` owns the frontend dependencies and build.
+2. `pyproject.toml` owns the installable plugin and bundles the generated
+   frontend assets in its wheel.
 
-The `main` file specified in your `package.json` must export an `install` function. This function is the plugin's entry point and receives the `TangramApi` object, which provides methods for interacting with the core application.
+## Package configuration
 
-<!-- TODO(abrah): eliminate some of these when we use mkdocstrings -->
-```typescript title="src/index.ts"
-import type { TangramApi } from "@open-aviation/tangram-core/api";
-import MyWidget from "./MyWidget.vue";
+The `main` field points to the frontend entry point.
 
-export function install(api: TangramApi) {
-  // use the API to register a new widget component.
-  // the first argument is a unique ID for your widget.
-  // the second is the Vue component itself.
-  api.registerWidget("my-widget", MyWidget);
+```json title="package.json"
+{
+  "name": "@my-org/my-tangram-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/my_plugin/index.js",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@open-aviation/tangram-core": "^0.5.0"
+  },
+  "devDependencies": {
+    "vite": "^8.1.0",
+    "vue": "^3.5.38"
+  }
 }
 ```
 
-The `TangramApi` provides two main functions:
+Keep the Python and npm core dependencies on the same supported minor release.
 
-- `registerWidget(id: string, component: Component)`: Makes your component available to the core UI.
-- `getVueApp(): App`: Provides access to the core Vue application instance for advanced use cases.
+## Plugin entry point
 
-## 3. `vite` configuration
+The module specified by `main` exports an `install` function. The plugin-scoped context identifies the plugin and provides the shared Tangram APIs. Register passive resources with `pluginId: ctx.id`; register active resources with `ctx.onDispose`.
 
-To simplify the build process, `tangram` provides a shared Vite plugin. This handles the complex configuration needed to build your plugin as a library and generate a `plugin.json` manifest file.
+```javascript title="src/my_plugin/index.js"
+import MyWidget from "./MyWidget.vue";
 
-```typescript title="vite.config.ts"
+export function install(ctx) {
+  ctx.api.ui.registerWidget("my-widget", "SideBar", MyWidget, {
+    pluginId: ctx.id,
+    title: "My Widget"
+  });
+}
+```
+
+## Vite configuration
+
+The shared Vite plugin builds the frontend as an ES module and writes the `plugin.json` manifest used by `tangram` at runtime.
+
+```javascript title="vite.config.js"
 import { defineConfig } from "vite";
 import { tangramPlugin } from "@open-aviation/tangram-core/vite-plugin";
 
 export default defineConfig({
-  plugins: [tangramPlugin()],
+  plugins: [tangramPlugin()]
 });
 ```
 
-This standardized build produces a `dist-frontend` directory containing your compiled JavaScript and the manifest file. `tangram` uses this manifest to discover and load your plugin.
+??? note "TypeScript setup (highly recommended!)"
 
-## 4. Building and using your plugin
+    Rename `index.js` to `index.ts` and `vite.config.js` to `vite.config.ts`, then merge these fields into `package.json`:
 
-First, build your frontend assets. If you are in the monorepo, `pnpm build` will handle this.
-
-Next, ensure the generated `dist-frontend` directory is included in your Python package's wheel. This is typically done in `pyproject.toml`.
-
-=== "hatchling"
-
-    ```toml
-    [tool.hatch.build.targets.wheel.force-include]
-    "dist-frontend" = "my_plugin/dist-frontend"
+    ```json title="package.json"
+    {
+      "main": "src/my_plugin/index.ts",
+      "scripts": {
+        "build": "vite build",
+        "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+        "typecheck:vite": "tsc --noEmit -p tsconfig.vite.json",
+        "check": "pnpm typecheck && pnpm typecheck:vite"
+      },
+      "devDependencies": {
+        "@types/node": "^26.0.0",
+        "typescript": "^6.0.3",
+        "vue-tsc": "3.3.4"
+      }
+    }
     ```
 
-=== "maturin"
+    Extend the configurations published by `@open-aviation/tangram-core`:
 
-    Configuring `vite` to output to a subdirectory of your python source (e.g. `src/my_plugin/dist-frontend`) ensures `maturin` includes it automatically.
+    ```json title="tsconfig.json"
+    {
+      "extends": "@open-aviation/tangram-core/tsconfig.plugin.json",
+      "include": ["src/**/*.ts", "src/**/*.vue"]
+    }
+    ```
 
-```typescript title="vite.config.ts"
-build: {
-    outDir: path.resolve(__dirname, "./src/my_plugin/dist-frontend"),
-}
+    The Vite configuration runs in Node and is checked separately:
+
+    ```json title="tsconfig.vite.json"
+    {
+      "extends": "@open-aviation/tangram-core/tsconfig.node.json",
+      "include": ["vite.config.ts"]
+    }
+    ```
+
+    Type the plugin entry point with `PluginContext`:
+
+    ```typescript title="src/my_plugin/index.ts"
+    import type { PluginContext } from "@open-aviation/tangram-core/api";
+    import MyWidget from "./MyWidget.vue";
+
+    export function install(ctx: PluginContext) {
+      ctx.api.ui.registerWidget("my-widget", "SideBar", MyWidget, {
+        pluginId: ctx.id,
+        title: "My Widget"
+      });
+    }
+    ```
+
+    Note that as of `@open-aviation/tangram-core` v0.5.0 does not publish a declaration for the `vite-plugin` subpath, and is a known bug that is being worked on. Supress the error:
+
+    ```typescript title="vite.config.ts"
+    import { defineConfig } from "vite";
+    // @ts-expect-error tangram-core 0.5.0 does not publish this subpath's types
+    import { tangramPlugin } from "@open-aviation/tangram-core/vite-plugin";
+
+    export default defineConfig({
+      plugins: [tangramPlugin()]
+    });
+    ```
+
+## Building and packaging
+
+When you run `pnpm build`, it produces all assets (`index.js`, stylesheets and `plugin.json`) under the `dist-frontend` directory. Your build backend should be configured to include it when you publish the Python wheel, for example, if you are using hatchling:
+
+```toml title="pyproject.toml"
+[tool.hatch.build.targets.sdist]
+ignore-vcs = true
+include = ["dist-frontend/*", "src/*", "package.json"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"dist-frontend" = "my_plugin/dist-frontend"
+"package.json" = "my_plugin/package.json"
 ```
 
-Finally, install your Python package and enable it in your `tangram.toml`:
+```py title="src/my_plugin/__init__.py"
+import tangram_core
 
-```toml
-[core]
-plugins = ["my_tangram_plugin"]
+plugin = tangram_core.Plugin(frontend_path="dist-frontend")
 ```
 
-When `tangram serve` runs, it will:
+If you are using the maturin build backend, call `tangramPlugin({ copyToPythonPackage: true })` so the generated assets are copied under the Python source tree before the wheel is built.
 
-1. Read the `plugin.json` manifest from every enabled plugin at startup.
-2. Amalgamate these into a single cached response for `/manifest.json`.
-3. The core web app fetches this single manifest and dynamically loads resources.
+Build the frontend before installing or building the Python package because
+`dist-frontend` is a package input:
+
+```sh
+pnpm install --frozen-lockfile
+# if you use typescript:
+pnpm check
+pnpm build
+uv sync
+uv run tangram check-plugin .
+uv build
+```
+
+Install the wheel in a clean environment and verify that `tangram list-plugins --all` discovers its backend and frontend components.
+
+## Runtime loading
+
+After the package is installed and enabled in `tangram.toml`, the server reads `plugin.json` and exposes the frontend assets under `/plugins/<plugin-name>/`. The browser imports the module and calls `install` with its plugin-scoped context.
 
 ```mermaid
 sequenceDiagram
-    participant P as Plugin Module
+    participant P as Plugin module
     participant B as Browser
-    participant S as Tangram Server
+    participant S as Tangram server
 
     B->>S: GET /manifest.json
-    S-->>B: Respond with {"plugins": {"my_plugin": {"main": "index.js"}}}
+    S-->>B: Plugin manifest
     B->>S: GET /plugins/my_plugin/index.js
-    S-->>B: Serve plugin's JS entry point
-    Note over B, P: Browser executes plugin code
-    P->>B: install(tangramApi)
-    Note over B: Plugin registers its widgets
+    S-->>B: Frontend module
+    B->>P: install(ctx)
+    P->>B: Register widgets and layers
 ```
+
+!!! tip
+
+    If you modify the frontend, run `pnpm build` so the `tangram serve` command can pick it up immediately.
+
+    No restart of the tangram server is needed unless you modify the backend.

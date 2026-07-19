@@ -1,6 +1,41 @@
 Backend plugins are the standard way to add new server-side capabilities to `tangram`. They are self-contained Python packages that `tangram` discovers and loads at runtime, allowing for clean separation from the core framework.
 
-This guide covers the key concepts for building a backend plugin.
+This guide covers the key concepts for building and maintaining an out-of-tree plugin.
+
+## Repository layout
+
+We highly recommend a small directory named `tangram_exe`, which threads together multiple plugins and executes them:
+
+```text
+workspace/
+├── tangram/
+├── my-project/
+│   └── tangram/
+│       ├── package.json
+│       ├── pyproject.toml
+│       └── src/tangram_my_project/
+└── tangram_exe/
+    ├── main.py
+    ├── pyproject.toml
+    └── tangram.toml
+```
+
+```toml title="tangram_exe/pyproject.toml"
+[project]
+name = "tangram-exe"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "tangram-core",
+    "tangram-my-project",
+]
+
+[tool.uv.sources]
+tangram-core = { path = "../tangram/packages/tangram_core", editable = true }
+tangram-my-project = { path = "../my-project/tangram", editable = true }
+```
+
+After setting up your `tangram.toml`, `uv run tangram serve --config tangram.toml` should then launch your plugin with the latest core.
 
 ## Plugin Anatomy
 
@@ -24,7 +59,7 @@ Your `pyproject.toml` must declare an entry point under the `tangram_core.plugin
 [project]
 name = "my-tangram-plugin"
 version = "0.1.0"
-dependencies = ["tangram_core>=0.2.1"]
+dependencies = ["tangram_core>=0.5"]
 
 [project.entry-points."tangram_core.plugins"]
 my_plugin = "my_plugin:plugin"
@@ -41,6 +76,10 @@ plugin = tangram_core.Plugin(
     # ... component registrations go here ...
 )
 ```
+
+## Adding a frontend
+
+A Python plugin may bundle a Vue frontend in the same wheel. After defining the Python entry point and [`Plugin`][tangram_core.Plugin] object, continue with the [frontend plugin guide](frontend.md).
 
 ## Adding API Endpoints
 
@@ -192,3 +231,7 @@ plugins = ["my_tangram_plugin"]
 ```
 
 Run `tangram serve`. The core application will load your plugin, making its API endpoints available and starting its background services. The full API documentation, including your new endpoint, is available at <http://localhost:2346/docs>.
+
+## Maintaining a plugin
+
+Plugins with a frontend must build and check the frontend before building the wheel; see [Building and packaging](frontend.md#building-and-packaging).
