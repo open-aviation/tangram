@@ -658,10 +658,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-project-structure" class="md-nav__link">
+  <a href="#project-structure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Project Structure
+        Project structure
       
     </span>
   </a>
@@ -669,10 +669,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-plugin-entry-point-indexts" class="md-nav__link">
+  <a href="#package-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Plugin Entry Point (index.ts)
+        Package configuration
       
     </span>
   </a>
@@ -680,10 +680,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-vite-configuration" class="md-nav__link">
+  <a href="#plugin-entry-point" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. vite configuration
+        Plugin entry point
       
     </span>
   </a>
@@ -691,10 +691,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-building-and-using-your-plugin" class="md-nav__link">
+  <a href="#vite-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Building and using your plugin
+        Vite configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-and-packaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building and packaging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime loading
       
     </span>
   </a>
@@ -1520,10 +1542,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-project-structure" class="md-nav__link">
+  <a href="#project-structure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Project Structure
+        Project structure
       
     </span>
   </a>
@@ -1531,10 +1553,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-plugin-entry-point-indexts" class="md-nav__link">
+  <a href="#package-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Plugin Entry Point (index.ts)
+        Package configuration
       
     </span>
   </a>
@@ -1542,10 +1564,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-vite-configuration" class="md-nav__link">
+  <a href="#plugin-entry-point" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. vite configuration
+        Plugin entry point
       
     </span>
   </a>
@@ -1553,10 +1575,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-building-and-using-your-plugin" class="md-nav__link">
+  <a href="#vite-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Building and using your plugin
+        Vite configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-and-packaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building and packaging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime loading
       
     </span>
   </a>
@@ -1584,85 +1628,159 @@
 
 
 <h1 id="frontend">Frontend<a class="headerlink" href="#frontend" title="Permanent link">&para;</a></h1>
-<p>Frontend plugins are standalone NPM packages that add new widgets and functionality to the <code>tangram</code> web interface. This system is designed for modularity, allowing you to build and share custom UI components.</p>
-<h2 id="1-project-structure">1. Project Structure<a class="headerlink" href="#1-project-structure" title="Permanent link">&para;</a></h2>
-<p>A frontend plugin is a standard TypeScript/Vue project that produces a library build.</p>
-<div class="language-text highlight"><pre><span></span><code>my-tangram-frontend-plugin/
-├── package.json
-├── vite.config.ts
-└── src/
-    ├── MyWidget.vue
-    └── index.ts
+<p>A frontend plugin adds Vue components and Deck.gl layers to the <code>tangram</code> web interface. It is normally bundled with a <a href="../backend/">backend plugin</a>, so users install one Python package containing both the plugin entry point and the pre-built frontend assets.</p>
+<h2 id="project-structure">Project structure<a class="headerlink" href="#project-structure" title="Permanent link">&para;</a></h2>
+<p>Start with the Python package and entry point from the <a href="../backend/#plugin-anatomy">backend plugin guide</a>, then add the frontend files:</p>
+<div class="language-bash highlight"><pre><span></span><code>my-tangram-plugin/
+├──<span class="w"> </span>package.json<span class="w">   </span><span class="c1"># (1)!</span>
+├──<span class="w"> </span>pyproject.toml<span class="w">  </span><span class="c1"># (2)!</span>
+├──<span class="w"> </span>vite.config.js
+└──<span class="w"> </span>src/my_plugin/
+<span class="w">    </span>├──<span class="w"> </span>__init__.py
+<span class="w">    </span>├──<span class="w"> </span>index.js
+<span class="w">    </span>└──<span class="w"> </span>MyWidget.vue
 </code></pre></div>
-<h2 id="2-plugin-entry-point-indexts">2. Plugin Entry Point (<code>index.ts</code>)<a class="headerlink" href="#2-plugin-entry-point-indexts" title="Permanent link">&para;</a></h2>
-<p>The <code>main</code> file specified in your <code>package.json</code> must export an <code>install</code> function. This function is the plugin's entry point and receives the <code>TangramApi</code> object, which provides methods for interacting with the core application.</p>
-<!-- TODO(abrah): eliminate some of these when we use mkdocstrings -->
-<div class="language-typescript highlight"><span class="filename">src/index.ts</span><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">TangramApi</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@open-aviation/tangram-core/api&quot;</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="nx">MyWidget</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;./MyWidget.vue&quot;</span><span class="p">;</span>
-
-<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">install</span><span class="p">(</span><span class="nx">api</span><span class="o">:</span><span class="w"> </span><span class="kt">TangramApi</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="c1">// use the API to register a new widget component.</span>
-<span class="w">  </span><span class="c1">// the first argument is a unique ID for your widget.</span>
-<span class="w">  </span><span class="c1">// the second is the Vue component itself.</span>
-<span class="w">  </span><span class="nx">api</span><span class="p">.</span><span class="nx">registerWidget</span><span class="p">(</span><span class="s2">&quot;my-widget&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">MyWidget</span><span class="p">);</span>
+<ol>
+<li><code>package.json</code> owns the frontend dependencies and build.</li>
+<li><code>pyproject.toml</code> owns the installable plugin and bundles the generated
+   frontend assets in its wheel.</li>
+</ol>
+<h2 id="package-configuration">Package configuration<a class="headerlink" href="#package-configuration" title="Permanent link">&para;</a></h2>
+<p>The <code>main</code> field points to the frontend entry point.</p>
+<div class="language-json highlight"><span class="filename">package.json</span><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@my-org/my-tangram-plugin&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0.1.0&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;private&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;module&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;main&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;src/my_plugin/index.js&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;scripts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;build&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;vite build&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;dependencies&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;@open-aviation/tangram-core&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^0.5.0&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;devDependencies&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;vite&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^8.1.0&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;vue&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^3.5.38&quot;</span>
+<span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>The <code>TangramApi</code> provides two main functions:</p>
-<ul>
-<li><code>registerWidget(id: string, component: Component)</code>: Makes your component available to the core UI.</li>
-<li><code>getVueApp(): App</code>: Provides access to the core Vue application instance for advanced use cases.</li>
-</ul>
-<h2 id="3-vite-configuration">3. <code>vite</code> configuration<a class="headerlink" href="#3-vite-configuration" title="Permanent link">&para;</a></h2>
-<p>To simplify the build process, <code>tangram</code> provides a shared Vite plugin. This handles the complex configuration needed to build your plugin as a library and generate a <code>plugin.json</code> manifest file.</p>
-<div class="language-typescript highlight"><span class="filename">vite.config.ts</span><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">defineConfig</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;vite&quot;</span><span class="p">;</span>
+<p>Keep the Python and npm core dependencies on the same supported minor release.</p>
+<h2 id="plugin-entry-point">Plugin entry point<a class="headerlink" href="#plugin-entry-point" title="Permanent link">&para;</a></h2>
+<p>The module specified by <code>main</code> exports an <code>install</code> function. The plugin-scoped context identifies the plugin and provides the shared Tangram APIs. Register passive resources with <code>pluginId: ctx.id</code>; register active resources with <code>ctx.onDispose</code>.</p>
+<div class="language-javascript highlight"><span class="filename">src/my_plugin/index.js</span><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="nx">MyWidget</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;./MyWidget.vue&quot;</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">install</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">ctx</span><span class="p">.</span><span class="nx">api</span><span class="p">.</span><span class="nx">ui</span><span class="p">.</span><span class="nx">registerWidget</span><span class="p">(</span><span class="s2">&quot;my-widget&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;SideBar&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">MyWidget</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">pluginId</span><span class="o">:</span><span class="w"> </span><span class="nx">ctx</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;My Widget&quot;</span>
+<span class="w">  </span><span class="p">});</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="vite-configuration">Vite configuration<a class="headerlink" href="#vite-configuration" title="Permanent link">&para;</a></h2>
+<p>The shared Vite plugin builds the frontend as an ES module and writes the <code>plugin.json</code> manifest used by <code>tangram</code> at runtime.</p>
+<div class="language-javascript highlight"><span class="filename">vite.config.js</span><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">defineConfig</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;vite&quot;</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">tangramPlugin</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@open-aviation/tangram-core/vite-plugin&quot;</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="nx">defineConfig</span><span class="p">({</span>
-<span class="w">  </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">tangramPlugin</span><span class="p">()],</span>
+<span class="w">  </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">tangramPlugin</span><span class="p">()]</span>
 <span class="p">});</span>
 </code></pre></div>
-<p>This standardized build produces a <code>dist-frontend</code> directory containing your compiled JavaScript and the manifest file. <code>tangram</code> uses this manifest to discover and load your plugin.</p>
-<h2 id="4-building-and-using-your-plugin">4. Building and using your plugin<a class="headerlink" href="#4-building-and-using-your-plugin" title="Permanent link">&para;</a></h2>
-<p>First, build your frontend assets. If you are in the monorepo, <code>pnpm build</code> will handle this.</p>
-<p>Next, ensure the generated <code>dist-frontend</code> directory is included in your Python package's wheel. This is typically done in <code>pyproject.toml</code>.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="hatchling" name="__tabbed_1" type="radio" /><input id="maturin" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="hatchling">hatchling</label><label for="maturin">maturin</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-toml highlight"><pre><span></span><code><span class="k">[tool.hatch.build.targets.wheel.force-include]</span>
-<span class="s2">&quot;dist-frontend&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_plugin/dist-frontend&quot;</span>
-</code></pre></div>
-</div>
-<div class="tabbed-block">
-<p>Configuring <code>vite</code> to output to a subdirectory of your python source (e.g. <code>src/my_plugin/dist-frontend</code>) ensures <code>maturin</code> includes it automatically.</p>
-</div>
-</div>
-</div>
-<div class="language-typescript highlight"><span class="filename">vite.config.ts</span><pre><span></span><code><span class="nx">build</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nx">outDir</span><span class="o">:</span><span class="w"> </span><span class="kt">path.resolve</span><span class="p">(</span><span class="nx">__dirname</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;./src/my_plugin/dist-frontend&quot;</span><span class="p">),</span>
+<details class="note">
+<summary>TypeScript setup (highly recommended!)</summary>
+<p>Rename <code>index.js</code> to <code>index.ts</code> and <code>vite.config.js</code> to <code>vite.config.ts</code>, then merge these fields into <code>package.json</code>:</p>
+<div class="language-json highlight"><span class="filename">package.json</span><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;main&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;src/my_plugin/index.ts&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;scripts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;build&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;vite build&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;typecheck&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;vue-tsc --noEmit -p tsconfig.json&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;typecheck:vite&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tsc --noEmit -p tsconfig.vite.json&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;check&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pnpm typecheck &amp;&amp; pnpm typecheck:vite&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;devDependencies&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;@types/node&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^26.0.0&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;typescript&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^6.0.3&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;vue-tsc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;3.3.4&quot;</span>
+<span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>Finally, install your Python package and enable it in your <code>tangram.toml</code>:</p>
-<div class="language-toml highlight"><pre><span></span><code><span class="k">[core]</span>
-<span class="n">plugins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;my_tangram_plugin&quot;</span><span class="p">]</span>
+<p>Extend the configurations published by <code>@open-aviation/tangram-core</code>:</p>
+<div class="language-json highlight"><span class="filename">tsconfig.json</span><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;extends&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@open-aviation/tangram-core/tsconfig.plugin.json&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;include&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;src/**/*.ts&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;src/**/*.vue&quot;</span><span class="p">]</span>
+<span class="p">}</span>
 </code></pre></div>
-<p>When <code>tangram serve</code> runs, it will:</p>
-<ol>
-<li>Read the <code>plugin.json</code> manifest from every enabled plugin at startup.</li>
-<li>Amalgamate these into a single cached response for <code>/manifest.json</code>.</li>
-<li>The core web app fetches this single manifest and dynamically loads resources.</li>
-</ol>
+<p>The Vite configuration runs in Node and is checked separately:</p>
+<div class="language-json highlight"><span class="filename">tsconfig.vite.json</span><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;extends&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;@open-aviation/tangram-core/tsconfig.node.json&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;include&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;vite.config.ts&quot;</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Type the plugin entry point with <code>PluginContext</code>:</p>
+<div class="language-typescript highlight"><span class="filename">src/my_plugin/index.ts</span><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">PluginContext</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@open-aviation/tangram-core/api&quot;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="nx">MyWidget</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;./MyWidget.vue&quot;</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">install</span><span class="p">(</span><span class="nx">ctx</span><span class="o">:</span><span class="w"> </span><span class="kt">PluginContext</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">ctx</span><span class="p">.</span><span class="nx">api</span><span class="p">.</span><span class="nx">ui</span><span class="p">.</span><span class="nx">registerWidget</span><span class="p">(</span><span class="s2">&quot;my-widget&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;SideBar&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">MyWidget</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">pluginId</span><span class="o">:</span><span class="w"> </span><span class="kt">ctx.id</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;My Widget&quot;</span>
+<span class="w">  </span><span class="p">});</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Note that as of <code>@open-aviation/tangram-core</code> v0.5.0 does not publish a declaration for the <code>vite-plugin</code> subpath, and is a known bug that is being worked on. Supress the error:</p>
+<div class="language-typescript highlight"><span class="filename">vite.config.ts</span><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">defineConfig</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;vite&quot;</span><span class="p">;</span>
+<span class="c1">// @ts-expect-error tangram-core 0.5.0 does not publish this subpath&#39;s types</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">tangramPlugin</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@open-aviation/tangram-core/vite-plugin&quot;</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="nx">defineConfig</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">tangramPlugin</span><span class="p">()]</span>
+<span class="p">});</span>
+</code></pre></div>
+</details>
+<h2 id="building-and-packaging">Building and packaging<a class="headerlink" href="#building-and-packaging" title="Permanent link">&para;</a></h2>
+<p>When you run <code>pnpm build</code>, it produces all assets (<code>index.js</code>, stylesheets and <code>plugin.json</code>) under the <code>dist-frontend</code> directory. Your build backend should be configured to include it when you publish the Python wheel, for example, if you are using hatchling:</p>
+<div class="language-toml highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.hatch.build.targets.sdist]</span>
+<span class="n">ignore-vcs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">include</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;dist-frontend/*&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;src/*&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;package.json&quot;</span><span class="p">]</span>
+
+<span class="k">[tool.hatch.build.targets.wheel.force-include]</span>
+<span class="s2">&quot;dist-frontend&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_plugin/dist-frontend&quot;</span>
+<span class="s2">&quot;package.json&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_plugin/package.json&quot;</span>
+</code></pre></div>
+<div class="language-py highlight"><span class="filename">src/my_plugin/__init__.py</span><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">tangram_core</span>
+
+<span class="n">plugin</span> <span class="o">=</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">Plugin</span><span class="p">(</span><span class="n">frontend_path</span><span class="o">=</span><span class="s2">&quot;dist-frontend&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>If you are using the maturin build backend, call <code>tangramPlugin({ copyToPythonPackage: true })</code> so the generated assets are copied under the Python source tree before the wheel is built.</p>
+<p>Build the frontend before installing or building the Python package because
+<code>dist-frontend</code> is a package input:</p>
+<div class="language-sh highlight"><pre><span></span><code>pnpm<span class="w"> </span>install<span class="w"> </span>--frozen-lockfile
+<span class="c1"># if you use typescript:</span>
+pnpm<span class="w"> </span>check
+pnpm<span class="w"> </span>build
+uv<span class="w"> </span>sync
+uv<span class="w"> </span>run<span class="w"> </span>tangram<span class="w"> </span>check-plugin<span class="w"> </span>.
+uv<span class="w"> </span>build
+</code></pre></div>
+<p>Install the wheel in a clean environment and verify that <code>tangram list-plugins --all</code> discovers its backend and frontend components.</p>
+<h2 id="runtime-loading">Runtime loading<a class="headerlink" href="#runtime-loading" title="Permanent link">&para;</a></h2>
+<p>After the package is installed and enabled in <code>tangram.toml</code>, the server reads <code>plugin.json</code> and exposes the frontend assets under <code>/plugins/&lt;plugin-name&gt;/</code>. The browser imports the module and calls <code>install</code> with its plugin-scoped context.</p>
 <pre class="mermaid"><code>sequenceDiagram
-    participant P as Plugin Module
+    participant P as Plugin module
     participant B as Browser
-    participant S as Tangram Server
+    participant S as Tangram server
 
     B-&gt;&gt;S: GET /manifest.json
-    S--&gt;&gt;B: Respond with {"plugins": {"my_plugin": {"main": "index.js"}}}
+    S--&gt;&gt;B: Plugin manifest
     B-&gt;&gt;S: GET /plugins/my_plugin/index.js
-    S--&gt;&gt;B: Serve plugin's JS entry point
-    Note over B, P: Browser executes plugin code
-    P-&gt;&gt;B: install(tangramApi)
-    Note over B: Plugin registers its widgets</code></pre>
+    S--&gt;&gt;B: Frontend module
+    B-&gt;&gt;P: install(ctx)
+    P-&gt;&gt;B: Register widgets and layers</code></pre>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>If you modify the frontend, run <code>pnpm build</code> so the <code>tangram serve</code> command can pick it up immediately.</p>
+<p>No restart of the tangram server is needed unless you modify the backend.</p>
+</div>
 
 
 

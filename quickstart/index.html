@@ -2101,24 +2101,20 @@ fnm<span class="w"> </span>install<span class="w"> </span>--latest
 npm<span class="w"> </span>install<span class="w"> </span>-g<span class="w"> </span>corepack
 corepack<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>pnpm
 </code></pre></div>
-<p>??? Windows support</p>
-<div class="language-text highlight"><pre><span></span><code>Use of WSL is strongly recommended.
-
-To build Rust code, you will need `link.exe`, which can be obtained via MSVC Build Tools. Alternatively, set the default to the GNU ABI.
-
-To build `tangram_core`, you will also need [NASM](https://www.nasm.us/pub/nasm/releasebuilds/) and [CMake](https://cmake.org/download/) for the `aws-lc-rs` for JSON web token. Alternatively, set `AWS_LC_SYS_PREBUILT_NASM=1` in the environment variables.
-
-To run `just` commands, use Git Bash.
-
-For Redis, use of podman is highly recommended.
-</code></pre></div>
-<p>??? Virtual Machine support</p>
-<div class="language-text highlight"><pre><span></span><code>Tangram requires WebGL 2.
-
-On Chromium, to force software rendering, go to `chrome://flags`, set `Override software rendering list` to `Enabled` and `ANGLE graphics backend` to OpenGL or D3D11.
-
-Otherwise, you will need to setup [GPU passthrough](https://juniorfox.net/article/gpu-passthrough-with-looking-glass).
-</code></pre></div>
+<details class="windows support">
+<summary>Windows</summary>
+<p>Use of WSL is strongly recommended.</p>
+<p>To build Rust code, you will need <code>link.exe</code>, which can be obtained via MSVC Build Tools. Alternatively, set the default to the GNU ABI.</p>
+<p>To build <code>tangram_core</code>, you will also need <a href="https://www.nasm.us/pub/nasm/releasebuilds/">NASM</a> and <a href="https://cmake.org/download/">CMake</a> for the <code>aws-lc-rs</code> for JSON web token. Alternatively, set <code>AWS_LC_SYS_PREBUILT_NASM=1</code> in the environment variables.</p>
+<p>To run <code>just</code> commands, use Git Bash.</p>
+<p>For Redis, use of podman is highly recommended.</p>
+</details>
+<details class="virtual machine support">
+<summary>Virtual</summary>
+<p>Tangram requires WebGL 2.</p>
+<p>On Chromium, to force software rendering, go to <code>chrome://flags</code>, set <code>Override software rendering list</code> to <code>Enabled</code> and <code>ANGLE graphics backend</code> to OpenGL or D3D11.</p>
+<p>Otherwise, you will need to setup <a href="https://juniorfox.net/article/gpu-passthrough-with-looking-glass">GPU passthrough</a>.</p>
+</details>
 <h3 id="environment-setup">Environment Setup<a class="headerlink" href="#environment-setup" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Clone the repository:</li>

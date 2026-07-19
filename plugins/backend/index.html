@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#plugin-anatomy" class="md-skip">
+        <a href="#repository-layout" class="md-skip">
           Skip to content
         </a>
       
@@ -626,6 +626,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#repository-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repository layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plugin-anatomy" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -661,6 +672,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-a-frontend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a frontend
+      
+    </span>
+  </a>
   
 </li>
       
@@ -741,6 +763,17 @@
     <span class="md-ellipsis">
       
         Using Your Plugin
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#maintaining-a-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Maintaining a plugin
       
     </span>
   </a>
@@ -1592,6 +1625,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#repository-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repository layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plugin-anatomy" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1627,6 +1671,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-a-frontend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a frontend
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1713,6 +1768,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#maintaining-a-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Maintaining a plugin
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1736,7 +1802,35 @@
   <h1>Backend</h1>
 
 <p>Backend plugins are the standard way to add new server-side capabilities to <code>tangram</code>. They are self-contained Python packages that <code>tangram</code> discovers and loads at runtime, allowing for clean separation from the core framework.</p>
-<p>This guide covers the key concepts for building a backend plugin.</p>
+<p>This guide covers the key concepts for building and maintaining an out-of-tree plugin.</p>
+<h2 id="repository-layout">Repository layout<a class="headerlink" href="#repository-layout" title="Permanent link">&para;</a></h2>
+<p>We highly recommend a small directory named <code>tangram_exe</code>, which threads together multiple plugins and executes them:</p>
+<div class="language-text highlight"><pre><span></span><code>workspace/
+├── tangram/
+├── my-project/
+│   └── tangram/
+│       ├── package.json
+│       ├── pyproject.toml
+│       └── src/tangram_my_project/
+└── tangram_exe/
+    ├── main.py
+    ├── pyproject.toml
+    └── tangram.toml
+</code></pre></div>
+<div class="language-toml highlight"><span class="filename">tangram_exe/pyproject.toml</span><pre><span></span><code><span class="k">[project]</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tangram-exe&quot;</span>
+<span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.1.0&quot;</span>
+<span class="n">requires-python</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&gt;=3.10&quot;</span>
+<span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="s2">&quot;tangram-core&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;tangram-my-project&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="k">[tool.uv.sources]</span>
+<span class="n">tangram-core</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;../tangram/packages/tangram_core&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">editable</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
+<span class="n">tangram-my-project</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;../my-project/tangram&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">editable</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p>After setting up your <code>tangram.toml</code>, <code>uv run tangram serve --config tangram.toml</code> should then launch your plugin with the latest core.</p>
 <h2 id="plugin-anatomy">Plugin Anatomy<a class="headerlink" href="#plugin-anatomy" title="Permanent link">&para;</a></h2>
 <p>A <code>tangram</code> plugin is a standard Python package that exposes its functionality through two key mechanisms: an entry point and a <a class="autorefs autorefs-internal" title="            Plugin
 
@@ -1756,7 +1850,7 @@
 <div class="language-toml highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[project]</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my-tangram-plugin&quot;</span>
 <span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.1.0&quot;</span>
-<span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tangram_core&gt;=0.2.1&quot;</span><span class="p">]</span>
+<span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tangram_core&gt;=0.5&quot;</span><span class="p">]</span>
 
 <span class="hll"><span class="k">[project.entry-points.</span><span class="s2">&quot;tangram_core.plugins&quot;</span><span class="k">]</span>
 </span><span class="hll"><span class="n">my_plugin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_plugin:plugin&quot;</span>
@@ -1769,6 +1863,13 @@
     <span class="c1"># ... component registrations go here ...</span>
 <span class="p">)</span>
 </code></pre></div>
+<h2 id="adding-a-frontend">Adding a frontend<a class="headerlink" href="#adding-a-frontend" title="Permanent link">&para;</a></h2>
+<p>A Python plugin may bundle a Vue frontend in the same wheel. After defining the Python entry point and <a class="autorefs autorefs-internal" title="            Plugin
+
+
+  
+      dataclass
+  " href="../../api/core/#tangram_core.Plugin"><code>Plugin</code></a> object, continue with the <a href="../frontend/">frontend plugin guide</a>.</p>
 <h2 id="adding-api-endpoints">Adding API Endpoints<a class="headerlink" href="#adding-api-endpoints" title="Permanent link">&para;</a></h2>
 <p>To add REST API endpoints, define a standard FastAPI <a class="autorefs autorefs-external" href="https://fastapi.tiangolo.com/reference/apirouter/#fastapi.APIRouter"><code>APIRouter</code></a> and pass a list of routers to the <a class="autorefs autorefs-internal" title="            Plugin
 
@@ -1908,6 +2009,8 @@
 <span class="n">plugins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;my_tangram_plugin&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p>Run <code>tangram serve</code>. The core application will load your plugin, making its API endpoints available and starting its background services. The full API documentation, including your new endpoint, is available at <a href="http://localhost:2346/docs">http://localhost:2346/docs</a>.</p>
+<h2 id="maintaining-a-plugin">Maintaining a plugin<a class="headerlink" href="#maintaining-a-plugin" title="Permanent link">&para;</a></h2>
+<p>Plugins with a frontend must build and check the frontend before building the wheel; see <a href="../frontend/#building-and-packaging">Building and packaging</a>.</p>
 
 
 
