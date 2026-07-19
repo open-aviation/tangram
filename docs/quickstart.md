@@ -311,7 +311,7 @@ The application will be available at `http://localhost:2346`.
 To build the documentation:
 
 ```sh
-uv run mkdocs serve
+just docs
 ```
 
 To format all Rust, Python and JS code:

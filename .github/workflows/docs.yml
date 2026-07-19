@@ -8,7 +8,9 @@ on:
     paths:
       - "docs/**"
       - ".github/workflows/docs.yml"
-      - "mkdocs.yml"
+      - "zensical.toml"
+      - "pyproject.toml"
+      - "uv.lock"
 
 permissions:
   contents: write
@@ -32,7 +34,8 @@ jobs:
 
       - name: Build the site
         run: |
-          uv sync --group docs && uv run mkdocs build
+          uv sync --frozen --no-default-groups --group docs
+          uv run --frozen --no-default-groups --group docs zensical build --clean --strict
 
       - name: Deploy pages to www.mode-s.org/tangram
         uses: peaceiris/actions-gh-pages@v4

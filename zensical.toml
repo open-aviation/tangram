@@ -1,0 +1,172 @@
+[project]
+site_name = "tangram"
+site_description = "An open platform for modular, real-time air traffic management research"
+site_url = "https://mode-s.org/tangram/"
+repo_name = "open-aviation/tangram"
+repo_url = "https://github.com/open-aviation/tangram"
+extra_css = ["css/extra.css"]
+nav = [
+  { "Home" = "index.md" },
+  { "Quickstart" = "quickstart.md" },
+  { "Configuration" = "configuration.md" },
+  { "Architecture" = [
+    { "Overview" = "architecture/overview.md" },
+    { "channel" = "architecture/channel.md" },
+  ] },
+  { "Plugins" = [
+    { "Overview" = "plugins/overview.md" },
+    "plugins/backend.md",
+    "plugins/frontend.md",
+    { "Built-in" = [
+      "plugins/system.md",
+      "plugins/history.md",
+      "plugins/jet1090.md",
+      "plugins/datalink.md",
+      "plugins/ship162.md",
+      "plugins/weather.md",
+      "plugins/airports.md",
+      "plugins/explore.md",
+    ] },
+    { "Examples" = [
+      "plugins/examples/citypair.md",
+      "plugins/examples/sensors.md",
+      "plugins/examples/windfield.md",
+    ] },
+  ] },
+  { "API Reference" = [
+    "api/core.md",
+    "api/system.md",
+    "api/jet1090.md",
+    "api/datalink.md",
+    "api/ship162.md",
+    "api/history.md",
+    "api/explore.md",
+    "api/weather.md",
+  ] },
+  { "Contribute" = "contribute.md" },
+]
+
+[project.theme]
+logo = "icons/favicon.png"
+favicon = "icons/favicon.ico"
+features = [
+  "content.code.annotate",
+  "content.code.copy",
+  "navigation.sections",
+  "navigation.top",
+  "navigation.footer",
+  "navigation.indexes",
+  "search.highlight",
+  "search.suggest",
+]
+
+[project.theme.font]
+text = "Roboto"
+code = "Roboto Mono"
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+
+[project.theme.palette.toggle]
+icon = "material/link"
+name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "indigo"
+accent = "indigo"
+
+[project.theme.palette.toggle]
+icon = "material/toggle-switch"
+name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "black"
+accent = "indigo"
+
+[project.theme.palette.toggle]
+icon = "material/toggle-switch-off"
+name = "Switch to system preference"
+
+[project.plugins]
+search = {}
+
+[project.plugins.mkdocstrings.handlers.python]
+# we explicitly specify the paths so we can do `just docs` without reinstalling
+# the entire project
+# TODO(abraham): check if this is a mkdocs-era issue or is it already resolved
+# when we migrate to zensical
+paths = [
+  "packages/tangram_core/src",
+  "packages/tangram_history/src",
+  "packages/tangram_jet1090/src",
+  "packages/tangram_weather/src",
+  "packages/tangram_globe/src",
+  "packages/tangram_system/src",
+  "packages/tangram_ship162/src",
+  "packages/tangram_datalink/src",
+  "packages/tangram_explore/src",
+]
+inventories = [
+  "https://docs.python.org/3/objects.inv",
+  "https://fastapi.tiangolo.com/objects.inv",
+]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+# member
+inherited_members = true
+members_order = "source"
+# signature
+separate_signature = true
+show_signature_annotations = true
+# docstrings
+docstring_style = "sphinx"
+docstring_section_style = "table"
+signature_crossrefs = true
+show_source = true
+# heading
+show_symbol_type_heading = true
+show_symbol_type_toc = true
+show_root_heading = true
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+footnotes = {}
+"pymdownx.details" = {}
+"pymdownx.highlight" = { pygments_lang_class = true }
+"pymdownx.snippets" = {}
+"pymdownx.tabbed" = { alternate_style = true }
+
+[project.markdown_extensions."pymdownx.emoji"]
+emoji_index = "zensical.extensions.emoji.twemoji"
+emoji_generator = "zensical.extensions.emoji.to_svg"
+
+[project.markdown_extensions."pymdownx.blocks.tab"]
+alternate_style = true
+
+[project.markdown_extensions."pymdownx.blocks.tab".slugify]
+object = "pymdownx.slugs.slugify"
+
+[project.markdown_extensions."pymdownx.blocks.tab".slugify.kwds]
+case = "lower"
+
+[project.markdown_extensions."pymdownx.superfences"]
+custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+
+[project.markdown_extensions.toc]
+permalink = true
+baselevel = 1
+
+[project.extra]
+social = [
+  { icon = "fontawesome/brands/github", link = "https://github.com/open-aviation/tangram" },
+]

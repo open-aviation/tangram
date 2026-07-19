@@ -119,3 +119,6 @@ _clean:
         --no-trunc='1' \
         --quiet='1' \
     ) || true
+
+docs:
+  uv run --no-default-groups --group docs zensical serve
