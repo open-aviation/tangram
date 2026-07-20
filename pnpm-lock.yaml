@@ -117,9 +117,6 @@ importers:
       pmtiles:
         specifier: ^4.4.1
         version: 4.4.1
-      rs1090-wasm:
-        specifier: ^0.6.0
-        version: 0.6.0
       vue:
         specifier: ^3.5.38
         version: 3.5.38(typescript@6.0.3)

@@ -13,7 +13,7 @@ It works as follows:
 1. When an aircraft is selected, the widget uses the aircraft's callsign to make a request to the `/route/{callsign}` API endpoint.
 2. This endpoint, provided by the `tangram_jet1090` backend plugin, proxies the request to the [OpenSky Network's route database](https://flightroutes.opensky-network.org).
 3. If a route is found, the widget displays the origin and destination airport ICAO codes.
-4. It then uses the [`rs1090-wasm` library](https://www.npmjs.com/package/rs1090-wasm) (bundled with `tangram` core) to look up and display the corresponding city names for each airport.
+4. It then uses the [`rs1090-wasm` library](https://www.npmjs.com/package/rs1090-wasm) (packaged by `tangram_jet1090`) to look up and display the corresponding city names for each airport.
 
 This functionality is self-contained within the `tangram_jet1090` plugin and requires no extra configuration beyond enabling the plugin itself.
 

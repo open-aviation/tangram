@@ -37,7 +37,7 @@ tangram_core = { workspace = true }
 python-source = "src"
 module-name = "tangram_datalink._datalink"
 features = ["pyo3"]
-include = ["dist-frontend/**/*", "package.json"]
+include = ["src/tangram_datalink/dist-frontend/**/*", "src/tangram_datalink/package.json"]
 
 [tool.uv]
 cache-keys = [

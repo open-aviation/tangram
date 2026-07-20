@@ -1098,6 +1098,7 @@ export interface WidgetOptions {
   title?: string;
   relevantFor?: string | string[];
   visible?: boolean | (() => boolean);
+  props?: Record<string, unknown>;
 }
 
 export interface WidgetEntry extends WidgetOptions {
@@ -1223,6 +1224,7 @@ export class UiApi {
       title,
       relevantFor,
       visible,
+      props: options.props ? markRaw(options.props) : undefined,
       isCollapsed: false
     };
 
@@ -1600,8 +1602,7 @@ export class StateApi {
 
   getEntity = <T extends EntityState>(key: EntityKey): Entity<T> | undefined => {
     return this.getEntitiesByType<T>(key.type).value.get(key.id) as
-      | Entity<T>
-      | undefined;
+      Entity<T> | undefined;
   };
 
   setEntity = <T extends EntityState>(entity: Entity<T>): void => {
@@ -2263,5 +2264,7 @@ export class TangramApi {
 export interface PluginContext {
   readonly id: string;
   readonly api: TangramApi;
+  assetUrl(fileName: string): string;
+  importModule<T>(fileName: string): Promise<T>;
   onDispose<T extends Disposable>(disposable: T): T;
 }

@@ -146,7 +146,7 @@ import { MESSAGE_CATEGORIES, classifyCategory, datalinkStore } from "./store";
 import type { MessageCategoryId } from "./store";
 import type { DatalinkMessage } from "./types";
 import { ENTITY_TYPE, type DatalinkEntity } from "./index";
-import { airportName } from "./airport";
+import type { AirportName } from "./airport";
 import DatalinkFeedCallout from "./DatalinkFeedCallout.vue";
 import DatalinkFeedRow, { type DatalinkFeedRowModel } from "./DatalinkFeedRow.vue";
 import AdscSummary from "./summary/Adsc.vue";
@@ -159,6 +159,8 @@ import OooiSummary from "./summary/Oooi.vue";
 import PositionSummary from "./summary/Position.vue";
 import { arinc622Message, messageKeyParts, messageText } from "./summary_helpers";
 import { createImperativeRowClassSync } from "./useImperativeRowClasses";
+
+const { airportName } = defineProps<{ airportName: AirportName }>();
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) throw new Error("assert: tangram api not provided");

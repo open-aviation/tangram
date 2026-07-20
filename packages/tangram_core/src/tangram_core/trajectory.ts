@@ -219,8 +219,7 @@ export interface TimedPathSegment<ColorT> extends PathSegment<ColorT> {
 }
 
 export type SegmentLayerColor =
-  | readonly [number, number, number]
-  | readonly [number, number, number, number];
+  readonly [number, number, number] | readonly [number, number, number, number];
 
 export interface TemporalLineSegment {
   sourcePosition: Position3D;

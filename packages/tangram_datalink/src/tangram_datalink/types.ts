@@ -346,8 +346,7 @@ export interface DatalinkAdscReport {
 
 export type CpdlcElementBody = AdjacentPayload<string, JsonValue>;
 export type CpdlcPhraseFragment =
-  | AdjacentPayload<"text", string>
-  | AdjacentPayload<"value", string>;
+  AdjacentPayload<"text", string> | AdjacentPayload<"value", string>;
 
 export interface DatalinkCpdlcElement {
   id: number;

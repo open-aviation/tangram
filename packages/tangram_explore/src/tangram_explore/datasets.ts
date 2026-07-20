@@ -57,9 +57,7 @@ export interface TrajectoryStyleOptions {
 }
 
 export type ExploreStyleOptions =
-  | ScatterOptions
-  | FeatureStyleOptions
-  | TrajectoryStyleOptions;
+  ScatterOptions | FeatureStyleOptions | TrajectoryStyleOptions;
 
 export type FeatureDatasetEntry = WorkspaceDatasetEntry<FeatureSource> & {
   kind: "features";
@@ -80,9 +78,7 @@ export type TrajectoryDatasetEntry = WorkspaceDatasetEntry<TrajectorySource> & {
 };
 
 export type ExploreDatasetEntry =
-  | FeatureDatasetEntry
-  | TableDatasetEntry
-  | TrajectoryDatasetEntry;
+  FeatureDatasetEntry | TableDatasetEntry | TrajectoryDatasetEntry;
 
 export type FeatureDatasetInput = WorkspaceDatasetInput<FeatureSource> & {
   kind: "features";
@@ -100,9 +96,7 @@ export type TrajectoryDatasetInput = WorkspaceDatasetInput<TrajectorySource> & {
 };
 
 export type ExploreDatasetInput =
-  | FeatureDatasetInput
-  | TableDatasetInput
-  | TrajectoryDatasetInput;
+  FeatureDatasetInput | TableDatasetInput | TrajectoryDatasetInput;
 
 function createDefaultScatterStyle(): ScatterOptions {
   return {

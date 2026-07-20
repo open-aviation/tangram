@@ -7,7 +7,7 @@ The `tangram_airports` plugin adds an airport search widget as an overlay on the
 This is a frontend-only plugin that requires no additional backend configuration.
 
 1. It registers a Vue component, `AirportSearchWidget.vue`, in the `MapOverlay` location of the UI.
-2. The component uses the `rs1090-wasm` library, which is bundled with the core `tangram` application, to perform a fast, client-side search of a comprehensive airport database.
+2. The component uses the `rs1090-wasm` library, which is packaged and initialized by the airports plugin, to perform a fast, client-side search of a comprehensive airport database.
 3. When a user selects an airport from the search results, the plugin uses the `MapApi` to pan and zoom the map to the airport's location.
 
 ## Configuration

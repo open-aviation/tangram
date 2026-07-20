@@ -72,7 +72,7 @@ export default defineConfig({
     },
     minify: true,
     sourcemap: true,
-    emptyOutDir: false
+    emptyOutDir: true
   },
   plugins: [virtualDeckGLEntries()]
 });

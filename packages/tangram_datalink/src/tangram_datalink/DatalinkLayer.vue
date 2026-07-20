@@ -11,7 +11,7 @@ import {
   isStationEntity,
   type DatalinkEntity
 } from "./index";
-import { airportName } from "./airport";
+import type { AirportName } from "./airport";
 import { datalinkStore } from "./store";
 
 const entityPassesFilter = (entity: { id: string; state: DatalinkEntity }) => {
@@ -32,6 +32,8 @@ const entityPassesFilter = (entity: { id: string; state: DatalinkEntity }) => {
   }
   return false;
 };
+
+const { airportName } = defineProps<{ airportName: AirportName }>();
 
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) throw new Error("assert: tangram api not provided");

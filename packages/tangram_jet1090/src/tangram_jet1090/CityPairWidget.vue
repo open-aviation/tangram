@@ -18,12 +18,12 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch, onUnmounted } from "vue";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
-import { airport_information } from "rs1090-wasm";
 import { aircraftStore } from "./store";
 import type { Jet1090Aircraft } from ".";
 
 const props = defineProps<{
   icao24?: string;
+  rs1090: typeof import("rs1090-wasm/web");
 }>();
 
 const tangramApi = inject<TangramApi>("tangramApi");
@@ -84,8 +84,8 @@ const fetchRouteData = async (icao24: string, callsign: string) => {
     }
 
     const [originCode, destinationCode] = route.airport_codes.split("-");
-    const originResults = airport_information(originCode);
-    const destResults = airport_information(destinationCode);
+    const originResults = props.rs1090.airport_information(originCode);
+    const destResults = props.rs1090.airport_information(destinationCode);
 
     // check existence after async await
     const currentEntry = aircraftStore.selected.get(icao24);

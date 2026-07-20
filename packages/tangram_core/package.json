@@ -10,11 +10,13 @@
   },
   "scripts": {
     "build": "vite build --config vite.lib-esm.config.ts && vite build",
-    "test": "vitest run src/tangram_core/keyboard.test.ts"
+    "test": "vitest run src/tangram_core/*.test.ts tests/*.test.ts"
   },
   "files": [
     "src/tangram_core/*.ts",
+    "!src/tangram_core/*.test.ts",
     "src/tangram_core/*.d.ts",
+    "src/tangram_core/*.d.mts",
     "src/tangram_core/*.mjs",
     "src/tangram_core/*.vue",
     "src/tangram_core/*.css",
@@ -27,7 +29,11 @@
   },
   "types": "./src/tangram_core/types.d.ts",
   "exports": {
-    "./vite-plugin": "./src/tangram_core/vite-plugin-tangram.mjs",
+    "./vite-plugin": {
+      "types": "./src/tangram_core/vite-plugin-tangram.d.mts",
+      "import": "./src/tangram_core/vite-plugin-tangram.mjs",
+      "default": "./src/tangram_core/vite-plugin-tangram.mjs"
+    },
     "./api": "./src/tangram_core/api.ts",
     "./keyboard": "./src/tangram_core/keyboard.ts",
     "./trajectory": "./src/tangram_core/trajectory.ts",
@@ -57,7 +63,6 @@
     "parquet-wasm": "^0.7.2",
     "phoenix": "^1.8.9",
     "pmtiles": "^4.4.1",
-    "rs1090-wasm": "^0.6.0",
     "vue": "^3.5.38"
   },
   "devDependencies": {

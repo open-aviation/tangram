@@ -128,11 +128,8 @@ export default defineConfig({
     }
     ```
 
-    Note that as of `@open-aviation/tangram-core` v0.5.0 does not publish a declaration for the `vite-plugin` subpath, and is a known bug that is being worked on. Supress the error:
-
     ```typescript title="vite.config.ts"
     import { defineConfig } from "vite";
-    // @ts-expect-error tangram-core 0.5.0 does not publish this subpath's types
     import { tangramPlugin } from "@open-aviation/tangram-core/vite-plugin";
 
     export default defineConfig({
@@ -140,7 +137,7 @@ export default defineConfig({
     });
     ```
 
-## Building and packaging
+## packaging
 
 When you run `pnpm build`, it produces all assets (`index.js`, stylesheets and `plugin.json`) under the `dist-frontend` directory. Your build backend should be configured to include it when you publish the Python wheel, for example, if you are using hatchling:
 
@@ -162,8 +159,52 @@ plugin = tangram_core.Plugin(frontend_path="dist-frontend")
 
 If you are using the maturin build backend, call `tangramPlugin({ copyToPythonPackage: true })` so the generated assets are copied under the Python source tree before the wheel is built.
 
-Build the frontend before installing or building the Python package because
-`dist-frontend` is a package input:
+### Auxiliary assets
+
+Due to some outstanding limitations with [Vite library mode](https://github.com/vitejs/vite/discussions/13172), adding WASM modules like [`rs1090-wasm`](https://github.com/xoolive/jet1090/) or large CSS files via direct dependency in your `package.json` may fail. Tangram provides a generic way to emit any artifact that the frontend needs (binary data, images, generated JS modules), for example:
+
+```typescript title="vite.config.ts"
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { defineConfig } from "vite";
+import { tangramPlugin } from "@open-aviation/tangram-core/vite-plugin";
+
+const loader = fileURLToPath(import.meta.resolve("rs1090-wasm/web"));
+
+export default defineConfig({
+  plugins: [
+    tangramPlugin({
+      assets: [
+        { source: loader, fileName: "rs1090_wasm.js" },
+        {
+          source: path.join(path.dirname(loader), "rs1090_wasm_bg.wasm"),
+          fileName: "rs1090_wasm_bg.wasm"
+        }
+      ]
+    })
+  ]
+});
+```
+
+Then during plugin instantiation, `tangram_core` also provides a handy way to import the wasm-bindgen JS if you need to:
+
+```typescript
+import type { PluginContext } from "@open-aviation/tangram-core/api";
+
+export async function install(ctx: PluginContext) {
+  const rs1090 =
+    await ctx.importModule<typeof import("rs1090-wasm/web")>("rs1090_wasm.js");
+  // wasm-bindgen loader resolves its sibling wasm through import.meta.url.
+  await rs1090.default();
+  rs1090.run();
+
+  // pass rs1090 to lookup consumers for example
+}
+```
+
+### Build
+
+Build the frontend before installing or building the Python package because `dist-frontend` is a package input:
 
 ```sh
 pnpm install --frozen-lockfile

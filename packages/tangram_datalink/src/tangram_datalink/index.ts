@@ -6,6 +6,7 @@ import {
 } from "@open-aviation/tangram-core/api";
 import { TrajectoryApi } from "@open-aviation/tangram-core/api";
 import DatalinkLayer from "./DatalinkLayer.vue";
+import { createAirportName } from "./airport";
 import DatalinkInfoWidget from "./DatalinkInfoWidget.vue";
 import DatalinkCountWidget from "./DatalinkCountWidget.vue";
 import DatalinkFilterWidget from "./DatalinkFilterWidget.vue";
@@ -91,7 +92,15 @@ export function getMessageEntityId(msg: DatalinkMessage) {
   );
 }
 
-export function install(ctx: PluginContext, config?: DatalinkFrontendConfig) {
+export async function install(ctx: PluginContext, config?: DatalinkFrontendConfig) {
+  // metadata is a plugin-level prerequisite. progressive degradation is deferred
+  const rs1090 =
+    await ctx.importModule<typeof import("rs1090-wasm/web")>("rs1090_wasm.js");
+  // NOTE: copied wasm-bindgen loader resolves sibling wasm through import.meta.url
+  await rs1090.default();
+  rs1090.run();
+  const airportName = createAirportName(rs1090);
+
   const api = ctx.api;
 
   api.ui.registerWidget("datalink-count-widget", "TopBar", DatalinkCountWidget, {
@@ -103,11 +112,13 @@ export function install(ctx: PluginContext, config?: DatalinkFrontendConfig) {
     pluginId: ctx.id,
     priority: config?.sidebar_order,
     title: "Datalink",
-    relevantFor: ENTITY_TYPE
+    relevantFor: ENTITY_TYPE,
+    props: { airportName }
   });
 
   api.ui.registerWidget("datalink-layer", "MapOverlay", DatalinkLayer, {
-    pluginId: ctx.id
+    pluginId: ctx.id,
+    props: { airportName }
   });
 
   api.ui.registerSettingsWidget("datalink-filter", DatalinkFilterWidget);

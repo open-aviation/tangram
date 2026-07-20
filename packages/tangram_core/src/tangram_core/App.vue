@@ -16,6 +16,7 @@
             :is="widget.id"
             v-for="widget in tangramApi.ui.widgets.TopBar"
             :key="widget.id"
+            v-bind="widget.props"
           />
           <SettingsMenu />
         </template>
@@ -40,7 +41,7 @@
               {{ widget.title || widget.id }}
             </div>
             <div v-show="!widget.isCollapsed" class="sidebar-body">
-              <component :is="widget.id" />
+              <component :is="widget.id" v-bind="widget.props" />
             </div>
           </div>
         </div>
@@ -48,6 +49,7 @@
           :is="widget.id"
           v-for="widget in tangramApi.ui.widgets.MapOverlay"
           :key="widget.id"
+          v-bind="widget.props"
         />
         <div v-if="tangramApi.map.isReady" class="map-controls">
           <button

@@ -1,5 +1,3 @@
-import { airport_information } from "rs1090-wasm";
-
 interface AirportSearchEntry {
   name: string;
   city?: string;
@@ -8,23 +6,25 @@ interface AirportSearchEntry {
   icao: string;
 }
 
-const airportNameCache = new Map<string, string>();
+export type AirportName = (code: string | null | undefined) => string | undefined;
 
-export function airportName(code: string | null | undefined) {
-  if (!code) return undefined;
-  const normalized = code.trim().toUpperCase();
-  if (!normalized) return undefined;
-  if (airportNameCache.has(normalized)) return airportNameCache.get(normalized);
+export function createAirportName(
+  rs1090: typeof import("rs1090-wasm/web")
+): AirportName {
+  const cache = new Map<string, string>();
 
-  try {
-    const airports = airport_information(normalized) as AirportSearchEntry[];
+  return code => {
+    if (!code) return undefined;
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) return undefined;
+    if (cache.has(normalized)) return cache.get(normalized);
+
+    const airports = rs1090.airport_information(normalized) as AirportSearchEntry[];
     const exact = airports.find(airport => airport.icao === normalized);
-    const airport = exact || airports[0];
-    const name = airport?.name || normalized;
-    airportNameCache.set(normalized, name);
+    const name = (exact || airports[0])?.name || normalized;
+
+    // rs1090's airport dataset is immutable for the lifetime of this plugin instance
+    cache.set(normalized, name);
     return name;
-  } catch {
-    airportNameCache.set(normalized, normalized);
-    return normalized;
-  }
+  };
 }

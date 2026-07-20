@@ -38,8 +38,8 @@
         <div class="row sub-row">
           <div class="left-group registration">
             {{
-              aircraft_information(item.state.icao24, item.state.registration)?.flag ||
-              ""
+              rs1090.aircraft_information(item.state.icao24, item.state.registration)
+                ?.flag || ""
             }}
             {{ item.state.registration }}
           </div>
@@ -62,7 +62,7 @@
       </div>
 
       <div v-if="isExpanded(item.id)" class="details-body" @click.stop>
-        <CityPairWidget :icao24="item.id" />
+        <CityPairWidget :icao24="item.id" :rs1090="rs1090" />
 
         <div v-if="getTrajectoryLength(item.id) > 0">
           <select
@@ -112,10 +112,13 @@ import {
   type ChartOptions,
   type TooltipItem
 } from "chart.js";
-import { aircraft_information } from "rs1090-wasm";
 import { Line as LineChart } from "vue-chartjs";
 import type { Chart } from "chart.js";
 import CityPairWidget from "./CityPairWidget.vue";
+
+const { rs1090 } = defineProps<{
+  rs1090: typeof import("rs1090-wasm/web");
+}>();
 
 const getThemeColor = (varName: string) => {
   return getComputedStyle(document.body).getPropertyValue(varName).trim();
@@ -196,8 +199,7 @@ const getLastPointsInfo = (chart: Chart) => {
 
   chart.data.datasets.forEach((dataset, datasetIndex) => {
     const data = dataset.data as
-      | Array<{ x: number; y: number } | number | null>
-      | undefined;
+      Array<{ x: number; y: number } | number | null> | undefined;
     if (!data || data.length === 0) return;
     const lastPoint = data[data.length - 1];
     if (!lastPoint) return;

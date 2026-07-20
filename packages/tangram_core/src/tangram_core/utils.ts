@@ -4,9 +4,7 @@ import type { LazyImportFile, MapBounds, TimeRange } from "./api";
 type Vector3 = [number, number, number];
 
 export type ColorSpec =
-  | string
-  | [number, number, number]
-  | [number, number, number, number];
+  string | [number, number, number] | [number, number, number, number];
 
 export type DeckGLColor = [number, number, number, number];
 

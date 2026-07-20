@@ -84,7 +84,14 @@ interface BackendSearchResult {
   score: number;
 }
 
-export function install(ctx: PluginContext, config?: Jet1090FrontendConfig) {
+export async function install(ctx: PluginContext, config?: Jet1090FrontendConfig) {
+  // metadata is a plugin-level prerequisite. progressive degradation is deferred
+  const rs1090 =
+    await ctx.importModule<typeof import("rs1090-wasm/web")>("rs1090_wasm.js");
+  // NOTE: copied wasm-bindgen loader resolves sibling wasm through import.meta.url
+  await rs1090.default();
+  rs1090.run();
+
   const api = ctx.api;
   const channel = config?.search_channel || "jet1090:search";
 
@@ -157,7 +164,8 @@ export function install(ctx: PluginContext, config?: Jet1090FrontendConfig) {
     pluginId: ctx.id,
     priority: config?.sidebar_order,
     title: "Aircraft Details",
-    relevantFor: ENTITY_TYPE
+    relevantFor: ENTITY_TYPE,
+    props: { rs1090 }
   });
   api.ui.registerWidget("jet1090-trail-layer", "MapOverlay", AircraftTrailLayer, {
     pluginId: ctx.id
