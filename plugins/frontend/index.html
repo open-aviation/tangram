@@ -16,7 +16,7 @@
         <link rel="prev" href="../backend/">
       
       
-        <link rel="next" href="../system/">
+        <link rel="next" href="../frontend-api/">
       
       
         
@@ -457,6 +457,8 @@
       
         
       
+        
+      
     
     
     
@@ -664,13 +666,41 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#building-and-packaging" class="md-nav__link">
+  <a href="#packaging" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Building and packaging
+        Packaging
       </span>
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Packaging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#auxiliary-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Auxiliary assets
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Build
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -689,6 +719,33 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Frontend API
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -729,10 +786,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
         
           
-          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
             
   
   
@@ -749,8 +806,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_4">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1008,10 +1065,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_6" >
         
           
-          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5_6" id="__nav_5_6_label" tabindex="0">
             
   
   
@@ -1028,8 +1085,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_5">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1536,13 +1593,41 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#building-and-packaging" class="md-nav__link">
+  <a href="#packaging" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Building and packaging
+        Packaging
       </span>
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Packaging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#auxiliary-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Auxiliary assets
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Build
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1615,7 +1700,7 @@
 </code></pre></div>
 <p>Keep the Python and npm core dependencies on the same supported minor release.</p>
 <h2 id="plugin-entry-point">Plugin entry point<a class="headerlink" href="#plugin-entry-point" title="Permanent link">&para;</a></h2>
-<p>The module specified by <code>main</code> exports an <code>install</code> function. The plugin-scoped context identifies the plugin and provides the shared Tangram APIs. Register passive resources with <code>pluginId: ctx.id</code>; register active resources with <code>ctx.onDispose</code>.</p>
+<p>The module specified by <code>main</code> exports an <code>install</code> function. The plugin-scoped context identifies the plugin and provides the shared Tangram APIs. Register passive resources with <code>pluginId: ctx.id</code>; register active resources with <code>ctx.onDispose</code>. See the <a href="../frontend-api/">Frontend API</a> for the context, reusable components, icons, and theme tokens.</p>
 <div class="language-javascript highlight"><span class="filename">src/my_plugin/index.js</span><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="nx">MyWidget</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;./MyWidget.vue&quot;</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">install</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
@@ -1675,9 +1760,7 @@
 <span class="w">  </span><span class="p">});</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>Note that as of <code>@open-aviation/tangram-core</code> v0.5.0 does not publish a declaration for the <code>vite-plugin</code> subpath, and is a known bug that is being worked on. Supress the error:</p>
 <div class="language-typescript highlight"><span class="filename">vite.config.ts</span><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">defineConfig</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;vite&quot;</span><span class="p">;</span>
-<span class="c1">// @ts-expect-error tangram-core 0.5.0 does not publish this subpath&#39;s types</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">tangramPlugin</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@open-aviation/tangram-core/vite-plugin&quot;</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="nx">defineConfig</span><span class="p">({</span>
@@ -1685,11 +1768,11 @@
 <span class="p">});</span>
 </code></pre></div>
 </details>
-<h2 id="building-and-packaging">Building and packaging<a class="headerlink" href="#building-and-packaging" title="Permanent link">&para;</a></h2>
+<h2 id="packaging">Packaging<a class="headerlink" href="#packaging" title="Permanent link">&para;</a></h2>
 <p>When you run <code>pnpm build</code>, it produces all assets (<code>index.js</code>, stylesheets and <code>plugin.json</code>) under the <code>dist-frontend</code> directory. Your build backend should be configured to include it when you publish the Python wheel, for example, if you are using hatchling:</p>
 <div class="language-toml highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.hatch.build.targets.sdist]</span>
 <span class="n">ignore-vcs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<span class="n">include</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;dist-frontend/*&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;src/*&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;package.json&quot;</span><span class="p">]</span>
+<span class="n">include</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;dist-frontend/**/*&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;src/**/*&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;package.json&quot;</span><span class="p">]</span>
 
 <span class="k">[tool.hatch.build.targets.wheel.force-include]</span>
 <span class="s2">&quot;dist-frontend&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_plugin/dist-frontend&quot;</span>
@@ -1700,8 +1783,45 @@
 <span class="n">plugin</span> <span class="o">=</span> <span class="n">tangram_core</span><span class="o">.</span><span class="n">Plugin</span><span class="p">(</span><span class="n">frontend_path</span><span class="o">=</span><span class="s2">&quot;dist-frontend&quot;</span><span class="p">)</span>
 </code></pre></div>
 <p>If you are using the maturin build backend, call <code>tangramPlugin({ copyToPythonPackage: true })</code> so the generated assets are copied under the Python source tree before the wheel is built.</p>
-<p>Build the frontend before installing or building the Python package because
-<code>dist-frontend</code> is a package input:</p>
+<h3 id="auxiliary-assets">Auxiliary assets<a class="headerlink" href="#auxiliary-assets" title="Permanent link">&para;</a></h3>
+<p>Due to some outstanding limitations with <a href="https://github.com/vitejs/vite/discussions/13172">Vite library mode</a>, adding WASM modules like <a href="https://github.com/xoolive/jet1090/"><code>rs1090-wasm</code></a> or large CSS files via direct dependency in your <code>package.json</code> may fail. Tangram provides a generic way to emit any artifact that the frontend needs (binary data, images, generated JS modules), for example:</p>
+<div class="language-typescript highlight"><span class="filename">vite.config.ts</span><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="nx">path</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;node:path&quot;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">fileURLToPath</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;node:url&quot;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">defineConfig</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;vite&quot;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">tangramPlugin</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@open-aviation/tangram-core/vite-plugin&quot;</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">loader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">fileURLToPath</span><span class="p">(</span><span class="k">import</span><span class="p">.</span><span class="nx">meta</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span><span class="s2">&quot;rs1090-wasm/web&quot;</span><span class="p">));</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="nx">defineConfig</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="nx">tangramPlugin</span><span class="p">({</span>
+<span class="w">      </span><span class="nx">assets</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">source</span><span class="o">:</span><span class="w"> </span><span class="kt">loader</span><span class="p">,</span><span class="w"> </span><span class="nx">fileName</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;rs1090_wasm.js&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="nx">source</span><span class="o">:</span><span class="w"> </span><span class="kt">path.join</span><span class="p">(</span><span class="nx">path</span><span class="p">.</span><span class="nx">dirname</span><span class="p">(</span><span class="nx">loader</span><span class="p">),</span><span class="w"> </span><span class="s2">&quot;rs1090_wasm_bg.wasm&quot;</span><span class="p">),</span>
+<span class="w">          </span><span class="nx">fileName</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;rs1090_wasm_bg.wasm&quot;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">    </span><span class="p">})</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>Then during plugin instantiation, <code>tangram_core</code> also provides a handy way to import the wasm-bindgen JS if you need to:</p>
+<div class="language-typescript highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">PluginContext</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@open-aviation/tangram-core/api&quot;</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">install</span><span class="p">(</span><span class="nx">ctx</span><span class="o">:</span><span class="w"> </span><span class="kt">PluginContext</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">rs1090</span><span class="w"> </span><span class="o">=</span>
+<span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nx">ctx</span><span class="p">.</span><span class="nx">importModule</span><span class="o">&lt;</span><span class="ow">typeof</span><span class="w"> </span><span class="k">import</span><span class="p">(</span><span class="s2">&quot;rs1090-wasm/web&quot;</span><span class="p">)</span><span class="o">&gt;</span><span class="p">(</span><span class="s2">&quot;rs1090_wasm.js&quot;</span><span class="p">);</span>
+<span class="w">  </span><span class="c1">// wasm-bindgen loader resolves its sibling wasm through import.meta.url.</span>
+<span class="w">  </span><span class="k">await</span><span class="w"> </span><span class="nx">rs1090</span><span class="p">.</span><span class="k">default</span><span class="p">();</span>
+<span class="w">  </span><span class="nx">rs1090</span><span class="p">.</span><span class="nx">run</span><span class="p">();</span>
+
+<span class="w">  </span><span class="c1">// pass rs1090 to lookup consumers for example</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>If you need to reference images or data, use <code>ctx.assetUrl()</code>.</p>
+<h3 id="build">Build<a class="headerlink" href="#build" title="Permanent link">&para;</a></h3>
+<p>Build the frontend before installing or building the Python package because <code>dist-frontend</code> is a package input:</p>
 <div class="language-sh highlight"><pre><span></span><code>pnpm<span class="w"> </span>install<span class="w"> </span>--frozen-lockfile
 <span class="c1"># if you use typescript:</span>
 pnpm<span class="w"> </span>check
@@ -1712,7 +1832,11 @@ uv<span class="w"> </span>build
 </code></pre></div>
 <p>Install the wheel in a clean environment and verify that <code>tangram list-plugins --all</code> discovers its backend and frontend components.</p>
 <h2 id="runtime-loading">Runtime loading<a class="headerlink" href="#runtime-loading" title="Permanent link">&para;</a></h2>
-<p>After the package is installed and enabled in <code>tangram.toml</code>, the server reads <code>plugin.json</code> and exposes the frontend assets under <code>/plugins/&lt;plugin-name&gt;/</code>. The browser imports the module and calls <code>install</code> with its plugin-scoped context.</p>
+<p>After the package is installed and enabled in <code>tangram.toml</code>, the server reads <code>plugin.json</code> and exposes the frontend assets under <code>/plugins/&lt;plugin-name&gt;/</code>. The browser imports each module and awaits <code>install(ctx)</code></p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Frontend installation is currently sequential, so prefer lazily loading requisites during registration unless absolutely needed.</p>
+</div>
 <pre class="mermaid"><code>sequenceDiagram
     participant P as Plugin module
     participant B as Browser
@@ -1727,7 +1851,7 @@ uv<span class="w"> </span>build
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>If you modify the frontend, run <code>pnpm build</code> so the <code>tangram serve</code> command can pick it up immediately.</p>
-<p>No restart of the tangram server is needed unless you modify the backend.</p>
+<p>No restart of the <code>tangram serve</code> comamnd is needed unless you modify the backend.</p>
 </div>
 
 
@@ -1783,13 +1907,13 @@ uv<span class="w"> </span>build
         
         
           
-          <a href="../system/" class="md-footer__link md-footer__link--next" aria-label="Next: System Plugin">
+          <a href="../frontend-api/" class="md-footer__link md-footer__link--next" aria-label="Next: Frontend API">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                System Plugin
+                Frontend API
               </div>
             </div>
             <div class="md-footer__button md-icon">

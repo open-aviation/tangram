@@ -720,6 +720,8 @@
       
         
       
+        
+      
     
     
     
@@ -850,6 +852,33 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../plugins/frontend-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Frontend API
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -879,10 +908,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
         
           
-          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
             
   
   
@@ -899,8 +928,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_4">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1158,10 +1187,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_6" >
         
           
-          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5_6" id="__nav_5_6_label" tabindex="0">
             
   
   
@@ -1178,8 +1207,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_5">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1972,8 +2001,8 @@ pip<span class="w"> </span>install<span class="w"> </span>tangram_system
 <p>Follow instructions on the <a href="https://mode-s.org/jet1090/install/#install-prebuilt-binaries">jet1090 documentation</a> to install <code>jet1090</code> on your system (Shell script, Powershell or Homebrew).</p>
 <p>Then run it in a separate terminal:</p>
 <div class="language-shell highlight"><pre><span></span><code><span class="c1"># connects to a public feed.</span>
-jet1090<span class="w"> </span>--redis-url<span class="w"> </span>redis://127.0.0.1:6379<span class="w"> </span>ws://feedme.mode-s.org:9876/40128@EHRD
---interactive
+jet1090<span class="w"> </span>--redis-url<span class="w"> </span>redis://127.0.0.1:6379<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>ws://feedme.mode-s.org:9876/40128@EHRD<span class="w"> </span>--interactive
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -1981,8 +2010,8 @@ jet1090<span class="w"> </span>--redis-url<span class="w"> </span>redis://127.0.
 podman<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--rm<span class="w"> </span>--name<span class="w"> </span>jet1090<span class="w"> </span><span class="se">\</span>
 --network<span class="o">=</span>host<span class="w"> </span><span class="se">\</span>
 ghcr.io/xoolive/jet1090:latest<span class="w"> </span><span class="se">\</span>
-jet1090<span class="w"> </span>--redis-url<span class="w"> </span>redis://127.0.0.1:6379<span class="w"> </span>ws://feedme.mode-s.org:9876/40128@EHRD
---interactive
+jet1090<span class="w"> </span>--redis-url<span class="w"> </span>redis://127.0.0.1:6379<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>ws://feedme.mode-s.org:9876/40128@EHRD<span class="w"> </span>--interactive
 </code></pre></div>
 </div>
 </div>
@@ -2114,8 +2143,8 @@ packages
 <p>The application will be available at <code>http://localhost:2346</code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Frontend Development</p>
-<p>Hot Module Replacement (HMR) for frontend plugins is not supported. To build or modify frontend components, you must have <code>node</code> and <code>pnpm</code> installed. Re-run <code>pnpm build</code> and restart <code>tangram serve</code> to see changes.
-If you made changes to Rust code, you may need to re-run <code>uv</code> with the <code>--force-reinstall</code> or <code>--reinstall-package</code> flag.</p>
+<p>Hot Module Replacement (HMR) for frontend plugins is not supported. Simply re-run <code>pnpm build</code> and refresh the browser to see frontend changes; the server reads the rebuilt static files without a restart.</p>
+<p>Restart <code>tangram serve</code> after Python changes. After Rust changes, maturin should automatically pick up changes, otherwise you may need to re-run <code>uv sync --reinstall-package &lt;package&gt;</code>.</p>
 </div>
 <p>To build the documentation:</p>
 <div class="language-sh highlight"><pre><span></span><code>just<span class="w"> </span>docs
@@ -2127,7 +2156,7 @@ If you made changes to Rust code, you may need to re-run <code>uv</code> with th
 <p>Make sure the frontend is built, and run:</p>
 <div class="language-sh highlight"><pre><span></span><code>uv<span class="w"> </span>build<span class="w"> </span>--all-packages
 </code></pre></div>
-<p>You should see:</p>
+<p>You should see something like:</p>
 <div class="language-text highlight"><pre><span></span><code>$ ls -sh1 dist/
 total 54M
  12K tangram_airports-0.2.0-py2.py3-none-any.whl

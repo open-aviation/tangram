@@ -457,6 +457,8 @@
       
         
       
+        
+      
     
     
     
@@ -585,6 +587,33 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Frontend API
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -618,10 +647,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
             
   
   
@@ -638,8 +667,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_5_4">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -999,10 +1028,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_6" >
         
           
-          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5_6" id="__nav_5_6_label" tabindex="0">
             
   
   
@@ -1019,8 +1048,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_5">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1572,7 +1601,7 @@
   &lt;span class=&quot;doc doc-labels&quot;&gt;
       &lt;small class=&quot;doc doc-label doc-label-async&quot;&gt;&lt;code&gt;async&lt;/code&gt;&lt;/small&gt;
   &lt;/span&gt;" href="../../api/jet1090/#tangram_jet1090.get_trajectory_data"><code>/data/{icao24}</code></a>)</strong> to fetch the full, time-ordered trajectory for a specific aircraft.</li>
-<li><strong>A frontend widget</strong> to display a placeholder in the UI.</li>
+<li><strong>A frontend application layer</strong> with live aircraft rendering, trails, routes, sensor locations, search, details, file import, and historical trajectories.</li>
 </ul>
 <h2 id="planes-service"><code>planes</code> Service<a class="headerlink" href="#planes-service" title="Permanent link">&para;</a></h2>
 <p>The <code>planes</code> service is the core of the real-time functionality. It is a Rust-based component, wrapped with PyO3 for integration into the Python ecosystem.</p>
@@ -1603,7 +1632,7 @@
 <ul>
 <li><strong>Continuous Tracking</strong>: It subscribes to the <code>jet1090</code> Redis channel to receive decoded aircraft messages.</li>
 <li><strong>State Vector Maintenance</strong>: It maintains a comprehensive in-memory view of the current air traffic situation by collecting and processing state vectors for all active aircraft.</li>
-<li><strong>History Persistence</strong>: It acts as a producer for the <a href=".././history/"><code>tangram_history</code> plugin</a>. It batches raw messages into arrow Recordbatches and sends them to a redis stream. The history service consumes this stream and persists the data into a delta lake table. <strong>(Optional: requires <code>tangram_history</code> to be installed)</strong>.</li>
+<li><strong>History Persistence</strong>: It acts as a producer for the <a href=".././history/"><code>tangram_history</code> plugin</a>. It batches raw messages into Arrow record batches and sends them to a Redis stream. The history service consumes this stream and persists the data into a delta lake table. <strong>(Optional: requires <code>tangram_history</code> to be installed)</strong>.</li>
 <li><strong>Client-Specific Filtering</strong>: The service listens for bounding box updates from each connected frontend client. It filters the aircraft data for each client, sending only the aircraft visible within their map view.</li>
 <li><strong>Data Publishing</strong>: Once per second, it publishes the filtered state vectors to a dedicated Redis channel for each client (e.g., <code>to:streaming-&lt;client_id&gt;:new-jet1090-data</code>), which are then relayed to the browser via the WebSocket <code>channel</code> service.</li>
 </ul>
@@ -1644,7 +1673,7 @@
 <p>Retrieves all historical data points for the given aircraft <code>icao24</code> by querying the delta lake table managed by the history service.</p>
 <p>This endpoint is used by the frontend to draw historical flight paths and populate data charts when an aircraft is selected.</p>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
-<p>To use this plugin, you must have a running <code>jet1090</code> instance publishing data to Redis. You can also configure the plugin in your <a href="../../configuration/">tangram.toml</a>::</p>
+<p>To use this plugin, you must have a running <code>jet1090</code> instance publishing data to Redis. You can also configure the plugin in your <a href="../../configuration/">tangram.toml</a>:</p>
 <div class="language-toml highlight"><pre><span></span><code><span class="k">[core]</span>
 <span class="n">plugins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tangram_jet1090&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tangram_history&quot;</span><span class="p">]</span>
 

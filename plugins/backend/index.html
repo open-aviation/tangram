@@ -85,7 +85,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#repository-layout" class="md-skip">
+        <a href="#backend" class="md-skip">
           Skip to content
         </a>
       
@@ -457,6 +457,8 @@
       
         
       
+        
+      
     
     
     
@@ -540,6 +542,8 @@
       
       
       
+        
+      
       
         <label class="md-nav__link md-nav__link--active" for="__toc">
           
@@ -580,6 +584,8 @@
 <nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
+  
+    
   
   
     <label class="md-nav__title" for="__toc">
@@ -785,6 +791,33 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../frontend-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Frontend API
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -814,10 +847,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
         
           
-          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
             
   
   
@@ -834,8 +867,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_4">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1093,10 +1126,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_6" >
         
           
-          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5_6" id="__nav_5_6_label" tabindex="0">
             
   
   
@@ -1113,8 +1146,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_5">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1550,6 +1583,8 @@
                     
                     
                     
+                      
+                    
                     
                       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
                       <div class="md-sidebar-button__wrapper">
@@ -1564,6 +1599,8 @@
 <nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
+  
+    
   
   
     <label class="md-nav__title" for="__toc">
@@ -1745,8 +1782,7 @@
   
 
 
-  <h1 id="__skip">Backend</h1>
-
+<h1 id="backend">Backend<a class="headerlink" href="#backend" title="Permanent link">&para;</a></h1>
 <p>Backend plugins are the standard way to add new server-side capabilities to <code>tangram</code>. They are self-contained Python packages that <code>tangram</code> discovers and loads at runtime, allowing for clean separation from the core framework.</p>
 <p>This guide covers the key concepts for building and maintaining an out-of-tree plugin.</p>
 <h2 id="repository-layout">Repository layout<a class="headerlink" href="#repository-layout" title="Permanent link">&para;</a></h2>
@@ -1956,7 +1992,7 @@
 </code></pre></div>
 <p>Run <code>tangram serve</code>. The core application will load your plugin, making its API endpoints available and starting its background services. The full API documentation, including your new endpoint, is available at <a href="http://localhost:2346/docs">http://localhost:2346/docs</a>.</p>
 <h2 id="maintaining-a-plugin">Maintaining a plugin<a class="headerlink" href="#maintaining-a-plugin" title="Permanent link">&para;</a></h2>
-<p>Plugins with a frontend must build and check the frontend before building the wheel; see <a href="../frontend/#building-and-packaging">Building and packaging</a>.</p>
+<p>Plugins with a frontend must build and check the frontend before building the wheel; see <a href="../frontend/#packaging">Packaging</a>.</p>
 
 
 
