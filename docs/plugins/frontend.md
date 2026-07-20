@@ -36,7 +36,7 @@ The `main` field points to the frontend entry point.
     "build": "vite build"
   },
   "dependencies": {
-    "@open-aviation/tangram-core": "^0.5.0"
+    "@open-aviation/tangram-core": "^0.6.0"
   },
   "devDependencies": {
     "vite": "^8.1.0",

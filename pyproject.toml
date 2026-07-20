@@ -1,6 +1,6 @@
 [project]
 name = "tangram_workspace"
-version = "0.2.0"
+version = "0.6.0"
 requires-python = ">=3.10"
 dependencies = []
 classifiers = [
