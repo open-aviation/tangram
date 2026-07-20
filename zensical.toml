@@ -17,6 +17,7 @@ nav = [
     { "Overview" = "plugins/overview.md" },
     "plugins/backend.md",
     "plugins/frontend.md",
+    { "Frontend API" = "plugins/frontend-api.md" },
     { "Built-in" = [
       "plugins/system.md",
       "plugins/history.md",

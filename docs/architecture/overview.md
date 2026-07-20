@@ -2,7 +2,7 @@
 
 The `tangram` framework consists of a lightweight core and a suite of independent, installable plugins that can be combined to create a powerful and flexible aviation data processing and visualization system.
 
-The system consists of a web-based frontend (in Javascript :simple-javascript: based on [Vite](https://vite.dev/)), a backend service (in Python :simple-python:), and performance-critical components in Rust :simple-rust:.
+The system consists of a web frontend written in JavaScript :simple-javascript: with Vue and Vite, a Python :simple-python: backend, and performance-critical Rust :simple-rust: components.
 
 Communication between the frontend and backend is done through a **REST API**, while real-time data streaming is handled via **WebSockets**. A **Redis :simple-redis: pub/sub system** is used for efficient data distribution between backend components.
 
@@ -19,7 +19,7 @@ This design allows you to:
 | ------------------ | ----------------------------------------------------------------------- |
 | Frontend           | :simple-javascript: JavaScript (Vue.js, Vite)                           |
 | Backend            | :simple-python: Python for most applications (FastAPI for the REST API) |
-|                    | :simple-rust: Rust for performance critical components                  |
+|                    | :simple-rust: Rust for performance-critical components                  |
 | Data communication | :simple-redis: Redis (pub/sub messaging system)                         |
 
 ## System Overview
@@ -57,15 +57,16 @@ graph LR
 <!-- arch in png is outdated, maybe it was produced in drawio but i cant seem to edit it -->
 <!-- ![tangram architecture](../screenshot/tangram_diagram.png) -->
 
-| **Component**             | **Provided By**                                     | **Description**                                                |
-| ------------------------- | ----------------------------------------------------| -------------------------------------------------------------- |
-| `tangram` (Core)          | `tangram_core` package                              | REST API server, CLI, and frontend shell.                      |
-| [`channel`](./channel.md) | (Bundled with `tangram`)                            | WebSocket bridge between the frontend and Redis pub/sub.       |
-| `jet1090` integration     | [`tangram_jet1090` plugin](../plugins/jet1090.md)   | Decodes Mode S/ADS-B messages and provides data streams.       |
-| `datalink` integration    | [`tangram_datalink` plugin](../plugins/datalink.md) | Bridges normalized ACARS/VDL2/HFDL/Airframes datalink events.  |
-| State Vectors & History   | [`tangram_jet1090` plugin](../plugins/jet1090.md)   | Maintains real-time state and stores historical aircraft data. |
-| System Info               | [`tangram_system` plugin](../plugins/system.md)     | Provides backend server metrics like CPU and memory usage.     |
-| Weather Layers            | [`tangram_weather` plugin](../plugins/weather.md)   | Provides API endpoints for meteorological data.                |
+| **Component**             | **Provided By**                                     | **Description**                                               |
+| ------------------------- | --------------------------------------------------- | ------------------------------------------------------------- |
+| `tangram` (Core)          | `tangram_core` package                              | REST API server, CLI, and frontend shell.                     |
+| [`channel`](./channel.md) | (Bundled with `tangram`)                            | WebSocket bridge between the frontend and Redis pub/sub.      |
+| `jet1090` integration     | [`tangram_jet1090` plugin](../plugins/jet1090.md)   | Decodes Mode S/ADS-B messages and provides data streams.      |
+| `datalink` integration    | [`tangram_datalink` plugin](../plugins/datalink.md) | Bridges normalized ACARS/VDL2/HFDL/Airframes datalink events. |
+| Aircraft state vectors    | [`tangram_jet1090` plugin](../plugins/jet1090.md)   | Maintains live aircraft state and exposes trajectory data.    |
+| Historical storage        | [`tangram_history` plugin](../plugins/history.md)   | Persists time-series data produced by other plugins.          |
+| System Info               | [`tangram_system` plugin](../plugins/system.md)     | Provides backend server metrics like CPU and memory usage.    |
+| Weather Layers            | [`tangram_weather` plugin](../plugins/weather.md)   | Provides API endpoints for meteorological data.               |
 
 ## Backend Plugin System
 
@@ -75,6 +76,6 @@ For a detailed guide on creating your own backend extensions, see the [Backend P
 
 ## Frontend Plugin System
 
-The frontend loads plugins dynamically. The backend serves a `/manifest.json` file listing all enabled frontend plugins. The core `tangram` web application fetches this manifest and dynamically imports the JavaScript entry point for each plugin. The plugin's entry point then calls the [`tangramApi.registerWidget()`](../plugins/frontend.md) function to add its Vue components to the main application.
+The backend serves `/manifest.json` with the enabled frontend plugins and their asset manifests. The browser imports each plugin entry module and awaits its `install(ctx)` function. Plugins register widgets, layers, search providers, and other resources through the scoped context, for example `ctx.api.ui.registerWidget(...)`.
 
-For more details, see the [Frontend Plugin Guide](../plugins/frontend.md).
+For implementation details, see the [Frontend Plugin Guide](../plugins/frontend.md) and [Frontend API](../plugins/frontend-api.md).

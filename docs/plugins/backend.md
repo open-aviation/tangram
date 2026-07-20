@@ -1,3 +1,5 @@
+# Backend
+
 Backend plugins are the standard way to add new server-side capabilities to `tangram`. They are self-contained Python packages that `tangram` discovers and loads at runtime, allowing for clean separation from the core framework.
 
 This guide covers the key concepts for building and maintaining an out-of-tree plugin.
@@ -234,4 +236,4 @@ Run `tangram serve`. The core application will load your plugin, making its API 
 
 ## Maintaining a plugin
 
-Plugins with a frontend must build and check the frontend before building the wheel; see [Building and packaging](frontend.md#building-and-packaging).
+Plugins with a frontend must build and check the frontend before building the wheel; see [Packaging](frontend.md#packaging).

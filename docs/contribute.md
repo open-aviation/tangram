@@ -67,9 +67,9 @@ cargo test --features channel
 
 The CI pipeline, defined in GitHub Actions, automates quality checks and builds. The primary steps are:
 
-1. **Building Wheel**: The build process above is automated for all versions from Python 3.10 to 3.13, on Linux, MacOS, Windows and processor architectures.
-2. **Testing**: Python tests are executed using `pytest` (scope is limited for now)
-3. **Container Build**: A podman image is built using the root `Containerfile`, serving as an integration test.
+1. **Packages**: Frontend assets and Python wheels are built for all versions above Python 3.10, on Linux, MacOS, Windows and other processor architectures.
+2. **Checks**: Python, Rust, and frontend tests, type checks, linting, and formatting run in CI (scope is intentionally kept narrow).
+3. **Container**: The root `Containerfile` is built as an integration check.
 
 !!! warning
     The `tangram_weather` plugin depends on the `eccodes` library, which is problematic on non-`x86_64` systems. You can choose to build the `eccodes` library from source with the `ECCODES_STRATEGY` in the container build argument.

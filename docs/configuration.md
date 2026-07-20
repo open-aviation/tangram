@@ -5,7 +5,7 @@
 ## Example `tangram.toml`
 
 ```toml
-[core]
+[core]  # (1)!
 # URL for the Redis instance used for pub/sub messaging.
 redis_url = "redis://localhost:6379"
 
@@ -17,13 +17,13 @@ plugins = [
     "my_awesome_package"
 ]
 
-[server]  # (1)!
+[server]  # (2)!
 # main FastAPI web server, which serves the
 # frontend application and plugin API routes.
 host = "127.0.0.1"
 port = 2346
 
-[channel]  # (2)!
+[channel]  # (3)!
 # integrated real-time WebSocket service.
 host = "127.0.0.1"
 port = 2347
@@ -34,7 +34,7 @@ port = 2347
 # WebSocket connections. Change this to a strong, unique secret.
 jwt_secret = "a-better-secret-than-this"
 
-[map]
+[map]  # (4)!
 # The basemap style can be a URL, a path to a local JSON file (relative to this config or absolute),
 # or the id of a style defined in [[map.styles]].
 style = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
@@ -53,8 +53,9 @@ glyphs = "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.
 ```
 
 1. See [`tangram_core.config.CoreConfig`][].
-2. See [`tangram_core.config.ServerConfig`][]
-3. See [`tangram_core.config.ChannelConfig`][]
+2. See [`tangram_core.config.ServerConfig`][].
+3. See [`tangram_core.config.ChannelConfig`][].
+4. See [`tangram_core.config.MapConfig`][].
 
 ## Plugin Configuration
 

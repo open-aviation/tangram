@@ -1,8 +1,8 @@
 # Explore Plugin
 
-The `tangram_explore` plugin provides a quick way to spawn visualise arbitrary dataframes (polars/pandas) on the map.
+The `tangram_explore` plugin provides a quick way to visualise arbitrary Polars or pandas dataframes on the map.
 
-It is strongly inspired [lonboard](https://github.com/developmentseed/lonboard).
+It is strongly inspired by [lonboard](https://github.com/developmentseed/lonboard).
 
 ## Overview
 

@@ -16,6 +16,6 @@ This plugin fetches weather prediction data from Meteo-France's ARPEGE model, pr
     - Determines the latest available GRIB file for the current time.
     - Uses `xarray` and `cfgrib` to open the GRIB file.
     - Selects the U and V wind components for the specified isobaric pressure level (e.g., 300 hPa).
-    - Returns the data as a JSON response.
+    - Encodes the U and V components into an RGBA PNG data URI and returns it with geographic bounds and value ranges in a JSON response.
 
 4. The frontend `WindField.vue` component calls this endpoint.

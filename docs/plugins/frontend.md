@@ -49,7 +49,7 @@ Keep the Python and npm core dependencies on the same supported minor release.
 
 ## Plugin entry point
 
-The module specified by `main` exports an `install` function. The plugin-scoped context identifies the plugin and provides the shared Tangram APIs. Register passive resources with `pluginId: ctx.id`; register active resources with `ctx.onDispose`.
+The module specified by `main` exports an `install` function. The plugin-scoped context identifies the plugin and provides the shared Tangram APIs. Register passive resources with `pluginId: ctx.id`; register active resources with `ctx.onDispose`. See the [Frontend API](frontend-api.md) for the context, reusable components, icons, and theme tokens.
 
 ```javascript title="src/my_plugin/index.js"
 import MyWidget from "./MyWidget.vue";
@@ -137,14 +137,14 @@ export default defineConfig({
     });
     ```
 
-## packaging
+## Packaging
 
 When you run `pnpm build`, it produces all assets (`index.js`, stylesheets and `plugin.json`) under the `dist-frontend` directory. Your build backend should be configured to include it when you publish the Python wheel, for example, if you are using hatchling:
 
 ```toml title="pyproject.toml"
 [tool.hatch.build.targets.sdist]
 ignore-vcs = true
-include = ["dist-frontend/*", "src/*", "package.json"]
+include = ["dist-frontend/**/*", "src/**/*", "package.json"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "dist-frontend" = "my_plugin/dist-frontend"
@@ -202,6 +202,8 @@ export async function install(ctx: PluginContext) {
 }
 ```
 
+If you need to reference images or data, use `ctx.assetUrl()`.
+
 ### Build
 
 Build the frontend before installing or building the Python package because `dist-frontend` is a package input:
@@ -220,7 +222,11 @@ Install the wheel in a clean environment and verify that `tangram list-plugins -
 
 ## Runtime loading
 
-After the package is installed and enabled in `tangram.toml`, the server reads `plugin.json` and exposes the frontend assets under `/plugins/<plugin-name>/`. The browser imports the module and calls `install` with its plugin-scoped context.
+After the package is installed and enabled in `tangram.toml`, the server reads `plugin.json` and exposes the frontend assets under `/plugins/<plugin-name>/`. The browser imports each module and awaits `install(ctx)`
+
+!!! tip
+
+    Frontend installation is currently sequential, so prefer lazily loading requisites during registration unless absolutely needed.
 
 ```mermaid
 sequenceDiagram
@@ -240,4 +246,4 @@ sequenceDiagram
 
     If you modify the frontend, run `pnpm build` so the `tangram serve` command can pick it up immediately.
 
-    No restart of the tangram server is needed unless you modify the backend.
+    No restart of the `tangram serve` comamnd is needed unless you modify the backend.

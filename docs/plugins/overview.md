@@ -5,9 +5,9 @@
 Plugins are developed as standalone packages, enabling them to be versioned, tested, and distributed independently.
 
 - **[Backend Plugins](backend.md)** are installable Python packages that extend the server's functionality, typically by adding new API endpoints or background data processing services.
-- **[Frontend Plugins](frontend.md)** are installable NPM packages that add new Vue.js components and widgets to the web interface.
+- **[Frontend plugins](frontend.md)** add Vue components, Deck.gl layers, importers, search providers, and other browser-side behavior. Their source uses npm dependencies, but the built assets are normally distributed inside the Python wheel.
 
-A single Python package can provide both backend and frontend components by bundling the pre-built frontend assets within its wheel distribution. This is the recommended approach for creating a cohesive feature.
+A plugin may provide backend code, frontend assets, or both. Bundling both sides in one Python package gives users one installable, versioned feature.
 
 ## Official Plugins as Examples
 

@@ -124,8 +124,8 @@ The plugin needs a running `jet1090` instance to receive Mode S/ADS-B data. The 
 
     ```shell
     # connects to a public feed.
-    jet1090 --redis-url redis://127.0.0.1:6379 ws://feedme.mode-s.org:9876/40128@EHRD
-    --interactive
+    jet1090 --redis-url redis://127.0.0.1:6379 \
+      ws://feedme.mode-s.org:9876/40128@EHRD --interactive
     ```
 
 === "Podman/Docker"
@@ -135,8 +135,8 @@ The plugin needs a running `jet1090` instance to receive Mode S/ADS-B data. The 
     podman run -d --rm --name jet1090 \
     --network=host \
     ghcr.io/xoolive/jet1090:latest \
-    jet1090 --redis-url redis://127.0.0.1:6379 ws://feedme.mode-s.org:9876/40128@EHRD
-    --interactive
+    jet1090 --redis-url redis://127.0.0.1:6379 \
+      ws://feedme.mode-s.org:9876/40128@EHRD --interactive
     ```
 
 Use your own receiver feed URL if you have one. See [jet1090 documentation](https://mode-s.org/jet1090/sources/)
@@ -305,8 +305,9 @@ The application will be available at `http://localhost:2346`.
 
 !!! note "Frontend Development"
 
-    Hot Module Replacement (HMR) for frontend plugins is not supported. To build or modify frontend components, you must have `node` and `pnpm` installed. Re-run `pnpm build` and restart `tangram serve` to see changes.
-    If you made changes to Rust code, you may need to re-run `uv` with the `--force-reinstall` or `--reinstall-package` flag.
+    Hot Module Replacement (HMR) for frontend plugins is not supported. Simply re-run `pnpm build` and refresh the browser to see frontend changes; the server reads the rebuilt static files without a restart.
+
+    Restart `tangram serve` after Python changes. After Rust changes, maturin should automatically pick up changes, otherwise you may need to re-run `uv sync --reinstall-package <package>`.
 
 To build the documentation:
 
@@ -328,7 +329,7 @@ Make sure the frontend is built, and run:
 uv build --all-packages
 ```
 
-You should see:
+You should see something like:
 
 ```command
 $ ls -sh1 dist/
