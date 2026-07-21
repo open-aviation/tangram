@@ -5,20 +5,15 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { messageApp } from "../store";
-import type { DatalinkMessage } from "../types";
-import type { OhmaPayload } from "../types";
+import type { DatalinkMessage, OhmaPayload, SummaryRow } from "../types";
 import SummaryRows from "./Rows.vue";
-import type { SummaryRow } from "../types";
 
 defineOptions({ name: "DatalinkSummaryMiam" });
 
 const props = defineProps<{ msg: DatalinkMessage }>();
-
 const label = (value: string) => value.replaceAll("_", " ");
-
 const totalFlights = (data: OhmaPayload) =>
   data.airplanes.reduce((sum, airplane) => sum + (airplane.flights?.length ?? 0), 0);
-
 const totalEvents = (data: OhmaPayload) =>
   data.airplanes.reduce(
     (sum, airplane) =>
@@ -32,8 +27,9 @@ const totalEvents = (data: OhmaPayload) =>
 
 const rows = computed<SummaryRow[]>(() => {
   const app = messageApp(props.msg);
-  if (app?.kind === "ohma") {
-    const data = app.data;
+  if (!app || typeof app === "string") return [];
+  if ("ohma" in app) {
+    const data = app.ohma;
     return [
       {
         meta: "OHMA",
@@ -53,21 +49,17 @@ const rows = computed<SummaryRow[]>(() => {
       }
     ];
   }
-
-  if (app?.kind === "miam") {
-    const data = app.data;
-    const frame = data.frame_id;
-    const pdu = typeof data.core.kind === "string" ? data.core.kind : null;
+  if ("miam" in app) {
+    const data = app.miam;
+    const pdu = "Data" in data.core ? "data" : "Ack" in data.core ? "ack" : "unknown";
     return [
       {
         meta: "MIAM",
         detail:
-          [frame && label(frame), pdu && label(pdu)].filter(Boolean).join(" · ") ||
-          "decoded"
+          [label(data.frame_id), label(pdu)].filter(Boolean).join(" · ") || "decoded"
       }
     ];
   }
-
   return [];
 });
 </script>

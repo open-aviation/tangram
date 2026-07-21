@@ -14,13 +14,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type {
-  AdjacentPayload,
-  Arinc622Payload,
-  CpdlcPayload,
-  DatalinkCpdlcElement,
+  CpdlcElement,
   DatalinkMessage,
-  JsonObject,
-  JsonValue,
   PhraseSummaryRow,
   SummaryPhrasePart
 } from "../types";
@@ -48,14 +43,14 @@ const controlLabel = (kind: string) => {
   }
 };
 
-const primitive = (value: JsonValue | undefined): string | null => {
+const primitive = (value: unknown): string | null => {
   if (value == null) return null;
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   return null;
 };
 
-const formatTime = (value: JsonObject) => {
+const formatTime = (value: Record<string, unknown>) => {
   const hour = typeof value.hour === "number" ? value.hour : null;
   const minute = typeof value.minute === "number" ? value.minute : null;
   const second = typeof value.second === "number" ? value.second : null;
@@ -63,7 +58,7 @@ const formatTime = (value: JsonObject) => {
   return `${String(hour).padStart(2, "0")}${String(minute).padStart(2, "0")}${second == null ? "" : String(second).padStart(2, "0")}Z`;
 };
 
-const formatAdjacent = (kind: string, data: JsonValue): string | null => {
+const formatVariant = (kind: string, data: unknown): string | null => {
   const direct = primitive(data);
   switch (kind) {
     case "flight_level":
@@ -90,13 +85,16 @@ const formatAdjacent = (kind: string, data: JsonValue): string | null => {
     case "vhf_khz":
       return typeof data === "number" ? `${(data / 1000).toFixed(3)} MHz` : direct;
     case "indicated_knots":
+    case "true_knots":
     case "ground_knots":
       return direct == null ? null : `${direct} kt`;
     case "indicated_kmh":
+    case "true_kmh":
     case "ground_kmh":
       return direct == null ? null : `${direct} km/h`;
-    case "mach_thousandths":
-      return typeof data === "number" ? `M${(data / 1000).toFixed(2)}` : direct;
+    case "mach":
+    case "mach_large":
+      return typeof data === "number" ? `M${(data / 100).toFixed(2)}` : direct;
     case "nm":
     case "nautical_miles":
       return direct == null ? null : `${direct} nm`;
@@ -125,76 +123,81 @@ const formatAdjacent = (kind: string, data: JsonValue): string | null => {
   }
 };
 
-const formatValue = (value: JsonValue | undefined): string => {
+const formatValue = (value: unknown): string => {
   const direct = primitive(value);
   if (direct != null) return direct;
   if (Array.isArray(value)) return value.map(formatValue).join(" / ");
   if (!isRecord(value)) return "—";
   const time = formatTime(value);
   if (time) return time;
-  if (typeof value.kind === "string" && "data" in value) {
-    const formatted = formatAdjacent(value.kind, value.data as JsonValue);
-    return formatted ?? label(value.kind);
+
+  const entries = Object.entries(value);
+  if (entries.length === 1) {
+    const [kind, data] = entries[0];
+    return formatVariant(kind, data) ?? label(kind);
   }
-  return Object.entries(value)
-    .map(([key, entry]) => `${label(key)} ${formatValue(entry as JsonValue)}`)
+  return entries
+    .map(([key, entry]) => `${label(key)} ${formatValue(entry)}`)
     .join(" · ");
 };
 
-const resolveSlot = (
-  element: DatalinkCpdlcElement,
-  slot: string
-): JsonValue | undefined => {
+const resolveSlot = (element: CpdlcElement, slot: string): unknown => {
   const body = element.body;
-  if (!body) return undefined;
-  if (body.kind === slot) return body.data;
-  return isRecord(body.data) ? (body.data[slot] as JsonValue | undefined) : undefined;
+  if (!body || body === "unsupported") return undefined;
+  const entries = Object.entries(body);
+  if (entries.length !== 1) return undefined;
+  const [kind, data] = entries[0];
+  if (kind === slot) return data;
+  return isRecord(data) && slot in data ? data[slot] : undefined;
 };
 
-const renderElement = (element: DatalinkCpdlcElement): PhrasePart[] => {
-  if (element.fragments.length) {
-    return element.fragments.map(fragment => {
-      if (fragment.kind === "text") return { kind: "text", text: fragment.data };
-      const value = resolveSlot(element, fragment.data);
-      return {
-        kind: "value",
-        text: value === undefined ? `${label(fragment.data)}?` : formatValue(value)
-      };
-    });
-  }
-  return [{ kind: "text", text: element.catalog_name ?? `element ${element.id}` }];
+const renderElement = (element: CpdlcElement): PhrasePart[] => {
+  if (!element.fragments.length)
+    return [{ kind: "text", text: element.catalog_name || `element ${element.id}` }];
+
+  return element.fragments.map(fragment => {
+    if ("text" in fragment) return { kind: "text", text: fragment.text };
+    const slot = fragment.value;
+    const value = resolveSlot(element, slot);
+    return {
+      kind: "value",
+      text: value === undefined ? `${label(slot)}?` : formatValue(value)
+    };
+  });
 };
 
-const sideRows = (elements: DatalinkCpdlcElement[], direction: string): PhraseRow[] =>
+const sideRows = (elements: CpdlcElement[], direction: string): PhraseRow[] =>
   elements.map(element => ({
     meta: `${controlLabel(direction)} ${element.is_additional ? "+" : "#"}${element.id}`,
     parts: renderElement(element)
   }));
 
-const isCpdlcPayload = (
-  payload: Arinc622Payload | undefined
-): payload is AdjacentPayload<"cpdlc", CpdlcPayload> => payload?.kind === "cpdlc";
-
 const rows = computed(() => {
   const arinc = arinc622Message(props.msg);
-  const payload = isCpdlcPayload(arinc?.payload) ? arinc.payload.data : null;
-  if (!payload) return [];
+  if (!arinc || !("cpdlc" in arinc.payload)) return [];
+  const payload = arinc.payload.cpdlc;
 
   const out: PhraseRow[] = [];
-  if (payload.downlink)
-    out.push(...sideRows(payload.downlink.elements ?? [], "downlink"));
-  if (payload.uplink) out.push(...sideRows(payload.uplink.elements ?? [], "uplink"));
+  if (payload.downlink) out.push(...sideRows(payload.downlink.elements, "downlink"));
+  if (payload.uplink) out.push(...sideRows(payload.uplink.elements, "uplink"));
 
   const control = payload.control;
-  const controlSide = control?.data?.message;
-  if (controlSide) {
-    out.push(...sideRows(controlSide.elements ?? [], control.kind));
+  if (control && control !== "disconnect_request") {
+    const kind = "connect_request" in control ? "connect_request" : "connect_confirm";
+    const side =
+      "connect_request" in control
+        ? control.connect_request.message
+        : control.connect_confirm.message;
+    if (side) out.push(...sideRows(side.elements, kind));
   }
   if (!out.length && control) {
-    out.push({
-      meta: "control",
-      parts: [{ kind: "text", text: controlLabel(control.kind) }]
-    });
+    const kind =
+      control === "disconnect_request"
+        ? control
+        : "connect_request" in control
+          ? "connect_request"
+          : "connect_confirm";
+    out.push({ meta: "control", parts: [{ kind: "text", text: controlLabel(kind) }] });
   }
   return out.slice(0, 4);
 });

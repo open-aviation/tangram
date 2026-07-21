@@ -5,6 +5,7 @@ use datalink::event::{AirframesAddrType, DecodedEvent, ProtocolMessage};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tangram_core::stream::{Identifiable, Positioned, StateCollection, Tracked};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatalinkAircraftInfo {
@@ -234,6 +235,7 @@ impl DatalinkStateVectors {
     }
 
     fn add_aircraft(&mut self, env: &DecodedEvent, update: AircraftUpdate) {
+        let event_time = event_time(env);
         let ac = self
             .entities
             .entry(update.id.clone())
@@ -275,10 +277,11 @@ impl DatalinkStateVectors {
                 .and_then(|a| a.flight_id.clone())
                 .or(update.flight_id),
         });
-        apply_kinematics(ac, env, self.expire);
+        apply_kinematics(ac, env, self.expire, event_time);
     }
 
     fn add_station(&mut self, env: &DecodedEvent, update: StationUpdate) {
+        let event_time = event_time(env);
         let station = self
             .entities
             .entry(update.id.clone())
@@ -313,33 +316,34 @@ impl DatalinkStateVectors {
             frequency_mhz: update.frequency_mhz,
             supported_frequencies_mhz: update.supported_frequencies_mhz,
         });
-        if let Some(ts) = env.timestamp {
-            station.lastseen = station.lastseen.max(ts);
-        }
+        station.lastseen = station.lastseen.max(event_time);
         station.messages += 1;
         if let (Some(latitude), Some(longitude)) = (update.latitude, update.longitude) {
             station.latitude = Some(latitude);
             station.longitude = Some(longitude);
-            if let Some(ts) = env.timestamp {
-                station.position_time = Some(ts);
-            }
+            station.position_time = Some(event_time);
         }
     }
 }
 
-fn apply_kinematics(entity: &mut DatalinkEntity, env: &DecodedEvent, expire: u16) {
-    if let Some(ts) = env.timestamp {
-        entity.lastseen = entity.lastseen.max(ts);
-    }
+fn event_time(env: &DecodedEvent) -> f64 {
+    env.timestamp.unwrap_or_else(|| {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs_f64()
+    })
+}
+
+fn apply_kinematics(entity: &mut DatalinkEntity, env: &DecodedEvent, expire: u16, event_time: f64) {
+    entity.lastseen = entity.lastseen.max(event_time);
     entity.messages += 1;
 
     if let Some(pos) = &env.kinematics {
         if let Some(position) = pos.position {
             entity.latitude = Some(position.latitude);
             entity.longitude = Some(position.longitude);
-            if let Some(ts) = env.timestamp {
-                entity.position_time = Some(ts);
-            }
+            entity.position_time = Some(event_time);
         }
         if pos.altitude_ft.is_some() {
             entity.altitude_ft = pos.altitude_ft;

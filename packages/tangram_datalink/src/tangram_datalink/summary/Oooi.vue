@@ -5,9 +5,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { messageApp } from "../store";
-import type { DatalinkMessage } from "../types";
+import type { DatalinkMessage, SummaryRow } from "../types";
 import SummaryRows from "./Rows.vue";
-import type { SummaryRow } from "../types";
 
 defineOptions({ name: "DatalinkSummaryOooi" });
 
@@ -15,8 +14,9 @@ const props = defineProps<{ msg: DatalinkMessage }>();
 
 const rows = computed<SummaryRow[]>(() => {
   const app = messageApp(props.msg);
-  if (app?.kind === "oooi_off_destination") {
-    const data = app.data;
+  if (!app || typeof app === "string") return [];
+  if ("oooi_off_destination" in app) {
+    const data = app.oooi_off_destination;
     return [
       {
         meta: "OFF dest",
@@ -25,8 +25,8 @@ const rows = computed<SummaryRow[]>(() => {
       ...(data.extras ? [{ meta: "extras", detail: data.extras }] : [])
     ];
   }
-  if (app?.kind === "oooi_off_report") {
-    const data = app.data;
+  if ("oooi_off_report" in app) {
+    const data = app.oooi_off_report;
     return [
       {
         meta: "OFF report",

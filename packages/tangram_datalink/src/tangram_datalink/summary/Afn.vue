@@ -5,10 +5,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { messageApp } from "../store";
-import type { DatalinkMessage } from "../types";
+import type { DatalinkMessage, SummaryRow } from "../types";
 import { arinc622Message } from "../summary_helpers";
 import SummaryRows from "./Rows.vue";
-import type { SummaryRow } from "../types";
 
 defineOptions({ name: "DatalinkSummaryAfn" });
 
@@ -16,7 +15,7 @@ const props = defineProps<{ msg: DatalinkMessage }>();
 
 const rows = computed<SummaryRow[]>(() => {
   const app = messageApp(props.msg);
-  if (app?.kind !== "afn") {
+  if (!app || typeof app === "string" || !("afn" in app)) {
     const arinc = arinc622Message(props.msg);
     return arinc?.imi === "AFN" || arinc?.imi === "ATS"
       ? [
@@ -27,11 +26,11 @@ const rows = computed<SummaryRow[]>(() => {
         ].filter(row => row.detail)
       : [];
   }
-  const data = app.data;
-  const apps = (data.applications ?? [])
-    .map(app => [app.code, app.value].filter(Boolean).join(" "))
-    .filter(Boolean);
 
+  const data = app.afn;
+  const applications = (data.applications ?? [])
+    .map(application => [application.code, application.value].filter(Boolean).join(" "))
+    .filter(Boolean);
   return [
     {
       meta: `AFN ${data.message_type}`,
@@ -39,7 +38,9 @@ const rows = computed<SummaryRow[]>(() => {
         .filter(Boolean)
         .join(" · ")
     },
-    ...(apps.length ? [{ meta: "apps", detail: apps.slice(0, 4).join(" · ") }] : [])
+    ...(applications.length
+      ? [{ meta: "apps", detail: applications.slice(0, 4).join(" · ") }]
+      : [])
   ].filter(row => row.detail);
 });
 </script>

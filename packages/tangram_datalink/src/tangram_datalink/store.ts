@@ -3,23 +3,17 @@ import type { DatalinkEntity } from "./index";
 import type {
   AcarsAppPayload,
   AcarsMessage,
-  AdscContractGroup,
-  AdscTag,
+  AdscPositionReport,
   Arinc622Message,
-  CpdlcElementBody,
-  CpdlcPhraseFragment,
-  CpdlcTimestamp,
+  Arinc622Payload,
   DatalinkAdscReport,
-  DatalinkCpdlcElement,
-  DatalinkCpdlcMessage,
   DatalinkMessage,
-  JsonObject,
+  DatalinkProtocolMessage,
   SquitterPayload
 } from "./types";
 
 export interface DatalinkEntityHistory {
   adsc: DatalinkAdscReport[];
-  cpdlc: DatalinkCpdlcMessage[];
   /** all raw messages for the general feed tab */
   messages: DatalinkMessage[];
   /** set of category ids seen for this entity */
@@ -28,7 +22,6 @@ export interface DatalinkEntityHistory {
 
 const HISTORY_LIMIT = 200;
 const ADSC_LIMIT = 50;
-const CPDLC_LIMIT = 100;
 
 export const MESSAGE_CATEGORIES = [
   {
@@ -83,9 +76,18 @@ export const MESSAGE_CATEGORIES = [
 export type MessageCategoryId = (typeof MESSAGE_CATEGORIES)[number]["id"];
 
 function defaultCategories(): Record<MessageCategoryId, boolean> {
-  const out = {} as Record<MessageCategoryId, boolean>;
-  for (const c of MESSAGE_CATEGORIES) out[c.id] = true;
-  return out;
+  return {
+    adsc: true,
+    cpdlc: true,
+    afn: true,
+    text: true,
+    miam: true,
+    position: true,
+    aoc: true,
+    oooi: true,
+    xid: true,
+    other: true
+  };
 }
 
 export const STATION_CATEGORIES = [
@@ -137,7 +139,7 @@ export const datalinkStore: DatalinkStore = shallowReactive({
   selectedIds: new Set<string>(),
   /** universal per-entity message history, keyed by entity id, populated regardless of selection */
   history: new Map<string, DatalinkEntityHistory>(),
-  filter: makeDefaultFilter() as DatalinkFilter,
+  filter: makeDefaultFilter(),
   version: 0
 });
 
@@ -145,7 +147,6 @@ export function ensureHistory(id: string): DatalinkEntityHistory {
   if (!datalinkStore.history.has(id)) {
     datalinkStore.history.set(id, {
       adsc: [],
-      cpdlc: [],
       messages: [],
       categories: new Set()
     });
@@ -158,122 +159,123 @@ function ringPrepend<T>(arr: T[], item: T, limit: number) {
   if (arr.length > limit) arr.length = limit;
 }
 
-const isObject = (value: unknown): value is JsonObject =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
+export const messageKind = (message: DatalinkProtocolMessage): string => {
+  if ("airframes" in message) return "airframes";
+  if ("avlc" in message) return "avlc";
+  if ("acars" in message) return "acars";
+  if ("hfdl" in message) return "hfdl";
+  return "app";
+};
 
-const asObject = (value: unknown): JsonObject | null =>
-  isObject(value) ? value : null;
+export const arinc622PayloadKind = (payload: Arinc622Payload): string => {
+  if ("adsc" in payload) return "adsc";
+  if ("adsc_disconnect" in payload) return "adsc_disconnect";
+  if ("cpdlc" in payload) return "cpdlc";
+  if ("aoc" in payload) return "aoc";
+  return "unknown";
+};
 
-export const messageData = (msg: DatalinkMessage): JsonObject | null =>
-  asObject(msg.message.data);
-
-const avlcAcarsMessage = (msg: DatalinkMessage): AcarsMessage | undefined => {
-  if (msg.message.kind !== "avlc") return undefined;
-  return msg.message.data.payload?.kind === "acars"
-    ? msg.message.data.payload.data
-    : undefined;
+export const avlcAcarsMessage = (msg: DatalinkMessage): AcarsMessage | undefined => {
+  if (!("avlc" in msg.message)) return undefined;
+  const payload = msg.message.avlc.payload;
+  return payload && "acars" in payload ? payload.acars : undefined;
 };
 
 export const messageLabel = (msg: DatalinkMessage): string | undefined => {
-  switch (msg.message.kind) {
-    case "airframes":
-      return msg.message.data.payload.label ?? undefined;
-    case "acars":
-      return msg.message.data.label ?? undefined;
-    case "avlc":
-      return avlcAcarsMessage(msg)?.label ?? undefined;
-    case "app":
-    case "hfdl":
-      return undefined;
+  if ("airframes" in msg.message)
+    return msg.message.airframes.payload.label ?? undefined;
+  if ("acars" in msg.message) return msg.message.acars.label ?? undefined;
+  if ("avlc" in msg.message) return avlcAcarsMessage(msg)?.label ?? undefined;
+  return undefined;
+};
+
+export const messageFlightId = (msg: DatalinkMessage): string | number | undefined => {
+  if ("airframes" in msg.message)
+    return msg.message.airframes.payload.flight_id ?? undefined;
+  if ("acars" in msg.message) return msg.message.acars.flight_id;
+  if ("avlc" in msg.message) return avlcAcarsMessage(msg)?.flight_id;
+  if ("app" in msg.message) {
+    const app = msg.message.app;
+    if (
+      typeof app !== "string" &&
+      "arinc622" in app &&
+      "adsc" in app.arinc622.payload
+    ) {
+      for (const tag of app.arinc622.payload.adsc) {
+        if (typeof tag !== "string" && "flight_id" in tag)
+          return tag.flight_id.callsign;
+      }
+    }
   }
+  return undefined;
 };
 
 export const messageApp = (
   msg: DatalinkMessage
 ): AcarsAppPayload | null | undefined => {
-  switch (msg.message.kind) {
-    case "app":
-      return msg.message.data;
-    case "acars":
-    case "airframes":
-      return msg.message.data.app;
-    case "avlc":
-      return avlcAcarsMessage(msg)?.app;
-    case "hfdl":
-      return undefined;
-  }
+  if ("app" in msg.message) return msg.message.app;
+  if ("acars" in msg.message) return msg.message.acars.app;
+  if ("airframes" in msg.message) return msg.message.airframes.app;
+  if ("avlc" in msg.message) return avlcAcarsMessage(msg)?.app;
+  return undefined;
 };
 
 export const getSquitterPayload = (msg: DatalinkMessage): SquitterPayload | null => {
   const app = messageApp(msg);
-  return app?.kind === "squitter" ? app.data : null;
+  return app && typeof app !== "string" && "squitter" in app ? app.squitter : null;
 };
 
 export const arinc622Payload = (
   app: AcarsAppPayload | null | undefined
-): Arinc622Message | null => (app?.kind === "arinc622" ? app.data : null);
+): Arinc622Message | null =>
+  app && typeof app !== "string" && "arinc622" in app ? app.arinc622 : null;
 
-const stringField = (obj: JsonObject, key: string): string | undefined => {
-  const value = obj[key];
-  return typeof value === "string" ? value : undefined;
-};
-
-const numberField = (obj: JsonObject, key: string): number | undefined => {
-  const value = obj[key];
-  return typeof value === "number" ? value : undefined;
-};
-
-const arrayField = (obj: JsonObject, key: string): unknown[] => {
-  const value = obj[key];
-  return Array.isArray(value) ? value : [];
+export const adscDisconnectReason = (msg: DatalinkMessage): string | null => {
+  const arinc = arinc622Payload(messageApp(msg));
+  return arinc?.imi === "DIS" && "adsc_disconnect" in arinc.payload
+    ? arinc.payload.adsc_disconnect
+    : null;
 };
 
 export function classifyCategory(msg: DatalinkMessage): MessageCategoryId {
-  const avlcPayload = msg.message.kind === "avlc" ? msg.message.data.payload : null;
-  if (avlcPayload?.kind === "xid" || avlcPayload?.kind === "x25") return "xid";
+  if ("avlc" in msg.message) {
+    const payload = msg.message.avlc.payload;
+    if (payload && ("xid" in payload || "x25" in payload)) return "xid";
+  }
 
   const app = messageApp(msg);
-  if (!app || app.kind === "none") return "other";
+  if (!app || app === "none" || app === "link_test") return "other";
+  if (typeof app === "string") return "other";
+  if ("squitter" in app) return "other";
 
-  if (getSquitterPayload(msg)) return "other";
-
-  const arinc = arinc622Payload(app);
-  if (arinc) {
-    const imi = arinc.imi ?? "";
-    if (imi === "ADS") return "adsc";
+  if ("arinc622" in app) {
+    const imi = app.arinc622.imi;
+    if (imi === "ADS" || imi === "DIS") return "adsc";
     if (["AT1", "CR1", "CC1", "DR1"].includes(imi)) return "cpdlc";
     if (imi === "AFN" || imi === "ATS") return "afn";
     return "other";
   }
 
-  switch (app.kind) {
-    case "afn":
-      return "afn";
-    case "text":
-      return "text";
-    case "miam":
-    case "ohma":
-      return "miam";
-    case "media_advisory":
-    case "aoc_position":
-      return "position";
-    case "label_32":
-      return app.data.latitude != null && app.data.longitude != null
-        ? "position"
-        : "aoc";
-    case "oooi_off_destination":
-    case "oooi_off_report":
-      return "oooi";
-    case "aoc_report":
-    case "oceanic_clearance":
-    case "atis_delivery":
-    case "atis_request":
-    case "weather":
-    case "label_5z":
-    case "label_16":
-    case "label_37":
-      return "aoc";
-  }
+  if ("afn" in app) return "afn";
+  if ("text" in app) return "text";
+  if ("miam" in app || "ohma" in app) return "miam";
+  if ("media_advisory" in app || "aoc_position" in app) return "position";
+  if ("label_32" in app)
+    return app.label_32.latitude != null && app.label_32.longitude != null
+      ? "position"
+      : "aoc";
+  if ("oooi_off_destination" in app || "oooi_off_report" in app) return "oooi";
+  if (
+    "aoc_report" in app ||
+    "oceanic_clearance" in app ||
+    "atis_delivery" in app ||
+    "atis_request" in app ||
+    "weather" in app ||
+    "label_5z" in app ||
+    "label_16" in app ||
+    "label_37" in app
+  )
+    return "aoc";
 
   const label = messageLabel(msg);
   if (label) {
@@ -281,249 +283,115 @@ export function classifyCategory(msg: DatalinkMessage): MessageCategoryId {
     if (["QF", "QQ", "Q0"].includes(label)) return "oooi";
     if (label === "H1") return "cpdlc";
   }
-
   return "other";
 }
 
-const objectField = (obj: JsonObject, key: string): JsonObject | null => {
-  const value = obj[key];
-  return isObject(value) ? value : null;
+const setPositionReport = (report: DatalinkAdscReport, value: AdscPositionReport) => {
+  report.position = { latitude: value.latitude, longitude: value.longitude };
+  report.altitude_ft = value.altitude_ft;
+  report.report_seconds_past_hour = value.timestamp_seconds_past_hour;
 };
 
-const cpdlcTimestamp = (value: unknown): CpdlcTimestamp | undefined => {
-  const timestamp = asObject(value);
-  if (!timestamp) return undefined;
-  return {
-    hour: numberField(timestamp, "hour"),
-    minute: numberField(timestamp, "minute"),
-    second: numberField(timestamp, "second")
-  };
-};
-
-const cpdlcHeader = (value: unknown): DatalinkCpdlcMessage["header"] => {
-  const header = asObject(value);
-  if (!header) return undefined;
-  return {
-    msg_id: numberField(header, "msg_id"),
-    msg_ref: numberField(header, "msg_ref"),
-    timestamp: cpdlcTimestamp(header.timestamp)
-  };
-};
-
-const cpdlcElement = (value: unknown): DatalinkCpdlcElement | null => {
-  const element = asObject(value);
-  if (!element) return null;
-  const id = numberField(element, "id");
-  if (id == null) return null;
-  const fragments = arrayField(element, "fragments")
-    .map(fragment => {
-      const value = asObject(fragment);
-      if (!value) return null;
-      const kind = stringField(value, "kind");
-      const data = value.data;
-      if (kind === "text" && typeof data === "string")
-        return { kind: "text", data } satisfies CpdlcPhraseFragment;
-      if (kind === "value" && typeof data === "string")
-        return { kind: "value", data } satisfies CpdlcPhraseFragment;
-      return null;
-    })
-    .filter(isPresent);
-  const body = asObject(element.body) as CpdlcElementBody | null;
-  return {
-    id,
-    catalog_name: stringField(element, "catalog_name"),
-    fragments,
-    body,
-    is_additional: element.is_additional === true
-  };
-};
-
-const isPresent = <T>(value: T | null | undefined): value is T => value != null;
+const hasTrajectoryData = (report: DatalinkAdscReport): boolean =>
+  report.position != null ||
+  report.track != null ||
+  report.next != null ||
+  report.next_next != null ||
+  Boolean(report.intermediate_projections?.length) ||
+  Boolean(report.fixed_projections?.length);
 
 export function classifyAndStore(id: string, msg: DatalinkMessage) {
   const hist = ensureHistory(id);
   ringPrepend(hist.messages, msg, HISTORY_LIMIT);
-
   hist.categories.add(classifyCategory(msg));
   datalinkStore.version++;
 
   const arinc = arinc622Payload(messageApp(msg));
   if (!arinc) return;
 
-  const imi = arinc.imi ?? "";
-  const payload = arinc.payload;
-
-  if (imi === "ADS" && payload?.kind === "adsc") {
-    const tags = (payload.data.tags ?? []) as AdscTag[];
+  if (arinc.imi === "ADS" && "adsc" in arinc.payload) {
+    const tags = arinc.payload.adsc;
     const report: DatalinkAdscReport = {
       timestamp: msg.timestamp ?? undefined,
       registration: arinc.registration,
-      atsu_address: arinc.atsu_address,
-      raw_tags: tags.map(tag => tag.kind)
+      atsu_address: arinc.atsu_address
     };
 
     for (const tag of tags) {
-      switch (tag.kind) {
-        case "basic_report":
-        case "emergency_basic_report":
-        case "waypoint_change_event":
-        case "lateral_deviation_change_event":
-        case "vertical_rate_change_event":
-        case "altitude_range_event": {
-          report.position = {
-            latitude: tag.data.latitude,
-            longitude: tag.data.longitude
-          };
-          report.altitude_ft = tag.data.altitude_ft;
-          break;
-        }
-        case "flight_id":
-          report.flight_id = tag.data.id;
-          break;
-        case "predicted_route":
-          report.next = {
-            latitude: tag.data.next_latitude,
-            longitude: tag.data.next_longitude,
-            altitude_ft: tag.data.next_altitude_ft,
-            eta_secs: tag.data.next_eta_seconds
-          };
-          if (
-            tag.data.next_next_latitude != null &&
-            tag.data.next_next_longitude != null
-          ) {
-            report.next_next = {
-              latitude: tag.data.next_next_latitude,
-              longitude: tag.data.next_next_longitude,
-              altitude_ft: tag.data.next_next_altitude_ft
-            };
-          }
-          break;
-        case "earth_reference_data":
-          if (tag.data.heading_invalid !== true) {
-            report.track = tag.data.heading_or_track_degrees;
-          }
-          report.ground_speed_kt = tag.data.speed;
-          report.vertical_speed_fpm = tag.data.vertical_speed_ft_per_min;
-          break;
-        case "air_reference_data":
-          if (report.track == null && tag.data.heading_invalid !== true) {
-            report.track = tag.data.heading_or_track_degrees;
-          }
-          break;
-        case "intermediate_projection": {
-          const { distance_nm, track_degrees } = tag.data;
-          if (distance_nm != null && track_degrees != null) {
-            report.intermediate_projections ??= [];
-            report.intermediate_projections.push({
-              distance_nm,
-              track_degrees,
-              track_invalid: tag.data.track_invalid === true,
-              altitude_ft: tag.data.altitude_ft,
-              eta_secs: tag.data.eta_seconds
-            });
-          }
-          break;
-        }
-        case "fixed_projection": {
-          const { latitude, longitude } = tag.data;
-          if (latitude != null && longitude != null) {
-            report.fixed_projections ??= [];
-            report.fixed_projections.push({
-              latitude,
-              longitude,
-              altitude_ft: tag.data.altitude_ft,
-              eta_secs: tag.data.eta_seconds
-            });
-          }
-          break;
-        }
-        case "meteo_data":
-          report.wind_speed_kt = tag.data.wind_speed_kt;
-          if (tag.data.wind_direction_invalid !== true) {
-            report.wind_direction_deg = tag.data.wind_direction_true_degrees;
-          }
-          report.temperature_c = tag.data.temperature_c;
-          break;
-        case "periodic_contract_request":
-        case "event_contract_request":
-        case "emergency_periodic_contract_request":
-          report.is_uplink = true;
-          report.contract = {
-            kind:
-              tag.kind === "periodic_contract_request"
-                ? "periodic"
-                : tag.kind === "event_contract_request"
-                  ? "event"
-                  : "emergency",
-            number: tag.data.contract_number,
-            groups: (tag.data.groups ?? []).map((group: AdscContractGroup) => {
-              const value = "data" in group && isObject(group.data) ? group.data : {};
-              return {
-                kind: group.kind,
-                interval_secs: numberField(value, "interval_secs"),
-                modulus: numberField(value, "modulus"),
-                threshold_nm: numberField(value, "threshold_nm"),
-                threshold_fpm: numberField(value, "threshold_ft_per_min"),
-                ceiling_ft: numberField(value, "ceiling_ft"),
-                floor_ft: numberField(value, "floor_ft"),
-                projection_time_mins: numberField(value, "projection_time_mins")
-              };
-            })
-          };
-          break;
-        case "cancel_all_contracts":
-          report.is_uplink = true;
-          report.contract = { kind: "cancel_all", groups: [] };
-          break;
-        case "cancel_contract":
-          report.is_uplink = true;
-          report.contract = {
-            kind: "cancel",
-            number: tag.data.contract_number,
-            groups: []
-          };
-          break;
+      if (typeof tag === "string") continue;
+      if ("basic_report" in tag) {
+        setPositionReport(report, tag.basic_report);
+      } else if ("emergency_basic_report" in tag) {
+        setPositionReport(report, tag.emergency_basic_report);
+      } else if ("waypoint_change_event" in tag) {
+        setPositionReport(report, tag.waypoint_change_event);
+      } else if ("lateral_deviation_change_event" in tag) {
+        setPositionReport(report, tag.lateral_deviation_change_event);
+      } else if ("vertical_rate_change_event" in tag) {
+        setPositionReport(report, tag.vertical_rate_change_event);
+      } else if ("altitude_range_event" in tag) {
+        setPositionReport(report, tag.altitude_range_event);
+      } else if ("flight_id" in tag) {
+        report.flight_id = tag.flight_id.callsign;
+      } else if ("airframe_id" in tag) {
+        report.icao24 = tag.airframe_id.icao24.toLowerCase();
+      } else if ("predicted_route" in tag) {
+        const route = tag.predicted_route;
+        report.next = {
+          latitude: route.next_latitude,
+          longitude: route.next_longitude,
+          altitude_ft: route.next_altitude_ft,
+          eta_seconds_past_hour: route.next_eta_seconds
+        };
+        report.next_next = {
+          latitude: route.next_next_latitude,
+          longitude: route.next_next_longitude,
+          altitude_ft: route.next_next_altitude_ft
+        };
+      } else if ("earth_reference_data" in tag) {
+        const data = tag.earth_reference_data;
+        if (!data.track_invalid) report.track = data.true_track_degrees;
+        report.ground_speed_kt = data.ground_speed_kt;
+        report.vertical_speed_fpm = data.vertical_speed_ft_per_min;
+      } else if ("air_reference_data" in tag) {
+        const data = tag.air_reference_data;
+        if (report.track == null && !data.heading_invalid)
+          report.track = data.true_heading_degrees;
+      } else if ("intermediate_projection" in tag) {
+        const data = tag.intermediate_projection;
+        report.intermediate_projections ??= [];
+        report.intermediate_projections.push({
+          distance_nm: data.distance_nm,
+          track_degrees: data.track_degrees,
+          track_invalid: data.track_invalid === true || data.track_degrees == null,
+          altitude_ft: data.altitude_ft,
+          eta_seconds_past_hour: data.eta_seconds
+        });
+      } else if ("fixed_projection" in tag) {
+        const data = tag.fixed_projection;
+        report.fixed_projections ??= [];
+        report.fixed_projections.push({
+          latitude: data.latitude,
+          longitude: data.longitude,
+          altitude_ft: data.altitude_ft,
+          eta_seconds_past_hour: data.eta_seconds
+        });
+      } else if ("meteo_data" in tag) {
+        const data = tag.meteo_data;
+        report.wind_speed_kt = data.wind_speed_kt;
+        if (!data.wind_direction_invalid)
+          report.wind_direction_deg = data.wind_direction_true_degrees;
+        report.temperature_c = data.temperature_c;
       }
     }
 
     if (report.track == null && report.intermediate_projections) {
-      const first = report.intermediate_projections.find(ip => !ip.track_invalid);
+      const first = report.intermediate_projections.find(
+        projection => !projection.track_invalid && projection.track_degrees != null
+      );
       if (first) report.track = first.track_degrees;
     }
-
-    ringPrepend(hist.adsc, report, ADSC_LIMIT);
+    if (hasTrajectoryData(report)) ringPrepend(hist.adsc, report, ADSC_LIMIT);
     return;
-  }
-
-  if (["AT1", "CR1", "CC1", "DR1"].includes(imi) && payload?.kind === "cpdlc") {
-    const decodedPayload = payload.data;
-    const cpdlcMsg: DatalinkCpdlcMessage = {
-      timestamp: msg.timestamp ?? undefined,
-      atsu_address: arinc.atsu_address,
-      registration: arinc.registration,
-      imi,
-      elements: []
-    };
-
-    const control = objectField(decodedPayload, "control");
-    if (control) cpdlcMsg.control_type = stringField(control, "kind");
-
-    const downlink = objectField(decodedPayload, "downlink");
-    const uplink = objectField(decodedPayload, "uplink");
-    const controlData = control ? objectField(control, "data") : null;
-    const controlSide = controlData ? objectField(controlData, "message") : null;
-    const side = downlink ?? uplink ?? controlSide;
-
-    if (side) {
-      cpdlcMsg.direction = downlink ? "downlink" : "uplink";
-      cpdlcMsg.header = cpdlcHeader(side.header);
-      cpdlcMsg.elements = arrayField(side, "elements")
-        .map(cpdlcElement)
-        .filter(isPresent);
-    } else if (control && !cpdlcMsg.elements.length) {
-      cpdlcMsg.direction = "uplink";
-    }
-
-    ringPrepend(hist.cpdlc, cpdlcMsg, CPDLC_LIMIT);
   }
 }

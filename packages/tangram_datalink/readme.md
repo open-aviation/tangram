@@ -18,11 +18,11 @@ Setup the producer:
 ```sh
 # in tangram root
 git clone https://github.com/xoolive/datalink ../datalink
-
-# in the datalink checkout
 cd ../datalink
-git checkout 688407cf58bf13a99000c4c98104f12e33d074cd
-cargo run --release -- airframes --redis-url redis://127.0.0.1:6379
+# checkout to the supported version
+
+cargo run --release -- airframes.io --redis-url redis://127.0.0.1:6379
+cargo run --release -- vdl2 --redis-url redis://127.0.0.1:6379 capture.raw
 
 # optional: inspect the normalized event stream in redis
 podman exec -i redis redis-cli PSUBSCRIBE 'datalink-*'

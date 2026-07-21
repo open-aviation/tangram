@@ -14,7 +14,8 @@ import {
   datalinkStore,
   classifyAndStore,
   ensureHistory,
-  getSquitterPayload
+  getSquitterPayload,
+  messageFlightId
 } from "./store";
 import type { DatalinkMessage } from "./types";
 
@@ -86,7 +87,7 @@ export function getMessageEntityId(msg: DatalinkMessage) {
   return (
     normalizeId(msg.aircraft?.icao24) ||
     normalizeId(msg.aircraft?.registration) ||
-    normalizeId(msg.flight_id) ||
+    normalizeId(messageFlightId(msg)) ||
     normalizeId(msg.aircraft?.aircraft_id) ||
     "unknown"
   );

@@ -5,10 +5,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { messageApp } from "../store";
-import type { DatalinkMessage } from "../types";
-import type { LinkType, PositionLikePayload } from "../types";
+import type {
+  DatalinkMessage,
+  LinkType,
+  PositionLikePayload,
+  SummaryRow
+} from "../types";
 import SummaryRows from "./Rows.vue";
-import type { SummaryRow } from "../types";
 
 defineOptions({ name: "DatalinkSummaryPosition" });
 
@@ -30,24 +33,6 @@ const linkLabel = (link: LinkType) => {
     default:
       return link.toUpperCase();
   }
-};
-
-const mediaAdvisoryDetail = (data: {
-  state: string;
-  current_link: LinkType;
-  time_utc: string;
-  available_links: LinkType[];
-  text?: string;
-}) => {
-  const alternates = data.available_links.filter(link => link !== data.current_link);
-  return [
-    `${data.state.toLowerCase()} ${linkLabel(data.current_link)}`,
-    `${data.time_utc}Z`,
-    alternates.length ? `also ${alternates.map(linkLabel).join("/")}` : null,
-    data.text
-  ]
-    .filter(Boolean)
-    .join(" · ");
 };
 
 const positionRow = (
@@ -85,14 +70,25 @@ const positionRow = (
 
 const rows = computed<SummaryRow[]>(() => {
   const app = messageApp(props.msg);
-  if (app?.kind === "aoc_position") return positionRow(app.data.format, app.data);
-  if (app?.kind === "label_32")
-    return positionRow("label 32", app.data, app.data.fields);
-  if (app?.kind === "media_advisory") {
+  if (!app || typeof app === "string") return [];
+  if ("aoc_position" in app)
+    return positionRow(app.aoc_position.format, app.aoc_position);
+  if ("label_32" in app)
+    return positionRow("label 32", app.label_32, app.label_32.fields);
+  if ("media_advisory" in app) {
+    const data = app.media_advisory;
+    const alternates = data.available_links.filter(link => link !== data.current_link);
     return [
       {
         meta: "media",
-        detail: mediaAdvisoryDetail(app.data)
+        detail: [
+          `${data.state.toLowerCase()} ${linkLabel(data.current_link)}`,
+          `${data.time_utc}Z`,
+          alternates.length ? `also ${alternates.map(linkLabel).join("/")}` : null,
+          data.text
+        ]
+          .filter(Boolean)
+          .join(" · ")
       }
     ];
   }
