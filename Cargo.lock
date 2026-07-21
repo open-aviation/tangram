@@ -4,16 +4,12 @@ version = 4
 
 [[package]]
 name = "acars"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "377d68224a0870e909534f6b23b4d9621ffc921f2aa4282815f1e5ed4a4f3bf8"
+version = "0.3.0"
+source = "git+https://github.com/xoolive/datalink.git?rev=d3e3e5a5d2bda04fbee83832cb77e3050a87364c#d3e3e5a5d2bda04fbee83832cb77e3050a87364c"
 dependencies = [
  "base64",
  "deku",
- "flate2",
  "hex",
- "rasn",
- "rasn-atn-cpdlc",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -533,16 +529,6 @@ dependencies = [
  "radium",
  "tap",
  "wyz",
-]
-
-[[package]]
-name = "bitvec-nom2"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d988fcc40055ceaa85edc55875a08f8abd29018582647fd82ad6128dba14a5f0"
-dependencies = [
- "bitvec",
- "nom",
 ]
 
 [[package]]
@@ -1804,9 +1790,8 @@ dependencies = [
 
 [[package]]
 name = "datalink"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cb5186121fd0ac256c2fc02e995a17cc4969119556657cdea4a39d2489ca23f"
+version = "0.3.0"
+source = "git+https://github.com/xoolive/datalink.git?rev=d3e3e5a5d2bda04fbee83832cb77e3050a87364c#d3e3e5a5d2bda04fbee83832cb77e3050a87364c"
 dependencies = [
  "acars",
  "chrono",
@@ -2644,15 +2629,6 @@ checksum = "469fb0b9cefa57e3ef31275ee7cacb78f2fdca44e4765491884a2b119d4eb130"
 
 [[package]]
 name = "itertools"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
@@ -2970,12 +2946,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "minimal-lexical"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
-
-[[package]]
 name = "miniz_oxide"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3018,16 +2988,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "363b2defc9b4f195a84e7419e11e1b9af7df1f0ea62305fc5d1d04e93c536d65"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "nom"
-version = "7.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
-dependencies = [
- "memchr",
- "minimal-lexical",
 ]
 
 [[package]]
@@ -3714,63 +3674,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c8d0fd677905edcbeedbf2edb6494d676f0e98d54d5cf9bda0b061cb8fb8aba"
 
 [[package]]
-name = "rasn"
-version = "0.28.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88235e585f2f3fc26ad809c79a84dd77e6a7203eb7d12e5bcaab89fc036d3d90"
-dependencies = [
- "bitvec",
- "bitvec-nom2",
- "bytes",
- "cfg-if",
- "chrono",
- "either",
- "nom",
- "num-bigint",
- "num-integer",
- "num-traits",
- "once_cell",
- "rasn-derive",
- "serde_json",
- "snafu",
- "xml-no-std",
-]
-
-[[package]]
-name = "rasn-atn-cpdlc"
-version = "0.28.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "298c24650855709f4b62b2784f612c3b08058504398e0b8c7a76d291cbb295ff"
-dependencies = [
- "rasn",
-]
-
-[[package]]
-name = "rasn-derive"
-version = "0.28.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11dcd4dab09ceadedb3e2bedf340deb583f0e25bba9ad966b5655c2fb62b1392"
-dependencies = [
- "proc-macro2",
- "rasn-derive-impl",
- "syn",
-]
-
-[[package]]
-name = "rasn-derive-impl"
-version = "0.28.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f121c276d3f2fba8caabc870288de3f81abdb0bb94d5510651e58e1e00a7b9e7"
-dependencies = [
- "either",
- "itertools 0.13.0",
- "proc-macro2",
- "quote",
- "syn",
- "uuid",
-]
-
-[[package]]
 name = "rayon"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4406,27 +4309,6 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
-
-[[package]]
-name = "snafu"
-version = "0.8.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e84b3f4eacbf3a1ce05eac6763b4d629d60cbc94d632e4092c54ade71f1e1a2"
-dependencies = [
- "snafu-derive",
-]
-
-[[package]]
-name = "snafu-derive"
-version = "0.8.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1c97747dbf44bb1ca44a561ece23508e99cb592e862f22222dcf42f51d1e451"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "snap"
@@ -5992,12 +5874,6 @@ checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
 dependencies = [
  "tap",
 ]
-
-[[package]]
-name = "xml-no-std"
-version = "0.8.26"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd223bc94c615fc02bf2f4bbc22a4a9bfe489c2add3ec10b1038df3aca44cac7"
 
 [[package]]
 name = "xxhash-rust"

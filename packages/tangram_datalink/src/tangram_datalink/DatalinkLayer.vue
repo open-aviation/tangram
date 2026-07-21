@@ -271,7 +271,7 @@ watch(
     }
 
     type Seg = { from: [number, number]; to: [number, number] };
-    type Dot = { pos: [number, number]; eta_secs?: number; altitude_ft?: number };
+    type Dot = { pos: [number, number] };
     const routeSegments: Seg[] = [];
     const routeDots: Dot[] = [];
 
@@ -293,7 +293,12 @@ watch(
       const cur: [number, number] = [curLon, curLat];
 
       // Collect all waypoints in ETA order
-      type Wpt = { lon: number; lat: number; eta_secs?: number; altitude_ft?: number };
+      type Wpt = {
+        lon: number;
+        lat: number;
+        eta_seconds_past_hour?: number;
+        altitude_ft?: number;
+      };
       const waypoints: Wpt[] = [];
 
       const hasPredictedRoute = adsc.next != null;
@@ -304,7 +309,7 @@ watch(
         waypoints.push({
           lon: adsc.next.longitude,
           lat: adsc.next.latitude,
-          eta_secs: adsc.next.eta_secs,
+          eta_seconds_past_hour: adsc.next.eta_seconds_past_hour,
           altitude_ft: adsc.next.altitude_ft
         });
         if (adsc.next_next) {
@@ -319,7 +324,7 @@ watch(
       if (!hasPredictedRoute) {
         // IntermediateProjection: project from current position
         for (const ip of adsc.intermediate_projections ?? []) {
-          if (!ip.track_invalid) {
+          if (!ip.track_invalid && ip.track_degrees != null) {
             const [pLon, pLat] = projectPoint(
               curLat,
               curLon,
@@ -329,7 +334,7 @@ watch(
             waypoints.push({
               lon: pLon,
               lat: pLat,
-              eta_secs: ip.eta_secs,
+              eta_seconds_past_hour: ip.eta_seconds_past_hour,
               altitude_ft: ip.altitude_ft
             });
           }
@@ -340,19 +345,26 @@ watch(
           waypoints.push({
             lon: fp.longitude,
             lat: fp.latitude,
-            eta_secs: fp.eta_secs,
+            eta_seconds_past_hour: fp.eta_seconds_past_hour,
             altitude_ft: fp.altitude_ft
           });
         }
       }
 
-      // Sort by ETA when available; keep unknowns at end
-      waypoints.sort((a, b) => {
-        if (a.eta_secs == null && b.eta_secs == null) return 0;
-        if (a.eta_secs == null) return 1;
-        if (b.eta_secs == null) return -1;
-        return a.eta_secs - b.eta_secs;
-      });
+      const etaOrder = (secondsPastHour: number | undefined) => {
+        if (secondsPastHour == null) return Number.POSITIVE_INFINITY;
+        const eta = ((secondsPastHour % 3600) + 3600) % 3600;
+        const report = adsc.report_seconds_past_hour;
+        if (report == null) return eta;
+        const reference = ((report % 3600) + 3600) % 3600;
+        return (eta - reference + 3600) % 3600;
+      };
+
+      // ADS-C encodes ETA as seconds past the hour. Sort by elapsed time from
+      // the report so points remain ordered correctly across an hour boundary.
+      waypoints.sort(
+        (a, b) => etaOrder(a.eta_seconds_past_hour) - etaOrder(b.eta_seconds_past_hour)
+      );
 
       // Build segments: unwrap each longitude relative to the previous point
       // so no segment ever crosses the antimeridian the long way around.
@@ -361,11 +373,7 @@ watch(
         const lon = unwrapLon(wpt.lon, prev[0]);
         const next: [number, number] = [lon, wpt.lat];
         routeSegments.push({ from: prev, to: next });
-        routeDots.push({
-          pos: next,
-          eta_secs: wpt.eta_secs,
-          altitude_ft: wpt.altitude_ft
-        });
+        routeDots.push({ pos: next });
         prev = next;
       }
     }

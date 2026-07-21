@@ -259,7 +259,7 @@ const feedRows = computed<FeedRow[]>(() => {
   const keyCounts = new Map<string, number>();
   for (const item of entityList.value) {
     for (const msg of getMessages(item.id)) {
-      const rawMsg = markRaw(toRaw(msg) as DatalinkMessage);
+      const rawMsg = markRaw(toRaw(msg));
       const category = classifyCategory(rawMsg);
       const baseKey = feedMessageKey(item.id, rawMsg);
       const keyCount = keyCounts.get(baseKey) ?? 0;

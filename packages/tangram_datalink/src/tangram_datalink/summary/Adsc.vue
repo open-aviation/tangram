@@ -5,16 +5,20 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type {
+  AdscAirReferenceData,
   AdscContractGroup,
+  AdscEarthReferenceData,
   AdscMeteoData,
-  AdscPayload,
+  AdscNackReason,
+  AdscNoncomplianceNotification,
+  AdscNoncompliantTag,
   AdscPositionReport,
   AdscPredictedRoute,
-  AdscReferenceData,
   AdscTag,
   DatalinkMessage
 } from "../types";
 import { arinc622Message } from "../summary_helpers";
+import { adscDisconnectReason } from "../store";
 import SummaryRows from "./Rows.vue";
 import type { SummaryRow } from "../types";
 
@@ -32,8 +36,7 @@ const props = defineProps<{ msg: DatalinkMessage }>();
 
 const tags = (msg: DatalinkMessage): AdscTag[] => {
   const payload = arinc622Message(msg)?.payload;
-  if (payload?.kind !== "adsc") return [];
-  return ((payload.data as AdscPayload).tags ?? []) as AdscTag[];
+  return payload && "adsc" in payload ? payload.adsc : [];
 };
 
 const FLIGHT_LEVEL_MIN_FEET = 10_000;
@@ -54,9 +57,16 @@ const formatPosition = (report: AdscPositionReport) =>
     .filter(Boolean)
     .join(" ");
 
-const formatEta = (seconds: number) => {
-  const minutes = Math.round(seconds / 60);
-  return minutes <= 0 ? "+0m" : `+${minutes}m`;
+const formatEta = (secondsPastHour: number, reportSecondsPastHour?: number) => {
+  if (reportSecondsPastHour == null) {
+    const normalized = ((Math.round(secondsPastHour) % 3600) + 3600) % 3600;
+    const minute = Math.floor(normalized / 60);
+    const second = normalized % 60;
+    return `ETA :${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
+  }
+  const delta =
+    ((secondsPastHour % 3600) - (reportSecondsPastHour % 3600) + 3600) % 3600;
+  return `+${Math.round(delta / 60)}m`;
 };
 
 const reportMeta = (report: AdscPositionReport) => {
@@ -74,17 +84,21 @@ const routePoint = (
   latitude: number,
   longitude: number,
   altitude?: number,
-  eta?: number
+  eta?: number,
+  reportSecondsPastHour?: number
 ) =>
   [
     `${latitude.toFixed(2)}° ${longitude.toFixed(2)}°`,
     altitude == null ? null : formatAltitude(altitude),
-    eta == null ? null : formatEta(eta)
+    eta == null ? null : formatEta(eta, reportSecondsPastHour)
   ]
     .filter(Boolean)
     .join(" ");
 
-const routeRows = (route: AdscPredictedRoute): SummaryRow[] => {
+const routeRows = (
+  route: AdscPredictedRoute,
+  reportSecondsPastHour?: number
+): SummaryRow[] => {
   const rows = [
     {
       meta: "next",
@@ -92,7 +106,8 @@ const routeRows = (route: AdscPredictedRoute): SummaryRow[] => {
         route.next_latitude,
         route.next_longitude,
         route.next_altitude_ft,
-        route.next_eta_seconds
+        route.next_eta_seconds,
+        reportSecondsPastHour
       )
     }
   ];
@@ -109,24 +124,39 @@ const routeRows = (route: AdscPredictedRoute): SummaryRow[] => {
   return rows;
 };
 
-const referenceDetail = (value: AdscReferenceData, label: string) => {
+const earthReferenceDetail = (value: AdscEarthReferenceData) => {
   const parts = [
-    value.heading_or_track_degrees == null || value.heading_invalid
+    value.true_track_degrees == null || value.track_invalid
       ? null
-      : `${Math.round(value.heading_or_track_degrees)}°`,
-    value.speed == null ? null : `${Math.round(value.speed)} kt`,
+      : `${Math.round(value.true_track_degrees)}°`,
+    value.ground_speed_kt == null ? null : `${Math.round(value.ground_speed_kt)} kt`,
     value.vertical_speed_ft_per_min == null || value.vertical_speed_ft_per_min === 0
       ? null
       : formatSigned(value.vertical_speed_ft_per_min, " fpm")
   ].filter(Boolean);
-  return parts.length ? `${label} ${parts.join(" ")}` : `${label} data`;
+  return parts.length ? `track ${parts.join(" ")}` : "track data";
+};
+
+const airReferenceDetail = (value: AdscAirReferenceData) => {
+  const parts = [
+    value.true_heading_degrees == null || value.heading_invalid
+      ? null
+      : `${Math.round(value.true_heading_degrees)}°`,
+    value.mach == null ? null : `M${value.mach.toFixed(3)}`,
+    value.vertical_speed_ft_per_min == null || value.vertical_speed_ft_per_min === 0
+      ? null
+      : formatSigned(value.vertical_speed_ft_per_min, " fpm")
+  ].filter(Boolean);
+  return parts.length ? `heading ${parts.join(" ")}` : "heading data";
 };
 
 const meteoDetail = (value: AdscMeteoData) => {
   const parts = [
-    value.wind_speed_kt == null || value.wind_direction_invalid
+    value.wind_speed_kt == null ||
+    value.wind_direction_true_degrees == null ||
+    value.wind_direction_invalid
       ? null
-      : `wind ${Math.round(value.wind_direction_true_degrees ?? 0)}°/${Math.round(
+      : `wind ${Math.round(value.wind_direction_true_degrees)}°/${Math.round(
           value.wind_speed_kt
         )} kt`,
     value.temperature_c == null ? null : formatSigned(value.temperature_c, "°C")
@@ -134,123 +164,59 @@ const meteoDetail = (value: AdscMeteoData) => {
   return parts.length ? parts.join(" ") : "meteo data";
 };
 
-const groupData = (group: AdscContractGroup): Record<string, unknown> =>
-  "data" in group && group.data !== null && typeof group.data === "object"
-    ? group.data
-    : {};
-
-const groupNumber = (group: AdscContractGroup, key: string): number | undefined => {
-  const value = groupData(group)[key];
-  return typeof value === "number" ? value : undefined;
-};
-
-const contractGroupLabel = (group: AdscContractGroup) => {
-  switch (group.kind) {
-    case "report_interval": {
-      const intervalSecs = groupNumber(group, "interval_secs");
-      return intervalSecs == null ? "interval" : `every ${intervalSecs}s`;
-    }
-    case "flight_id":
-      return "flight id";
-    case "predicted_route":
-      return "route";
-    case "earth_reference_data":
-      return "earth ref";
-    case "air_reference_data":
-      return "air ref";
-    case "meteo_data":
-      return "meteo";
-    case "airframe_id":
-      return "airframe";
-    case "aircraft_intent_data": {
-      const projectionTimeMins = groupNumber(group, "projection_time_mins");
-      return projectionTimeMins == null ? "intent" : `intent +${projectionTimeMins}m`;
-    }
-    default:
-      return null;
-  }
-};
-
 const groupDetail = (group: AdscContractGroup) => {
-  switch (group.kind) {
-    case "report_interval": {
-      const intervalSecs = groupNumber(group, "interval_secs");
-      return intervalSecs == null ? "interval" : `every ${intervalSecs}s`;
-    }
-    case "flight_id":
-      return "flight id";
-    case "predicted_route":
-      return "route";
-    case "earth_reference_data":
-      return "earth ref";
-    case "air_reference_data":
-      return "air ref";
-    case "meteo_data":
-      return "meteo";
-    case "airframe_id":
-      return "airframe";
-    case "lateral_deviation_change": {
-      const thresholdNm = groupNumber(group, "threshold_nm");
-      return thresholdNm == null ? "lat dev" : `lat dev >${thresholdNm} nm`;
-    }
-    case "vertical_speed_change": {
-      const thresholdFpm = groupNumber(group, "threshold_ft_per_min");
-      return thresholdFpm == null
-        ? "vs change"
-        : `vs ${formatSigned(thresholdFpm, " fpm")}`;
-    }
-    case "altitude_range": {
-      const floorFt = groupNumber(group, "floor_ft");
-      const ceilingFt = groupNumber(group, "ceiling_ft");
-      return floorFt == null || ceilingFt == null
-        ? "alt range"
-        : `alt ${formatAltitude(floorFt)}-${formatAltitude(ceilingFt)}`;
-    }
-    case "report_waypoint_changes":
-      return "waypoint change";
-    case "aircraft_intent_data": {
-      const projectionTimeMins = groupNumber(group, "projection_time_mins");
-      return projectionTimeMins == null ? "intent" : `intent +${projectionTimeMins}m`;
-    }
-    default:
-      return group.kind.replaceAll("_", " ");
-  }
+  if (group === "waypoint_change") return "waypoint change";
+  if ("flight_id" in group) return "flight id";
+  if ("predicted_route" in group) return "route";
+  if ("earth_reference_data" in group) return "earth ref";
+  if ("air_reference_data" in group) return "air ref";
+  if ("meteo_data" in group) return "meteo";
+  if ("airframe_id" in group) return "airframe";
+  if ("lateral_deviation_change" in group)
+    return `lat dev >${group.lateral_deviation_change.threshold_nm} nm`;
+  if ("vertical_speed_change" in group)
+    return `vs ${formatSigned(group.vertical_speed_change.threshold_ft_per_min, " fpm")}`;
+  if ("altitude_range" in group)
+    return `alt ${formatAltitude(group.altitude_range.floor_ft)}-${formatAltitude(
+      group.altitude_range.ceiling_ft
+    )}`;
+  return `intent +${group.aircraft_intent_data.projection_time_mins}m`;
 };
 
 const contractFeatureSummary = (groups: AdscContractGroup[]) => {
-  const labels = groups
-    .map(contractGroupLabel)
-    .filter((label): label is string => Boolean(label));
-  if (!labels.length) return null;
-  return `request ${labels.join(", ")}`;
+  const labels = groups.map(groupDetail);
+  return labels.length ? `request ${labels.join(", ")}` : null;
 };
 
-const contractRows = (
-  tag: Extract<
-    AdscTag,
-    {
-      kind:
-        | "periodic_contract_request"
-        | "event_contract_request"
-        | "emergency_periodic_contract_request";
-    }
-  >
-): SummaryRow[] => {
-  const label =
-    tag.kind === "periodic_contract_request"
-      ? "periodic contract"
-      : tag.kind === "event_contract_request"
-        ? "event contract"
-        : "emergency contract";
-  const groups = tag.data.groups ?? [];
-  const reportInterval = groups.find(group => group.kind === "report_interval");
+const contractRows = (tag: AdscTag): SummaryRow[] => {
+  if (typeof tag === "string") return [];
+  if ("event_contract_request" in tag) {
+    const data = tag.event_contract_request;
+    return [
+      {
+        meta: "event contract",
+        detail: [`#${data.contract_number}`, contractFeatureSummary(data.events)]
+          .filter(Boolean)
+          .join(" · ")
+      }
+    ];
+  }
+
+  const data =
+    "periodic_contract_request" in tag
+      ? tag.periodic_contract_request
+      : "emergency_periodic_contract_request" in tag
+        ? tag.emergency_periodic_contract_request
+        : null;
+  if (!data) return [];
   return [
     {
-      meta: label,
+      meta:
+        "periodic_contract_request" in tag ? "periodic contract" : "emergency contract",
       detail: [
-        tag.data.contract_number == null ? null : `#${tag.data.contract_number}`,
-        reportInterval ? groupDetail(reportInterval) : null,
-        contractFeatureSummary(groups.filter(group => group.kind !== "report_interval"))
+        `#${data.contract_number}`,
+        `every ${data.report_interval_secs}s`,
+        contractFeatureSummary(data.requested_groups)
       ]
         .filter(Boolean)
         .join(" · ")
@@ -262,85 +228,110 @@ const positionRow = (meta: string, report: AdscPositionReport): SummaryRow[] => 
   { meta, detail: `${formatPosition(report)}${reportMeta(report)}` }
 ];
 
-const rowsForTag = (tag: AdscTag): SummaryRow[] => {
-  switch (tag.kind) {
-    case "acknowledgement":
-      return [
-        {
-          meta: "ack",
-          detail:
-            tag.data.contract_number == null
-              ? "contract"
-              : `contract #${tag.data.contract_number}`
-        }
-      ];
-    case "negative_acknowledgement":
-      return [
-        {
-          meta: "nak",
-          detail:
-            [
-              tag.data.contract_request_number == null
-                ? null
-                : `request #${tag.data.contract_request_number}`,
-              tag.data.reason
-            ]
-              .filter(Boolean)
-              .join(" · ") || "request rejected"
-        }
-      ];
-    case "noncompliance_notification":
-      return [{ meta: "noncompliance", detail: "contract cannot be satisfied" }];
-    case "cancel_emergency_mode":
-      return [{ meta: "emergency", detail: "cancel emergency mode" }];
-    case "basic_report":
-      return positionRow("report", tag.data);
-    case "emergency_basic_report":
-      return positionRow("emergency", tag.data);
-    case "lateral_deviation_change_event":
-      return positionRow("lat dev", tag.data);
-    case "vertical_rate_change_event":
-      return positionRow("vs event", tag.data);
-    case "altitude_range_event":
-      return positionRow("alt range", tag.data);
-    case "waypoint_change_event":
-      return positionRow("waypoint", tag.data);
-    case "flight_id":
-      return tag.data.id ? [{ meta: "flight", detail: tag.data.id }] : [];
-    case "predicted_route":
-      return routeRows(tag.data);
-    case "earth_reference_data":
-      return [{ meta: "earth", detail: referenceDetail(tag.data, "track") }];
-    case "air_reference_data":
-      return [{ meta: "air", detail: referenceDetail(tag.data, "heading") }];
-    case "meteo_data":
-      return [{ meta: "meteo", detail: meteoDetail(tag.data) }];
-    case "airframe_id":
-      return [{ meta: "airframe", detail: "icao address group" }];
-    case "intermediate_projection":
-      return [{ meta: "intent", detail: "intermediate projected intent" }];
-    case "fixed_projection":
-      return [{ meta: "intent", detail: "fixed projected intent" }];
-    case "cancel_all_contracts":
-      return [{ meta: "cancel", detail: "all contracts" }];
-    case "cancel_contract":
-      return [
-        {
-          meta: "cancel",
-          detail:
-            tag.data.contract_number == null
-              ? "contract"
-              : `contract #${tag.data.contract_number}`
-        }
-      ];
-    case "periodic_contract_request":
-    case "event_contract_request":
-    case "emergency_periodic_contract_request":
-      return contractRows(tag);
-    default:
-      return [{ meta: tag.kind, detail: "unrendered ADS-C tag" }];
-  }
+const adscEnumLabel = (value: AdscNackReason | AdscNoncompliantTag) => {
+  if (typeof value === "string") return value.replaceAll("_", " ");
+  const unknown = value.unknown;
+  return "code" in unknown
+    ? `unknown (code ${unknown.code})`
+    : `unknown (tag ${unknown.tag})`;
 };
 
-const rows = computed(() => tags(props.msg).flatMap(rowsForTag));
+const noncomplianceDetail = (value: AdscNoncomplianceNotification) => {
+  const groups = value.groups.map(group => adscEnumLabel(group.noncompliant_tag));
+  return (
+    [
+      `request #${value.contract_request_number}`,
+      groups.length ? groups.join(", ") : null
+    ]
+      .filter(Boolean)
+      .join(" · ") || "contract cannot be satisfied"
+  );
+};
+
+const positionReport = (tag: AdscTag): AdscPositionReport | undefined => {
+  if (typeof tag === "string") return undefined;
+  if ("basic_report" in tag) return tag.basic_report;
+  if ("emergency_basic_report" in tag) return tag.emergency_basic_report;
+  if ("lateral_deviation_change_event" in tag)
+    return tag.lateral_deviation_change_event;
+  if ("vertical_rate_change_event" in tag) return tag.vertical_rate_change_event;
+  if ("altitude_range_event" in tag) return tag.altitude_range_event;
+  if ("waypoint_change_event" in tag) return tag.waypoint_change_event;
+  return undefined;
+};
+
+const rowsForTag = (tag: AdscTag, reportSecondsPastHour?: number): SummaryRow[] => {
+  if (tag === "cancel_emergency_mode")
+    return [{ meta: "emergency", detail: "cancel emergency mode" }];
+  if (tag === "cancel_all_contracts")
+    return [{ meta: "cancel", detail: "all contracts" }];
+  if ("acknowledgement" in tag)
+    return [
+      { meta: "ack", detail: `contract #${tag.acknowledgement.contract_number}` }
+    ];
+  if ("negative_acknowledgement" in tag) {
+    const data = tag.negative_acknowledgement;
+    return [
+      {
+        meta: "nak",
+        detail: [
+          `request #${data.contract_request_number}`,
+          adscEnumLabel(data.reason)
+        ].join(" · ")
+      }
+    ];
+  }
+  if ("noncompliance_notification" in tag)
+    return [
+      {
+        meta: "noncompliance",
+        detail: noncomplianceDetail(tag.noncompliance_notification)
+      }
+    ];
+  if ("basic_report" in tag) return positionRow("report", tag.basic_report);
+  if ("emergency_basic_report" in tag)
+    return positionRow("emergency", tag.emergency_basic_report);
+  if ("lateral_deviation_change_event" in tag)
+    return positionRow("lat dev", tag.lateral_deviation_change_event);
+  if ("vertical_rate_change_event" in tag)
+    return positionRow("vs event", tag.vertical_rate_change_event);
+  if ("altitude_range_event" in tag)
+    return positionRow("alt range", tag.altitude_range_event);
+  if ("waypoint_change_event" in tag)
+    return positionRow("waypoint", tag.waypoint_change_event);
+  if ("flight_id" in tag) return [{ meta: "flight", detail: tag.flight_id.callsign }];
+  if ("predicted_route" in tag)
+    return routeRows(tag.predicted_route, reportSecondsPastHour);
+  if ("earth_reference_data" in tag)
+    return [{ meta: "earth", detail: earthReferenceDetail(tag.earth_reference_data) }];
+  if ("air_reference_data" in tag)
+    return [{ meta: "air", detail: airReferenceDetail(tag.air_reference_data) }];
+  if ("meteo_data" in tag)
+    return [{ meta: "meteo", detail: meteoDetail(tag.meteo_data) }];
+  if ("airframe_id" in tag)
+    return [{ meta: "airframe", detail: `icao24 ${tag.airframe_id.icao24}` }];
+  if ("intermediate_projection" in tag)
+    return [{ meta: "intent", detail: "intermediate projected intent" }];
+  if ("fixed_projection" in tag)
+    return [{ meta: "intent", detail: "fixed projected intent" }];
+  if ("cancel_contract" in tag)
+    return [
+      { meta: "cancel", detail: `contract #${tag.cancel_contract.contract_number}` }
+    ];
+  return contractRows(tag);
+};
+
+const rows = computed<SummaryRow[]>(() => {
+  const disconnect = adscDisconnectReason(props.msg);
+  if (disconnect)
+    return [{ meta: "disconnect", detail: disconnect.replaceAll("_", " ") }];
+
+  const decodedTags = tags(props.msg);
+  const reference = decodedTags
+    .map(positionReport)
+    .find(
+      report => report?.timestamp_seconds_past_hour != null
+    )?.timestamp_seconds_past_hour;
+  return decodedTags.flatMap(tag => rowsForTag(tag, reference));
+});
 </script>
