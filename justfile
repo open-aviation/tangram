@@ -68,12 +68,13 @@ c-run path_config='./tangram.example.toml':
 
 # Regenerate `.pyi` stub files from PyO3 native introspection.
 stubgen:
-  @tmp=$(mktemp -d); pyo3i=$(find ~/.cargo/registry/src -path '*/pyo3-introspection-*/Cargo.toml' | sort -V | tail -1); trap 'rm -rf "$tmp"' EXIT; \
-    cargo build -p tangram_core_rs --features pyo3; cargo run --manifest-path "$pyo3i" -- target/debug/libtangram_core.so _core "$tmp/core"; cp "$tmp/core/__init__.pyi" packages/tangram_core/src/tangram_core/_core.pyi; \
-    cargo build -p tangram_datalink --features pyo3; cargo run --manifest-path "$pyo3i" -- target/debug/lib_datalink.so _datalink "$tmp/datalink"; cp "$tmp/datalink/__init__.pyi" packages/tangram_datalink/src/tangram_datalink/_datalink.pyi; \
-    cargo build -p tangram_history --features stubgen; cargo run --manifest-path "$pyo3i" -- target/debug/libtangram_history.so _history "$tmp/history"; cp "$tmp/history/__init__.pyi" packages/tangram_history/src/tangram_history/_history.pyi; \
-    cargo build -p tangram_jet1090 --features pyo3; cargo run --manifest-path "$pyo3i" -- target/debug/lib_planes.so _planes "$tmp/planes"; cp "$tmp/planes/__init__.pyi" packages/tangram_jet1090/src/tangram_jet1090/_planes.pyi; \
-    cargo build -p tangram_ship162 --features pyo3; cargo run --manifest-path "$pyo3i" -- target/debug/lib_ships.so _ships "$tmp/ships"; cp "$tmp/ships/__init__.pyi" packages/tangram_ship162/src/tangram_ship162/_ships.pyi
+  @tmp=$(mktemp -d); pyo3_version=$(cargo pkgid pyo3 | sed 's/.*@//'); tool_root="target/stubgen-tools/$pyo3_version"; tool="$tool_root/bin/pyo3-introspection"; trap 'rm -rf "$tmp"' EXIT; \
+    if [ ! -x "$tool" ]; then cargo install --locked --root "$tool_root" --version "$pyo3_version" pyo3-introspection; fi; \
+    cargo build -p tangram_core_rs --features pyo3; "$tool" target/debug/libtangram_core.so _core "$tmp/core"; cp "$tmp/core/__init__.pyi" packages/tangram_core/src/tangram_core/_core.pyi; \
+    cargo build -p tangram_datalink --features pyo3; "$tool" target/debug/lib_datalink.so _datalink "$tmp/datalink"; cp "$tmp/datalink/__init__.pyi" packages/tangram_datalink/src/tangram_datalink/_datalink.pyi; \
+    cargo build -p tangram_history --features stubgen; "$tool" target/debug/libtangram_history.so _history "$tmp/history"; cp "$tmp/history/__init__.pyi" packages/tangram_history/src/tangram_history/_history.pyi; \
+    cargo build -p tangram_jet1090 --features pyo3; "$tool" target/debug/lib_planes.so _planes "$tmp/planes"; cp "$tmp/planes/__init__.pyi" packages/tangram_jet1090/src/tangram_jet1090/_planes.pyi; \
+    cargo build -p tangram_ship162 --features pyo3; "$tool" target/debug/lib_ships.so _ships "$tmp/ships"; cp "$tmp/ships/__init__.pyi" packages/tangram_ship162/src/tangram_ship162/_ships.pyi
 
 # Check code quality (eslint, ruff, clippy) and formatting (prettier, ruff, rustfmt).
 check:
