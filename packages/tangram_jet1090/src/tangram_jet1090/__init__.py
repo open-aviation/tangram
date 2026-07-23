@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
-import sqlite3
+import shutil
 import zipfile
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import Annotated, Literal
 
 import httpx
 import platformdirs
@@ -15,9 +15,6 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import ORJSONResponse, Response
 from pydantic import TypeAdapter
 from tangram_core.config import FrontendMutable
-
-if TYPE_CHECKING:
-    from . import _planes
 
 try:
     import polars as pl
@@ -236,7 +233,7 @@ class PlanesConfig:
         "https://jetvision.de/resources/sqb_databases/basestation.zip"
     )
     jet1090_url: str = "http://localhost:8080"
-    path_cache: Path = Path(platformdirs.user_cache_dir("tangram_jet1090"))
+    path_cache: Path = Path(platformdirs.user_cache_dir("jet1090"))
     log_level: str = "INFO"
     show_route_lines: bool = True
     history_buffer_size: int = 100_000
@@ -290,47 +287,57 @@ plugin = tangram_core.Plugin(
 )
 
 
-async def get_aircraft_db(
+async def ensure_aircraft_db(
     client: httpx.AsyncClient, url: str, path_cache: Path
-) -> dict[str, _planes.Aircraft]:
-    from . import _planes
+) -> Path:
+    """Return a local BaseStation database, downloading it when necessary.
 
+    jet1090 already [downloads the database](https://github.com/xoolive/jet1090/blob/3c6c90f/crates/rs1090/src/data/aircraft.rs)
+    so we reuse it.
+    """
+    # it's possible for tangram to read a zip/sqlite file that is partially written by
+    # jet1090, but we ignore that edge case
+    # TODO: maybe use to_thread to avoid blocking
     path_cache.mkdir(parents=True, exist_ok=True)
     zip_path = path_cache / "basestation.zip"
     db_path = path_cache / "basestation.sqb"
 
+    if db_path.exists() and (
+        not zip_path.exists()
+        or db_path.stat().st_mtime_ns >= zip_path.stat().st_mtime_ns
+    ):
+        return db_path
+
     if not zip_path.exists():
         log.info(f"downloading aircraft database from {url} to {zip_path}")
-        async with client.stream("GET", url, follow_redirects=True) as response:
-            response.raise_for_status()
-            with zip_path.open("wb") as f:
-                async for chunk in response.aiter_bytes():
-                    f.write(chunk)
+        partial_zip_path = zip_path.with_suffix(".zip.part")
+        partial_zip_path.unlink(missing_ok=True)
+        try:
+            async with client.stream("GET", url, follow_redirects=True) as response:
+                response.raise_for_status()
+                with partial_zip_path.open("wb") as destination:
+                    async for chunk in response.aiter_bytes():
+                        destination.write(chunk)
+            partial_zip_path.replace(zip_path)
+        finally:
+            partial_zip_path.unlink(missing_ok=True)
 
-    if not db_path.exists():
-        log.info(f"extracting {zip_path} to {db_path}")
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            db_filename = zip_ref.namelist()[0]
-            zip_ref.extract(db_filename, path=path_cache)
-            (path_cache / db_filename).rename(db_path)
-
-    db = {}
+    log.info(f"extracting {zip_path} to {db_path}")
+    partial_db_path = db_path.with_suffix(".sqb.part")
+    partial_db_path.unlink(missing_ok=True)
     try:
-        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        cur = con.cursor()
-        res = cur.execute("SELECT ModeS, Registration, ICAOTypeCode FROM Aircraft")
-        for modes, registration, icaotypecode in res.fetchall():
-            if modes:
-                db[modes.lower()] = _planes.Aircraft(
-                    registration=registration,
-                    typecode=icaotypecode,
-                )
-        con.close()
-    except sqlite3.Error as e:
-        log.error(f"error reading aircraft database {db_path}: {e}")
-        db_path.unlink(missing_ok=True)
+        with zipfile.ZipFile(zip_path, "r") as archive:
+            entries = [entry for entry in archive.infolist() if not entry.is_dir()]
+            with (
+                archive.open(entries[0]) as source,
+                partial_db_path.open("wb") as destination,
+            ):
+                shutil.copyfileobj(source, destination)
+        partial_db_path.replace(db_path)
+    finally:
+        partial_db_path.unlink(missing_ok=True)
 
-    return db
+    return db_path
 
 
 @plugin.register_service()
@@ -352,7 +359,7 @@ async def run_planes(backend_state: tangram_core.BackendState) -> None:
 
     _planes.init_tracing_stderr(default_log_level)
 
-    aircraft_db = await get_aircraft_db(
+    aircraft_db_path = await ensure_aircraft_db(
         backend_state.http_client,
         config_planes.aircraft_db_url,
         config_planes.path_cache,
@@ -364,7 +371,7 @@ async def run_planes(backend_state: tangram_core.BackendState) -> None:
         history_table_name=config_planes.history_table_name,
         state_vector_expire=config_planes.state_vector_expire,
         stream_interval_secs=config_planes.stream_interval_secs,
-        aircraft_db=aircraft_db,
+        aircraft_db_path=str(aircraft_db_path),
         history_buffer_size=config_planes.history_buffer_size,
         history_flush_interval_secs=config_planes.history_flush_interval_secs,
         history_control_channel=config_planes.history_control_channel,

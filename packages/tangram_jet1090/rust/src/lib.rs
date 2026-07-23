@@ -1,3 +1,4 @@
+mod aircraftdb;
 pub mod state;
 
 use anyhow::{Context, Result};
@@ -10,7 +11,7 @@ use pyo3::{
 use redis::AsyncCommands;
 use rs1090::prelude::TimedMessage;
 use std::{
-    collections::BTreeMap,
+    path::PathBuf,
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -26,7 +27,7 @@ use tracing::{debug, error, info};
 #[cfg(feature = "pyo3")]
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-use crate::state::{Aircraft, Jet1090HistoryFrame, StateVectors};
+use crate::state::{Jet1090HistoryFrame, StateVectors};
 
 #[cfg(feature = "pyo3")]
 #[pyfunction]
@@ -47,7 +48,7 @@ pub struct PlanesConfig {
     pub history_control_channel: String,
     pub state_vector_expire: u16,
     pub stream_interval_secs: f64,
-    pub aircraft_db: BTreeMap<String, Aircraft>,
+    pub aircraft_db_path: String,
     pub history_buffer_size: usize,
     pub history_flush_interval_secs: u64,
     pub history_optimize_interval_secs: u64,
@@ -70,7 +71,7 @@ impl PlanesConfig {
         history_control_channel: String,
         state_vector_expire: u16,
         stream_interval_secs: f64,
-        aircraft_db: BTreeMap<String, Aircraft>,
+        aircraft_db_path: String,
         history_buffer_size: usize,
         history_flush_interval_secs: u64,
         history_optimize_interval_secs: u64,
@@ -87,7 +88,7 @@ impl PlanesConfig {
             history_control_channel,
             state_vector_expire,
             stream_interval_secs,
-            aircraft_db,
+            aircraft_db_path,
             history_buffer_size,
             history_flush_interval_secs,
             history_optimize_interval_secs,
@@ -212,6 +213,11 @@ async fn start_search_subscriber(
 }
 
 async fn _run_service(config: PlanesConfig) -> Result<()> {
+    let aircraft_db_path = PathBuf::from(&config.aircraft_db_path);
+    let aircraft_db = tokio::task::spawn_blocking(move || aircraftdb::load(&aircraft_db_path))
+        .await
+        .context("aircraft database loader task failed")??;
+
     let (shutdown, shutdown_rx) = Shutdown::new();
 
     let bbox_state = Arc::new(Mutex::new(BoundingBoxState::new()));
@@ -228,7 +234,7 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
 
     let state_vectors = Arc::new(Mutex::new(StateVectors::new(
         config.state_vector_expire,
-        config.aircraft_db.clone(),
+        aircraft_db,
         None,
     )));
 
@@ -392,7 +398,4 @@ mod _planes {
 
     #[pymodule_export]
     use super::PlanesConfig;
-
-    #[pymodule_export]
-    use super::state::Aircraft;
 }

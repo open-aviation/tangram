@@ -6,8 +6,6 @@ use arrow_array::{
 use arrow_schema::{DataType as ArrowDataType, Field, Schema as ArrowSchema, TimeUnit};
 use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config, Matcher, Utf32Str};
-#[cfg(feature = "pyo3")]
-use pyo3::prelude::*;
 use rs1090::data::patterns::aircraft_information;
 use rs1090::decode::bds::bds09::AirborneVelocitySubType::{AirspeedSubsonic, GroundSpeedDecoding};
 use rs1090::decode::bds::bds09::AirspeedType::{IAS, TAS};
@@ -16,32 +14,16 @@ use rs1090::decode::bds::bds65::{
 };
 use rs1090::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{BTreeMap, HashMap},
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use tangram_core::stream::{Identifiable, Positioned, StateCollection, Tracked};
+
+use crate::aircraftdb::{AircraftDatabase, Icao24, InvalidIcao24};
 use tangram_history::client::{HistoryBuffer, HistoryFrame};
 
-#[cfg_attr(feature = "pyo3", pyclass(get_all, set_all, from_py_object))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct Aircraft {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub typecode: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub registration: Option<String>,
-}
-
-#[cfg(feature = "pyo3")]
-#[pymethods]
-impl Aircraft {
-    #[new]
-    fn new(typecode: Option<String>, registration: Option<String>) -> Self {
-        Self {
-            typecode,
-            registration,
-        }
-    }
+    pub typecode: Option<Box<str>>,
+    pub registration: Option<Box<str>>,
 }
 
 impl HistoryFrame for Jet1090HistoryFrame {
@@ -52,6 +34,10 @@ impl HistoryFrame for Jet1090HistoryFrame {
         Self::to_record_batch(frames)
     }
 }
+
+// NOTE: technically it would be more appropriate for StateVector::icao24 to be
+// a packed u32. but `tangram_history` does not support unsigned integers, and
+// it would be a breaking change so we hold it off for now.
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateVector {
@@ -174,8 +160,8 @@ impl From<&TimedMessage> for Jet1090HistoryFrame {
         };
 
         if let Some(message) = &msg.message {
-            if let Some(icao) = icao24(message) {
-                frame.icao24 = icao;
+            if let Ok(icao) = Icao24::try_from(message) {
+                frame.icao24 = icao.to_string();
             }
             match &message.df {
                 ShortAirAirSurveillance { ac, .. } => {
@@ -503,30 +489,47 @@ impl StateCollection for StateVectors {
 #[derive(Debug)]
 pub struct StateVectors {
     pub aircraft: HashMap<String, StateVector>,
-    pub aircraft_db: BTreeMap<String, Aircraft>,
+    aircraft_db: AircraftDatabase,
     pub state_vector_expire: u16,
     history_buffer: Option<HistoryBuffer<Jet1090HistoryFrame>>,
 }
 
-fn icao24(msg: &Message) -> Option<String> {
-    match &msg.df {
-        ShortAirAirSurveillance { ap, .. } => Some(ap.to_string()),
-        SurveillanceAltitudeReply { ap, .. } => Some(ap.to_string()),
-        SurveillanceIdentityReply { ap, .. } => Some(ap.to_string()),
-        AllCallReply { icao, .. } => Some(icao.to_string()),
-        LongAirAirSurveillance { ap, .. } => Some(ap.to_string()),
-        ExtendedSquitterADSB(ADSB { icao24, .. }) => Some(icao24.to_string()),
-        ExtendedSquitterTisB { cf, .. } => Some(cf.aa.to_string()),
-        CommBAltitudeReply { ap, .. } => Some(ap.to_string()),
-        CommBIdentityReply { ap, .. } => Some(ap.to_string()),
-        _ => None,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Icao24FromMessageError {
+    AddressUnavailable,
+    InvalidAddress(InvalidIcao24),
+}
+
+impl From<InvalidIcao24> for Icao24FromMessageError {
+    fn from(error: InvalidIcao24) -> Self {
+        Self::InvalidAddress(error)
+    }
+}
+
+impl TryFrom<&Message> for Icao24 {
+    type Error = Icao24FromMessageError;
+
+    fn try_from(message: &Message) -> Result<Self, Self::Error> {
+        let value = match &message.df {
+            ShortAirAirSurveillance { ap, .. }
+            | SurveillanceAltitudeReply { ap, .. }
+            | SurveillanceIdentityReply { ap, .. }
+            | LongAirAirSurveillance { ap, .. }
+            | CommBAltitudeReply { ap, .. }
+            | CommBIdentityReply { ap, .. } => ap.0,
+            AllCallReply { icao, .. } => icao.0,
+            ExtendedSquitterADSB(ADSB { icao24, .. }) => icao24.0,
+            ExtendedSquitterTisB { cf, .. } => cf.aa.0,
+            _ => return Err(Icao24FromMessageError::AddressUnavailable),
+        };
+        Self::try_from(value).map_err(Into::into)
     }
 }
 
 impl StateVectors {
-    pub fn new(
+    pub(crate) fn new(
         expire: u16,
-        aircraft_db: BTreeMap<String, Aircraft>,
+        aircraft_db: AircraftDatabase,
         history_buffer: Option<HistoryBuffer<Jet1090HistoryFrame>>,
     ) -> Self {
         Self {
@@ -574,7 +577,7 @@ impl StateVectors {
             })
             .collect();
 
-        matches.sort_by(|a, b| b.0.cmp(&a.0));
+        matches.sort_by_key(|item| std::cmp::Reverse(item.0));
 
         matches
             .into_iter()
@@ -597,7 +600,8 @@ impl StateVectors {
             return Ok(());
         };
 
-        if let Some(icao24) = icao24(message) {
+        if let Ok(address) = Icao24::try_from(message) {
+            let icao24 = address.to_string();
             let sv = self.aircraft.entry(icao24.clone()).or_insert_with(|| {
                 let mut registration = match aircraft_information(&icao24, None) {
                     Ok(aircraft_info) => aircraft_info.registration.clone(),
@@ -606,9 +610,9 @@ impl StateVectors {
 
                 let mut typecode = None;
 
-                if let Some(aircraft) = self.aircraft_db.get(&icao24) {
-                    typecode = aircraft.typecode.clone();
-                    registration = aircraft.registration.clone();
+                if let Some(aircraft) = self.aircraft_db.get(&address) {
+                    typecode = aircraft.typecode.as_deref().map(str::to_owned);
+                    registration = aircraft.registration.as_deref().map(str::to_owned);
                 }
                 StateVector {
                     icao24: icao24.clone(),
