@@ -253,6 +253,28 @@ importers:
         specifier: ^3.5.39
         version: 3.5.39(typescript@6.0.3)
 
+  packages/tangram_navaid:
+    dependencies:
+      '@open-aviation/tangram-core':
+        specifier: workspace:*
+        version: link:../tangram_core
+    devDependencies:
+      '@deck.gl/core':
+        specifier: ^9.3.6
+        version: 9.3.6
+      '@deck.gl/layers':
+        specifier: ^9.3.6
+        version: 9.3.6(@deck.gl/core@9.3.6)(@loaders.gl/core@4.4.3)(@luma.gl/core@9.3.6)(@luma.gl/engine@9.3.6(@luma.gl/core@9.3.6)(@luma.gl/shadertools@9.3.6(@luma.gl/core@9.3.6)))
+      '@types/geojson':
+        specifier: ^7946.0.16
+        version: 7946.0.16
+      thrust-wasm:
+        specifier: ^0.2.2
+        version: 0.2.2
+      vue:
+        specifier: ^3.5.39
+        version: 3.5.39(typescript@6.0.3)
+
   packages/tangram_ship162:
     dependencies:
       '@open-aviation/tangram-core':
@@ -1931,6 +1953,9 @@ packages:
   texture-compressor@1.0.2:
     resolution: {integrity: sha512-dStVgoaQ11mA5htJ+RzZ51ZxIZqNOgWKAIvtjLrW1AliQQLCmrDqNzQZ8Jh91YealQ95DXt4MEduLzJmbs6lig==}
     hasBin: true
+
+  thrust-wasm@0.2.2:
+    resolution: {integrity: sha512-Ta3drHFifptXYC9B1HKaKz81p9Nd2mn/ZsjgCEqvMIQ5duXNqMZpw9S/oxd0vgnR7ZADZzEDYCX4/s7l9ySIJw==}
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -3974,6 +3999,8 @@ snapshots:
     dependencies:
       argparse: 1.0.10
       image-size: 0.7.5
+
+  thrust-wasm@0.2.2: {}
 
   tinybench@2.9.0: {}
 
