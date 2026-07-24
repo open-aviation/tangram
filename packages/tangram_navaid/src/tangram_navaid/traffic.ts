@@ -84,6 +84,12 @@ const XPLANE_URLS = {
   fix: "/navaid/xplane/fix",
   awy: "/navaid/xplane/awy"
 } as const;
+const FAA_URLS = [
+  "/navaid/faa/airports",
+  "/navaid/faa/routes",
+  "/navaid/faa/points",
+  "/navaid/faa/navaids"
+] as const;
 
 let enableFaa = false;
 
@@ -201,9 +207,21 @@ async function buildResolver(): Promise<ResolverInstance> {
   resolver.withDdr(ddr);
 
   if (enableFaa) {
-    const faa = await lib.data.faa.createFaaArcgisResolver();
-    await faa.preloadAll?.();
-    resolver.withArcgis(faa);
+    try {
+      const collections = await Promise.all(
+        FAA_URLS.map(async url => {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`FAA data request failed: ${response.status} ${url}`);
+          }
+          return response.json();
+        })
+      );
+      const faa = await lib.data.faa.createFaaArcgisResolver({ collections });
+      resolver.withArcgis(faa);
+    } catch (err) {
+      console.warn("tangram_navaid: FAA source unavailable:", err);
+    }
   }
 
   return resolver;

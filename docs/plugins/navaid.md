@@ -12,7 +12,7 @@ Selecting a navaid or fix centres the map on the point and adds a removable map 
 - A EUROCONTROL DDR archive provides airway, airport, SID, and STAR geometry for route resolution.
 - FAA ArcGIS data can be enabled for additional U.S. coverage.
 
-The backend caches the configured X-Plane and DDR sources in the [configured cache directory][`tangram_navaid.TangramNavaidConfig.path_cache`]. Changing a source URL creates a separate cache entry.
+The backend caches the configured DDR, X-Plane, and FAA sources in the [configured cache directory][`tangram_navaid.TangramNavaidConfig.path_cache`]. Changing a source URL creates a separate cache entry.
 
 !!! warning
 
@@ -31,14 +31,20 @@ Optional source configuration belongs in `[plugins.tangram_navaid]`:
 
 ```toml title="tangram.toml"
 [plugins.tangram_navaid]
-# ddr_archive_url = "https://example.com/ddr.zip"
 # path_cache = "/var/cache/tangram_navaid"
+# ddr_archive_url = "https://example.com/ddr.zip"
 # enable_faa = true
 
 # [plugins.tangram_navaid.xplane]
 # nav_url = "https://example.com/earth_nav.dat"
 # fix_url = "https://example.com/earth_fix.dat"
 # awy_url = "https://example.com/earth_awy.dat"
+
+# [plugins.tangram_navaid.faa]
+# airports_url = "https://example.com/airports.geojson"
+# routes_url = "https://example.com/routes.geojson"
+# points_url = "https://example.com/points.geojson"
+# navaids_url = "https://example.com/navaids.geojson"
 ```
 
 See [`tangram_navaid.TangramNavaidConfig`][] for the settings and their defaults.
