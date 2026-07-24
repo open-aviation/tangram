@@ -6,10 +6,10 @@ Selecting a navaid or fix centres the map on the point and adds a removable map 
 
 ## Data Sources
 
-The plugin loads navigation data in the browser through [`traffic.js`](https://github.com/xoolive/traffic.js):
+The plugin uses [`traffic.js`](https://github.com/xoolive/traffic.js) in the browser:
 
-- X-Plane navdata provides the navaid/fix search index, supporting navigation-object lookup.
-- A EUROCONTROL DDR archive provides the primary route-resolution data, including airway, airport, SID, and STAR geometry.
+- X-Plane navdata provides the navaid/fix search index.
+- A EUROCONTROL DDR archive provides airway, airport, SID, and STAR geometry for route resolution.
 - FAA ArcGIS data can be enabled for additional U.S. coverage.
 
 The Field 15 parser and DDR resolver use a [`thrust-wasm`](https://github.com/xoolive/thrust) module bundled with the plugin. `traffic.js` itself is loaded as an ESM module from the configured URL.
@@ -32,6 +32,7 @@ Optional source configuration belongs in `[plugins.tangram_navaid]`:
 ```toml title="tangram.toml"
 [plugins.tangram_navaid]
 # ddr_archive_url = "https://example.com/ddr.zip"
+# path_cache = "/var/cache/tangram_navaid"
 # traffic_js_url = "https://example.com/traffic.js"
 # enable_faa = true
 ```

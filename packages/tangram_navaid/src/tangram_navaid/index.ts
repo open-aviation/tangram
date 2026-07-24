@@ -8,7 +8,6 @@ import Field15Result from "./Field15Result.vue";
 import {
   configureTraffic,
   setThrustModule,
-  getResolver,
   searchNavaids,
   searchFixes,
   resolveRoute,
@@ -21,9 +20,13 @@ import { drawPoint, type NavPointInfo } from "./pointLayer";
 
 const NAV_LIMIT = 8;
 
+interface NavaidConfig {
+  traffic_js_url?: string | null;
+  enable_faa?: boolean;
+}
+
 type AnyFeature =
-  | PointFeature<NavFeatureProperties>
-  | PointFeature<FixFeatureProperties>;
+  PointFeature<NavFeatureProperties> | PointFeature<FixFeatureProperties>;
 
 /** A drawn map item (point or route) plus its bookkeeping for removal. */
 interface DrawnItem {
@@ -59,16 +62,14 @@ function scoreNavResult(query: string, ident: string, name: string): number {
   return 50;
 }
 
-export async function install(
-  ctx: PluginContext,
-  config?: Record<string, unknown>
-) {
+export async function install(ctx: PluginContext, config: NavaidConfig = {}) {
   const api = ctx.api;
 
   // Accumulated map items — many points and many routes can coexist. Each is
   // disposable; clicking an item opens a remove menu (handled inside its layer).
   const points: DrawnItem[] = [];
   const routes: DrawnItem[] = [];
+  let disposed = false;
   let seq = 0;
   const nextId = (prefix: string) => `${prefix}-${++seq}`;
 
@@ -81,6 +82,7 @@ export async function install(
 
   ctx.onDispose({
     dispose: () => {
+      disposed = true;
       for (const item of [...points, ...routes]) item.disposable.dispose();
       points.length = 0;
       routes.length = 0;
@@ -91,12 +93,10 @@ export async function install(
     const p = feature.properties;
     const isFix = p.kind === "fix";
     const frequency =
-      !isFix && "frequency" in p
-        ? (p as NavFeatureProperties).frequency
-        : undefined;
+      !isFix && "frequency" in p ? (p as NavFeatureProperties).frequency : undefined;
     const elevationFt =
       !isFix && "elevation_ft" in p
-        ? (p as NavFeatureProperties).elevation_ft ?? null
+        ? ((p as NavFeatureProperties).elevation_ft ?? null)
         : null;
     const lon = feature.geometry.coordinates[0];
     const lat = feature.geometry.coordinates[1];
@@ -140,51 +140,50 @@ export async function install(
   };
 
   configureTraffic({
-    trafficJsUrl: (config?.traffic_js_url as string | undefined) ?? null,
-    ddrArchiveUrl: (config?.ddr_archive_url as string | undefined) ?? null,
-    enableFaa: Boolean(config?.enable_faa)
+    trafficJsUrl: config.traffic_js_url,
+    enableFaa: config.enable_faa
   });
 
-  // Load the locally-bundled thrust-wasm (plugin asset) and hand it to traffic.js
-  // before any resolver is built. traffic.js initialises the WASM binary itself
-  // (via thrustModule.default()) when it first creates the DDR resolver.
-  try {
-    const thrust =
-      await ctx.importModule<typeof import("thrust-wasm/web")>("thrust_wasm.js");
-    setThrustModule(thrust);
-  } catch (err) {
-    console.warn("tangram_navaid: thrust-wasm asset could not be loaded:", err);
-  }
+  // esm.sh exposes a browser `process` polyfill with `versions.node`. traffic.js
+  // mistakes that for Node, tries bare `thrust-wasm` imports, and returns before
+  // its browser CDN fallbacks. Import the plugin-owned web build explicitly.
+  let thrustPromise: Promise<typeof import("thrust-wasm/web")> | null = null;
+  const loadThrust = () => {
+    if (!thrustPromise) {
+      thrustPromise = ctx
+        .importModule<typeof import("thrust-wasm/web")>("thrust_wasm.js")
+        .catch(err => {
+          thrustPromise = null;
+          throw err;
+        });
+    }
+    return thrustPromise;
+  };
 
-  // Pre-warm: start loading traffic.js and fetching X-Plane navdata now so the
-  // first search is fast. Failures are non-fatal (the providers degrade to []).
-  getResolver().catch((err: unknown) =>
-    console.warn("tangram_navaid: pre-warm failed:", err)
-  );
+  const drawRouteExpression = async (expression: string) => {
+    try {
+      setThrustModule(await loadThrust());
+      const resolution = await resolveRoute(expression);
+      if (disposed) return;
+      if (!resolution.route.features.length) {
+        console.warn("tangram_navaid: no route segments resolved for", expression);
+        return;
+      }
 
-  const drawRouteExpression = (expression: string) => {
-    const id = nextId("route");
-    resolveRoute(expression)
-      .then(resolution => {
-        if (!resolution.route.features.length) {
-          console.warn(
-            "tangram_navaid: no route segments resolved for",
-            expression,
-            "— configure ddr_archive_url for full airway/airport resolution"
-          );
-        }
-        const disposable = drawRoute(
-          api,
-          ctx.id,
-          id,
-          resolution,
-          () => removeItem(routes, id)
-        );
-        routes.push({ id, disposable });
-      })
-      .catch((err: unknown) =>
-        console.warn("tangram_navaid: route resolution failed:", err)
+      const id = nextId("route");
+      const disposable = drawRoute(api, ctx.id, id, resolution, () =>
+        removeItem(routes, id)
       );
+      if (disposed) {
+        disposable.dispose();
+        return;
+      }
+      routes.push({ id, disposable });
+    } catch (err) {
+      if (!disposed) {
+        console.warn("tangram_navaid: route resolution failed:", err);
+      }
+    }
   };
 
   // --- navaids + fixes -----------------------------------------------------
