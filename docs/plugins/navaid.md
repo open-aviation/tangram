@@ -2,17 +2,17 @@
 
 The `tangram_navaid` plugin extends the command palette with browser-side search for navaids, fixes, and ICAO Field 15 route expressions.
 
+It bundles [`traffic.js`](https://github.com/xoolive/traffic.js) and [`thrust-wasm`](https://github.com/xoolive/thrust) in its wheel.
+
 Selecting a navaid or fix centres the map on the point and adds a removable map layer. Selecting a Field 15 expression resolves the route and draws its points and segments as removable layers.
 
 ## Data Sources
-
-The plugin uses [`traffic.js`](https://github.com/xoolive/traffic.js) in the browser:
 
 - X-Plane navdata provides the navaid/fix search index.
 - A EUROCONTROL DDR archive provides airway, airport, SID, and STAR geometry for route resolution.
 - FAA ArcGIS data can be enabled for additional U.S. coverage.
 
-The Field 15 parser and DDR resolver use a [`thrust-wasm`](https://github.com/xoolive/thrust) module bundled with the plugin. `traffic.js` itself is loaded as an ESM module from the configured URL.
+The backend caches the configured X-Plane and DDR sources in the [configured cache directory][`tangram_navaid.TangramNavaidConfig.path_cache`]. Changing a source URL creates a separate cache entry.
 
 !!! warning
 
@@ -33,8 +33,12 @@ Optional source configuration belongs in `[plugins.tangram_navaid]`:
 [plugins.tangram_navaid]
 # ddr_archive_url = "https://example.com/ddr.zip"
 # path_cache = "/var/cache/tangram_navaid"
-# traffic_js_url = "https://example.com/traffic.js"
 # enable_faa = true
+
+# [plugins.tangram_navaid.xplane]
+# nav_url = "https://example.com/earth_nav.dat"
+# fix_url = "https://example.com/earth_fix.dat"
+# awy_url = "https://example.com/earth_awy.dat"
 ```
 
 See [`tangram_navaid.TangramNavaidConfig`][] for the settings and their defaults.

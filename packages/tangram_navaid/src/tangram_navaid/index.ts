@@ -21,7 +21,6 @@ import { drawPoint, type NavPointInfo } from "./pointLayer";
 const NAV_LIMIT = 8;
 
 interface NavaidConfig {
-  traffic_js_url?: string | null;
   enable_faa?: boolean;
 }
 
@@ -139,10 +138,7 @@ export async function install(ctx: PluginContext, config: NavaidConfig = {}) {
     };
   };
 
-  configureTraffic({
-    trafficJsUrl: config.traffic_js_url,
-    enableFaa: config.enable_faa
-  });
+  configureTraffic({ enableFaa: config.enable_faa });
 
   // esm.sh exposes a browser `process` polyfill with `versions.node`. traffic.js
   // mistakes that for Node, tries bare `thrust-wasm` imports, and returns before

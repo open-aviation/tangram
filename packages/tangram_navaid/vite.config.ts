@@ -3,18 +3,24 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import { tangramPlugin } from "@open-aviation/tangram-core/vite-plugin";
 
-// thrust-wasm is the WebAssembly helper traffic.js uses for Field 15 parsing
-// and EUROCONTROL DDR route enrichment. Its CDN auto-load is unreliable through
-// the esm.sh shim, so — following the rs1090-wasm pattern in tangram_datalink —
-// we bundle the self-contained web loader and its sibling .wasm as plugin
-// assets and load them locally via ctx.importModule at runtime.
+// traffic.js is bundled by Vite. thrust-wasm uses a sibling wasm binary, so
+// keep its web loader and binary as explicit plugin assets.
 const thrustLoader = fileURLToPath(import.meta.resolve("thrust-wasm/web"));
-const thrustWasm = path.join(
-  path.dirname(thrustLoader),
-  "thrust_wasm_bg.wasm"
-);
+const thrustWasm = path.join(path.dirname(thrustLoader), "thrust_wasm_bg.wasm");
 
 export default defineConfig({
+  resolve: {
+    // traffic.js bundles an unrelated Node-only rs1090 fallback. we never call
+    // that aircraft metadata path, so replace it with a local stub.
+    alias: {
+      "rs1090-wasm/nodejs": fileURLToPath(
+        new URL("./src/tangram_navaid/trafficNodeStub.ts", import.meta.url)
+      ),
+      url: fileURLToPath(
+        new URL("./src/tangram_navaid/trafficNodeStub.ts", import.meta.url)
+      )
+    }
+  },
   plugins: [
     tangramPlugin({
       assets: [
