@@ -21,6 +21,7 @@ COPY packages/tangram_airports/package.json /packages/tangram_airports/
 COPY packages/tangram_ship162/package.json /packages/tangram_ship162/
 COPY packages/tangram_datalink/package.json /packages/tangram_datalink/
 COPY packages/tangram_explore/package.json /packages/tangram_explore/
+COPY packages/tangram_navaid/package.json /packages/tangram_navaid/
 COPY Cargo.toml package.json pnpm-lock.yaml pnpm-workspace.yaml /
 FROM node:24-alpine AS frontend-builder
 WORKDIR /app
