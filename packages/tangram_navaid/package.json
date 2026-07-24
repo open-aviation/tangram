@@ -10,7 +10,8 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@open-aviation/tangram-core": "workspace:*"
+    "@open-aviation/tangram-core": "workspace:*",
+    "traffic.js": "0.2.0"
   },
   "devDependencies": {
     "@deck.gl/core": "^9.3.6",
