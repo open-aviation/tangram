@@ -34,9 +34,7 @@ export interface FixFeatureProperties {
   source?: string;
 }
 
-export interface PointFeature<
-  P = Record<string, unknown>
-> {
+export interface PointFeature<P = Record<string, unknown>> {
   type: "Feature";
   geometry: { type: "Point"; coordinates: [number, number] };
   properties: P;
@@ -56,9 +54,7 @@ export interface LineStringFeature {
   };
 }
 
-export interface FeatureCollection<
-  F = PointFeature | LineStringFeature
-> {
+export interface FeatureCollection<F = PointFeature | LineStringFeature> {
   type: "FeatureCollection";
   features: F[];
 }
@@ -109,12 +105,9 @@ interface LookupSource {
 
 interface ResolverInstance {
   withSource(name: string, source: LookupSource): this;
-  withDdr?(ddr: DdrResolver): this;
-  withArcgis?(arcgis: FaaResolver): this;
-  resolve(query: ResolveQuery): Promise<unknown>;
-  enrichRouteAsGeoJSON(
-    route: string
-  ): Promise<FeatureCollection<LineStringFeature>>;
+  withDdr(ddr: DdrResolver): this;
+  withArcgis(arcgis: FaaResolver): this;
+  enrichRouteAsGeoJSON(route: string): Promise<FeatureCollection<LineStringFeature>>;
   extractRoutePointsAsGeoJSON(
     route: { features?: LineStringFeature[] },
     options?: { dedupe?: boolean }
@@ -123,39 +116,23 @@ interface ResolverInstance {
 
 interface TrafficDataApi {
   Resolver: new () => ResolverInstance;
-  parseField15: (route: string) => Promise<unknown[]>;
   xplane: {
-    createEarthNavResolver: (o?: { fetchFn?: FetchFn }) => Promise<EarthResolver>;
-    createEarthFixResolver: (o?: { fetchFn?: FetchFn }) => Promise<EarthResolver>;
-    createEarthAwyResolver: (o?: { fetchFn?: FetchFn }) => Promise<EarthResolver>;
+    createEarthNavResolver: (options?: { fetchFn?: FetchFn }) => Promise<EarthResolver>;
+    createEarthFixResolver: (options?: { fetchFn?: FetchFn }) => Promise<EarthResolver>;
+    createEarthAwyResolver: (options?: { fetchFn?: FetchFn }) => Promise<EarthResolver>;
   };
   eurocontrol: {
-    createEurocontrolDdrResolver: (o?: {
-      archiveUrl?: string;
-      fetchImpl?: (
-        input: RequestInfo | URL,
-        init?: RequestInit
-      ) => Promise<Response>;
-      onArchiveProgress?: (p: {
-        loaded: number;
-        total: number;
-        ratio: number | null;
-      }) => void;
+    createEurocontrolDdrResolver: (options: {
+      archiveUrl: string;
     }) => Promise<DdrResolver>;
   };
   faa: {
-    createFaaArcgisResolver: (o?: {
-      fetchImpl?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-      eager?: boolean;
-    }) => Promise<FaaResolver>;
+    createFaaArcgisResolver: (options?: { eager?: boolean }) => Promise<FaaResolver>;
   };
 }
 
 interface TrafficEnvApi {
-  setThrustWasm: (config: {
-    thrustModuleUrl?: string;
-    thrustModule?: unknown;
-  }) => void;
+  setThrustWasm: (config: { thrustModuleUrl?: string; thrustModule?: unknown }) => void;
 }
 
 interface TrafficLib {
@@ -170,40 +147,27 @@ export interface RouteResolution {
 
 // --- configuration ---------------------------------------------------------
 
-export const DEFAULT_TRAFFIC_JS_URL = "https://esm.sh/traffic.js@0.2.0";
-
-/**
- * Default EUROCONTROL DDR2 AIRAC archive, the same source the
- * planned-route-encoding.qmd interactive page preloads. It is a ~18 MB zip
- * served with permissive CORS; it is downloaded once and kept in the browser
- * cache. Without it, X-Plane sources are lookup-only and Field 15 route
- * enrichment returns no segments (airways, airports and SID/STAR geometry all
- * live in the DDR data).
- */
-export const DEFAULT_DDR_ARCHIVE_URL =
-  "https://static.observableusercontent.com/files/a4f0c6bc8c28bf890997ae7abb5a4dece65ef5e74596b07a307c9d589f860428b582cb1341cafaaa5b7cddf6d03fef257f2ecefe3278262d56df2ba7d58a9a52";
+const DEFAULT_TRAFFIC_JS_URL = "https://esm.sh/traffic.js@0.2.0";
+const DDR_ARCHIVE_URL = "/navaid/ddr";
 
 let configuredTrafficUrl: string | undefined;
-let configuredSources: {
-  ddrArchiveUrl: string;
-  enableFaa: boolean;
-} = {
-  ddrArchiveUrl: DEFAULT_DDR_ARCHIVE_URL,
-  enableFaa: false
-};
+let enableFaa = false;
 
 export function configureTraffic(opts: {
   trafficJsUrl?: string | null;
-  ddrArchiveUrl?: string | null;
   enableFaa?: boolean;
 }): void {
-  configuredTrafficUrl = opts.trafficJsUrl?.trim() || undefined;
-  configuredSources = {
-    // An empty/null config keeps the qmd default so routes resolve out of the
-    // box; pass an explicit URL to self-host, or '' to opt out (lookup-only).
-    ddrArchiveUrl: opts.ddrArchiveUrl?.trim() || DEFAULT_DDR_ARCHIVE_URL,
-    enableFaa: !!opts.enableFaa
-  };
+  const trafficUrl = opts.trafficJsUrl?.trim() || undefined;
+  const faa = opts.enableFaa ?? false;
+  if (trafficUrl === configuredTrafficUrl && faa === enableFaa) return;
+
+  configuredTrafficUrl = trafficUrl;
+  enableFaa = faa;
+  trafficPromise = null;
+  xplanePromise = null;
+  resolverPromise = null;
+  navIndexPromise = null;
+  fixIndexPromise = null;
 }
 
 // --- thrust-wasm module (bundled as a plugin asset, handed to traffic.js) ---
@@ -217,15 +181,6 @@ let thrustModule: unknown = null;
 export function setThrustModule(mod: unknown): void {
   thrustModule = mod;
 }
-
-// --- cached fetch (browser HTTP cache reused across visits) ---------------
-
-const cachedFetch = (
-  input: RequestInfo | URL,
-  init?: RequestInit
-): Promise<Response> => fetch(input, { ...init, cache: "force-cache" });
-
-const xplaneFetchFn: FetchFn = (url: string) => cachedFetch(url);
 
 // --- traffic.js loader -----------------------------------------------------
 
@@ -251,13 +206,68 @@ function loadTraffic(): Promise<TrafficLib> {
   return trafficPromise;
 }
 
-// --- memoized resolver + raw nav/fix handles ------------------------------
+// --- X-Plane sources and route resolver ------------------------------------
 
+interface XplaneSources {
+  nav: EarthResolver;
+  fix: EarthResolver;
+  source: LookupSource;
+}
+
+let xplanePromise: Promise<XplaneSources> | null = null;
 let resolverPromise: Promise<ResolverInstance> | null = null;
-let navResolver: EarthResolver | null = null;
-let fixResolver: EarthResolver | null = null;
 
-export function getResolver(): Promise<ResolverInstance> {
+function getXplaneSources(): Promise<XplaneSources> {
+  if (!xplanePromise) {
+    xplanePromise = buildXplaneSources().catch(err => {
+      xplanePromise = null;
+      throw err;
+    });
+  }
+  return xplanePromise;
+}
+
+async function buildXplaneSources(): Promise<XplaneSources> {
+  const lib = await loadTraffic();
+
+  // TODO: deprecate this adapter when traffic.js and the xplane datasets are
+  // bundled as plugin assets. until then, force reuse of githubusercontent data
+  const fetchFn: FetchFn = url => fetch(url, { cache: "force-cache" });
+  const [nav, fix, awy] = await Promise.all([
+    lib.data.xplane.createEarthNavResolver({ fetchFn }),
+    lib.data.xplane.createEarthFixResolver({ fetchFn }),
+    lib.data.xplane.createEarthAwyResolver({ fetchFn })
+  ]);
+
+  return {
+    nav,
+    fix,
+    source: {
+      navaids: nav.navaids,
+      fixes: fix.fixes,
+      airways: awy.airways,
+      resolve: async (query: ResolveQuery) => {
+        if (query.airway) return awy.resolve(query);
+        if (query.navaid) {
+          return (
+            (await nav.resolve({ navaid: query.navaid, near: query.near })) ??
+            fix.resolve({ fix: query.navaid })
+          );
+        }
+        if (query.fix) {
+          return (
+            (await fix.resolve({ fix: query.fix })) ??
+            nav.resolve({ navaid: query.fix })
+          );
+        }
+        return null;
+      },
+      enrichRoute: () => []
+    }
+  };
+}
+
+function getResolver(): Promise<ResolverInstance> {
   if (!resolverPromise) {
     resolverPromise = buildResolver().catch(err => {
       resolverPromise = null;
@@ -268,91 +278,19 @@ export function getResolver(): Promise<ResolverInstance> {
 }
 
 async function buildResolver(): Promise<ResolverInstance> {
-  const lib = await loadTraffic();
+  const [lib, xplane] = await Promise.all([loadTraffic(), getXplaneSources()]);
+  if (thrustModule) lib.env.setThrustWasm({ thrustModule });
 
-  // Hand the locally-bundled thrust-wasm module to traffic.js. Must happen
-  // before any resolver factory or parseField15 call, which read this global.
-  if (thrustModule) {
-    lib.env.setThrustWasm({ thrustModule });
-  }
+  const resolver = new lib.data.Resolver().withSource("xplane", xplane.source);
+  const ddr = await lib.data.eurocontrol.createEurocontrolDdrResolver({
+    archiveUrl: DDR_ARCHIVE_URL
+  });
+  resolver.withDdr(ddr);
 
-  const [nav, fix, awy] = await Promise.all([
-    lib.data.xplane.createEarthNavResolver({ fetchFn: xplaneFetchFn }),
-    lib.data.xplane.createEarthFixResolver({ fetchFn: xplaneFetchFn }),
-    lib.data.xplane.createEarthAwyResolver({ fetchFn: xplaneFetchFn })
-  ]);
-  navResolver = nav;
-  fixResolver = fix;
-
-  // One combined X-Plane source covering navaids + fixes + airways. We reuse
-  // the three resolvers above (rather than createXplaneResolver) so each .dat
-  // file is fetched exactly once and is also available to the prefix index.
-  const xplane: LookupSource = {
-    navaids: nav.navaids,
-    fixes: fix.fixes,
-    airways: awy.airways,
-    resolve: async (query: ResolveQuery) => {
-      if (query.airway) return awy.resolve(query);
-      if (query.navaid) {
-        return (
-          (await nav.resolve({ navaid: query.navaid, near: query.near })) ??
-          fix.resolve({ fix: query.navaid })
-        );
-      }
-      if (query.fix) {
-        return (
-          (await fix.resolve({ fix: query.fix })) ??
-          nav.resolve({ navaid: query.fix })
-        );
-      }
-      return null;
-    },
-    enrichRoute: () => []
-  };
-
-  const resolver = new lib.data.Resolver();
-  resolver.withSource("xplane", xplane);
-
-  // EUROCONTROL DDR is the primary route-resolution source (airways, airports,
-  // SID/STAR geometry). X-Plane is lookup-only, so without DDR,
-  // enrichRouteAsGeoJSON returns no segments. We preload the same archive the
-  // planned-route-encoding.qmd page uses (~18 MB, browser-cached).
-  try {
-    const ddr = await lib.data.eurocontrol.createEurocontrolDdrResolver({
-      archiveUrl: configuredSources.ddrArchiveUrl,
-      fetchImpl: cachedFetch,
-      onArchiveProgress: progress => {
-        const mb = (progress.loaded / (1024 * 1024)).toFixed(1);
-        const pct =
-          progress.ratio != null
-            ? Math.round(progress.ratio * 100)
-            : null;
-        console.debug(
-          `tangram_navaid: downloading AIRAC navigation data ${mb} MB${
-            pct != null ? ` (${pct}%)` : ""
-          }`
-        );
-      }
-    });
-    resolver.withDdr?.(ddr);
-  } catch (err) {
-    console.warn(
-      "tangram_navaid: EUROCONTROL DDR source unavailable —" +
-        " routes will not resolve:",
-      err
-    );
-  }
-
-  if (configuredSources.enableFaa) {
-    try {
-      const faa = await lib.data.faa.createFaaArcgisResolver({
-        fetchImpl: cachedFetch
-      });
-      await faa.preloadAll?.();
-      resolver.withArcgis?.(faa);
-    } catch (err) {
-      console.warn("tangram_navaid: FAA ArcGIS source unavailable:", err);
-    }
+  if (enableFaa) {
+    const faa = await lib.data.faa.createFaaArcgisResolver();
+    await faa.preloadAll?.();
+    resolver.withArcgis(faa);
   }
 
   return resolver;
@@ -369,8 +307,8 @@ let fixIndexPromise: Promise<Map<string, AnyFixFeature[]>> | null = null;
 async function buildNavIndex(): Promise<Map<string, AnyNavFeature[]>> {
   if (!navIndexPromise) {
     navIndexPromise = (async () => {
-      await getResolver(); // ensures navResolver is populated
-      const features = (await navResolver!.navaids!.data()) ?? [];
+      const { nav } = await getXplaneSources();
+      const features = (await nav.navaids?.data()) ?? [];
       return indexByIdent(features);
     })();
   }
@@ -380,8 +318,8 @@ async function buildNavIndex(): Promise<Map<string, AnyNavFeature[]>> {
 async function buildFixIndex(): Promise<Map<string, AnyFixFeature[]>> {
   if (!fixIndexPromise) {
     fixIndexPromise = (async () => {
-      await getResolver();
-      const features = (await fixResolver!.fixes!.data()) ?? [];
+      const { fix } = await getXplaneSources();
+      const features = (await fix.fixes?.data()) ?? [];
       return indexByIdent(features);
     })();
   }
