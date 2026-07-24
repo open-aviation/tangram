@@ -1,9 +1,4 @@
-"""tangram_navaid plugin: navaid / fix / Field 15 route search for tangram.
-
-Pure-frontend plugin: there is no backend router. The thin Python wrapper only
-declares the (optional) configuration that is forwarded to the frontend
-`install()` so the Vue/TS side knows which navigation-data sources to attach.
-"""
+"""Navaid / fix / Field 15 route search for tangram."""
 
 from __future__ import annotations
 
@@ -16,12 +11,9 @@ from tangram_core.config import FrontendMutable
 
 @dataclass
 class TangramNavaidConfig:
-    """Backend configuration for tangram_navaid (read from [plugins.tangram_navaid])."""
-
     ddr_archive_url: Optional[str] = None
-    """URL of a EUROCONTROL DDR2 AIRAC archive for full European route
-    resolution (airway expansion + airports). When unset, the plugin falls back
-    to its bundled default archive so routes still resolve."""
+    """EUROCONTROL DDR2 AIRAC archive URL for full European route resolution
+    (airway expansion + airports). Uses the built-in archive when unset."""
 
     traffic_js_url: Optional[str] = None
     """Self-hosted traffic.js ESM build URL. Defaults to the esm.sh CDN."""

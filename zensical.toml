@@ -26,6 +26,7 @@ nav = [
       "plugins/ship162.md",
       "plugins/weather.md",
       "plugins/airports.md",
+      "plugins/navaid.md",
       "plugins/explore.md",
     ] },
     { "Examples" = [
@@ -42,6 +43,7 @@ nav = [
     "api/ship162.md",
     "api/history.md",
     "api/explore.md",
+    "api/navaid.md",
     "api/weather.md",
   ] },
   { "Contribute" = "contribute.md" },
@@ -113,6 +115,7 @@ paths = [
   "packages/tangram_ship162/src",
   "packages/tangram_datalink/src",
   "packages/tangram_explore/src",
+  "packages/tangram_navaid/src",
 ]
 inventories = [
   "https://docs.python.org/3/objects.inv",
