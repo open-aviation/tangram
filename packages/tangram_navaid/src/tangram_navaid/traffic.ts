@@ -1,4 +1,4 @@
-import type { LookupSource, ResolveQuery } from "traffic.js";
+import type { Field15Element, LookupSource, ResolveQuery } from "traffic.js";
 
 // Loads the bundled traffic.js runtime lazily and exposes a memoized,
 // multi-source navigation resolver plus navaid/fix prefix search.
@@ -334,7 +334,46 @@ export async function searchFixes(
   return rankFromIndex(index, q, limit);
 }
 
-// --- Field 15 route resolution --------------------------------------------
+// --- Field 15 route parsing and resolution --------------------------------
+
+export interface ParsedField15 {
+  expression: string;
+  elements: Field15Element[];
+}
+
+export type Field15ParseResult = { ok: true; value: ParsedField15 } | { ok: false };
+
+function isField15Point(element: Field15Element): boolean {
+  return (
+    typeof element === "object" &&
+    ("waypoint" in element ||
+      "aerodrome" in element ||
+      "coords" in element ||
+      "point_bearing_distance" in element)
+  );
+}
+
+export async function tryParseField15(expression: string): Promise<Field15ParseResult> {
+  const normalized = expression.trim().toUpperCase();
+  if (normalized.split(/\s+/).length < 3) return { ok: false };
+
+  try {
+    const lib = await loadTraffic();
+    if (thrustModule) lib.env.setThrustWasm({ thrustModule });
+    const elements = await lib.data.parseField15(normalized);
+    let points = 0;
+    let hasRouteElement = false;
+    for (const element of elements) {
+      if (isField15Point(element)) points += 1;
+      else hasRouteElement = true;
+    }
+    return points >= 2 && hasRouteElement
+      ? { ok: true, value: { expression: normalized, elements } }
+      : { ok: false };
+  } catch {
+    return { ok: false };
+  }
+}
 
 export async function resolveRoute(expression: string): Promise<RouteResolution> {
   const resolver = await getResolver();
