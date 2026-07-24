@@ -17,3 +17,4 @@ The best way to learn how to build plugins is to study the official ones:
 - [`tangram_system`](./system.md): A simple plugin that adds a background service.
 - [`tangram_jet1090`](./jet1090.md): A complex plugin that adds API routes, a background service for real-time data, and a historical trajectory API.
 - [`tangram_weather`](./weather.md): A plugin that adds a new API endpoint for external data.
+- [`tangram_navaid`](./navaid.md): A frontend-only plugin that adds navaid, fix, and Field 15 route search.
