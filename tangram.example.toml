@@ -8,6 +8,7 @@ plugins = [
     # -- Extra functionalities --
     "tangram_system",
     "tangram_airports",
+    # "tangram_navaid",
     "tangram_globe",
     # "tangram_ship162",
     # "tangram_datalink",

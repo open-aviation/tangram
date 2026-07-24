@@ -11,6 +11,8 @@ on:
       - "zensical.toml"
       - "pyproject.toml"
       - "uv.lock"
+      - "packages/**/src/**/*.py"
+      - "packages/**/src/**/*.pyi"
 
 permissions:
   contents: write

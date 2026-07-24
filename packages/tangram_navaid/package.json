@@ -1,0 +1,23 @@
+{
+  "name": "@open-aviation/tangram-navaid",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "description": "Navaid, fix and Field 15 route search for the tangram search bar",
+  "main": "src/tangram_navaid/index.ts",
+  "license": "AGPL-3.0",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@open-aviation/tangram-core": "workspace:*",
+    "traffic.js": "0.2.0"
+  },
+  "devDependencies": {
+    "@deck.gl/core": "^9.3.6",
+    "@deck.gl/layers": "^9.3.6",
+    "@types/geojson": "^7946.0.16",
+    "thrust-wasm": "^0.2.2",
+    "vue": "^3.5.39"
+  }
+}

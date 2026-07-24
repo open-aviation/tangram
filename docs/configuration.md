@@ -70,3 +70,4 @@ For details on each plugin's available settings, refer to their respective docum
 - [`tangram_explore`](plugins/explore.md#configuration)
 - [`tangram_system`](plugins/system.md#configuration)
 - [`tangram_airports`](plugins/airports.md#configuration)
+- [`tangram_navaid`](plugins/navaid.md#configuration)
