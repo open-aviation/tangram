@@ -1,4 +1,5 @@
 import { watch } from "vue";
+import { highlightTextParts } from "@open-aviation/tangram-core/utils";
 import {
   type Disposable,
   type Entity,
@@ -160,9 +161,9 @@ export function install(ctx: PluginContext, config?: Ship162FrontendConfig) {
           id: `ship-${r.state.mmsi}`,
           component: ShipResult,
           props: {
-            name: r.state.ship_name,
-            mmsi: r.state.mmsi.toString(),
-            callsign: r.state.callsign,
+            nameParts: highlightTextParts(r.state.ship_name || "Unknown", query),
+            mmsiParts: highlightTextParts(r.state.mmsi.toString(), query),
+            callsignParts: highlightTextParts(r.state.callsign || "N/A", query),
             type: r.state.ship_type
           },
           score: r.score,
@@ -216,8 +217,8 @@ export function install(ctx: PluginContext, config?: Ship162FrontendConfig) {
             id: `group-${key}`,
             component: ShipHistoryGroup,
             props: {
-              mmsi,
-              name
+              mmsiParts: highlightTextParts(mmsi, query),
+              nameParts: highlightTextParts(name, query)
             },
             score: 80,
             children: groupIntervals.map(s => ({

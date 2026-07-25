@@ -2,30 +2,30 @@
   <div class="ship-result">
     <div class="row">
       <span class="name">
-        <HighlightText :text="name || 'Unknown'" :query="query" />
+        <HighlightText :parts="nameParts" />
       </span>
       <div class="chips">
         <span class="chip blue">{{ type || "?" }}</span>
         <span class="chip yellow">
-          <HighlightText :text="mmsi" :query="query" />
+          <HighlightText :parts="mmsiParts" />
         </span>
       </div>
     </div>
     <div class="subtitle">
-      <HighlightText :text="callsign || 'N/A'" :query="query" />
+      <HighlightText :parts="callsignParts" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { HighlightText } from "@open-aviation/tangram-core/components";
+import type { HighlightTextPart } from "@open-aviation/tangram-core/utils";
 
 defineProps<{
-  name?: string;
-  mmsi: string;
-  callsign?: string;
+  nameParts: readonly HighlightTextPart[];
+  mmsiParts: readonly HighlightTextPart[];
+  callsignParts: readonly HighlightTextPart[];
   type?: string;
-  query: string;
 }>();
 </script>
 

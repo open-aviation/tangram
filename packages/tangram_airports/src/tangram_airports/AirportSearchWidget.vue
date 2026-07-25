@@ -2,33 +2,31 @@
   <div class="airport-result">
     <div class="row">
       <span class="name">
-        <HighlightText :text="name" :query="query" />
+        <HighlightText :parts="nameParts" />
       </span>
       <div class="chips">
         <span class="chip blue">
-          <HighlightText :text="iata" :query="query" />
+          <HighlightText :parts="iataParts" />
         </span>
         <span class="chip yellow">
-          <HighlightText :text="icao" :query="query" />
+          <HighlightText :parts="icaoParts" />
         </span>
       </div>
     </div>
-    <div class="subtitle">
-      <HighlightText :text="city" :query="query" />, {{ countryCode }}
-    </div>
+    <div class="subtitle"><HighlightText :parts="cityParts" />, {{ countryCode }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { HighlightText } from "@open-aviation/tangram-core/components";
+import type { HighlightTextPart } from "@open-aviation/tangram-core/utils";
 
 defineProps<{
-  name: string;
-  city: string;
+  nameParts: readonly HighlightTextPart[];
+  cityParts: readonly HighlightTextPart[];
   countryCode: string;
-  iata: string;
-  icao: string;
-  query: string;
+  iataParts: readonly HighlightTextPart[];
+  icaoParts: readonly HighlightTextPart[];
 }>();
 </script>
 

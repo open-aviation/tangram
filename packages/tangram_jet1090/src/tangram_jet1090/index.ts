@@ -1,4 +1,5 @@
 import { watch } from "vue";
+import { highlightTextParts } from "@open-aviation/tangram-core/utils";
 import {
   type Disposable,
   type Entity,
@@ -199,9 +200,12 @@ export async function install(ctx: PluginContext, config?: Jet1090FrontendConfig
           id: `aircraft-${r.state.icao24}`,
           component: AircraftResult,
           props: {
-            registration: r.state.registration,
-            icao24: r.state.icao24,
-            callsign: r.state.callsign,
+            registrationParts: highlightTextParts(
+              r.state.registration || r.state.icao24,
+              query
+            ),
+            icao24Parts: highlightTextParts(r.state.icao24, query),
+            callsignParts: highlightTextParts(r.state.callsign || "N/A", query),
             typecode: r.state.typecode
           },
           score: r.score,
@@ -255,8 +259,8 @@ export async function install(ctx: PluginContext, config?: Jet1090FrontendConfig
             id: `group-${key}`,
             component: AircraftHistoryGroup,
             props: {
-              icao24,
-              callsign
+              icao24Parts: highlightTextParts(icao24, query),
+              callsignParts: highlightTextParts(callsign, query)
             },
             score: 80,
             children: groupIntervals.map(f => ({

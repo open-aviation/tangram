@@ -2,20 +2,20 @@
   <div class="flight-group">
     <div class="row">
       <span class="callsign">
-        <HighlightText :text="callsign" :query="query" />
+        <HighlightText :parts="callsignParts" />
       </span>
-      <span class="icao24">0x<HighlightText :text="icao24" :query="query" /> </span>
+      <span class="icao24">0x<HighlightText :parts="icao24Parts" /> </span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { HighlightText } from "@open-aviation/tangram-core/components";
+import type { HighlightTextPart } from "@open-aviation/tangram-core/utils";
 
 defineProps<{
-  callsign: string;
-  icao24: string;
-  query: string;
+  callsignParts: readonly HighlightTextPart[];
+  icao24Parts: readonly HighlightTextPart[];
 }>();
 </script>
 
