@@ -8,7 +8,7 @@ When building the frontend for external tangram plugins, you may find helpers in
 
 Some lower-level helpers may be useful too, but they are less stable and may change at any point:
 
-- `@open-aviation/tangram-core/trajectory`: Utilities for any trajectory, such as segmentation, interpolation and deck.gl rendering utilities 
+- `@open-aviation/tangram-core/trajectory`: Utilities for any trajectory, such as segmentation, interpolation and deck.gl rendering utilities
 - `@open-aviation/tangram-core/utils`: icons, colour conversation, parsing, time formatting, etc.
 - `@open-aviation/tangram-core/keyboard`: Vim list navigation
 
@@ -36,7 +36,7 @@ export function install(ctx: PluginContext) {
 
 ### Frontend configuration
 
-A backend [`Plugin`][tangram_core.Plugin] may define the shape of the configuration with [`frontend_config_class`][tangram_core.Plugin.frontend_config_class]. In cases where you need to omit secrets, or derive browser-only values, pass in the [`into_frontend_config_function`][tangram_core.Plugin.into_frontend_config_function], or annotate fields with the [`FrontendMutable`][tangram_core.config.FrontendMutable] sentinel. 
+A backend [`Plugin`][tangram_core.Plugin] may define the shape of the configuration with [`frontend_config_class`][tangram_core.Plugin.frontend_config_class]. In cases where you need to omit secrets, or derive browser-only values, pass in the [`into_frontend_config_function`][tangram_core.Plugin.into_frontend_config_function], or annotate fields with the [`FrontendMutable`][tangram_core.config.FrontendMutable] sentinel.
 
 Tangram then serialises that into the manifest, converting it into a **reactive object** and passing that into the second argument to `install`. When the user changes the user settings in the UI, your code should react to those changes.
 
@@ -62,10 +62,10 @@ To make styles consistent, we provide some customisable Vue components:
 import {
   ColorPicker,
   FileDropTarget,
-  HighlightText,  // highlights case-insensitive matches of `query`, for use in search bars
+  HighlightText, // renders provider-precomputed highlight parts
   HoverLabel, // label with an optional native-tooltip description
   IconButton,
-  SvgIcon,
+  SvgIcon
 } from "@open-aviation/tangram-core/components";
 ```
 
@@ -113,4 +113,3 @@ For example:
 ```
 
 These variables may change when the user updates their theme, so make sure to watch for changes!
-

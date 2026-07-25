@@ -1,4 +1,5 @@
 import type { PluginContext } from "@open-aviation/tangram-core/api";
+import { highlightTextParts } from "@open-aviation/tangram-core/utils";
 import AirportSearchWidget from "./AirportSearchWidget.vue";
 
 interface AirportSearchEntry {
@@ -32,11 +33,11 @@ export async function install(ctx: PluginContext) {
         id: `airport-${airport.icao}`,
         component: AirportSearchWidget,
         props: {
-          name: airport.name,
-          city: airport.city,
+          nameParts: highlightTextParts(airport.name, query),
+          cityParts: highlightTextParts(airport.city, query),
           countryCode: airport.countryCode,
-          iata: airport.iata,
-          icao: airport.icao
+          iataParts: highlightTextParts(airport.iata, query),
+          icaoParts: highlightTextParts(airport.icao, query)
         },
         score: 100,
         onSelect: () => {

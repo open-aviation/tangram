@@ -2,30 +2,28 @@
   <div class="aircraft-result">
     <div class="row">
       <span class="reg">
-        <HighlightText :text="registration || icao24" :query="query" />
+        <HighlightText :parts="registrationParts" />
       </span>
       <div class="chips">
         <span class="chip blue">{{ typecode || "?" }}</span>
-        <span class="chip yellow">
-          0x<HighlightText :text="icao24" :query="query" />
-        </span>
+        <span class="chip yellow"> 0x<HighlightText :parts="icao24Parts" /> </span>
       </div>
     </div>
     <div class="subtitle">
-      <HighlightText :text="callsign || 'N/A'" :query="query" />
+      <HighlightText :parts="callsignParts" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { HighlightText } from "@open-aviation/tangram-core/components";
+import type { HighlightTextPart } from "@open-aviation/tangram-core/utils";
 
 defineProps<{
-  registration?: string;
-  icao24: string;
-  callsign?: string;
+  registrationParts: readonly HighlightTextPart[];
+  icao24Parts: readonly HighlightTextPart[];
+  callsignParts: readonly HighlightTextPart[];
   typecode?: string;
-  query: string;
 }>();
 </script>
 

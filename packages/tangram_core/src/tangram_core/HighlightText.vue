@@ -1,26 +1,18 @@
 <template>
   <span>
-    <span v-for="(p, i) in parts" :key="i" :class="{ highlight: p.m }">{{ p.t }}</span>
+    <span
+      v-for="(part, index) in parts"
+      :key="index"
+      :class="{ highlight: part.matched }"
+      >{{ part.text }}</span
+    >
   </span>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import type { HighlightTextPart } from "./utils";
 
-const props = defineProps<{
-  text: string;
-  query: string;
-}>();
-
-const parts = computed(() => {
-  if (!props.query || !props.text) return [{ t: props.text, m: false }];
-  const escapedQuery = props.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const r = new RegExp(`(${escapedQuery})`, "gi");
-  return props.text
-    .split(r)
-    .map(t => ({ t, m: t.toLowerCase() === props.query.toLowerCase() }))
-    .filter(x => x.t);
-});
+defineProps<{ parts: readonly HighlightTextPart[] }>();
 </script>
 
 <style scoped>
