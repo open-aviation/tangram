@@ -265,12 +265,12 @@ importers:
       '@deck.gl/core':
         specifier: ^9.3.6
         version: 9.3.6
+      '@deck.gl/extensions':
+        specifier: ^9.3.6
+        version: 9.3.6(@deck.gl/core@9.3.6)(@luma.gl/core@9.3.6)(@luma.gl/engine@9.3.6(@luma.gl/core@9.3.6)(@luma.gl/shadertools@9.3.6(@luma.gl/core@9.3.6)))
       '@deck.gl/layers':
         specifier: ^9.3.6
         version: 9.3.6(@deck.gl/core@9.3.6)(@loaders.gl/core@4.4.3)(@luma.gl/core@9.3.6)(@luma.gl/engine@9.3.6(@luma.gl/core@9.3.6)(@luma.gl/shadertools@9.3.6(@luma.gl/core@9.3.6)))
-      '@types/geojson':
-        specifier: ^7946.0.16
-        version: 7946.0.16
       thrust-wasm:
         specifier: ^0.2.2
         version: 0.2.2
