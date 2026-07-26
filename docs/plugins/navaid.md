@@ -4,7 +4,7 @@ The `tangram_navaid` plugin extends the command palette with browser-side search
 
 It bundles [`traffic.js`](https://github.com/xoolive/traffic.js) and [`thrust-wasm`](https://github.com/xoolive/thrust) in its wheel.
 
-Selecting a navaid or fix centres the map on the point and adds a removable map layer. Selecting a Field 15 expression resolves the route and draws its points and segments as removable layers.
+Selecting a navaid, fix, or Field 15 expression adds a workspace row. The workspace controls visibility, focus, and removal while the browser renders the selected points and resolved routes.
 
 ## Data Sources
 

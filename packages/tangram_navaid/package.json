@@ -15,8 +15,8 @@
   },
   "devDependencies": {
     "@deck.gl/core": "^9.3.6",
+    "@deck.gl/extensions": "^9.3.6",
     "@deck.gl/layers": "^9.3.6",
-    "@types/geojson": "^7946.0.16",
     "thrust-wasm": "^0.2.2",
     "vue": "^3.5.39"
   }
