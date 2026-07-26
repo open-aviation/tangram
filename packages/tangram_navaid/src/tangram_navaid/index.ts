@@ -1,24 +1,35 @@
+import { defineComponent, h, watch, type PropType } from "vue";
 import type {
+  MapBounds,
   PluginContext,
   SearchResult,
-  Disposable
+  WorkspaceDatasetEntry
 } from "@open-aviation/tangram-core/api";
+import { highlightTextParts } from "@open-aviation/tangram-core/utils";
+import Field15Tokens from "./Field15Tokens.vue";
+import NavaidDatasetChip from "./NavaidDatasetChip.vue";
+import NavaidDatasetDetails from "./NavaidDatasetDetails.vue";
+import NavaidLayers from "./NavaidLayers.vue";
 import NavaidResult from "./NavaidResult.vue";
-import Field15Result from "./Field15Result.vue";
 import {
-  configureTraffic,
-  setThrustModule,
-  searchNavaids,
-  searchFixes,
-  tryParseField15,
-  resolveRoute,
-  type NavFeatureProperties,
-  type FixFeatureProperties,
-  type PointFeature,
+  NAVAID_POINT_KIND,
+  PLANNED_ROUTE_KIND,
+  isPlannedRouteEntry,
+  NavaidPoint,
+  type PlannedRouteEntry,
+  type PlannedRouteInput,
+  ResolvedRoute,
+  type PlannedRouteResolution
+} from "./datasets";
+import { Field15Presentation } from "./field15Tokens";
+import { NavaidInteraction } from "./interaction";
+import {
+  createNavaidService,
+  isField15Candidate,
+  type FixFeature,
+  type NavaidFeature,
   type ParsedField15
 } from "./traffic";
-import { drawRoute } from "./routeLayer";
-import { drawPoint, type NavPointInfo } from "./pointLayer";
 
 const NAV_LIMIT = 8;
 
@@ -26,199 +37,402 @@ interface NavaidConfig {
   enable_faa?: boolean;
 }
 
-type AnyFeature =
-  PointFeature<NavFeatureProperties> | PointFeature<FixFeatureProperties>;
+class RouteJob {
+  private value: ResolvedRoute | null;
+  private promise: Promise<ResolvedRoute> | null = null;
 
-/** A drawn map item (point or route) plus its bookkeeping for removal. */
-interface DrawnItem {
-  id: string;
-  disposable: Disposable;
+  constructor(
+    private readonly load: () => Promise<ResolvedRoute>,
+    initialValue: ResolvedRoute | null = null
+  ) {
+    this.value = initialValue;
+  }
+
+  peek(): ResolvedRoute | null {
+    return this.value;
+  }
+
+  resolve(): Promise<ResolvedRoute> {
+    if (this.value) return Promise.resolve(this.value);
+    this.promise ??= this.load()
+      .then(route => {
+        this.value = route;
+        return route;
+      })
+      .catch(error => {
+        this.promise = null;
+        throw error;
+      });
+    return this.promise;
+  }
 }
 
+type AnyFeature = NavaidFeature | FixFeature;
+
 function scoreNavResult(query: string, ident: string, name: string): number {
-  const q = query.trim().toUpperCase();
-  const id = (ident ?? "").toUpperCase();
-  if (id === q) return 100;
-  if (id.startsWith(q)) return 85;
-  if ((name ?? "").toUpperCase().includes(q)) return 65;
+  const normalized = query.trim().toUpperCase();
+  const normalizedIdent = ident.toUpperCase();
+  if (normalizedIdent === normalized) return 100;
+  if (normalizedIdent.startsWith(normalized)) return 85;
+  if (name.toUpperCase().includes(normalized)) return 65;
   return 50;
 }
 
-export async function install(ctx: PluginContext, config: NavaidConfig = {}) {
-  const api = ctx.api;
+function pointEntryId(feature: AnyFeature): string {
+  const [longitude, latitude] = feature.geometry.coordinates;
+  const properties = feature.properties;
+  return [
+    "tangram-navaid",
+    properties.kind,
+    properties.ident,
+    properties.source ?? "xplane",
+    latitude,
+    longitude
+  ]
+    .map(String)
+    .map(encodeURIComponent)
+    .join(":");
+}
 
-  // Accumulated map items — many points and many routes can coexist. Each is
-  // disposable; clicking an item opens a remove menu (handled inside its layer).
-  const points: DrawnItem[] = [];
-  const routes: DrawnItem[] = [];
-  let disposed = false;
-  let seq = 0;
-  const nextId = (prefix: string) => `${prefix}-${++seq}`;
+function routeWorkspaceLabel(
+  elements: ParsedField15["elements"],
+  resolution?: PlannedRouteResolution
+): string {
+  const label = Field15Presentation.routeLabel(elements);
+  if (!resolution || resolution.status === "resolving") return label;
+  if (resolution.status === "error") return `${label} · resolution failed`;
+  const count = resolution.route.geometry.legs.length;
+  return `${label} · ${count} ${count === 1 ? "leg" : "legs"}`;
+}
 
-  const removeItem = (list: DrawnItem[], id: string) => {
-    const index = list.findIndex(item => item.id === id);
-    if (index === -1) return;
-    list[index].disposable.dispose();
-    list.splice(index, 1);
+function withRouteResolution(
+  entry: WorkspaceDatasetEntry,
+  expression: string,
+  resolution: PlannedRouteResolution
+): WorkspaceDatasetEntry | undefined {
+  if (!isPlannedRouteEntry(entry) || entry.payload.expression !== expression) return;
+  return {
+    ...entry,
+    label: routeWorkspaceLabel(entry.payload.elements, resolution),
+    bounds: resolution.status === "resolved" ? resolution.route.bounds : null,
+    payload: { ...entry.payload, resolution }
   };
+}
 
+export async function install(ctx: PluginContext, config?: NavaidConfig) {
+  const api = ctx.api;
+  const interaction = new NavaidInteraction();
+  const service = createNavaidService({
+    loadThrustModule: () =>
+      ctx.importModule<typeof import("thrust-wasm/web")>("thrust_wasm.js")
+  });
+  const pendingFits = new Map<string, number>();
+  // only resolving workspace rows retain jobs
+  const workspaceJobs = new Map<string, RouteJob>();
+  let cameraIntent = 0;
+
+  const stopMapWatch = watch(
+    () => api.map.map.value,
+    (map, _previous, onCleanup) => {
+      if (!map) return;
+      // any map movement invalidates a pending async fit
+      const invalidatePendingFit = () => {
+        cameraIntent += 1;
+      };
+      map.on("movestart", invalidatePendingFit);
+      onCleanup(() => map.off("movestart", invalidatePendingFit));
+    },
+    { immediate: true }
+  );
+
+  ctx.onDispose({ dispose: stopMapWatch });
   ctx.onDispose({
     dispose: () => {
-      disposed = true;
-      for (const item of [...points, ...routes]) item.disposable.dispose();
-      points.length = 0;
-      routes.length = 0;
+      pendingFits.clear();
+      workspaceJobs.clear();
+      interaction.clearHover();
     }
   });
 
-  const featureToResult = (query: string, feature: AnyFeature): SearchResult => {
-    const p = feature.properties;
-    const isFix = p.kind === "fix";
-    const frequency =
-      !isFix && "frequency" in p ? (p as NavFeatureProperties).frequency : undefined;
-    const elevationFt =
-      !isFix && "elevation_ft" in p
-        ? ((p as NavFeatureProperties).elevation_ft ?? null)
-        : null;
-    const lon = feature.geometry.coordinates[0];
-    const lat = feature.geometry.coordinates[1];
+  if (config) {
+    ctx.onDispose({
+      dispose: watch(
+        () => config.enable_faa,
+        () => api.search.refresh()
+      )
+    });
+  }
 
+  function claimCamera(): number {
+    cameraIntent += 1;
+    return cameraIntent;
+  }
+
+  function fitBounds(bounds: MapBounds, intent: number, entryId?: string): void {
+    if (intent !== cameraIntent) return;
+    if (entryId) {
+      const entry = api.workspace.datasets.value.find(
+        dataset => dataset.id === entryId
+      );
+      if (!entry?.visible) return;
+    }
+    const map = api.map.map.value;
+    if (!map) return;
+    cameraIntent += 1;
+    map.fitBounds(
+      [
+        [bounds.minLon, bounds.minLat],
+        [bounds.maxLon, bounds.maxLat]
+      ],
+      { padding: 60, maxZoom: 14 }
+    );
+  }
+
+  async function resolveParsedRoute(
+    parsed: ParsedField15,
+    enableFaa: boolean
+  ): Promise<ResolvedRoute> {
+    const resolution = await service.resolveRoute(parsed.expression, enableFaa);
+    if (resolution.route.features.length === 0) {
+      throw new Error("no route segments resolved");
+    }
+    return ResolvedRoute.fromResolution(parsed.elements, resolution);
+  }
+
+  function resolveRouteEntry(
+    entryId: string,
+    parsed: ParsedField15,
+    job: RouteJob
+  ): void {
+    workspaceJobs.set(entryId, job);
+    void job
+      .resolve()
+      .then(route => {
+        if (ctx.signal.aborted || workspaceJobs.get(entryId) !== job) return;
+        workspaceJobs.delete(entryId);
+        const updated = api.workspace.update(entryId, entry =>
+          withRouteResolution(entry, parsed.expression, { status: "resolved", route })
+        );
+        const intent = pendingFits.get(entryId);
+        pendingFits.delete(entryId);
+        if (updated && intent !== undefined && route.bounds) {
+          fitBounds(route.bounds, intent, entryId);
+        }
+      })
+      .catch(error => {
+        if (workspaceJobs.get(entryId) !== job) return;
+        workspaceJobs.delete(entryId);
+        pendingFits.delete(entryId);
+        if (ctx.signal.aborted) return;
+        const message = error instanceof Error ? error.message : String(error);
+        api.workspace.update(entryId, entry =>
+          withRouteResolution(entry, parsed.expression, { status: "error", message })
+        );
+      });
+  }
+
+  const detailsComponent = defineComponent({
+    name: "NavaidWorkspaceDetails",
+    props: {
+      dataset: {
+        type: Object as PropType<WorkspaceDatasetEntry>,
+        required: true
+      }
+    },
+    setup(props) {
+      return () =>
+        h(NavaidDatasetDetails, {
+          dataset: props.dataset,
+          interaction: interaction
+        });
+    }
+  });
+
+  api.ui.registerWorkspaceComponents(NAVAID_POINT_KIND, {
+    pluginId: ctx.id,
+    chip: NavaidDatasetChip,
+    details: detailsComponent
+  });
+  api.ui.registerWorkspaceComponents(PLANNED_ROUTE_KIND, {
+    pluginId: ctx.id,
+    chip: NavaidDatasetChip,
+    details: detailsComponent
+  });
+  api.ui.registerWidget("tangram-navaid-layers", "MapOverlay", NavaidLayers, {
+    pluginId: ctx.id,
+    props: { pluginId: ctx.id, interaction: interaction }
+  });
+
+  function featureToResult(query: string, feature: AnyFeature): SearchResult {
+    const properties = feature.properties;
+    const [longitude, latitude] = feature.geometry.coordinates;
+    const point = NavaidPoint.fromFeature(feature);
+
+    const entryId = pointEntryId(feature);
     return {
-      id: `tangram-navaid-${isFix ? "fix" : "navaid"}-${p.ident}-${lat.toFixed(3)}-${lon.toFixed(3)}`,
-      score: scoreNavResult(query, p.ident, p.name),
+      id: entryId,
+      score: scoreNavResult(query, properties.ident, properties.name),
       component: NavaidResult,
       props: {
-        ident: p.ident,
-        name: p.name,
-        kind: p.kind,
-        lat,
-        lon,
-        frequency: frequency ?? null
+        point,
+        identParts: highlightTextParts(point.ident, query),
+        nameParts: highlightTextParts(point.name || point.ident, query)
       },
       onSelect: () => {
-        const id = nextId("point");
-        const disposable = drawPoint(
-          api,
-          ctx.id,
-          id,
-          {
-            ident: p.ident,
-            name: p.name,
-            kind: p.kind,
-            lat,
-            lon,
-            elevationFt
-          } satisfies NavPointInfo,
-          () => removeItem(points, id)
-        );
-        points.push({ id, disposable });
-        api.map.getMapInstance().flyTo({
-          center: [lon, lat],
+        if (ctx.signal.aborted) return;
+        claimCamera();
+        // search and workspace share identity so selecting a point is idempotent
+        api.workspace.add({
+          id: entryId,
+          kind: NAVAID_POINT_KIND,
+          pluginId: ctx.id,
+          label: point.ident,
+          payload: { type: "point", point },
+          bounds: point.bounds
+        });
+        api.map.map.value?.flyTo({
+          center: [longitude, latitude],
           zoom: 9,
           speed: 1.2
         });
       }
     };
-  };
+  }
 
-  configureTraffic({ enableFaa: config.enable_faa });
+  function findRoute(expression: string): PlannedRouteEntry | undefined {
+    return api.workspace.datasets.value.find(
+      (entry): entry is PlannedRouteEntry =>
+        isPlannedRouteEntry(entry) && entry.payload.expression === expression
+    );
+  }
 
-  // esm.sh exposes a browser `process` polyfill with `versions.node`. traffic.js
-  // mistakes that for Node, tries bare `thrust-wasm` imports, and returns before
-  // its browser CDN fallbacks. Import the plugin-owned web build explicitly.
-  let field15Promise: Promise<void> | null = null;
-  const prepareField15 = () => {
-    if (!field15Promise) {
-      field15Promise = ctx
-        .importModule<typeof import("thrust-wasm/web")>("thrust_wasm.js")
-        .then(setThrustModule)
-        .catch(err => {
-          field15Promise = null;
-          throw err;
-        });
-    }
-    return field15Promise;
-  };
-
-  const drawRouteExpression = async ({ expression }: ParsedField15) => {
-    try {
-      const resolution = await resolveRoute(expression);
-      if (disposed) return;
-      if (!resolution.route.features.length) {
-        console.warn("tangram_navaid: no route segments resolved for", expression);
+  function addRoute(parsed: ParsedField15, job: RouteJob): void {
+    if (ctx.signal.aborted) return;
+    const intent = claimCamera();
+    const existing = findRoute(parsed.expression);
+    if (existing) {
+      api.workspace.setVisibility(existing.id, true);
+      if (existing.payload.resolution.status === "resolved") {
+        if (existing.bounds) fitBounds(existing.bounds, intent, existing.id);
         return;
       }
 
-      const id = nextId("route");
-      const disposable = drawRoute(api, ctx.id, id, resolution, () =>
-        removeItem(routes, id)
-      );
-      if (disposed) {
-        disposable.dispose();
-        return;
+      pendingFits.set(existing.id, intent);
+      const resolved = job.peek();
+      if (resolved) {
+        workspaceJobs.delete(existing.id);
+        api.workspace.update(existing.id, entry =>
+          withRouteResolution(entry, parsed.expression, {
+            status: "resolved",
+            route: resolved
+          })
+        );
+        pendingFits.delete(existing.id);
+        if (resolved.bounds) fitBounds(resolved.bounds, intent, existing.id);
+      } else if (!workspaceJobs.has(existing.id)) {
+        api.workspace.update(existing.id, entry =>
+          withRouteResolution(entry, parsed.expression, { status: "resolving" })
+        );
+        resolveRouteEntry(existing.id, parsed, job);
       }
-      routes.push({ id, disposable });
-    } catch (err) {
-      if (!disposed) {
-        console.warn("tangram_navaid: route resolution failed:", err);
-      }
+      return;
     }
-  };
 
-  // --- navaids + fixes -----------------------------------------------------
+    const resolved = job.peek();
+    const resolution: PlannedRouteResolution = resolved
+      ? { status: "resolved", route: resolved }
+      : { status: "resolving" };
+    const entryId = crypto.randomUUID();
+    api.workspace.add({
+      id: entryId,
+      kind: PLANNED_ROUTE_KIND,
+      pluginId: ctx.id,
+      label: routeWorkspaceLabel(parsed.elements, resolution),
+      payload: {
+        type: "route",
+        expression: parsed.expression,
+        elements: parsed.elements,
+        resolution
+      },
+      bounds: resolved?.bounds ?? null,
+      dispose: () => {
+        workspaceJobs.delete(entryId);
+        pendingFits.delete(entryId);
+      }
+    } satisfies PlannedRouteInput);
+
+    if (resolved) {
+      if (resolved.bounds) fitBounds(resolved.bounds, intent, entryId);
+    } else {
+      pendingFits.set(entryId, intent);
+      resolveRouteEntry(entryId, parsed, job);
+    }
+  }
 
   api.search.registerProvider({
     id: "tangram-navaid-nav",
     pluginId: ctx.id,
     name: "Navigation data (navaids & fixes)",
     search: async (query, signal) => {
-      const q = query.trim();
-      if (q.length < 2 || signal.aborted) return [];
+      const normalized = query.trim();
+      if (
+        normalized.length < 2 ||
+        /\s/.test(normalized) ||
+        signal.aborted ||
+        ctx.signal.aborted
+      ) {
+        return [];
+      }
       try {
         const [navaids, fixes] = await Promise.all([
-          searchNavaids(q, NAV_LIMIT),
-          searchFixes(q, NAV_LIMIT)
+          service.searchNavaids(normalized, NAV_LIMIT),
+          service.searchFixes(normalized, NAV_LIMIT)
         ]);
-        if (signal.aborted) return [];
-
-        const features: AnyFeature[] = [...navaids, ...fixes];
-        return features
-          .map(feature => featureToResult(q, feature))
-          .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        if (signal.aborted || ctx.signal.aborted) return [];
+        return [...navaids, ...fixes]
+          .map(feature => featureToResult(normalized, feature))
+          .sort((left, right) => (right.score ?? 0) - (left.score ?? 0))
           .slice(0, NAV_LIMIT);
-      } catch (err) {
-        console.warn("tangram_navaid: navaid/fix search failed:", err);
+      } catch (error) {
+        if (!signal.aborted && !ctx.signal.aborted) {
+          console.warn("tangram_navaid: navigation search failed:", error);
+        }
         return [];
       }
     }
   });
-
-  // --- Field 15 routes -----------------------------------------------------
 
   api.search.registerProvider({
     id: "tangram-navaid-field15",
     pluginId: ctx.id,
     name: "Field 15 route",
     search: async (query, signal) => {
-      if (query.trim().length < 2 || signal.aborted) return [];
+      if (signal.aborted || ctx.signal.aborted || !isField15Candidate(query)) return [];
+      const parsed = await service.tryParseField15(query);
+      if (signal.aborted || ctx.signal.aborted || !parsed.ok) return [];
 
-      try {
-        await prepareField15();
-      } catch {
-        return [];
-      }
-      if (signal.aborted) return [];
-
-      const parsed = await tryParseField15(query);
-      if (signal.aborted || !parsed.ok) return [];
+      const value = parsed.value;
+      const resultId = `tangram-navaid-route:${encodeURIComponent(value.expression)}`;
+      const existing = findRoute(value.expression);
+      const resolved =
+        existing?.payload.resolution.status === "resolved"
+          ? existing.payload.resolution.route
+          : null;
+      // Reuse workspace-owned work; otherwise resolution begins only on selection.
+      const enableFaa = config?.enable_faa ?? false;
+      const job =
+        (existing?.payload.resolution.status === "resolving"
+          ? workspaceJobs.get(existing.id)
+          : undefined) ??
+        new RouteJob(() => resolveParsedRoute(value, enableFaa), resolved);
 
       return [
         {
-          id: "tangram-navaid-route-custom",
+          id: resultId,
           score: 90,
-          component: Field15Result,
-          props: { expression: parsed.value.expression, label: "Resolve & draw route" },
-          onSelect: () => drawRouteExpression(parsed.value)
+          component: Field15Tokens,
+          props: { elements: value.elements },
+          onSelect: () => addRoute(value, job)
         }
       ];
     }

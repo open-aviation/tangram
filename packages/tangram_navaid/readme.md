@@ -2,7 +2,7 @@
 
 The `tangram_navaid` plugin adds browser-side navaid, fix, and ICAO Field 15 route search to the tangram command palette.
 
-Selecting a result centres the map on a navigation point or draws the resolved route as removable map layers.
+Selecting a result adds a workspace row for the navigation point or planned route.
 
 ## About Tangram
 
