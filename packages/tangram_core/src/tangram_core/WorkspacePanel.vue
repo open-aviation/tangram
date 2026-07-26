@@ -372,7 +372,7 @@ function toggleCollapsed(id: string) {
 .right-col {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
   flex-shrink: 0;
   justify-self: end;
 }

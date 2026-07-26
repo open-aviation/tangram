@@ -41,6 +41,7 @@ function createPluginHandle(
   readonly context: PluginContext;
 } {
   const ownedDisposables = new Set<Disposable>();
+  const controller = new AbortController();
   let disposed = false;
 
   const onDispose = <T extends Disposable>(disposable: T): T => {
@@ -72,6 +73,7 @@ function createPluginHandle(
     context: {
       id: pluginId,
       api: tangramApi,
+      signal: controller.signal,
       assetUrl,
       importModule,
       onDispose
@@ -79,6 +81,7 @@ function createPluginHandle(
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      controller.abort();
       for (const disposable of [...ownedDisposables].reverse()) {
         disposable.dispose();
       }

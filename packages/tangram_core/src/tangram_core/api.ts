@@ -1880,39 +1880,59 @@ export interface SearchProvider {
 
 export class SearchApi {
   private providers = new Map<string, SearchProvider>();
+  readonly revision = ref(0);
+
+  private changed(): void {
+    this.revision.value += 1;
+  }
+
+  refresh(): void {
+    this.changed();
+  }
 
   registerProvider(provider: SearchProvider): Disposable {
     this.providers.set(provider.id, provider);
+    this.changed();
     return bindDisposableToCurrentScope(
       createDisposable(() => {
+        if (this.providers.get(provider.id) !== provider) return;
         this.providers.delete(provider.id);
+        this.changed();
       })
     );
   }
 
   removeAllByPlugin(pluginId: string): void {
+    let changed = false;
     for (const [providerId, provider] of this.providers.entries()) {
       if (provider.pluginId === pluginId) {
         this.providers.delete(providerId);
+        changed = true;
       }
     }
+    if (changed) this.changed();
   }
 
   async search(
     query: string,
     signal: AbortSignal,
-    onResult: (results: SearchResult[]) => void
+    onResult: (providerId: string, results: SearchResult[]) => void
   ): Promise<void> {
+    const providers = Array.from(this.providers.values());
     await Promise.all(
-      Array.from(this.providers.values()).map(async provider => {
+      providers.map(async provider => {
         try {
           const results = await provider.search(query, signal);
-          if (!signal.aborted && results.length > 0) {
-            onResult(results);
+          if (
+            !signal.aborted &&
+            this.providers.get(provider.id) === provider &&
+            results.length > 0
+          ) {
+            onResult(provider.id, results);
           }
-        } catch (e) {
-          if (!signal.aborted) {
-            console.error(`search error in ${provider.id}:`, e);
+        } catch (error) {
+          if (!signal.aborted && this.providers.get(provider.id) === provider) {
+            console.error(`search error in ${provider.id}:`, error);
           }
         }
       })
@@ -2260,10 +2280,12 @@ export class TangramApi {
  * - passive data (widgets, layers, EntityTypes): pass `pluginId: ctx.id`.
  *   core will bulk-sweep from registries on plugin unload.
  * - active resources (WebSockets, Timers, DOM Listeners): wrap in `ctx.onDispose`.
+ * - async callbacks: check `ctx.signal.aborted` before publishing
  */
 export interface PluginContext {
   readonly id: string;
   readonly api: TangramApi;
+  readonly signal: AbortSignal;
   assetUrl(fileName: string): string;
   importModule<T>(fileName: string): Promise<T>;
   onDispose<T extends Disposable>(disposable: T): T;
