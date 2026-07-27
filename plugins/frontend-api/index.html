@@ -743,6 +743,8 @@
       
         
       
+        
+      
     
     
     
@@ -979,6 +981,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../navaid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Navaid Plugin
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../explore/" class="md-nav__link">
         
   
@@ -1166,6 +1195,8 @@
   
     
     
+      
+        
       
         
       
@@ -1422,6 +1453,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/navaid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Navaid
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/weather/" class="md-nav__link">
         
   
@@ -1603,7 +1661,7 @@
 </ul>
 <p>Some lower-level helpers may be useful too, but they are less stable and may change at any point:</p>
 <ul>
-<li><code>@open-aviation/tangram-core/trajectory</code>: Utilities for any trajectory, such as segmentation, interpolation and deck.gl rendering utilities </li>
+<li><code>@open-aviation/tangram-core/trajectory</code>: Utilities for any trajectory, such as segmentation, interpolation and deck.gl rendering utilities</li>
 <li><code>@open-aviation/tangram-core/utils</code>: icons, colour conversation, parsing, time formatting, etc.</li>
 <li><code>@open-aviation/tangram-core/keyboard</code>: Vim list navigation</li>
 </ul>
@@ -1648,7 +1706,7 @@
 
   &lt;span class=&quot;doc doc-labels&quot;&gt;
       &lt;small class=&quot;doc doc-label doc-label-dataclass&quot;&gt;&lt;code&gt;dataclass&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="../../api/core/#tangram_core.config.FrontendMutable"><code>FrontendMutable</code></a> sentinel. </p>
+  &lt;/span&gt;" href="../../api/core/#tangram_core.config.FrontendMutable"><code>FrontendMutable</code></a> sentinel.</p>
 <p>Tangram then serialises that into the manifest, converting it into a <strong>reactive object</strong> and passing that into the second argument to <code>install</code>. When the user changes the user settings in the UI, your code should react to those changes.</p>
 <div class="language-ts highlight"><pre><span></span><code><span class="kd">interface</span><span class="w"> </span><span class="nx">MyFrontendConfig</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">enabled</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="p">;</span>
@@ -1667,10 +1725,10 @@
 <div class="language-ts highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">ColorPicker</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">FileDropTarget</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">HighlightText</span><span class="p">,</span><span class="w">  </span><span class="c1">// highlights case-insensitive matches of `query`, for use in search bars</span>
+<span class="w">  </span><span class="nx">HighlightText</span><span class="p">,</span><span class="w"> </span><span class="c1">// renders provider-precomputed highlight parts</span>
 <span class="w">  </span><span class="nx">HoverLabel</span><span class="p">,</span><span class="w"> </span><span class="c1">// label with an optional native-tooltip description</span>
 <span class="w">  </span><span class="nx">IconButton</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">SvgIcon</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">SvgIcon</span>
 <span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@open-aviation/tangram-core/components&quot;</span><span class="p">;</span>
 </code></pre></div>
 <p>These components are opinionated and may change over time.</p>

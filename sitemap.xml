@@ -49,6 +49,9 @@
         <loc>https://mode-s.org/tangram/plugins/airports/</loc>
       </url>
       <url>
+        <loc>https://mode-s.org/tangram/plugins/navaid/</loc>
+      </url>
+      <url>
         <loc>https://mode-s.org/tangram/plugins/explore/</loc>
       </url>
       <url>
@@ -80,6 +83,9 @@
       </url>
       <url>
         <loc>https://mode-s.org/tangram/api/explore/</loc>
+      </url>
+      <url>
+        <loc>https://mode-s.org/tangram/api/navaid/</loc>
       </url>
       <url>
         <loc>https://mode-s.org/tangram/api/weather/</loc>
