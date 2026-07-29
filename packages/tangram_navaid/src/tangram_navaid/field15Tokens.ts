@@ -569,8 +569,7 @@ function buildField15Presentation(
       else if (startJunction === undefined)
         missingPoints.push(previousPointToken.label);
       if (!followingPointToken) missingPoints.push("following point");
-      else if (endJunction === undefined)
-        missingPoints.push(followingPointToken.label);
+      else if (endJunction === undefined) missingPoints.push(followingPointToken.label);
 
       if (missingPoints.length > 0) {
         token.addWarning(
@@ -598,7 +597,11 @@ function buildField15Presentation(
           associatedSegmentIndices.push(index);
         }
       } else if (endJunction !== undefined) {
-        for (let offset = candidateSegmentIndices.length - 1; offset >= 0; offset -= 1) {
+        for (
+          let offset = candidateSegmentIndices.length - 1;
+          offset >= 0;
+          offset -= 1
+        ) {
           const index = candidateSegmentIndices[offset];
           if (!token.matchesSegment(segments[index])) break;
           associatedSegmentIndices.unshift(index);

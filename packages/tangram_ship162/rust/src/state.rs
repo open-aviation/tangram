@@ -342,7 +342,7 @@ impl ShipStateVectors {
             })
             .collect();
 
-        matches.sort_by(|a, b| b.0.cmp(&a.0));
+        matches.sort_by_key(|b| std::cmp::Reverse(b.0));
 
         matches
             .into_iter()

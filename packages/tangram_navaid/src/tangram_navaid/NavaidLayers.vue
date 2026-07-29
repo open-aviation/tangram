@@ -152,7 +152,11 @@ class RouteLegDatum {
     readonly warningCategory: Field15TokenCategory | undefined
   ) {}
 
-  static fromRoute(entryId: string, route: ResolvedRoute, index: number): RouteLegDatum {
+  static fromRoute(
+    entryId: string,
+    route: ResolvedRoute,
+    index: number
+  ): RouteLegDatum {
     const leg = route.geometry.legs[index];
     const tokenIndices = route.presentation.segmentTokenIndices.get(index) ?? [];
     const tokens = tokenIndices.flatMap(tokenIndex => {
@@ -341,9 +345,10 @@ function appendRoute(
   );
 }
 
-function buildLayerData(
-  currentEntries: NavaidDatasetEntry[]
-): { points: MapPointDatum[]; segments: RouteLegDatum[] } {
+function buildLayerData(currentEntries: NavaidDatasetEntry[]): {
+  points: MapPointDatum[];
+  segments: RouteLegDatum[];
+} {
   const points: MapPointDatum[] = [];
   const segments: RouteLegDatum[] = [];
 
@@ -501,7 +506,8 @@ watch(
       capRounded: true,
       getWidth: routeStrokePixels.casing,
       getPath: datum => datum.leg.feature.geometry.coordinates,
-      getColor: datum => withAlpha(themeColors.casing, casingAlpha(datum, relevantActiveId))
+      getColor: datum =>
+        withAlpha(themeColors.casing, casingAlpha(datum, relevantActiveId))
     });
     const segmentLayer = new PathLayer<RouteLegDatum>({
       id: "tangram-navaid-routes",
@@ -558,7 +564,8 @@ watch(
       getPosition: datum => datum.position,
       getFillColor: datum =>
         withAlpha(themeColors.point, datumAlpha(datum, relevantActiveId)),
-      getLineColor: datum => withAlpha(themeColors.casing, casingAlpha(datum, relevantActiveId)),
+      getLineColor: datum =>
+        withAlpha(themeColors.casing, casingAlpha(datum, relevantActiveId)),
       getLineWidth: 1,
       onHover: handlePointHover
     });
@@ -571,7 +578,8 @@ watch(
       getIcon: () => TRIANGLE_ICON,
       getSize: datum => triangleMarkerSize(datum) + TRIANGLE_CASING_PIXELS,
       getPosition: datum => datum.position,
-      getColor: datum => withAlpha(themeColors.casing, casingAlpha(datum, relevantActiveId))
+      getColor: datum =>
+        withAlpha(themeColors.casing, casingAlpha(datum, relevantActiveId))
     });
     const trianglePointLayer = new IconLayer<MapPointDatum>({
       id: "tangram-navaid-triangle-points",

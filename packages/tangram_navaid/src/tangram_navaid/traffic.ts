@@ -189,8 +189,9 @@ export function createNavaidService(options: NavaidServiceOptions): NavaidServic
   );
 
   async function buildResolver(enableFaa: boolean): Promise<ResolverInstance> {
-    const [lib, navResolver, fixResolver, awyResolver, ddrResolver] =
-      await Promise.all([field15Runtime(), nav(), fix(), awy(), ddr()]);
+    const [lib, navResolver, fixResolver, awyResolver, ddrResolver] = await Promise.all(
+      [field15Runtime(), nav(), fix(), awy(), ddr()]
+    );
 
     const xplane: XplaneSource = {
       navaids: navResolver.navaids,
