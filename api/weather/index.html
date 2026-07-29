@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../icons/favicon.ico">
-      <meta name="generator" content="zensical-0.0.50">
+      <meta name="generator" content="zensical-0.0.51">
     
     
       
@@ -2326,7 +2326,9 @@
 <span class="normal">54</span>
 <span class="normal">55</span>
 <span class="normal">56</span>
-<span class="normal">57</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">download_with_progress</span><span class="p">(</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">download_with_progress</span><span class="p">(</span>
     <span class="n">client</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">AsyncClient</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="n">Path</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="k">try</span><span class="p">:</span>
@@ -2337,27 +2339,29 @@
                 <span class="p">)</span>
 
             <span class="n">total_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Content-Length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
-            <span class="k">with</span> <span class="n">file</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">buffer</span><span class="p">:</span>
-                <span class="k">with</span> <span class="n">tqdm</span><span class="p">(</span>
+            <span class="k">with</span> <span class="p">(</span>
+                <span class="n">file</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">buffer</span><span class="p">,</span>
+                <span class="n">tqdm</span><span class="p">(</span>
                     <span class="n">total</span><span class="o">=</span><span class="n">total_size</span><span class="p">,</span>
                     <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;B&quot;</span><span class="p">,</span>
                     <span class="n">unit_scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">desc</span><span class="o">=</span><span class="n">url</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
-                <span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
-                    <span class="n">first_chunk</span> <span class="o">=</span> <span class="kc">True</span>
-                    <span class="k">async</span> <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">aiter_bytes</span><span class="p">():</span>
-                        <span class="k">if</span> <span class="n">first_chunk</span> <span class="ow">and</span> <span class="n">chunk</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;&lt;?xml&quot;</span><span class="p">):</span>
-                            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                                <span class="sa">f</span><span class="s2">&quot;Error downloading data from </span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2">. &quot;</span>
-                                <span class="s2">&quot;Check if the requested data is available.&quot;</span>
-                            <span class="p">)</span>
-                        <span class="n">first_chunk</span> <span class="o">=</span> <span class="kc">False</span>
-                        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">buffer</span><span class="o">.</span><span class="n">write</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
-                        <span class="n">progress_bar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">))</span>
-    <span class="k">except</span> <span class="p">(</span><span class="n">httpx</span><span class="o">.</span><span class="n">RequestError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">,</span>
+            <span class="p">):</span>
+                <span class="n">first_chunk</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">async</span> <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">aiter_bytes</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">first_chunk</span> <span class="ow">and</span> <span class="n">chunk</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;&lt;?xml&quot;</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;Error downloading data from </span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2">. &quot;</span>
+                            <span class="s2">&quot;Check if the requested data is available.&quot;</span>
+                        <span class="p">)</span>
+                    <span class="n">first_chunk</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">buffer</span><span class="o">.</span><span class="n">write</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
+                    <span class="n">progress_bar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">))</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">httpx</span><span class="o">.</span><span class="n">RequestError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
             <span class="n">file</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
-        <span class="k">raise</span> <span class="n">e</span>
+        <span class="k">raise</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2386,9 +2390,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_weather/src/tangram_weather/arpege.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 60</span>
-<span class="normal"> 61</span>
-<span class="normal"> 62</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 62</span>
 <span class="normal"> 63</span>
 <span class="normal"> 64</span>
 <span class="normal"> 65</span>
@@ -2459,7 +2461,9 @@
 <span class="normal">130</span>
 <span class="normal">131</span>
 <span class="normal">132</span>
-<span class="normal">133</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">latest_data</span><span class="p">(</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">latest_data</span><span class="p">(</span>
     <span class="n">client</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">AsyncClient</span><span class="p">,</span>
     <span class="n">hour</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">,</span>
     <span class="n">model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ARPEGE&quot;</span><span class="p">,</span>

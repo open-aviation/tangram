@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../icons/favicon.ico">
-      <meta name="generator" content="zensical-0.0.50">
+      <meta name="generator" content="zensical-0.0.51">
     
     
       
@@ -3113,9 +3113,9 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/__init__.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">32</span>
-<span class="normal">33</span>
-<span class="normal">34</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">TangramNavaidFrontendConfig</span><span class="p">:</span>
     <span class="n">enable_faa</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 </code></pre></div></td></tr></table></div>
@@ -3334,13 +3334,13 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">38</span>
-<span class="normal">39</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">39</span>
 <span class="normal">40</span>
 <span class="normal">41</span>
 <span class="normal">42</span>
 <span class="normal">43</span>
-<span class="normal">44</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">44</span>
+<span class="normal">45</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">XplaneAssets</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Remote X-Plane navigation datasets cached by the backend.&quot;&quot;&quot;</span>
 
@@ -3488,14 +3488,14 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">47</span>
-<span class="normal">48</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">48</span>
 <span class="normal">49</span>
 <span class="normal">50</span>
 <span class="normal">51</span>
 <span class="normal">52</span>
 <span class="normal">53</span>
-<span class="normal">54</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">54</span>
+<span class="normal">55</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">FaaAssets</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Remote FAA ArcGIS collections cached by the backend.&quot;&quot;&quot;</span>
 
@@ -3667,8 +3667,7 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">57</span>
-<span class="normal">58</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">58</span>
 <span class="normal">59</span>
 <span class="normal">60</span>
 <span class="normal">61</span>
@@ -3680,7 +3679,8 @@
 <span class="normal">67</span>
 <span class="normal">68</span>
 <span class="normal">69</span>
-<span class="normal">70</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">70</span>
+<span class="normal">71</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">TangramNavaidConfig</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for the navaid, fix, and Field 15 search plugin.&quot;&quot;&quot;</span>
 
@@ -3929,14 +3929,14 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">73</span>
-<span class="normal">74</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">74</span>
 <span class="normal">75</span>
 <span class="normal">76</span>
 <span class="normal">77</span>
 <span class="normal">78</span>
 <span class="normal">79</span>
-<span class="normal">80</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">80</span>
+<span class="normal">81</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Source</span><span class="p">:</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">group</span><span class="p">:</span> <span class="n">SourceGroup</span>
@@ -4155,14 +4155,14 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">83</span>
-<span class="normal">84</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">84</span>
 <span class="normal">85</span>
 <span class="normal">86</span>
 <span class="normal">87</span>
 <span class="normal">88</span>
 <span class="normal">89</span>
-<span class="normal">90</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CacheEntry</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+<span class="normal">90</span>
+<span class="normal">91</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CacheEntry</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">group</span><span class="p">:</span> <span class="n">SourceGroup</span>
     <span class="n">required</span><span class="p">:</span> <span class="nb">bool</span>
@@ -4379,9 +4379,9 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">93</span>
-<span class="normal">94</span>
-<span class="normal">95</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CacheStatus</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">94</span>
+<span class="normal">95</span>
+<span class="normal">96</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CacheStatus</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
     <span class="n">ready</span><span class="p">:</span> <span class="nb">bool</span>
     <span class="n">entries</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CacheEntry</span><span class="p">]</span>
 </code></pre></div></td></tr></table></div>
@@ -4478,10 +4478,10 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 98</span>
-<span class="normal"> 99</span>
+                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 99</span>
 <span class="normal">100</span>
-<span class="normal">101</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CacheOperation</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+<span class="normal">101</span>
+<span class="normal">102</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CacheOperation</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
     <span class="n">status</span><span class="p">:</span> <span class="n">CacheStatus</span>
     <span class="n">updated</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
     <span class="n">unchanged</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
@@ -4602,14 +4602,14 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">107</span>
-<span class="normal">108</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">108</span>
 <span class="normal">109</span>
 <span class="normal">110</span>
 <span class="normal">111</span>
 <span class="normal">112</span>
 <span class="normal">113</span>
-<span class="normal">114</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">ddr_source</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Source</span><span class="p">:</span>
+<span class="normal">114</span>
+<span class="normal">115</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">ddr_source</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Source</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">Source</span><span class="p">(</span>
         <span class="s2">&quot;ddr&quot;</span><span class="p">,</span>
         <span class="s2">&quot;ddr&quot;</span><span class="p">,</span>
@@ -4654,14 +4654,14 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">117</span>
-<span class="normal">118</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">118</span>
 <span class="normal">119</span>
 <span class="normal">120</span>
 <span class="normal">121</span>
 <span class="normal">122</span>
 <span class="normal">123</span>
-<span class="normal">124</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">xplane_source</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">XplaneDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Source</span><span class="p">:</span>
+<span class="normal">124</span>
+<span class="normal">125</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">xplane_source</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">XplaneDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Source</span><span class="p">:</span>
     <span class="k">if</span> <span class="n">dataset</span> <span class="o">==</span> <span class="s2">&quot;nav&quot;</span><span class="p">:</span>
         <span class="n">url</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">xplane</span><span class="o">.</span><span class="n">nav_url</span>
     <span class="k">elif</span> <span class="n">dataset</span> <span class="o">==</span> <span class="s2">&quot;fix&quot;</span><span class="p">:</span>
@@ -4706,8 +4706,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">127</span>
-<span class="normal">128</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">128</span>
 <span class="normal">129</span>
 <span class="normal">130</span>
 <span class="normal">131</span>
@@ -4722,7 +4721,8 @@
 <span class="normal">140</span>
 <span class="normal">141</span>
 <span class="normal">142</span>
-<span class="normal">143</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">faa_source</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">FaaDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Source</span><span class="p">:</span>
+<span class="normal">143</span>
+<span class="normal">144</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">faa_source</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">FaaDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Source</span><span class="p">:</span>
     <span class="k">if</span> <span class="n">dataset</span> <span class="o">==</span> <span class="s2">&quot;airports&quot;</span><span class="p">:</span>
         <span class="n">url</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">faa</span><span class="o">.</span><span class="n">airports_url</span>
     <span class="k">elif</span> <span class="n">dataset</span> <span class="o">==</span> <span class="s2">&quot;routes&quot;</span><span class="p">:</span>
@@ -4758,7 +4758,7 @@
 
   &lt;span class=&quot;doc doc-labels&quot;&gt;
       &lt;small class=&quot;doc doc-label doc-label-dataclass&quot;&gt;&lt;code&gt;dataclass&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#tangram_navaid.cache.TangramNavaidConfig">TangramNavaidConfig</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Iterator" href="https://docs.python.org/3/library/typing.html#typing.Iterator">Iterator</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Source&lt;/span&gt;
+  &lt;/span&gt;" href="./#tangram_navaid.cache.TangramNavaidConfig">TangramNavaidConfig</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="collections.abc.Iterator" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Iterator">Iterator</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Source&lt;/span&gt;
 
 
   &lt;span class=&quot;doc doc-labels&quot;&gt;
@@ -4771,13 +4771,13 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">146</span>
-<span class="normal">147</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">147</span>
 <span class="normal">148</span>
 <span class="normal">149</span>
 <span class="normal">150</span>
 <span class="normal">151</span>
-<span class="normal">152</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">iter_sources</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Source</span><span class="p">]:</span>
+<span class="normal">152</span>
+<span class="normal">153</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">iter_sources</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Source</span><span class="p">]:</span>
     <span class="k">yield</span> <span class="n">ddr_source</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
     <span class="k">yield from</span> <span class="p">(</span><span class="n">xplane_source</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span> <span class="k">for</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;nav&quot;</span><span class="p">,</span> <span class="s2">&quot;fix&quot;</span><span class="p">,</span> <span class="s2">&quot;awy&quot;</span><span class="p">))</span>
     <span class="k">yield from</span> <span class="p">(</span>
@@ -4811,9 +4811,9 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">155</span>
-<span class="normal">156</span>
-<span class="normal">157</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cache_path</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="n">Source</span><span class="p">,</span> <span class="n">path_cache</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cache_path</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="n">Source</span><span class="p">,</span> <span class="n">path_cache</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
     <span class="n">digest</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">url</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">path_cache</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">source</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">digest</span><span class="si">}{</span><span class="n">source</span><span class="o">.</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span>
 </code></pre></div></td></tr></table></div>
@@ -4847,8 +4847,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">178</span>
-<span class="normal">179</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">179</span>
 <span class="normal">180</span>
 <span class="normal">181</span>
 <span class="normal">182</span>
@@ -4860,7 +4859,8 @@
 <span class="normal">188</span>
 <span class="normal">189</span>
 <span class="normal">190</span>
-<span class="normal">191</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">ensure</span><span class="p">(</span>
+<span class="normal">191</span>
+<span class="normal">192</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">ensure</span><span class="p">(</span>
     <span class="n">client</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">AsyncClient</span><span class="p">,</span>
     <span class="n">source</span><span class="p">:</span> <span class="n">Source</span><span class="p">,</span>
     <span class="n">path_cache</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
@@ -4893,7 +4893,7 @@
 
   &lt;span class=&quot;doc doc-labels&quot;&gt;
       &lt;small class=&quot;doc doc-label doc-label-dataclass&quot;&gt;&lt;code&gt;dataclass&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#tangram_navaid.cache.TangramNavaidConfig">TangramNavaidConfig</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Iterator" href="https://docs.python.org/3/library/typing.html#typing.Iterator">Iterator</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;CacheEntry&lt;/span&gt;" href="./#tangram_navaid.cache.CacheEntry">CacheEntry</a></span><span class="p">]</span>
+  &lt;/span&gt;" href="./#tangram_navaid.cache.TangramNavaidConfig">TangramNavaidConfig</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="collections.abc.Iterator" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Iterator">Iterator</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;CacheEntry&lt;/span&gt;" href="./#tangram_navaid.cache.CacheEntry">CacheEntry</a></span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4901,8 +4901,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">194</span>
-<span class="normal">195</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
 <span class="normal">198</span>
@@ -4913,7 +4912,8 @@
 <span class="normal">203</span>
 <span class="normal">204</span>
 <span class="normal">205</span>
-<span class="normal">206</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">iter_cache_entries</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">CacheEntry</span><span class="p">]:</span>
+<span class="normal">206</span>
+<span class="normal">207</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">iter_cache_entries</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">CacheEntry</span><span class="p">]:</span>
     <span class="k">for</span> <span class="n">source</span> <span class="ow">in</span> <span class="n">iter_sources</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
         <span class="n">destination</span> <span class="o">=</span> <span class="n">cache_path</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">path_cache</span><span class="p">)</span>
         <span class="n">ready</span> <span class="o">=</span> <span class="n">destination</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
@@ -4953,12 +4953,12 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">209</span>
-<span class="normal">210</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">210</span>
 <span class="normal">211</span>
 <span class="normal">212</span>
 <span class="normal">213</span>
-<span class="normal">214</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cache_status</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CacheStatus</span><span class="p">:</span>
+<span class="normal">214</span>
+<span class="normal">215</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cache_status</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CacheStatus</span><span class="p">:</span>
     <span class="n">entries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">iter_cache_entries</span><span class="p">(</span><span class="n">config</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">CacheStatus</span><span class="p">(</span>
         <span class="n">ready</span><span class="o">=</span><span class="nb">all</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="s2">&quot;ready&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span> <span class="k">if</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;required&quot;</span><span class="p">]),</span>
@@ -4995,8 +4995,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">217</span>
-<span class="normal">218</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">218</span>
 <span class="normal">219</span>
 <span class="normal">220</span>
 <span class="normal">221</span>
@@ -5012,7 +5011,8 @@
 <span class="normal">231</span>
 <span class="normal">232</span>
 <span class="normal">233</span>
-<span class="normal">234</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">prewarm</span><span class="p">(</span>
+<span class="normal">234</span>
+<span class="normal">235</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">prewarm</span><span class="p">(</span>
     <span class="n">client</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">AsyncClient</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CacheOperation</span><span class="p">:</span>
@@ -5061,8 +5061,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">237</span>
-<span class="normal">238</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">238</span>
 <span class="normal">239</span>
 <span class="normal">240</span>
 <span class="normal">241</span>
@@ -5072,7 +5071,8 @@
 <span class="normal">245</span>
 <span class="normal">246</span>
 <span class="normal">247</span>
-<span class="normal">248</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">prewarm_faa</span><span class="p">(</span>
+<span class="normal">248</span>
+<span class="normal">249</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">prewarm_faa</span><span class="p">(</span>
     <span class="n">client</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">AsyncClient</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -5115,8 +5115,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>packages/tangram_navaid/src/tangram_navaid/cache.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">251</span>
-<span class="normal">252</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">252</span>
 <span class="normal">253</span>
 <span class="normal">254</span>
 <span class="normal">255</span>
@@ -5135,7 +5134,8 @@
 <span class="normal">268</span>
 <span class="normal">269</span>
 <span class="normal">270</span>
-<span class="normal">271</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">refresh_faa</span><span class="p">(</span>
+<span class="normal">271</span>
+<span class="normal">272</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">refresh_faa</span><span class="p">(</span>
     <span class="n">client</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">AsyncClient</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">TangramNavaidConfig</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CacheOperation</span><span class="p">:</span>
