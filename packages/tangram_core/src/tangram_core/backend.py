@@ -8,6 +8,7 @@ import os
 import re
 import urllib.parse
 import urllib.request
+from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -18,10 +19,6 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    AsyncGenerator,
-    Awaitable,
-    Callable,
-    Iterable,
     TypeAlias,
 )
 
@@ -48,6 +45,8 @@ from .config import (
 from .plugin import load_plugin, scan_plugins
 
 if TYPE_CHECKING:
+    from typing_extensions import Self
+
     from .plugin import Plugin
 
 logger = logging.getLogger(__name__)
@@ -438,7 +437,7 @@ class Runtime:
             raise RuntimeError("runtime is not started, call start() first")
         return self._state
 
-    async def start(self) -> Runtime:
+    async def start(self) -> Self:
         """Starts the backend runtime."""
         if self._state is not None:
             raise RuntimeError("runtime is already started")
@@ -516,10 +515,10 @@ class Runtime:
         self._server = None
         self._server_task = None
 
-    async def __aenter__(self) -> Runtime:
+    async def __aenter__(self) -> Self:
         return await self.start()
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *args: object) -> None:
         await self.stop()
 
 

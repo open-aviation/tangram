@@ -1,4 +1,4 @@
-# ruff: noqa: F704, E402
+# ruff: file-ignore[F704, PLE1142] top-level await is intentional in interactive cells
 # %%
 import numpy as np
 import polars as pl

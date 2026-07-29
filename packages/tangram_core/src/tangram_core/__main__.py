@@ -12,8 +12,9 @@ import logging.config
 import re
 import subprocess
 import sys
+from collections.abc import Generator
 from pathlib import Path
-from typing import Annotated, Any, Generator, TypeAlias
+from typing import Annotated, Any, TypeAlias
 
 if sys.version_info >= (3, 11):
     from importlib.resources.abc import Traversable
@@ -294,10 +295,11 @@ def set_plugin_version(
             cargo_toml = path / "rust" / "Cargo.toml"
         if cargo_toml.exists():
             content = cargo_toml.read_text()
-            if "version.workspace = true" not in content:
-                if set_version_in_file(cargo_toml, RE_TOML, version):
-                    print_success(f"updated '{dist_name}' at {cargo_toml}")
-                    updated_rs = True
+            if "version.workspace = true" not in content and set_version_in_file(
+                cargo_toml, RE_TOML, version
+            ):
+                print_success(f"updated '{dist_name}' at {cargo_toml}")
+                updated_rs = True
 
         if update_lock:
             if is_in_workspace:  # defer
@@ -316,13 +318,11 @@ def set_plugin_version(
             return
         updated_rs_ws = False
         root_cargo = cwd / "Cargo.toml"
-        if root_cargo.exists():
-            if set_version_in_file(root_cargo, RE_TOML, version):
-                print_success(f"updated workspace '{root_cargo}'")
-                updated_rs_ws = True
-        if update_lock:
-            if updated_rs_ws:
-                run_command(["cargo", "check", "--workspace"], cwd)
+        if root_cargo.exists() and set_version_in_file(root_cargo, RE_TOML, version):
+            print_success(f"updated workspace '{root_cargo}'")
+            updated_rs_ws = True
+        if update_lock and updated_rs_ws:
+            run_command(["cargo", "check", "--workspace"], cwd)
 
 
 def load_plugin_commands() -> None:
@@ -337,7 +337,7 @@ def load_plugin_commands() -> None:
         plugin_typer = plugin.get_typer()
         name = plugin_typer.info.name
         if isinstance(name, DefaultPlaceholder):
-            raise ValueError(
+            raise TypeError(
                 f"expected the Typer app in plugin '{entry_point.name}' to specify a "
                 "name explicitly, but it was not set"
             )

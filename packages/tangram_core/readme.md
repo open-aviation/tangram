@@ -39,10 +39,12 @@ For scripts, use the async context manager to safely configure the server within
 ```py
 import tangram_core
 
+
 async def main() -> None:
     async with tangram_core.Runtime() as runtime:
         await runtime.state.redis_client.set("my_key", "value")
         await runtime.wait()  # required to run the server indefinitely
+
 
 if __name__ == "__main__":
     import asyncio

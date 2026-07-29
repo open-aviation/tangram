@@ -60,7 +60,7 @@ async def get_trajectory_data(
             .collect()
         )
         return Response(df.write_json(), media_type="application/json")
-    except Exception as e:
+    except Exception as e:  # ruff: ignore[BLE001] api boundary normalizes backend failures
         log.error(f"Failed to query trajectory for {icao24}: {e}")
         raise HTTPException(status_code=500, detail="Failed to query trajectory data.")
 
@@ -136,7 +136,7 @@ async def search_flights(
             .collect()
         )
         return Response(intervals.write_json(), media_type="application/json")
-    except Exception as e:
+    except Exception as e:  # ruff: ignore[BLE001] api boundary normalizes backend failures
         log.error(f"Search failed: {e}")
         return ORJSONResponse(content=[])
 
@@ -172,7 +172,7 @@ async def get_history_slice(
             .collect()
         )
         return Response(df.write_json(), media_type="application/json")
-    except Exception as e:
+    except Exception as e:  # ruff: ignore[BLE001] api boundary normalizes backend failures
         log.error(f"History slice failed: {e}")
         return ORJSONResponse(content=[])
 
@@ -189,7 +189,7 @@ async def get_route_data(
         response.raise_for_status()
         data = response.json()
         return ORJSONResponse(content=data)
-    except Exception as e:
+    except Exception as e:  # ruff: ignore[BLE001] api boundary normalizes backend failures
         log.error(f"Failed to fetch route data for {callsign}: {e}")
         return ORJSONResponse(content=[], status_code=500)
 
@@ -206,7 +206,7 @@ async def get_sensors_data(
         response = await backend_state.http_client.get(url, timeout=10.0)
         response.raise_for_status()
         return ORJSONResponse(content=response.json())
-    except Exception as e:
+    except Exception as e:  # ruff: ignore[BLE001] api boundary normalizes backend failures
         log.error(f"Failed to fetch sensors data from {url}: {e}")
         raise HTTPException(status_code=502, detail=str(e))
 

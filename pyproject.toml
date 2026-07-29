@@ -20,7 +20,7 @@ build = [
     "maturin>=1.9.3; platform_system == 'Windows'",
 ]
 test = ["pytest>=9.1.1", "anyio>=4.14.2"]
-lint = ["ruff>=0.15.21"]
+lint = ["ruff>=0.16.0"]
 typing = ["mypy>=2.3.0"]
 docs = [
     "zensical>=0.0.51",
@@ -29,6 +29,8 @@ docs = [
 
 [tool.uv]
 exclude-newer = "7 days ago"
+# permit ruff 0.16 for now, remove in the future
+exclude-newer-package = { ruff = "3 days ago" }
 
 [tool.uv.workspace]
 members = ["packages/tangram_*"]
@@ -56,12 +58,4 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
-select = [
-    "E",
-    "W",   # pycodestyle
-    "F",   # pyflakes
-    "I",   # isort
-    "NPY", # numpy
-    "DTZ", # flake8-datetimez
-    "RUF",
-]
+extend-select = ["NPY"]

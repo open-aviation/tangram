@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import AsyncGenerator, cast
+from typing import cast
 
 import tangram_core
 from fastapi import APIRouter
@@ -51,7 +52,7 @@ async def _lifespan(
     config = _config_adapter.validate_python(
         state.config.plugins.get("tangram_navaid", {})
     )
-    setattr(state, "navaid_state", _NavaidState(config))
+    setattr(state, "navaid_state", _NavaidState(config))  # ruff: ignore[B010] plugin state is dynamic
     if config.enable_faa:
         await prewarm_faa(state.http_client, config)
     try:
@@ -61,7 +62,7 @@ async def _lifespan(
 
 
 def _config(state: tangram_core.InjectBackendState) -> TangramNavaidConfig:
-    navaid_state = cast(_NavaidState, getattr(state, "navaid_state"))
+    navaid_state = cast(_NavaidState, getattr(state, "navaid_state"))  # ruff: ignore[B009] plugin state is dynamic
     return navaid_state.config
 
 

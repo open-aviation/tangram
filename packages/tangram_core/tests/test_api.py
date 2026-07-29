@@ -1,8 +1,8 @@
 import asyncio
+from collections.abc import AsyncGenerator, Generator
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import AsyncGenerator, Generator
 
 import httpx
 import pytest

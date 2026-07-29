@@ -34,27 +34,29 @@ async def download_with_progress(
                 )
 
             total_size = int(r.headers.get("Content-Length", 0))
-            with file.open("wb") as buffer:
-                with tqdm(
+            with (
+                file.open("wb") as buffer,
+                tqdm(
                     total=total_size,
                     unit="B",
                     unit_scale=True,
                     desc=url.split("/")[-1],
-                ) as progress_bar:
-                    first_chunk = True
-                    async for chunk in r.aiter_bytes():
-                        if first_chunk and chunk.startswith(b"<?xml"):
-                            raise RuntimeError(
-                                f"Error downloading data from {url}. "
-                                "Check if the requested data is available."
-                            )
-                        first_chunk = False
-                        await asyncio.to_thread(buffer.write, chunk)
-                        progress_bar.update(len(chunk))
-    except (httpx.RequestError, RuntimeError) as e:
+                ) as progress_bar,
+            ):
+                first_chunk = True
+                async for chunk in r.aiter_bytes():
+                    if first_chunk and chunk.startswith(b"<?xml"):
+                        raise RuntimeError(
+                            f"Error downloading data from {url}. "
+                            "Check if the requested data is available."
+                        )
+                    first_chunk = False
+                    await asyncio.to_thread(buffer.write, chunk)
+                    progress_bar.update(len(chunk))
+    except (httpx.RequestError, RuntimeError):
         if file.exists():
             file.unlink()
-        raise e
+        raise
 
 
 async def latest_data(

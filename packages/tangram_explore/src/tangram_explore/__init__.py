@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import io
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import KW_ONLY, dataclass, field, fields, is_dataclass
 from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    AsyncGenerator,
     Literal,
     Protocol,
     cast,
@@ -50,13 +50,13 @@ class ExploreState:
 
 @asynccontextmanager
 async def lifespan(state: BackendState) -> AsyncGenerator[None, None]:
-    setattr(state, "explore_state", ExploreState())
+    setattr(state, "explore_state", ExploreState())  # ruff: ignore[B010] plugin state is dynamic
     yield
     delattr(state, "explore_state")
 
 
 def get_explore_state(state: tangram_core.InjectBackendState) -> ExploreState:
-    return cast(ExploreState, getattr(state, "explore_state"))
+    return cast(ExploreState, getattr(state, "explore_state"))  # ruff: ignore[B009] plugin state is dynamic
 
 
 @router.get("/data/{data_id}")

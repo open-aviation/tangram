@@ -47,7 +47,7 @@ def cpu_load() -> dict[str, str]:
         cpu_count = psutil.cpu_count(logical=True) or 1
         load_percent = (load1 / cpu_count) * 100
         return {"el": "cpu_load", "value": f"{load_percent:.2f}%"}
-    except Exception:
+    except Exception:  # ruff: ignore[BLE001] metrics must degrade to unavailable
         return {"el": "cpu_load", "value": "Unavailable"}
 
 
@@ -55,7 +55,7 @@ def ram_usage() -> dict[str, str]:
     try:
         mem = psutil.virtual_memory()
         return {"el": "ram_usage", "value": f"{mem.percent:.2f}%"}
-    except Exception:
+    except Exception:  # ruff: ignore[BLE001] metrics must degrade to unavailable
         return {"el": "ram_usage", "value": "Unavailable"}
 
 

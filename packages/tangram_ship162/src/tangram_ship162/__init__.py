@@ -54,7 +54,7 @@ async def get_trajectory_data(
             .collect()
         )
         return Response(df.write_json(), media_type="application/json")
-    except Exception as e:
+    except Exception as e:  # ruff: ignore[BLE001] api boundary normalizes backend failures
         raise HTTPException(
             status_code=500, detail=f"Failed to query trajectory data: {e}"
         )
@@ -117,7 +117,7 @@ async def search_ships(
                 lat=pl.col("latitude").mean(),
                 lon=pl.col("longitude").mean(),
             )
-            .filter((pl.col("n_rows") >= 5))
+            .filter(pl.col("n_rows") >= 5)
             .with_columns(
                 duration=((pl.col("end_ts") - pl.col("start_ts")).dt.total_seconds()),
             )
@@ -125,7 +125,7 @@ async def search_ships(
             .collect()
         )
         return Response(intervals.write_json(), media_type="application/json")
-    except Exception as e:
+    except Exception as e:  # ruff: ignore[BLE001] api boundary normalizes backend failures
         log.error(f"Search failed: {e}")
         return ORJSONResponse(content=[])
 
@@ -161,7 +161,7 @@ async def get_history_slice(
             .collect()
         )
         return Response(df.write_json(), media_type="application/json")
-    except Exception as e:
+    except Exception as e:  # ruff: ignore[BLE001] api boundary normalizes backend failures
         log.error(f"History slice failed: {e}")
         return ORJSONResponse(content=[])
 

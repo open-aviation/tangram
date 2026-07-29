@@ -1,7 +1,7 @@
 import abc
 import asyncio
 import logging
-from typing import Generic, List, TypeVar
+from typing import Generic, TypeVar
 
 from redis.asyncio import Redis
 from redis.asyncio.client import PubSub
@@ -18,11 +18,11 @@ class Subscriber(abc.ABC, Generic[StateT]):
     pubsub: PubSub
 
     def __init__(
-        self, name: str, redis_url: str, channels: List[str], initial_state: StateT
+        self, name: str, redis_url: str, channels: list[str], initial_state: StateT
     ):
         self.name = name
         self.redis_url: str = redis_url
-        self.channels: List[str] = channels
+        self.channels: list[str] = channels
         self.state: StateT = initial_state
         self._running = False
 

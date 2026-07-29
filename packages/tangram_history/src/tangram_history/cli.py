@@ -313,10 +313,10 @@ See: <https://datafusion.apache.org/user-guide/sql/index.html>"""
         if rows:
             console.print("preview of rows to be deleted:")
             table_preview = Table(show_header=True)
-            for key in rows[0].keys():
+            for key in rows[0]:
                 table_preview.add_column(key)
             for row in rows:
-                table_preview.add_row(*[str(row.get(k)) for k in rows[0].keys()])
+                table_preview.add_row(*[str(row.get(k)) for k in rows[0]])
             console.print(table_preview)
 
     if dry_run:

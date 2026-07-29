@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(eq=False)
 class Plugin:
     """Stores the metadata and registered API routes, background services and
     frontend assets for a tangram plugin.
@@ -94,34 +94,38 @@ class Plugin:
 
         return decorator
 
-    # HACK: so lru_cache on adapter works.
-    # since we have mutable fields (routers, register_service, dist_name on init)
-    # its difficult to make this class frozen,
-    # so maybe we should implement __eq__ and __hash__ ourselves?
-    __hash__ = object.__hash__
+    # keeping the public methods callable for plugin API compatibility.
+    # plugins are mutable registries, so equality and hashing use object identity
+    # method-level lru_cache would hash and retain mutable plugins
 
-    @functools.lru_cache
-    def adapter(self) -> TypeAdapter | None:
-        """Returns a cached Pydantic TypeAdapter for the plugin's configuration class.
-
-        Avoids expensive rebuilds on every validation request, such as those from the
-        settings UI.
-        """
+    @functools.cached_property
+    def _adapter(self) -> TypeAdapter[Any] | None:
         from pydantic import TypeAdapter
 
         if self.config_class:
             return TypeAdapter(self.config_class)
         return None
 
-    @functools.lru_cache
-    def frontend_adapter(self) -> TypeAdapter | None:
-        """Returns a cached Pydantic TypeAdapter for the plugin's frontend
-        configuration class."""
+    def adapter(self) -> TypeAdapter[Any] | None:
+        """Returns a cached Pydantic TypeAdapter for the plugin's configuration class.
+
+        Avoids expensive rebuilds on every validation request, such as those from the
+        settings UI.
+        """
+        return self._adapter
+
+    @functools.cached_property
+    def _frontend_adapter(self) -> TypeAdapter[Any] | None:
         from pydantic import TypeAdapter
 
         if self.frontend_config_class:
             return TypeAdapter(self.frontend_config_class)
         return None
+
+    def frontend_adapter(self) -> TypeAdapter[Any] | None:
+        """Returns a cached Pydantic TypeAdapter for the plugin's frontend
+        configuration class."""
+        return self._frontend_adapter
 
 
 def scan_plugins() -> importlib.metadata.EntryPoints:
@@ -135,7 +139,7 @@ def load_plugin(
     and injects the name of the distribution into it."""
     try:
         plugin_instance = entry_point.load()
-    except Exception as e:
+    except Exception as e:  # ruff: ignore[BLE001] plugin imports may raise arbitrary exceptions
         tb = traceback.format_exc()
         logger.error(
             f"failed to load plugin {entry_point.name}: {e}. {tb}"
