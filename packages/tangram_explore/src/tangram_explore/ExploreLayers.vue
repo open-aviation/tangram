@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { watch, inject, onUnmounted, shallowReactive, computed } from "vue";
 import { GeoJsonLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { PathStyleExtension, type PathStyleExtensionProps } from "@deck.gl/extensions";
 import type { PickingInfo } from "@deck.gl/core";
 import type { Table } from "apache-arrow";
 import { type Disposable, type TangramApi } from "@open-aviation/tangram-core/api";
@@ -17,6 +18,7 @@ import {
 } from "./datasets";
 import {
   featureCategoryValue,
+  featureDashArray,
   filteredFeatureCollection,
   type GeoJsonFeature
 } from "./feature_source";
@@ -37,6 +39,8 @@ const layers = computed(() =>
 const activeLayerId = api.workspace.activeDatasetId;
 const layerDisposables = new Map<string, Disposable>();
 const trajectoryPointDisposables = new Map<string, Disposable>();
+// Keep one stable layer shape until profiling shows schema-gating the extension matters.
+const DASH_EXTENSION = new PathStyleExtension({ dash: true });
 
 const hoverInfo = shallowReactive({
   x: 0,
@@ -101,7 +105,10 @@ function defaultTableLineColor(): [number, number, number, number] {
   return withAlpha(getFallbackColor(), 255);
 }
 
-function featureColor(feature: GeoJsonFeature, opts: FeatureStyleOptions) {
+function featureColor(
+  feature: Pick<GeoJsonFeature, "properties">,
+  opts: FeatureStyleOptions
+) {
   if (opts.style_mode === "single") {
     return opts.fill_color;
   }
@@ -174,9 +181,12 @@ watch(
           opts.category_field,
           opts.hidden_categories
         );
-        const deckLayer = new GeoJsonLayer({
+        const deckLayer = new GeoJsonLayer<
+          GeoJsonFeature["properties"],
+          PathStyleExtensionProps<Pick<GeoJsonFeature, "properties">>
+        >({
           id: `explore-layer-${entry.id}`,
-          data: data as never,
+          data,
           visible: entry.visible,
           pickable: opts.pickable,
           opacity: opts.opacity * opacityMultiplier,
@@ -185,15 +195,16 @@ watch(
           extruded: opts.extruded,
           pointRadiusMinPixels: opts.point_radius,
           lineWidthMinPixels: opts.line_width,
-          getFillColor: (feature: unknown) =>
-            parseColorSpec(featureColor(feature as GeoJsonFeature, opts)) ??
-            defaultFeatureFillColor(),
-          getLineColor: (feature: unknown) =>
+          getFillColor: feature =>
+            parseColorSpec(featureColor(feature, opts)) ?? defaultFeatureFillColor(),
+          getLineColor: feature =>
             parseColorSpec(
               opts.style_mode === "single"
                 ? opts.line_color
-                : featureColor(feature as GeoJsonFeature, opts)
+                : featureColor(feature, opts)
             ) ?? defaultFeatureLineColor(),
+          getDashArray: featureDashArray,
+          extensions: [DASH_EXTENSION],
           onHover: (info: PickingInfo) => {
             setHoverInfo(entry, info.x, info.y, geoJsonTooltipProperties(info.object));
           },

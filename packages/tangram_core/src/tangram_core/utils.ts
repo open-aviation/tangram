@@ -382,16 +382,14 @@ export function parseColorSpec(color: ColorSpec): DeckGLColor | null {
       : (color as DeckGLColor);
   }
 
-  if (typeof color === "string" && color.startsWith("#")) {
+  if (typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color)) {
     const hex = color.slice(1);
-    if (hex.length === 6) {
-      return [
-        Number.parseInt(hex.slice(0, 2), 16),
-        Number.parseInt(hex.slice(2, 4), 16),
-        Number.parseInt(hex.slice(4, 6), 16),
-        255
-      ];
-    }
+    return [
+      Number.parseInt(hex.slice(0, 2), 16),
+      Number.parseInt(hex.slice(2, 4), 16),
+      Number.parseInt(hex.slice(4, 6), 16),
+      255
+    ];
   }
 
   if (typeof color === "string" && color.toLowerCase().startsWith("oklch(")) {

@@ -1,4 +1,5 @@
-import { categoricalColor } from "@open-aviation/tangram-core/utils";
+import { categoricalColor, parseColorSpec } from "@open-aviation/tangram-core/utils";
+import type { Feature, FeatureCollection, Geometry } from "geojson";
 
 const GEOMETRY_TYPES = new Set([
   "Point",
@@ -11,33 +12,22 @@ const GEOMETRY_TYPES = new Set([
 ] as const);
 
 const PREFERRED_COLOR_FIELDS = ["color", "colour", "fill", "fill_color", "fillColor"];
+const DASH_PROPERTY = "stroke_dasharray";
+const SOLID_DASH_ARRAY = [0, 0] as const;
 
-export type GeoJsonGeometryType =
-  | "Point"
-  | "MultiPoint"
-  | "LineString"
-  | "MultiLineString"
-  | "Polygon"
-  | "MultiPolygon"
-  | "GeometryCollection";
-
-export type GeoJsonGeometry = Record<string, unknown> & {
-  type: GeoJsonGeometryType;
-  coordinates?: unknown;
-  geometries?: GeoJsonGeometry[];
-};
-
-export type GeoJsonFeature = Record<string, unknown> & {
-  type: "Feature";
-  geometry: GeoJsonGeometry | null;
-  properties: Record<string, unknown> | null;
-  id?: string | number;
-};
-
-export type GeoJsonFeatureCollection = Record<string, unknown> & {
-  type: "FeatureCollection";
-  features: GeoJsonFeature[];
-};
+export type GeoJsonGeometryType = Geometry["type"];
+export type GeoJsonGeometry = Geometry;
+export type GeoJsonProperties = Record<string, unknown> | null;
+export type GeoJsonFeature = Feature<GeoJsonGeometry | null, GeoJsonProperties>;
+export type GeoJsonFeatureCollection = FeatureCollection<
+  GeoJsonGeometry | null,
+  GeoJsonProperties
+>;
+type RenderableGeoJsonFeature = Feature<GeoJsonGeometry, GeoJsonProperties>;
+type RenderableGeoJsonFeatureCollection = FeatureCollection<
+  GeoJsonGeometry,
+  GeoJsonProperties
+>;
 
 export interface FeatureBounds {
   minLon: number;
@@ -81,7 +71,11 @@ function normalizeGeometry(value: unknown): GeoJsonGeometry {
   }
 
   if (value.type !== "GeometryCollection") {
-    return value as GeoJsonGeometry;
+    if (!Array.isArray(value.coordinates)) {
+      throw new Error("GeoJSON geometry must have coordinates");
+    }
+    // Preserve foreign members; full coordinate-shape validation is deferred to GeoJSON consumers.
+    return value as unknown as GeoJsonGeometry;
   }
 
   const geometries = Array.isArray(value.geometries)
@@ -194,15 +188,56 @@ function extendBoundsFromGeometry(
   extendBoundsFromCoordinates(geometry.coordinates, bounds);
 }
 
-function detectColorField(fields: string[]): string {
+function detectColorField(features: GeoJsonFeature[], fields: string[]): string {
   for (const preferred of PREFERRED_COLOR_FIELDS) {
     const field = fields.find(value => value.toLowerCase() === preferred.toLowerCase());
-    if (field) {
+    if (field && features.some(feature => isColorString(feature.properties?.[field]))) {
       return field;
     }
   }
 
   return "";
+}
+
+function isColorString(value: unknown): value is string {
+  return typeof value === "string" && parseColorSpec(value) !== null;
+}
+
+function parseDashArray(value: unknown): Readonly<[number, number]> | null {
+  let parts: unknown[];
+  if (Array.isArray(value)) {
+    parts = value;
+  } else if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    parts = trimmed.split(/[\s,]+/).map(Number);
+  } else {
+    return null;
+  }
+
+  if (parts.length < 1 || parts.length > 2) return null;
+
+  const [dash, gap = dash] = parts;
+  if (
+    typeof dash !== "number" ||
+    !Number.isFinite(dash) ||
+    dash <= 0 ||
+    typeof gap !== "number" ||
+    !Number.isFinite(gap) ||
+    gap <= 0
+  ) {
+    return null;
+  }
+
+  return [dash, gap];
+}
+
+type FeatureProperties = Pick<GeoJsonFeature, "properties">;
+
+export function featureDashArray(
+  feature: FeatureProperties
+): Readonly<[number, number]> {
+  return parseDashArray(feature.properties?.[DASH_PROPERTY]) ?? SOLID_DASH_ARRAY;
 }
 
 function categoryColorsFromFeatures(
@@ -217,7 +252,7 @@ function categoryColorsFromFeatures(
 
   for (const feature of features) {
     const value = feature.properties?.[field];
-    if (typeof value === "string") {
+    if (isColorString(value)) {
       colors[value] = value;
     }
   }
@@ -225,7 +260,10 @@ function categoryColorsFromFeatures(
   return colors;
 }
 
-export function featureCategoryValue(feature: GeoJsonFeature, field: string): string {
+export function featureCategoryValue(
+  feature: FeatureProperties,
+  field: string
+): string {
   if (!field) {
     return "";
   }
@@ -269,7 +307,7 @@ export function categoryColorsForField(
   for (const feature of source.features) {
     const category = featureCategoryValue(feature, field);
     const colorValue = colorField ? feature.properties?.[colorField] : undefined;
-    if (typeof colorValue === "string") {
+    if (isColorString(colorValue)) {
       colors[category] ??= colorValue;
     }
   }
@@ -285,16 +323,16 @@ export function filteredFeatureCollection(
   source: FeatureSource,
   field: string,
   hiddenCategories: Record<string, boolean>
-): GeoJsonFeatureCollection {
-  if (!field || Object.keys(hiddenCategories).length === 0) {
-    return source.collection;
-  }
+): RenderableGeoJsonFeatureCollection {
+  const features = source.features.filter(
+    (feature): feature is RenderableGeoJsonFeature =>
+      feature.geometry !== null &&
+      (!field || !hiddenCategories[featureCategoryValue(feature, field)])
+  );
 
   return {
     ...source.collection,
-    features: source.features.filter(
-      feature => !hiddenCategories[featureCategoryValue(feature, field)]
-    )
+    features
   };
 }
 
@@ -335,7 +373,7 @@ export function createFeatureSourceFromGeoJson(value: unknown): FeatureSource {
   }
 
   const fields = [...fieldsSet].sort();
-  const colorField = detectColorField(fields);
+  const colorField = detectColorField(collection.features, fields);
 
   const validBounds = [
     bounds.minLon,

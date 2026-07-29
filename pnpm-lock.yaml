@@ -193,6 +193,9 @@ importers:
       '@deck.gl/layers':
         specifier: ^9.3.7
         version: 9.3.7(@deck.gl/core@9.3.7)(@loaders.gl/core@4.4.3)(@luma.gl/core@9.3.6)(@luma.gl/engine@9.3.6(@luma.gl/core@9.3.6)(@luma.gl/shadertools@9.3.6(@luma.gl/core@9.3.6)))
+      '@types/geojson':
+        specifier: ^7946.0.16
+        version: 7946.0.16
       '@types/topojson-client':
         specifier: ^3.1.5
         version: 3.1.5
