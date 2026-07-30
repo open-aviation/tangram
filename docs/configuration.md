@@ -35,16 +35,17 @@ port = 2347
 jwt_secret = "a-better-secret-than-this"
 
 [map]  # (4)!
-# The basemap style can be a URL, a path to a local JSON file (relative to this config or absolute),
-# or the id of a style defined in [[map.styles]].
-style = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+# The basemap can be a built-in preset id, a URL, a local JSON file relative to
+# this config, or the id/name of a style defined in [[map.styles]].
+style = "radar-dark"
+# style = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
 # style = "./my-custom-style.json"
 # style = "dark-matter"
 
-# You can define multiple map styles available to the application.
+# Example of a custom map style:
 [[map.styles]]
-name = "Dark Matter"
 id = "dark-matter"
+name = "Dark Matter"
 version = 8
 sources = { openmaptiles = { type = "vector", url = "https://d17gef4m69t9r4.cloudfront.net/planet.json" } }
 sprite = "https://openmaptiles.github.io/dark-matter-gl-style/sprite"

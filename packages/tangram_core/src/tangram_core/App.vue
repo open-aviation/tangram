@@ -197,20 +197,7 @@ watch([mapContainer, tangramApi], async ([newEl, api]) => {
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol("pmtiles", protocol.tile);
 
-    type ResolvedMapStyle = string | maplibregl.StyleSpecification;
-    let resolvedStyle = mapConfig.style as ResolvedMapStyle;
-
-    if (typeof resolvedStyle === "string") {
-      const styles = mapConfig.styles as ResolvedMapStyle[];
-      const namedStyle: ResolvedMapStyle | undefined = styles.find(
-        s =>
-          (typeof s === "string" && s === resolvedStyle) || // Url
-          (typeof s === "object" && s.name === resolvedStyle) // StyleSpecification
-      );
-      if (namedStyle !== undefined) {
-        resolvedStyle = namedStyle;
-      } // TODO: raise error if not found (we need a proper system for notifying users)
-    }
+    let resolvedStyle = api.map.resolveStyle();
 
     if (typeof resolvedStyle === "string") {
       const res = await fetch(resolvedStyle);
@@ -257,8 +244,6 @@ watch([mapContainer, tangramApi], async ([newEl, api]) => {
       }
       resolvedStyle = styleObject;
     }
-
-    mapConfig.style = resolvedStyle as typeof mapConfig.style;
 
     const mapOptions: maplibregl.MapOptions = {
       container: newEl,

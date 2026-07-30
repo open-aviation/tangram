@@ -10,7 +10,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable
 from contextlib import AsyncExitStack, asynccontextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from functools import partial
 from importlib.metadata import Distribution, PackageNotFoundError
@@ -39,6 +39,8 @@ from .config import (
     FrontendCoreConfig,
     IntoConfig,
     ThemeDefinition,
+    default_styles,
+    merge_styles,
     parse_frontend_config,
     to_frontend_manifest,
 )
@@ -271,8 +273,14 @@ def core_into_frontend_config(config: Config) -> FrontendConfig:
     ] + config.core.themes
 
     frontend_core = FrontendCoreConfig(theme=config.core.theme, themes=merged_themes)
+    frontend_map = replace(
+        config.map,
+        styles=merge_styles(default_styles(), config.map.styles),
+    )
 
-    return FrontendConfig(core=frontend_core, map=config.map, channel=frontend_channel)
+    return FrontendConfig(
+        core=frontend_core, map=frontend_map, channel=frontend_channel
+    )
 
 
 def create_app(

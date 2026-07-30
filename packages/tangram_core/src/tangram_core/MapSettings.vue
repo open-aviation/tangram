@@ -2,7 +2,7 @@
   <div class="map-settings">
     <div class="section">
       <div class="section-header">Base Style</div>
-      <select :value="modelValue" @change="onStyleChange">
+      <select :value="styleReference(modelValue)" @change="onStyleChange">
         <option v-for="(opt, idx) in styleOptions" :key="idx" :value="opt.value">
           {{ opt.label }}
         </option>
@@ -64,36 +64,30 @@ const availableStyles = computed(() => {
   return api.settings.tangram_core?.values.map?.styles || [];
 });
 
-const styleOptions = computed(() => {
-  const uniqueOpts = new Map();
-  availableStyles.value.forEach((s: unknown, idx: number) => {
-    const val = typeof s === "object" && s !== null ? JSON.stringify(s) : s;
-    if (typeof val !== "string" && val !== null && val !== undefined) return;
-    const strVal = String(val);
+type StyleOption = { label: string; value: unknown; priority: number };
 
-    if (!uniqueOpts.has(strVal)) {
-      uniqueOpts.set(strVal, {
-        label: getStyleLabel(s, idx),
-        value: s
-      });
-    }
+const styleOptions = computed(() => {
+  const uniqueOpts = new Map<string, StyleOption>();
+  availableStyles.value.forEach((style: unknown, idx: number) => {
+    const value = styleReference(style);
+    const key = styleOptionKey(value);
+    const option = {
+      label: getStyleLabel(style, idx),
+      value,
+      priority: styleReferencePriority(style)
+    };
+    const existing = uniqueOpts.get(key);
+    if (!existing || existing.priority < option.priority) uniqueOpts.set(key, option);
   });
-  return Array.from(uniqueOpts.values()) as { label: string; value: unknown }[];
+  return Array.from(uniqueOpts.values(), ({ label, value }) => ({ label, value }));
 });
 
 onMounted(() => {
-  const currentVal =
-    typeof props.modelValue === "object" && props.modelValue !== null
-      ? JSON.stringify(props.modelValue)
-      : props.modelValue;
-
-  const exists = styleOptions.value.some((o: { value: unknown }) => {
-    const optVal =
-      typeof o.value === "object" && o.value !== null
-        ? JSON.stringify(o.value)
-        : o.value;
-    return optVal === currentVal;
-  });
+  const currentValue = styleReference(props.modelValue);
+  const currentKey = styleOptionKey(currentValue);
+  const exists = styleOptions.value.some(
+    (option: { value: unknown }) => styleOptionKey(option.value) === currentKey
+  );
 
   if (!exists && props.modelValue) {
     (api.settings.tangram_core.values.map.styles as unknown[]).push(props.modelValue);
@@ -133,6 +127,28 @@ const mapLayers = computed(() => {
   });
   return layers;
 });
+
+function styleOptionKey(value: unknown): string {
+  return typeof value === "object" && value !== null
+    ? JSON.stringify(value)
+    : String(value);
+}
+
+function styleReference(style: unknown): unknown {
+  if (typeof style !== "object" || style === null) return style;
+  const preset = style as { id?: unknown; name?: unknown };
+  if (typeof preset.id === "string") return preset.id;
+  if (typeof preset.name === "string") return preset.name;
+  return style;
+}
+
+function styleReferencePriority(style: unknown): number {
+  if (typeof style !== "object" || style === null) return 0;
+  const preset = style as { id?: unknown; name?: unknown };
+  if (typeof preset.id === "string") return 2;
+  if (typeof preset.name === "string") return 1;
+  return 0;
+}
 
 function getStyleLabel(style: unknown, idx?: number): string {
   if (typeof style === "string") {

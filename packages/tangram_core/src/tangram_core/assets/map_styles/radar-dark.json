@@ -1,6 +1,6 @@
 {
   "version": 8,
-  "name": "Dark Matter",
+  "name": "Radar Dark",
   "metadata": {
     "maputnik:renderer": "mlgljs"
   },
@@ -345,5 +345,5 @@
       }
     }
   ],
-  "id": "dark-matter"
+  "id": "radar-dark"
 }

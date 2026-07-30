@@ -57,7 +57,7 @@ tangram serve --config tangram.toml
 
 **Is this suitable for offline use?**
 
-> Yes, with preparation. The default configuration uses online tile servers (CartoDB/Protomaps) for the basemap. You can configure `tangram.toml` to serve local vector tiles (PMTiles) or style files. However, plugins relying on external APIs (like `tangram_weather` fetching ARPEGE GRIB files) will naturally require internet access.
+> Yes, with preparation. The default and bundled basemap styles use online tile, font, and sprite services (CARTO/OpenMapTiles/Protomaps). You can configure `tangram.toml` to serve local vector tiles (PMTiles) or style files. However, plugins relying on external APIs (like `tangram_weather` fetching ARPEGE GRIB files) will naturally require internet access.
 
 ## Documentation
 

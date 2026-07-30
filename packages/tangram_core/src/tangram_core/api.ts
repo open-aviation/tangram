@@ -24,15 +24,16 @@ import WorkspacePanel from "./WorkspacePanel.vue";
 import { clampTimeToRange, normalizeTimeRange, unionTimeRanges } from "./utils";
 
 export type Url = string;
+export type MapStyleSpecification = StyleSpecification & { id?: string };
+export type MapStyle = Url | MapStyleSpecification;
 
 export interface ChannelConfig {
   url: Url;
 }
 
 export interface MapConfig {
-  // style name (string) from the backend is resolved into StyleSpecification in App.vue.
-  style: Url | StyleSpecification;
-  styles: (Url | StyleSpecification)[];
+  style: MapStyle;
+  styles: MapStyle[];
   center_lat: number;
   center_lon: number;
   zoom: number;
@@ -1337,6 +1338,25 @@ export class MapApi implements Disposable {
 
   readonly styleJson = shallowRef<StyleSpecification | null>(null);
 
+  resolveStyle(
+    style: MapStyle = this.tangramApi.config.map.style
+  ): Url | StyleSpecification {
+    const preset =
+      typeof style === "string"
+        ? (this.tangramApi.config.map.styles.find(
+            candidate => typeof candidate !== "string" && candidate.id === style
+          ) ??
+          this.tangramApi.config.map.styles.find(
+            candidate => typeof candidate !== "string" && candidate.name === style
+          ))
+        : style;
+    if (!preset || typeof preset === "string") return style;
+
+    const specification = { ...preset };
+    delete specification.id;
+    return specification;
+  }
+
   private updateState = () => {
     if (!this.map.value) return;
     const map = this.map.value;
@@ -2071,7 +2091,7 @@ export class TangramApi {
         if (map && mapVals) {
           if (mapVals.style && mapVals.style !== this.config.map.style) {
             this.config.map.style = mapVals.style;
-            map.setStyle(mapVals.style);
+            map.setStyle(this.map.resolveStyle(mapVals.style));
           }
           if (
             mapVals.zoom !== undefined &&

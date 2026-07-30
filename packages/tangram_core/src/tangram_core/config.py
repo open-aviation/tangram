@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import importlib.resources
 import json
 import os
 import sys
 import urllib.parse
 from dataclasses import dataclass, field
+from importlib.resources.abc import Traversable
 from os import PathLike
 from pathlib import Path
 from typing import (
@@ -70,45 +72,80 @@ class ChannelConfig:
     id_length: int = 8
 
 
-@dataclass
-class UrlConfig:
-    url: str
-    type: str = "vector"
-
-
-StyleName: TypeAlias = str
-
-
-@dataclass
-class StyleSpecification:
-    name: StyleName | None = None
-    sources: dict[str, UrlConfig] | None = None
-    glyphs: str = "https://cdn.protomaps.com/fonts/pbf/{fontstack}/{range}.pbf"
-    layers: list[Any] | None = None
-    version: int = 8
-
-
+# keeping maplibre specifications opaque for now.
+StyleSpecification: TypeAlias = dict[str, Any]
 Url: TypeAlias = str
+MapStyle: TypeAlias = Url | StyleSpecification
 
 
-def default_styles() -> list[Url | StyleSpecification]:
+def get_default_asset(*parts: str) -> Traversable:
+    asset = importlib.resources.files("tangram_core").joinpath("assets")
+    for part in parts:
+        asset = asset.joinpath(part)
+    return asset
+
+
+def load_built_in_style(filename: str) -> StyleSpecification:
+    style: StyleSpecification = json.loads(
+        get_default_asset("map_styles", filename).read_text(encoding="utf-8")
+    )
+    return style
+
+
+def default_styles() -> list[MapStyle]:
     return [
         "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
         "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
         "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+        load_built_in_style("radar-dark.json"),
     ]
+
+
+def style_identifier(style: StyleSpecification, key: str) -> str | None:
+    value = style.get(key)
+    return value if isinstance(value, str) else None
+
+
+def styles_match(candidate: MapStyle, override: MapStyle) -> bool:
+    if isinstance(override, str):
+        return candidate == override
+    if not isinstance(candidate, dict):
+        return False
+    if (identifier := style_identifier(override, "id")) is not None:
+        return style_identifier(candidate, "id") == identifier
+    if (name := style_identifier(override, "name")) is not None:
+        return style_identifier(candidate, "name") == name
+    return False
+
+
+def merge_styles(defaults: list[MapStyle], overrides: list[MapStyle]) -> list[MapStyle]:
+    merged = list(defaults)
+    for override in overrides:
+        position = next(
+            (
+                index
+                for index, candidate in enumerate(merged)
+                if styles_match(candidate, override)
+            ),
+            None,
+        )
+        if position is None:
+            merged.append(override)
+        else:
+            merged[position] = override
+    return merged
 
 
 @dataclass
 class MapConfig:
     # users can specify local path in config file but it will be resolved in from_file
     # and so the stored type cannot be Path
-    style: Annotated[
-        Url | StyleName | StyleSpecification, FrontendMutable(widget="map-settings")
-    ] = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
-    styles: Annotated[
-        list[Url | StyleSpecification], FrontendMutable(widget="map-settings")
-    ] = field(default_factory=default_styles)
+    style: Annotated[MapStyle, FrontendMutable(widget="map-settings")] = (
+        "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+    )
+    styles: Annotated[list[MapStyle], FrontendMutable(widget="map-settings")] = field(
+        default_factory=list
+    )
     center_lat: Annotated[float, Ge(-90), Le(90), FrontendMutable()] = 48.0
     center_lon: Annotated[float, Ge(-180), Le(180), FrontendMutable()] = 7.0
     zoom: Annotated[float, Ge(0), Le(24), FrontendMutable()] = 4
@@ -207,33 +244,28 @@ class Config:
         base_dir = Path(config_path).parent
         map = cfg_data.setdefault("map", {})
         if (s := map.get("style", None)) is not None:
-            map["style"] = try_resolve_local_style(base_dir, s, allow_style_name=True)
+            map["style"] = try_resolve_local_style(base_dir, s)
 
-        map["styles"] = [
-            try_resolve_local_style(base_dir, style, allow_style_name=False)
-            for style in map.get("styles", []) or default_styles()
-        ]
+        if "styles" in map:
+            map["styles"] = [
+                try_resolve_local_style(base_dir, style)
+                for style in map.get("styles", [])
+            ]
 
         config_adapter = TypeAdapter(cls)
         config = config_adapter.validate_python(cfg_data)
         return config
 
 
-def try_resolve_local_style(
-    base_dir: Path,
-    style: Url | StyleName | StyleSpecification,
-    *,
-    allow_style_name: bool,
-) -> Url | StyleSpecification:
+def try_resolve_local_style(base_dir: Path, style: MapStyle) -> MapStyle:
     if isinstance(style, str):
         scheme = urllib.parse.urlparse(style).scheme
         if scheme in ("http", "https"):
             return style
         if (p := (base_dir / style).resolve()).is_file():
             with open(p, "rb") as f:
-                return json.load(f)
-        if not allow_style_name:
-            pass
+                specification: StyleSpecification = json.load(f)
+            return specification
     return style
 
 
