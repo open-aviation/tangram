@@ -95,7 +95,7 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           working-directory: packages/tangram_core
-          args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          args: --profile dist-release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
           sccache: true
 
       - name: build tangram_jet1090
@@ -105,7 +105,7 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           working-directory: packages/tangram_jet1090
-          args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          args: --profile dist-release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
           sccache: true
           before-script-linux: |
             if command -v apk &> /dev/null; then
@@ -123,7 +123,7 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           working-directory: packages/tangram_ship162
-          args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          args: --profile dist-release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
           sccache: true
           before-script-linux: |
             if command -v apk &> /dev/null; then
@@ -141,7 +141,7 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           working-directory: packages/tangram_datalink
-          args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          args: --profile dist-release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
           sccache: true
           before-script-linux: |
             if command -v apk &> /dev/null; then
@@ -159,7 +159,7 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           working-directory: packages/tangram_history
-          args: --release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
+          args: --profile dist-release --out ../../dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 3.14' }}
           sccache: true
           before-script-linux: |
             if command -v apk &> /dev/null; then

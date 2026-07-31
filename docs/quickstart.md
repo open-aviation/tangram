@@ -277,15 +277,7 @@ To install the core application and all plugins in **editable mode**, along with
 uv sync --all-packages --all-groups --all-extras
 ```
 
-This will create a virtual environment at `.venv/`. For Rust-based packages, the `maturin` build backend will create shared objects under each package:
-
-```command
-$ rg --files -u packages | rg "so$" | xargs stat -c "%s %n"
-7857160 packages/tangram_jet1090/src/tangram_jet1090/_planes.cpython-313-x86_64-linux-gnu.so
-6503144 packages/tangram_core/src/tangram_core/_core.cpython-313-x86_64-linux-gnu.so
-7049616 packages/tangram_ship162/src/tangram_ship162/_ships.cpython-313-x86_64-linux-gnu.so
-151122456 packages/tangram_history/src/tangram_history/_history.cpython-313-x86_64-linux-gnu.so
-```
+This will create a virtual environment at `.venv/`. For Rust-based packages, the `maturin` build backend will create shared objects under each package.
 
 !!! tip
 
