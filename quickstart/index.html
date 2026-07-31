@@ -2182,13 +2182,7 @@ packages
 <p>To install the core application and all plugins in <strong>editable mode</strong>, along with useful developer utilities:</p>
 <div class="language-sh highlight"><pre><span></span><code>uv<span class="w"> </span>sync<span class="w"> </span>--all-packages<span class="w"> </span>--all-groups<span class="w"> </span>--all-extras
 </code></pre></div>
-<p>This will create a virtual environment at <code>.venv/</code>. For Rust-based packages, the <code>maturin</code> build backend will create shared objects under each package:</p>
-<div class="language-text highlight"><pre><span></span><code>$ rg --files -u packages | rg &quot;so$&quot; | xargs stat -c &quot;%s %n&quot;
-7857160 packages/tangram_jet1090/src/tangram_jet1090/_planes.cpython-313-x86_64-linux-gnu.so
-6503144 packages/tangram_core/src/tangram_core/_core.cpython-313-x86_64-linux-gnu.so
-7049616 packages/tangram_ship162/src/tangram_ship162/_ships.cpython-313-x86_64-linux-gnu.so
-151122456 packages/tangram_history/src/tangram_history/_history.cpython-313-x86_64-linux-gnu.so
-</code></pre></div>
+<p>This will create a virtual environment at <code>.venv/</code>. For Rust-based packages, the <code>maturin</code> build backend will create shared objects under each package.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>By default, <code>uv sync</code> builds the Rust code in release mode, which can take up to 4 minutes.</p>
