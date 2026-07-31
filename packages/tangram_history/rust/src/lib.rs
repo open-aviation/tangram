@@ -199,11 +199,6 @@ pub struct HistoryProducerConfig {
 }
 
 #[cfg(feature = "server")]
-async fn _run_service(config: IngestConfig) -> anyhow::Result<()> {
-    start_ingest_service(config).await
-}
-
-#[cfg(feature = "server")]
 #[cfg(feature = "pyo3")]
 #[pyfunction]
 /// Start the history ingest service.
@@ -211,16 +206,15 @@ async fn _run_service(config: IngestConfig) -> anyhow::Result<()> {
 /// :raises RuntimeError: if the service fails to start or crashes.
 fn run_history(py: Python<'_>, config: HistoryConfig) -> PyResult<Bound<'_, PyAny>> {
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
-        let ingest_config = IngestConfig {
-            redis_url: config.redis_url.clone(),
-            control_channel: config.control_channel.clone(),
-            base_path: config.base_path.clone(),
+        start_ingest_service(IngestConfig {
+            redis_url: config.redis_url,
+            control_channel: config.control_channel,
+            base_path: config.base_path,
             redis_read_count: config.redis_read_count,
             redis_read_block_ms: config.redis_read_block_ms,
-        };
-        _run_service(ingest_config)
-            .await
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+        })
+        .await
+        .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     })
 }
 

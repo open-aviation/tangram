@@ -5,7 +5,8 @@ use base64::{engine::general_purpose, Engine as _};
 use dashmap::DashMap;
 use deltalake::arrow::datatypes::Schema as ArrowSchema;
 use deltalake::arrow::ipc::reader::{FileReader, StreamReader};
-use deltalake::datafusion::prelude::{SQLOptions, SessionContext};
+use deltalake::datafusion::prelude::SessionContext;
+use deltalake::delta_datafusion::DataFusionMixins;
 use deltalake::kernel::engine::arrow_conversion::TryIntoKernel;
 use deltalake::kernel::StructField;
 use deltalake::operations::create::CreateBuilder;
@@ -181,26 +182,16 @@ pub(crate) async fn perform_dry_run_delete(
 ) -> ControlResponse {
     let result = (async {
         let ctx = SessionContext::new();
-        ctx.register_table("t", table.table_provider().await?)?;
+        let predicate = table
+            .snapshot()?
+            .snapshot()
+            .parse_predicate_expression(&predicate, &ctx.state())?;
+        let dataframe = ctx
+            .read_table(table.table_provider().await?)?
+            .filter(predicate)?;
 
-        let options = SQLOptions::new()
-            .with_allow_ddl(false)
-            .with_allow_dml(false)
-            .with_allow_statements(false);
-        let sql = format!("SELECT * FROM t WHERE {}", predicate);
-        let df = ctx.sql_with_options(&sql, options).await?;
-        let limited_df = df.limit(0, Some(10))?;
-        let preview_batches = limited_df.collect().await?;
-
-        let count_sql = format!("SELECT count(*) FROM t WHERE {}", predicate);
-        let count_df = ctx.sql_with_options(&count_sql, options).await?;
-        let count_batches = count_df.collect().await?;
-        let count = count_batches[0]
-            .column(0)
-            .as_any()
-            .downcast_ref::<deltalake::arrow::array::Int64Array>()
-            .ok_or(anyhow!("failed to cast count result"))?
-            .value(0) as usize;
+        let count = dataframe.clone().count().await?;
+        let preview_batches = dataframe.limit(0, Some(10))?.collect().await?;
 
         let refs: Vec<&deltalake::arrow::array::RecordBatch> = preview_batches.iter().collect();
         let json_rows = record_batches_to_json_rows(&refs)?;

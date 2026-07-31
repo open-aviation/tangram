@@ -15,18 +15,7 @@ pub enum ControlMessage {
     RegisterTable(RegisterTable),
     #[serde(rename = "list_tables")]
     ListTables { sender_id: String },
-    /// Deletes rows in a table using with a specified predicate.
-    ///
-    /// **WARNING**:
-    ///
-    /// The current implementation uses raw string formatting to query row counts and previews, with
-    /// the following SQL operations disallowed
-    ///
-    /// - [DDL](https://docs.rs/datafusion/latest/datafusion/logical_expr/enum.DdlStatement.html)
-    /// - [DML](https://docs.rs/datafusion/latest/datafusion/logical_expr/struct.DmlStatement.html)
-    /// - [Statements](https://docs.rs/datafusion/latest/datafusion/logical_expr/enum.Statement.html)
-    ///
-    /// It may be prone to SQL injection.
+    /// Deletes rows from a table using a DataFusion predicate expression.
     #[serde(rename = "delete_rows")]
     DeleteRows {
         sender_id: String,

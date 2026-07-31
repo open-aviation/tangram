@@ -8,18 +8,7 @@ class ControlMessage:
     @final
     class DeleteRows(ControlMessage):
         """
-        Deletes rows in a table using with a specified predicate.
-        
-        **WARNING**:
-        
-        The current implementation uses raw string formatting to query row counts and previews, with
-        the following SQL operations disallowed
-        
-        - [DDL](https://docs.rs/datafusion/latest/datafusion/logical_expr/enum.DdlStatement.html)
-        - [DML](https://docs.rs/datafusion/latest/datafusion/logical_expr/struct.DmlStatement.html)
-        - [Statements](https://docs.rs/datafusion/latest/datafusion/logical_expr/enum.Statement.html)
-        
-        It may be prone to SQL injection.
+        Deletes rows from a table using a DataFusion predicate expression.
         """
         __match_args__: Final = ("sender_id", "table_name", "predicate", "dry_run")
         def __new__(cls, /, sender_id: str, table_name: str, predicate: str, dry_run: bool) -> ControlMessage.DeleteRows: ...
