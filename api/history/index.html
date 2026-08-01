@@ -6326,16 +6326,7 @@ acquires semaphores for optimisation/vaccuming before execution.</p>
 
 
 
-        <p>Deletes rows in a table using with a specified predicate.</p>
-<p><strong>WARNING</strong>:</p>
-<p>The current implementation uses raw string formatting to query row counts and previews, with
-the following SQL operations disallowed</p>
-<ul>
-<li><a href="https://docs.rs/datafusion/latest/datafusion/logical_expr/enum.DdlStatement.html">DDL</a></li>
-<li><a href="https://docs.rs/datafusion/latest/datafusion/logical_expr/struct.DmlStatement.html">DML</a></li>
-<li><a href="https://docs.rs/datafusion/latest/datafusion/logical_expr/enum.Statement.html">Statements</a></li>
-</ul>
-<p>It may be prone to SQL injection.</p>
+        <p>Deletes rows from a table using a DataFusion predicate expression.</p>
 
 
 
