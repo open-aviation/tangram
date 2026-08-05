@@ -91,8 +91,8 @@ importers:
         specifier: ^5.2.7
         version: 5.2.7
       '@fontsource/inconsolata':
-        specifier: ^5.2.8
-        version: 5.2.8
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource/roboto-condensed':
         specifier: ^5.3.0
         version: 5.3.0
@@ -457,8 +457,8 @@ packages:
   '@fontsource/b612@5.2.7':
     resolution: {integrity: sha512-ALWds7TznSpGM2QUJVqMXLd6GT2LA7XviIbek8YR3+/xoAAjYl6ed0Mh71vFoM8eZv0BSu25D7WMEJw/iwVWlQ==}
 
-  '@fontsource/inconsolata@5.2.8':
-    resolution: {integrity: sha512-lIZW+WOZYpUH91g9r6rYYhfTmptF3YPPM54ZOs8IYVeeL4SeiAu4tfj7mdr8llYEq31DLYgi6JtGIJa192gB0Q==}
+  '@fontsource/inconsolata@5.3.0':
+    resolution: {integrity: sha512-12UZvQzR9rcgFv1Wb2vy9NvMqleh4fVZ9W5Ww/S3CamaRLeUfCkfXersbiqcyCkH82etGTTRyHd5cJYDJ2W27w==}
 
   '@fontsource/roboto-condensed@5.3.0':
     resolution: {integrity: sha512-Vbh5pesre/M/Jspd10btdKRqLSTe3yn4l6B2tXHGElCeASfA7Pgdpu1mb8wTG8E72J4Xk6FUfqnSe46UN2QAog==}
@@ -3030,7 +3030,7 @@ snapshots:
 
   '@fontsource/b612@5.2.7': {}
 
-  '@fontsource/inconsolata@5.2.8': {}
+  '@fontsource/inconsolata@5.3.0': {}
 
   '@fontsource/roboto-condensed@5.3.0': {}
 
