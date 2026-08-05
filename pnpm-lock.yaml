@@ -12,8 +12,8 @@ importers:
   .:
     devDependencies:
       '@types/node':
-        specifier: ^26.0.0
-        version: 26.0.0
+        specifier: ^26.1.2
+        version: 26.1.2
       '@vue/eslint-config-prettier':
         specifier: ^10.2.0
         version: 10.2.0(eslint@10.6.0(jiti@2.7.0)(supports-color@7.2.0))(prettier@3.9.5)
@@ -40,7 +40,7 @@ importers:
         version: 8.65.0(eslint@10.6.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
       vite:
         specifier: ^8.1.0
-        version: 8.1.0(@types/node@26.0.0)(jiti@2.7.0)
+        version: 8.1.0(@types/node@26.1.2)(jiti@2.7.0)
       vue-tsc:
         specifier: 3.3.7
         version: 3.3.7(typescript@6.0.3)
@@ -101,7 +101,7 @@ importers:
         version: 5.7.2
       '@vitejs/plugin-vue':
         specifier: ^6.0.8
-        version: 6.0.8(vite@8.1.0(@types/node@26.1.1)(jiti@2.7.0))(vue@3.5.39(typescript@6.0.3))
+        version: 6.0.8(vite@8.1.0(@types/node@26.1.2)(jiti@2.7.0))(vue@3.5.39(typescript@6.0.3))
       lit-html:
         specifier: ^3.3.3
         version: 3.3.3
@@ -126,13 +126,13 @@ importers:
         version: 1.6.7
       vite:
         specifier: ^8.1.0
-        version: 8.1.0(@types/node@26.1.1)(jiti@2.7.0)
+        version: 8.1.0(@types/node@26.1.2)(jiti@2.7.0)
       vite-plugin-static-copy:
         specifier: ^4.1.1
-        version: 4.1.1(vite@8.1.0(@types/node@26.1.1)(jiti@2.7.0))
+        version: 4.1.1(vite@8.1.0(@types/node@26.1.2)(jiti@2.7.0))
       vitest:
         specifier: ^4.1.8
-        version: 4.1.8(@types/node@26.1.1)(vite@8.1.0(@types/node@26.1.1)(jiti@2.7.0))
+        version: 4.1.8(@types/node@26.1.2)(vite@8.1.0(@types/node@26.1.2)(jiti@2.7.0))
 
   packages/tangram_datalink:
     dependencies:
@@ -1255,11 +1255,8 @@ packages:
   '@types/node@25.9.5':
     resolution: {integrity: sha512-OScDchr2fwuUmWdf4kZ9h7PcJiYDVInhJizG/biAq3cAvqwYktuy/TYGGdZNMtNTFUP7rnb0NU4TUdm82kt4Rg==}
 
-  '@types/node@26.0.0':
-    resolution: {integrity: sha512-vf2YFi1iY9lHGwNJMs01biZFbKJkrZR1T6/MlzjhJLPdntOHLhTrDSnSVcdtvjihi4VQNlrFRIxLsDBlQpAipA==}
-
-  '@types/node@26.1.1':
-    resolution: {integrity: sha512-nxAkRSVkN1Y0JC1W8ky/fTfkGsMmcrRsbx+3XoZE+rMOX71kLYTV7fLXpqud1GpbpP5TuffXFqfX7fH2GgZREw==}
+  '@types/node@26.1.2':
+    resolution: {integrity: sha512-Vu4a5UFA9rIIFJ7rB/Vaafh9lrCQszopTCx6KjFboXTGQbPNasehVR5TEiithSDGyd1DEiUByggTZsg8jukeIg==}
 
   '@types/offscreencanvas@2019.7.3':
     resolution: {integrity: sha512-ieXiYmgSRXUDeOntE1InxjWyvEelZGP63M+cGuquuRLuIKKT1osnkXjxev9B7d1nXSug5vpunx+gNlbVxMlC9A==}
@@ -4637,7 +4634,7 @@ snapshots:
 
   '@types/brotli@1.3.5':
     dependencies:
-      '@types/node': 26.1.1
+      '@types/node': 26.1.2
     optional: true
 
   '@types/chai@5.2.3':
@@ -4665,11 +4662,7 @@ snapshots:
     dependencies:
       undici-types: 7.24.6
 
-  '@types/node@26.0.0':
-    dependencies:
-      undici-types: 8.3.0
-
-  '@types/node@26.1.1':
+  '@types/node@26.1.2':
     dependencies:
       undici-types: 8.3.0
 
@@ -4834,10 +4827,10 @@ snapshots:
 
   '@uwdata/flechette@2.5.0': {}
 
-  '@vitejs/plugin-vue@6.0.8(vite@8.1.0(@types/node@26.1.1)(jiti@2.7.0))(vue@3.5.39(typescript@6.0.3))':
+  '@vitejs/plugin-vue@6.0.8(vite@8.1.0(@types/node@26.1.2)(jiti@2.7.0))(vue@3.5.39(typescript@6.0.3))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.1.0(@types/node@26.1.1)(jiti@2.7.0)
+      vite: 8.1.0(@types/node@26.1.2)(jiti@2.7.0)
       vue: 3.5.39(typescript@6.0.3)
 
   '@vitest/expect@4.1.8':
@@ -4849,13 +4842,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.8(vite@8.1.0(@types/node@26.1.1)(jiti@2.7.0))':
+  '@vitest/mocker@4.1.8(vite@8.1.0(@types/node@26.1.2)(jiti@2.7.0))':
     dependencies:
       '@vitest/spy': 4.1.8
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.1.0(@types/node@26.1.1)(jiti@2.7.0)
+      vite: 8.1.0(@types/node@26.1.2)(jiti@2.7.0)
 
   '@vitest/pretty-format@4.1.8':
     dependencies:
@@ -5908,7 +5901,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.2
-      '@types/node': 26.1.1
+      '@types/node': 26.1.2
       long: 5.3.2
 
   protocol-buffers-schema@3.6.1: {}
@@ -6151,15 +6144,15 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  vite-plugin-static-copy@4.1.1(vite@8.1.0(@types/node@26.1.1)(jiti@2.7.0)):
+  vite-plugin-static-copy@4.1.1(vite@8.1.0(@types/node@26.1.2)(jiti@2.7.0)):
     dependencies:
       chokidar: 3.6.0
       p-map: 7.0.4
       picocolors: 1.1.1
       tinyglobby: 0.2.17
-      vite: 8.1.0(@types/node@26.1.1)(jiti@2.7.0)
+      vite: 8.1.0(@types/node@26.1.2)(jiti@2.7.0)
 
-  vite@8.1.0(@types/node@26.0.0)(jiti@2.7.0):
+  vite@8.1.0(@types/node@26.1.2)(jiti@2.7.0):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
@@ -6167,26 +6160,14 @@ snapshots:
       rolldown: 1.1.2
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 26.0.0
+      '@types/node': 26.1.2
       fsevents: 2.3.3
       jiti: 2.7.0
 
-  vite@8.1.0(@types/node@26.1.1)(jiti@2.7.0):
-    dependencies:
-      lightningcss: 1.32.0
-      picomatch: 4.0.4
-      postcss: 8.5.15
-      rolldown: 1.1.2
-      tinyglobby: 0.2.17
-    optionalDependencies:
-      '@types/node': 26.1.1
-      fsevents: 2.3.3
-      jiti: 2.7.0
-
-  vitest@4.1.8(@types/node@26.1.1)(vite@8.1.0(@types/node@26.1.1)(jiti@2.7.0)):
+  vitest@4.1.8(@types/node@26.1.2)(vite@8.1.0(@types/node@26.1.2)(jiti@2.7.0)):
     dependencies:
       '@vitest/expect': 4.1.8
-      '@vitest/mocker': 4.1.8(vite@8.1.0(@types/node@26.1.1)(jiti@2.7.0))
+      '@vitest/mocker': 4.1.8(vite@8.1.0(@types/node@26.1.2)(jiti@2.7.0))
       '@vitest/pretty-format': 4.1.8
       '@vitest/runner': 4.1.8
       '@vitest/snapshot': 4.1.8
@@ -6203,10 +6184,10 @@ snapshots:
       tinyexec: 1.2.4
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
-      vite: 8.1.0(@types/node@26.1.1)(jiti@2.7.0)
+      vite: 8.1.0(@types/node@26.1.2)(jiti@2.7.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 26.1.1
+      '@types/node': 26.1.2
     transitivePeerDependencies:
       - msw
 
