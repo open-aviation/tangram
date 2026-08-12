@@ -53,7 +53,7 @@
     "@deck.gl/mapbox": "^9.3.7",
     "@deck.gl/mesh-layers": "^9.3.7",
     "@deck.gl/widgets": "^9.3.7",
-    "@fontsource/b612": "^5.2.7",
+    "@fontsource/b612": "^5.3.0",
     "@fontsource/inconsolata": "^5.3.0",
     "@fontsource/roboto-condensed": "^5.3.0",
     "@protomaps/basemaps": "^5.7.2",

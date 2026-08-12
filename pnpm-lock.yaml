@@ -88,8 +88,8 @@ importers:
         specifier: ^9.3.7
         version: 9.3.7(@deck.gl/core@9.3.7)(@luma.gl/core@9.3.6)
       '@fontsource/b612':
-        specifier: ^5.2.7
-        version: 5.2.7
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource/inconsolata':
         specifier: ^5.3.0
         version: 5.3.0
@@ -454,8 +454,8 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@fontsource/b612@5.2.7':
-    resolution: {integrity: sha512-ALWds7TznSpGM2QUJVqMXLd6GT2LA7XviIbek8YR3+/xoAAjYl6ed0Mh71vFoM8eZv0BSu25D7WMEJw/iwVWlQ==}
+  '@fontsource/b612@5.3.0':
+    resolution: {integrity: sha512-2AQPrSFDI9K00w/lPlgfcqve+ZPdRSCttvVUxcmv+UrnwwaKLMym+/uXmM7+dgPCVBIV9omoXUabFoyBFpc1Vg==}
 
   '@fontsource/inconsolata@5.3.0':
     resolution: {integrity: sha512-12UZvQzR9rcgFv1Wb2vy9NvMqleh4fVZ9W5Ww/S3CamaRLeUfCkfXersbiqcyCkH82etGTTRyHd5cJYDJ2W27w==}
@@ -3023,7 +3023,7 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@fontsource/b612@5.2.7': {}
+  '@fontsource/b612@5.3.0': {}
 
   '@fontsource/inconsolata@5.3.0': {}
 
