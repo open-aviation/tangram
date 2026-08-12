@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@open-aviation/tangram-core": "workspace:*",
-    "traffic.js": "0.2.0"
+    "traffic.js": "0.2.1"
   },
   "devDependencies": {
     "@deck.gl/core": "^9.3.7",
