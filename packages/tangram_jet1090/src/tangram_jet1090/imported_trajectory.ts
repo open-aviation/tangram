@@ -9,6 +9,7 @@ import {
   computeBoundsFromRecords,
   finiteNumber,
   interpolateBearing,
+  isJsonlFile,
   isRecord,
   parseJsonlRows,
   parseTimestamp,
@@ -237,7 +238,7 @@ export function isJet1090ImportedHistoryDataset(
 }
 
 export async function acceptsRs1090Jsonl(file: LazyImportFile): Promise<boolean> {
-  if (file.metadata.extension !== ".jsonl") return false;
+  if (!isJsonlFile(file)) return false;
   const sample = await parseJsonlRows(file, 20, true);
   return sample.some(
     row => "icao24" in row && ("frame" in row || "bds" in row || "df" in row)

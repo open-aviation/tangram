@@ -102,6 +102,9 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.8
         version: 6.0.8(vite@8.2.2(@types/node@26.1.2)(jiti@2.7.0))(vue@3.5.40(typescript@6.0.3))
+      fzstd:
+        specifier: ^0.1.1
+        version: 0.1.1
       lit-html:
         specifier: ^3.3.3
         version: 3.3.3
@@ -1971,6 +1974,9 @@ packages:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
+
+  fzstd@0.1.1:
+    resolution: {integrity: sha512-dkuVSOKKwh3eas5VkJy1AW1vFpet8TA/fGmVA5krThl8YcOVE/8ZIoEA1+U1vEn5ckxxhLirSdY837azmbaNHA==}
 
   geodesy-fn@1.2.2:
     resolution: {integrity: sha512-m837H6/kNxfHiS6sXkQgPsRzfs2NkSUJx9l0n/S83X9oC5oq83jZWpntRQEhbXN2J7c+lqwesxKQnT5tMqMWNw==}
@@ -5477,6 +5483,8 @@ snapshots:
 
   fsevents@2.3.3:
     optional: true
+
+  fzstd@0.1.1: {}
 
   geodesy-fn@1.2.2: {}
 
