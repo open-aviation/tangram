@@ -7,6 +7,7 @@ import { segmentTrajectoryRecords } from "@open-aviation/tangram-core/trajectory
 import {
   computeBoundsFromRecords,
   finiteNumber,
+  isJsonlFile,
   parseJsonlRows,
   parseTimestamp
 } from "@open-aviation/tangram-core/utils";
@@ -115,7 +116,7 @@ export function isShip162ImportedHistoryDataset(
 }
 
 export async function acceptsShip162Jsonl(file: LazyImportFile): Promise<boolean> {
-  if (file.metadata.extension !== ".jsonl") return false;
+  if (!isJsonlFile(file)) return false;
   const sample = await parseJsonlRows(file, 20, true);
   return sample.some(
     row =>

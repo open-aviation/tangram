@@ -7,6 +7,7 @@ import {
   type WorkspaceImporter
 } from "@open-aviation/tangram-core/api";
 import {
+  isJsonlFile,
   isRecord,
   parseCsvRows,
   parseJsonlRows
@@ -224,7 +225,7 @@ function createExploreImporters(pluginId: string): WorkspaceImporter[] {
     pluginId,
     priority: 5,
     accepts: async file => {
-      if (file.metadata.extension !== ".jsonl") return false;
+      if (!isJsonlFile(file)) return false;
       const rows = await jsonlSample(file);
       return (
         detectTrajectoryOptions(rows, {

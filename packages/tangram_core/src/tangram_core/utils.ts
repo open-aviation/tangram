@@ -1,10 +1,13 @@
+import { decompress } from "fzstd";
 import type { LazyImportFile, MapBounds, TimeRange } from "./api";
 
 // adapted from: https://github.com/color-js/color.js/blob/main/src/spaces/oklch.js
 type Vector3 = [number, number, number];
 
 export type ColorSpec =
-  string | [number, number, number] | [number, number, number, number];
+  | string
+  | [number, number, number]
+  | [number, number, number, number];
 
 export type DeckGLColor = [number, number, number, number];
 
@@ -211,8 +214,13 @@ export function parseCsvRows(
     );
 }
 
+export function isJsonlFile(file: Pick<LazyImportFile, "metadata">): boolean {
+  const name = file.metadata.name.toLowerCase();
+  return file.metadata.extension === ".jsonl" || name.endsWith(".jsonl.zst");
+}
+
 export async function parseJsonlRows(
-  file: Pick<LazyImportFile, "rawFile" | "getText">,
+  file: Pick<LazyImportFile, "metadata" | "rawFile" | "getBytes" | "getText">,
   maxRows?: number,
   tolerateErrors = false
 ): Promise<Record<string, unknown>[]> {
@@ -236,6 +244,17 @@ export async function parseJsonlRows(
 
     return !(maxRows && rows.length >= maxRows);
   };
+
+  if (file.metadata.name.toLowerCase().endsWith(".jsonl.zst")) {
+    const text = new TextDecoder().decode(decompress(await file.getBytes()));
+    for (const line of text.split(/\r?\n/)) {
+      if (!parseLine(line)) {
+        return rows;
+      }
+    }
+
+    return rows;
+  }
 
   const stream = file.rawFile.stream?.();
   if (stream) {
