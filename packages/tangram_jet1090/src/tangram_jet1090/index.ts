@@ -34,7 +34,9 @@ import {
 } from "./store";
 import {
   JET1090_IMPORTED_HISTORY_KIND,
+  acceptsFlightRadar24Json,
   acceptsRs1090Jsonl,
+  parseFlightRadar24Json,
   parseRs1090Jsonl
 } from "./imported_trajectory";
 
@@ -100,6 +102,16 @@ export async function install(ctx: PluginContext, config?: Jet1090FrontendConfig
     api.ui.registerWorkspaceComponents(JET1090_IMPORTED_HISTORY_KIND, {
       pluginId: ctx.id,
       chip: Jet1090DatasetChip
+    })
+  );
+
+  ctx.onDispose(
+    api.import.registerImporter({
+      id: "flightradar24-json",
+      pluginId: ctx.id,
+      priority: 250,
+      accepts: acceptsFlightRadar24Json,
+      parse: parseFlightRadar24Json
     })
   );
 
