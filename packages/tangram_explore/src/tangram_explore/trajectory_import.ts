@@ -88,21 +88,37 @@ function positionPart(row: Record<string, unknown>, index: 0 | 1): number | null
   return finiteNumber(parts[index]);
 }
 
+export function isFlightRadar24FlightJson(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isRecord(value.result) &&
+    isRecord(value.result.response) &&
+    isRecord(value.result.response.data) &&
+    isRecord(value.result.response.data.flight) &&
+    Array.isArray(value.result.response.data.flight.track)
+  );
+}
+
 function normalizeFlightRadarTrackJson(
   value: Record<string, unknown>,
   fallbackId: string
 ): Record<string, unknown>[] | null {
-  if (!Array.isArray(value.track)) {
+  // FlightRadar24 exports wrap the response once more in a `result` object.
+  const response = isRecord(value.result) ? value.result.response : value.response;
+  const flight =
+    isRecord(response) && isRecord(response.data) ? response.data.flight : value;
+
+  if (!isRecord(flight) || !Array.isArray(flight.track)) {
     return null;
   }
 
-  const identification = isRecord(value.identification) ? value.identification : {};
+  const identification = isRecord(flight.identification) ? flight.identification : {};
   const number = isRecord(identification.number)
     ? identification.number.default
     : undefined;
   const callsign = identification.callsign ?? number ?? fallbackId;
 
-  return value.track.filter(isRecord).map(row => ({
+  return flight.track.filter(isRecord).map(row => ({
     callsign,
     latitude: row.latitude,
     longitude: row.longitude,
