@@ -4,6 +4,18 @@ packages:
 overrides:
   "@scarf/scarf": link:packages/tangram_weather/vendor/scarf-disabled
 
+# workaround for https://github.com/visgl/loaders.gl/pull/3486
+packageExtensions:
+  "@loaders.gl/geoarrow@>=4.4.3 <4.5.0":
+    dependencies:
+      "@loaders.gl/schema-utils": ^4.4.3
+  "@loaders.gl/mvt@>=4.4.3 <4.5.0":
+    dependencies:
+      "@loaders.gl/schema-utils": ^4.4.3
+  "@loaders.gl/terrain@>=4.4.3 <4.5.0":
+    dependencies:
+      "@loaders.gl/schema-utils": ^4.4.3
+
 # tangram_navaid -> trafficjs -> onnxruntime-web -> protobufjs uses build scripts
 # but we don't use onnx anyway
 allowBuilds:

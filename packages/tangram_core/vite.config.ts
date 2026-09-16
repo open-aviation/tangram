@@ -11,7 +11,7 @@ const DECKGL_PACKAGES = [
   "@deck.gl/geo-layers",
   "@deck.gl/mesh-layers",
   "@deck.gl/json",
-  "@deck.gl/mapbox",
+  "@deck.gl/maplibre",
   "@deck.gl/widgets",
   "@deck.gl/extensions"
 ];
@@ -33,12 +33,36 @@ export default defineConfig({
               path.resolve(__dirname, "node_modules/vue/dist/vue.esm-browser.prod.js")
             ),
             normalizePath(
-              path.resolve(__dirname, "node_modules/maplibre-gl/dist/maplibre-gl.js")
+              path.resolve(__dirname, "node_modules/maplibre-gl/dist/maplibre-gl.mjs")
             ),
             normalizePath(
               path.resolve(
                 __dirname,
-                "node_modules/maplibre-gl/dist/maplibre-gl.js.map"
+                "node_modules/maplibre-gl/dist/maplibre-gl.mjs.map"
+              )
+            ),
+            normalizePath(
+              path.resolve(
+                __dirname,
+                "node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs"
+              )
+            ),
+            normalizePath(
+              path.resolve(
+                __dirname,
+                "node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs.map"
+              )
+            ),
+            normalizePath(
+              path.resolve(
+                __dirname,
+                "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs"
+              )
+            ),
+            normalizePath(
+              path.resolve(
+                __dirname,
+                "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs.map"
               )
             ),
             normalizePath(path.resolve(__dirname, "node_modules/lit-html/lit-html.js")),
