@@ -278,8 +278,8 @@ importers:
         specifier: ^9.3.7
         version: 9.3.7(@deck.gl/core@9.3.7)(@loaders.gl/core@4.4.3)(@luma.gl/core@9.3.6)(@luma.gl/engine@9.3.6(@luma.gl/core@9.3.6)(@luma.gl/shadertools@9.3.6(@luma.gl/core@9.3.6)))
       thrust-wasm:
-        specifier: ^0.2.2
-        version: 0.2.2
+        specifier: ^0.2.3
+        version: 0.2.3
       vue:
         specifier: ^3.5.42
         version: 3.5.42(typescript@6.0.3)
@@ -2571,8 +2571,8 @@ packages:
   through@2.2.7:
     resolution: {integrity: sha512-JIR0m0ybkmTcR8URann+HbwKmodP+OE8UCbsifQDYMLD5J3em1Cdn3MYPpbEd5elGDwmP98T+WbqP/tvzA5Mjg==}
 
-  thrust-wasm@0.2.2:
-    resolution: {integrity: sha512-Ta3drHFifptXYC9B1HKaKz81p9Nd2mn/ZsjgCEqvMIQ5duXNqMZpw9S/oxd0vgnR7ZADZzEDYCX4/s7l9ySIJw==}
+  thrust-wasm@0.2.3:
+    resolution: {integrity: sha512-vuP5VLYdgB6ieh0COMDmICLxBtf5JGcRwlhm7FmoLwkgkzwZEinaTumR7wo1b79I+/4+vs1YlRSqgtTq/XUkSg==}
 
   tiny-inflate@1.0.3:
     resolution: {integrity: sha512-pkY1fj1cKHb2seWDy0B16HeWyczlJA9/WW3u3c4z/NiWDsO3DOU5D7nhTLE9CF0yXv/QZFY7sEJmj24dK+Rrqw==}
@@ -6009,7 +6009,7 @@ snapshots:
 
   through@2.2.7: {}
 
-  thrust-wasm@0.2.2: {}
+  thrust-wasm@0.2.3: {}
 
   tiny-inflate@1.0.3: {}
 
@@ -6054,7 +6054,7 @@ snapshots:
       onnxruntime-web: 1.27.0
       osmtogeojson: 3.0.0-beta.5
       simplify-js: 1.2.4
-      thrust-wasm: 0.2.2
+      thrust-wasm: 0.2.3
 
   ts-api-utils@2.5.0(typescript@6.0.3):
     dependencies:
