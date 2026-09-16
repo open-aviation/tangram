@@ -91,7 +91,13 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, getCurrentInstance, ref, watch, computed } from "vue";
-import maplibregl from "maplibre-gl";
+import {
+  Map as MaplibreMap,
+  addProtocol,
+  setWorkerUrl,
+  type MapOptions
+} from "maplibre-gl";
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { TangramApi, type SelectionMap, type WidgetEntry } from "./api";
 import { loadPlugins } from "./plugin";
 import { layers, namedFlavor } from "@protomaps/basemaps";
@@ -103,6 +109,8 @@ import Timeline from "./Timeline.vue";
 import SvgIcon from "./SvgIcon.vue";
 import { ICON_PATHS } from "./utils";
 
+setWorkerUrl(maplibreWorkerUrl);
+
 type ApiState = "loading" | "ready" | "error";
 
 const app = getCurrentInstance()!.appContext.app;
@@ -111,7 +119,7 @@ const loadingMessage = ref<string>("");
 const tangramApi = ref<TangramApi | null>(null);
 const mapContainer = ref<HTMLElement | null>(null);
 const selectedMap = ref<SelectionMap>(new Map());
-let mapInstance: maplibregl.Map | undefined = undefined;
+let mapInstance: MaplibreMap | undefined = undefined;
 
 function widgetMatchesSelection(
   widget: WidgetEntry,
@@ -195,7 +203,7 @@ watch([mapContainer, tangramApi], async ([newEl, api]) => {
     const mapConfig = api.config.map;
 
     const protocol = new pmtiles.Protocol();
-    maplibregl.addProtocol("pmtiles", protocol.tile);
+    addProtocol("pmtiles", protocol.tile);
 
     let resolvedStyle = api.map.resolveStyle();
 
@@ -245,7 +253,7 @@ watch([mapContainer, tangramApi], async ([newEl, api]) => {
       resolvedStyle = styleObject;
     }
 
-    const mapOptions: maplibregl.MapOptions = {
+    const mapOptions: MapOptions = {
       container: newEl,
       style: resolvedStyle,
       center: [mapConfig.center_lon, mapConfig.center_lat],
@@ -261,7 +269,7 @@ watch([mapContainer, tangramApi], async ([newEl, api]) => {
       pitchWithRotate: mapConfig.allow_pitch
     };
 
-    mapInstance = new maplibregl.Map(mapOptions);
+    mapInstance = new MaplibreMap(mapOptions);
     api.map.initialize(mapInstance);
   }
 });

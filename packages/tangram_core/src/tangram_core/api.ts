@@ -14,7 +14,7 @@ import {
   type Component
 } from "vue";
 import type { Map as MaplibreMap, LngLatBounds, StyleSpecification } from "maplibre-gl";
-import { MapboxOverlay } from "@deck.gl/mapbox";
+import { MapLibreOverlay } from "@deck.gl/maplibre";
 import type { Layer } from "@deck.gl/core";
 import { Socket, Channel } from "phoenix";
 import FileDropTarget from "./FileDropTarget.vue";
@@ -1317,7 +1317,7 @@ export class UiApi {
 
 export class MapApi implements Disposable {
   private tangramApi: TangramApi;
-  private overlay: MapboxOverlay | null = null;
+  private overlay: MapLibreOverlay | null = null;
   private readonly layerSlots = createMapLayerBuckets();
   private readonly layerSlotById = new Map<string, MapLayerSlot>();
   private readonly layerPluginIdById = new Map<string, string>();
@@ -1373,7 +1373,7 @@ export class MapApi implements Disposable {
 
   initialize = (mapInstance: MaplibreMap) => {
     this.map.value = mapInstance;
-    this.overlay = new MapboxOverlay({
+    this.overlay = new MapLibreOverlay({
       interleaved: false,
       onHover: info => {
         const canvas = this.map.value?.getCanvas();
@@ -1424,7 +1424,7 @@ export class MapApi implements Disposable {
 
   // the optimised trajectory path mutates existing layer/controller state in place,
   // avoiding the need to rebuild the deck layers every tick. but because we are no
-  // longer changing deck props every frame, MapboxOverlay does not automatically know
+  // longer changing deck props every frame, MapLibreOverlay does not automatically know
   // it should render another frame
   requestRepaint() {
     this.map.value?.triggerRepaint();

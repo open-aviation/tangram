@@ -19,7 +19,7 @@ const DECKGL_PACKAGES = [
   "@deck.gl/geo-layers",
   "@deck.gl/mesh-layers",
   "@deck.gl/json",
-  "@deck.gl/mapbox",
+  "@deck.gl/maplibre",
   "@deck.gl/widgets",
   "@deck.gl/extensions"
 ];
