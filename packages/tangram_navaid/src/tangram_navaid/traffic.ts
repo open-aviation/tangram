@@ -1,7 +1,7 @@
-import type { Field15Element, LookupSource, ResolveQuery } from "traffic.js";
+import type { Field15Element } from "thrust-wasm/web";
+import type { LookupSource, ResolveQuery } from "traffic.js";
 
-type TrafficLib = Pick<typeof import("traffic.js"), "data" | "env">;
-type TrafficData = TrafficLib["data"];
+type TrafficData = (typeof import("traffic.js"))["data"];
 type EarthNavResolver = Awaited<
   ReturnType<TrafficData["xplane"]["createEarthNavResolver"]>
 >;
@@ -33,14 +33,9 @@ export type NavaidFeature = Awaited<
   ReturnType<EarthNavResolver["navaids"]["data"]>
 >[number];
 export type FixFeature = Awaited<ReturnType<EarthFixResolver["fixes"]["data"]>>[number];
-type RouteFeatureCollection = Awaited<
-  ReturnType<ResolverInstance["enrichRouteAsGeoJSON"]>
->;
-type RoutePointCollection = ReturnType<ResolverInstance["extractRoutePointsAsGeoJSON"]>;
-
 export interface RouteResolution {
-  route: RouteFeatureCollection;
-  points: RoutePointCollection;
+  route: Awaited<ReturnType<ResolverInstance["enrichRouteAsGeoJSON"]>>;
+  points: ReturnType<ResolverInstance["extractRoutePointsAsGeoJSON"]>;
 }
 
 export interface ParsedField15 {
@@ -51,7 +46,7 @@ export interface ParsedField15 {
 type Field15ParseResult = { ok: true; value: ParsedField15 } | { ok: false };
 
 interface NavaidServiceOptions {
-  loadThrustModule: () => Promise<unknown>;
+  loadThrustModule: () => Promise<typeof import("thrust-wasm/web")>;
 }
 
 interface NavaidService {
@@ -148,16 +143,18 @@ export function isField15Candidate(expression: string): boolean {
 }
 
 export function createNavaidService(options: NavaidServiceOptions): NavaidService {
-  const traffic = retryable(async (): Promise<TrafficLib> => {
+  const traffic = retryable(async () => {
     const { data, env } = await import("traffic.js");
     return { data, env };
   });
+  const thrust = retryable(async () => {
+    const thrustModule = await options.loadThrustModule();
+    await thrustModule.default();
+    return thrustModule;
+  });
   // traffic.js stores wasm globally so initialization is not tied to plugin disposal
   const field15Runtime = retryable(async () => {
-    const [lib, thrustModule] = await Promise.all([
-      traffic(),
-      options.loadThrustModule()
-    ]);
+    const [lib, thrustModule] = await Promise.all([traffic(), thrust()]);
     lib.env.setThrustWasm({ thrustModule });
     return lib;
   });
@@ -260,8 +257,7 @@ export function createNavaidService(options: NavaidServiceOptions): NavaidServic
       if (!isField15Candidate(normalized)) return { ok: false };
 
       try {
-        const lib = await field15Runtime();
-        const elements = await lib.data.parseField15(normalized);
+        const elements = (await thrust()).parseField15(normalized);
         const pointCount = elements.filter(isField15Point).length;
         // procedures may sit at a field boundary but map geometry still needs one point anchor
         return pointCount >= 2 || (pointCount >= 1 && elements.some(isField15Procedure))
