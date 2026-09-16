@@ -1,16 +1,17 @@
-import type { Field15Element, Field15Modifier } from "traffic.js";
+import type { Altitude, Field15Element, Point, Speed } from "thrust-wasm/web";
 import type { RouteResolution } from "./traffic";
-import { canonicalLongitude } from "./geometry";
+import {
+  canonicalLongitude,
+  type RouteCoordinate,
+  type RoutePoint,
+  type RouteSegment
+} from "./geometry";
 
 export type Field15TokenCategory =
   "speed-level" | "procedure" | "point" | "direct" | "airway" | "track" | "flag";
 
 type Field15PointReference =
   { kind: "name"; value: string } | { kind: "coordinates"; value: [number, number] };
-
-type RouteSegment = RouteResolution["route"]["features"][number];
-type RoutePoint = RouteResolution["points"]["features"][number];
-type RouteCoordinate = [number, number];
 
 // NOTE: copying the formatter from the book: https://github.com/open-aviation/aviationbook/blob/927a79b/chapters/data_sources/planned-route-encoding.qmd
 // for now, but we may want to move it into Rust. See:
@@ -21,14 +22,14 @@ function padField15Number(value: number, width: number): string {
   return String(Math.abs(value)).padStart(width, "0");
 }
 
-function speedLabel(speed: Field15Modifier["speed"]): string {
+function speedLabel(speed: Speed | undefined): string {
   if (!speed) return "";
   if ("kts" in speed) return `N${padField15Number(speed.kts, 4)}`;
   if ("km/h" in speed) return `K${padField15Number(speed["km/h"], 4)}`;
   return `M${padField15Number(Math.round(speed.Mach * 100), 3)}`;
 }
 
-function altitudeLabel(altitude: Field15Modifier["altitude"]): string {
+function altitudeLabel(altitude: Altitude | undefined): string {
   if (!altitude) return "";
   if (altitude === "VFR") return "VFR";
   if ("FL" in altitude) return `F${padField15Number(altitude.FL, 3)}`;
@@ -48,8 +49,7 @@ function coordinateLabel([latitude, longitude]: [number, number]): string {
   ).toFixed(2)}°${longitude >= 0 ? "E" : "W"}`;
 }
 
-function field15PointLabel(element: Field15Element): string {
-  if (typeof element === "string") return element;
+function field15PointLabel(element: Point): string {
   if ("waypoint" in element) return element.waypoint;
   if ("aerodrome" in element) return element.aerodrome;
   if ("coords" in element) return coordinateLabel(element.coords);

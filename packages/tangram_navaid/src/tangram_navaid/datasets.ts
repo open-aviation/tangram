@@ -1,4 +1,4 @@
-import type { Field15Element } from "traffic.js";
+import type { Field15Element } from "thrust-wasm/web";
 import type { MapBounds } from "@open-aviation/tangram-core/api";
 import type {
   WorkspaceDatasetEntry,

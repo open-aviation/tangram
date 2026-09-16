@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { computed, inject, onUnmounted, watch } from "vue";
-import type { Field15Element } from "traffic.js";
+import type { Field15Element } from "thrust-wasm/web";
 import type { TangramApi } from "@open-aviation/tangram-core/api";
 import { NavaidPoint, type ResolvedRoute } from "./datasets";
 import { SvgIcon } from "@open-aviation/tangram-core/components";
