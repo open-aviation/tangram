@@ -21,6 +21,7 @@ import { createFeatureSourceFromGeoJson } from "./feature_source";
 import {
   detectTrajectoryOptions,
   extractTrajectoryJsonRows,
+  isFlightRadar24FlightJson,
   jsonlSample,
   rowsToTrajectories
 } from "./trajectory_import";
@@ -196,7 +197,8 @@ function createExploreImporters(pluginId: string): WorkspaceImporter[] {
       }
     },
     parse: async file => {
-      const rows = extractTrajectoryJsonRows(await file.getJson(), file.metadata.name);
+      const json = await file.getJson();
+      const rows = extractTrajectoryJsonRows(json, file.metadata.name);
       if (!rows) {
         throw new Error(
           `${file.metadata.name} does not look like a trajectory JSON file.`
@@ -205,7 +207,8 @@ function createExploreImporters(pluginId: string): WorkspaceImporter[] {
 
       const options = detectTrajectoryOptions(rows, {
         format: "trajectory-json",
-        file: file.metadata.name
+        file: file.metadata.name,
+        ...(isFlightRadar24FlightJson(json) ? { marker: "aircraft" } : {})
       });
       if (!options) {
         throw new Error(
