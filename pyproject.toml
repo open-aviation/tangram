@@ -29,8 +29,6 @@ docs = [
 
 [tool.uv]
 exclude-newer = "7 days ago"
-# permit ruff 0.16 for now, remove in the future
-exclude-newer-package = { ruff = "3 days ago" }
 
 [tool.uv.workspace]
 members = ["packages/tangram_*"]

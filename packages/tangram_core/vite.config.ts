@@ -30,44 +30,52 @@ export default defineConfig({
         {
           src: [
             normalizePath(
-              path.resolve(__dirname, "node_modules/vue/dist/vue.esm-browser.prod.js")
-            ),
-            normalizePath(
-              path.resolve(__dirname, "node_modules/maplibre-gl/dist/maplibre-gl.mjs")
+              path.resolve(
+                import.meta.dirname,
+                "node_modules/vue/dist/vue.esm-browser.prod.js"
+              )
             ),
             normalizePath(
               path.resolve(
-                __dirname,
+                import.meta.dirname,
+                "node_modules/maplibre-gl/dist/maplibre-gl.mjs"
+              )
+            ),
+            normalizePath(
+              path.resolve(
+                import.meta.dirname,
                 "node_modules/maplibre-gl/dist/maplibre-gl.mjs.map"
               )
             ),
             normalizePath(
               path.resolve(
-                __dirname,
+                import.meta.dirname,
                 "node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs"
               )
             ),
             normalizePath(
               path.resolve(
-                __dirname,
+                import.meta.dirname,
                 "node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs.map"
               )
             ),
             normalizePath(
               path.resolve(
-                __dirname,
+                import.meta.dirname,
                 "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs"
               )
             ),
             normalizePath(
               path.resolve(
-                __dirname,
+                import.meta.dirname,
                 "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs.map"
               )
             ),
-            normalizePath(path.resolve(__dirname, "node_modules/lit-html/lit-html.js")),
             normalizePath(
-              path.resolve(__dirname, "node_modules/lit-html/lit-html.js.map")
+              path.resolve(import.meta.dirname, "node_modules/lit-html/lit-html.js")
+            ),
+            normalizePath(
+              path.resolve(import.meta.dirname, "node_modules/lit-html/lit-html.js.map")
             ),
             /**
              * In tangram>=0.5, we will migrate most things to parquet/arrow so we are putting
@@ -79,11 +87,14 @@ export default defineConfig({
              * We need to modify vite.lib-esm.config.ts to bundle these properly.
              */
             normalizePath(
-              path.resolve(__dirname, "node_modules/parquet-wasm/esm/parquet_wasm.js")
+              path.resolve(
+                import.meta.dirname,
+                "node_modules/parquet-wasm/esm/parquet_wasm.js"
+              )
             ),
             normalizePath(
               path.resolve(
-                __dirname,
+                import.meta.dirname,
                 "node_modules/parquet-wasm/esm/parquet_wasm_bg.wasm"
               )
             )
@@ -101,10 +112,10 @@ export default defineConfig({
   ],
   build: {
     sourcemap: true,
-    outDir: normalizePath(path.resolve(__dirname, "./dist-frontend")),
+    outDir: normalizePath(path.resolve(import.meta.dirname, "./dist-frontend")),
     emptyOutDir: false,
     rolldownOptions: {
-      input: normalizePath(path.resolve(__dirname, "index.html")),
+      input: normalizePath(path.resolve(import.meta.dirname, "index.html")),
       external: ["vue", "maplibre", ...DECKGL_PACKAGES, "lit-html", "parquet-wasm"]
     }
   }
@@ -116,7 +127,7 @@ function copyToPythonPackagePlugin(options: {
   pythonPackageDir: string;
   includePackageJson?: boolean;
 }): Plugin {
-  const projectRoot = __dirname;
+  const projectRoot = import.meta.dirname;
   const enabled = options.enabled ?? false;
   const includePackageJson = options.includePackageJson ?? true;
   let resolvedOutDir: string | undefined;

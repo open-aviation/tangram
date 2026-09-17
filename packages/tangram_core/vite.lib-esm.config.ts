@@ -55,7 +55,7 @@ export default defineConfig({
     "process.env.NODE_ENV": JSON.stringify("production")
   },
   build: {
-    outDir: normalizePath(path.resolve(__dirname, "./dist-frontend")),
+    outDir: normalizePath(path.resolve(import.meta.dirname, "./dist-frontend")),
     rolldownOptions: {
       input: Object.fromEntries(
         DECKGL_PACKAGES.map(pkg => [
