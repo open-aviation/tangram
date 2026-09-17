@@ -7,22 +7,11 @@
 import vue from "@vitejs/plugin-vue";
 import path from "path";
 import fs from "fs/promises";
+import { DECKGL_RESOLVE_CONDITIONS, SHARED_MODULE_SPECIFIERS } from "./vite-shared.mjs";
 
 // dedicated from vite's normal outputs
 // arbitrary third-party emitFile() collisions are not policed!
 const PLUGIN_ASSET_DIR = "plugin-assets";
-
-const DECKGL_PACKAGES = [
-  "@deck.gl/core",
-  "@deck.gl/layers",
-  "@deck.gl/aggregation-layers",
-  "@deck.gl/geo-layers",
-  "@deck.gl/mesh-layers",
-  "@deck.gl/json",
-  "@deck.gl/maplibre",
-  "@deck.gl/widgets",
-  "@deck.gl/extensions"
-];
 
 /** @typedef {import("./vite-plugin-tangram.mjs").TangramPluginOptions} TangramPluginOptions */
 
@@ -62,6 +51,9 @@ export function tangramPlugin(options = {}) {
 
       /** @type {import('vite').UserConfig} */
       const tangramBuildConfig = {
+        resolve: {
+          conditions: [...DECKGL_RESOLVE_CONDITIONS]
+        },
         build: {
           sourcemap: true,
           lib: {
@@ -71,13 +63,7 @@ export function tangramPlugin(options = {}) {
             formats: ["es"]
           },
           rolldownOptions: {
-            external: [
-              "vue",
-              "maplibre",
-              ...DECKGL_PACKAGES,
-              "lit-html",
-              "parquet-wasm"
-            ]
+            external: [...SHARED_MODULE_SPECIFIERS]
           },
           outDir: "dist-frontend",
           minify: true

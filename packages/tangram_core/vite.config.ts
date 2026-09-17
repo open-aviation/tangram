@@ -3,28 +3,17 @@ import vue from "@vitejs/plugin-vue";
 import path from "path";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import fs from "fs/promises";
-
-const DECKGL_PACKAGES = [
-  "@deck.gl/core",
-  "@deck.gl/layers",
-  "@deck.gl/aggregation-layers",
-  "@deck.gl/geo-layers",
-  "@deck.gl/mesh-layers",
-  "@deck.gl/json",
-  "@deck.gl/maplibre",
-  "@deck.gl/widgets",
-  "@deck.gl/extensions"
-];
-// when modifying, also update:
-// - ./index.html (importmap)
-// - ./vite.lib-esm.config.ts
-// - ./src/tangram_core/vite-plugin-tangram.mjs
-// - ../../tsconfig.json paths
+import {
+  DECKGL_RESOLVE_CONDITIONS,
+  SHARED_MODULE_IMPORTS,
+  SHARED_MODULE_SPECIFIERS
+} from "./src/tangram_core/vite-shared.mjs";
 
 // NOTE: normalizePath required for windows: https://github.com/sapphi-red/vite-plugin-static-copy/blob/4746d00ce0644a96313be438738b8ca8066b6562/README.md?plain=1#L42-L55
 export default defineConfig({
   plugins: [
     vue(),
+    sharedImportMapPlugin(),
     viteStaticCopy({
       targets: [
         {
@@ -110,16 +99,37 @@ export default defineConfig({
       includePackageJson: true
     })
   ],
+  resolve: {
+    conditions: [...DECKGL_RESOLVE_CONDITIONS]
+  },
   build: {
     sourcemap: true,
     outDir: normalizePath(path.resolve(import.meta.dirname, "./dist-frontend")),
     emptyOutDir: false,
     rolldownOptions: {
       input: normalizePath(path.resolve(import.meta.dirname, "index.html")),
-      external: ["vue", "maplibre", ...DECKGL_PACKAGES, "lit-html", "parquet-wasm"]
+      external: [...SHARED_MODULE_SPECIFIERS]
     }
   }
 });
+
+// we externalise vue esm so plugins dont have to vendor their own
+// this results in a larger (initial) bundle size but is well worth
+function sharedImportMapPlugin(): Plugin {
+  return {
+    name: "tangram-shared-import-map",
+    transformIndexHtml() {
+      return [
+        {
+          tag: "script",
+          attrs: { type: "importmap" },
+          children: JSON.stringify({ imports: SHARED_MODULE_IMPORTS }, null, 2),
+          injectTo: "head-prepend"
+        }
+      ];
+    }
+  };
+}
 
 // required workaround for https://github.com/open-aviation/tangram/pull/99#issuecomment-3777038726
 function copyToPythonPackagePlugin(options: {

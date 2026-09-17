@@ -261,6 +261,7 @@ watch([mapContainer, tangramApi], async ([newEl, api]) => {
       pitch: mapConfig.pitch,
       bearing: mapConfig.bearing,
       attributionControl: false,
+      canvasContextAttributes: { antialias: true },
       minZoom: mapConfig.min_zoom,
       maxZoom: mapConfig.max_zoom,
       maxPitch: mapConfig.allow_pitch ? mapConfig.max_pitch : 0,

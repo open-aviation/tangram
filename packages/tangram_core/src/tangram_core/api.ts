@@ -1373,8 +1373,10 @@ export class MapApi implements Disposable {
 
   initialize = (mapInstance: MaplibreMap) => {
     this.map.value = mapInstance;
+    // TODO: expose MapLibre layer placement (e.g. deck's `beforeId`)
+    // so plugins can render below layers or between basemap layers
     this.overlay = new MapLibreOverlay({
-      interleaved: false,
+      interleaved: true,
       onHover: info => {
         const canvas = this.map.value?.getCanvas();
         if (canvas) {

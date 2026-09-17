@@ -11,18 +11,10 @@
  */
 import { defineConfig, normalizePath, type Plugin } from "vite";
 import path from "path";
-
-const DECKGL_PACKAGES = [
-  "@deck.gl/core",
-  "@deck.gl/layers",
-  "@deck.gl/aggregation-layers",
-  "@deck.gl/geo-layers",
-  "@deck.gl/mesh-layers",
-  "@deck.gl/json",
-  "@deck.gl/maplibre",
-  "@deck.gl/widgets",
-  "@deck.gl/extensions"
-];
+import {
+  DECKGL_PACKAGES,
+  DECKGL_RESOLVE_CONDITIONS
+} from "./src/tangram_core/vite-shared.mjs";
 
 /* Use a virtual module plugin to create explicit re-exports,
  * preventing tree-shaking caused by `sideEffects: false` in deck.gl packages.
@@ -50,6 +42,9 @@ function virtualDeckGLEntries(): Plugin {
 }
 
 export default defineConfig({
+  resolve: {
+    conditions: [...DECKGL_RESOLVE_CONDITIONS]
+  },
   // `webgl-developer-tools` is intended for node, perform a direct text replacement
   define: {
     "process.env.NODE_ENV": JSON.stringify("production")
