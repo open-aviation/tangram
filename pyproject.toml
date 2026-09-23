@@ -23,7 +23,7 @@ test = ["pytest>=9.1.1", "anyio>=4.15.1"]
 lint = ["ruff>=0.16.6"]
 typing = ["mypy>=2.3.1"]
 docs = [
-    "zensical>=0.0.60",
+    "zensical>=0.0.62",
     "mkdocstrings-python>=2.0.8",
 ]
 
