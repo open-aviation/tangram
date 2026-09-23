@@ -5,13 +5,17 @@ import { tangramPlugin } from "@open-aviation/tangram-core/vite-plugin";
 
 const rs1090Loader = fileURLToPath(import.meta.resolve("rs1090-wasm/web"));
 const rs1090Wasm = path.join(path.dirname(rs1090Loader), "rs1090_wasm_bg.wasm");
+const aircraftAtlas = fileURLToPath(
+  new URL("./src/tangram_jet1090/aircraft-atlas.png", import.meta.url)
+);
 
 export default defineConfig({
   plugins: [
     tangramPlugin({
       assets: [
         { source: rs1090Loader, fileName: "rs1090_wasm.js" },
-        { source: rs1090Wasm, fileName: "rs1090_wasm_bg.wasm" }
+        { source: rs1090Wasm, fileName: "rs1090_wasm_bg.wasm" },
+        { source: aircraftAtlas, fileName: "aircraft-atlas.png" }
       ],
       copyToPythonPackage: true
     })

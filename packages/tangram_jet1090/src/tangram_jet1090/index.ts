@@ -159,7 +159,8 @@ export async function install(ctx: PluginContext, config?: Jet1090FrontendConfig
     priority: config?.topbar_order
   });
   api.ui.registerWidget("jet1090-aircraft-layer", "MapOverlay", AircraftLayer, {
-    pluginId: ctx.id
+    pluginId: ctx.id,
+    props: { aircraftAtlasUrl: ctx.assetUrl("aircraft-atlas.png") }
   });
   api.ui.registerWidget("jet1090-info-widget", "SideBar", AircraftInfoWidget, {
     pluginId: ctx.id,
