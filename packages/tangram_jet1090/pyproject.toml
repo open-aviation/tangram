@@ -34,6 +34,17 @@ dependencies = ["tangram_core>=0.6.0"]
 [project.optional-dependencies]
 history = ["polars[deltalake]"]
 
+[dependency-groups]
+dev = [
+    "cairosvg>=2.8.2",
+    "pillow>=11.3.0",
+    "pydantic>=2.12.5",
+    "svgpathtools>=1.7.1",
+    "tomli>=2.4.0 ; python_full_version < '3.11'",
+    "typer>=0.20.0",
+    "typing-extensions>=4.15.0",
+]
+
 [tool.uv.sources]
 tangram_core = { workspace = true }
 

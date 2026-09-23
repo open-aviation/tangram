@@ -76,8 +76,13 @@ stubgen:
     cargo build -p tangram_jet1090 --features pyo3; "$tool" target/debug/lib_planes.so _planes "$tmp/planes"; cp "$tmp/planes/__init__.pyi" packages/tangram_jet1090/src/tangram_jet1090/_planes.pyi; \
     cargo build -p tangram_ship162 --features pyo3; "$tool" target/debug/lib_ships.so _ships "$tmp/ships"; cp "$tmp/ships/__init__.pyi" packages/tangram_ship162/src/tangram_ship162/_ships.pyi
 
+# Build the aircraft atlas from typed TOML artwork and runtime JSON metadata.
+jet1090-atlas:
+  uv run --package tangram_jet1090 --group dev python packages/tangram_jet1090/scripts/aircraft_icons.py build
+
 # Check code quality (eslint, ruff, clippy) and formatting (prettier, ruff, rustfmt).
 check:
+  uv run --package tangram_jet1090 --group dev python packages/tangram_jet1090/scripts/aircraft_icons.py check
   uv run ruff check packages
   uv run ruff format packages --check
   pnpm typecheck

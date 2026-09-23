@@ -56,6 +56,9 @@ jobs:
       - name: install tangram (all plugins)
         run: uv sync --all-groups --all-packages
 
+      - name: check jet1090 aircraft icons
+        run: uv run --package tangram_jet1090 --group dev python packages/tangram_jet1090/scripts/aircraft_icons.py check
+
       - name: check plugin dependencies
         run: uv run tangram check-plugin --all
 

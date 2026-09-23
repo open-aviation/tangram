@@ -23,8 +23,7 @@ import type { PickingInfo } from "@deck.gl/core";
 import type { TangramApi, Entity, Disposable } from "@open-aviation/tangram-core/api";
 import { findTrajectorySampleIndexAtTime } from "@open-aviation/tangram-core/trajectory";
 import { getModifierKeys, resolveBearing } from "@open-aviation/tangram-core/utils";
-import { html, svg, render } from "lit-html";
-import { get_image_object, type IconProps } from "./PlanePath";
+import aircraftIconMetadata from "./aircraft-icons.json";
 import type { Jet1090Aircraft } from ".";
 import { pluginConfig } from "./store";
 import {
@@ -32,7 +31,60 @@ import {
   isJet1090ImportedHistoryDataset
 } from "./imported_trajectory";
 
+const props = defineProps<{ aircraftAtlasUrl: string }>();
+
 const FEET_TO_METERS = 0.3048;
+
+const ICON_STYLES = ["normal", "selected"] as const;
+type AircraftIconStyle = (typeof ICON_STYLES)[number];
+type AircraftIconKey = `${string}:${AircraftIconStyle}`;
+
+const DEFAULT_AIRCRAFT_SYMBOL = "A320";
+const aircraftIconAliases = aircraftIconMetadata.aliases.map(
+  ([prefix, symbol]) => [prefix, symbol] as const
+);
+const resolvedAircraftSymbols = new Map<string, string>();
+const { spriteSize, gutter, columns } = aircraftIconMetadata.atlas;
+const cellSize = spriteSize + 2 * gutter;
+
+const aircraftIconMapping = Object.fromEntries(
+  aircraftIconMetadata.symbols.flatMap((symbol, symbolIndex) =>
+    ICON_STYLES.map((style, styleIndex) => {
+      const index = symbolIndex * ICON_STYLES.length + styleIndex;
+      return [
+        `${symbol}:${style}` satisfies AircraftIconKey,
+        {
+          x: (index % columns) * cellSize + gutter,
+          y: Math.floor(index / columns) * cellSize + gutter,
+          width: spriteSize,
+          height: spriteSize
+        }
+      ];
+    })
+  )
+);
+
+const aircraftIconKey = (
+  typecode: string | null | undefined,
+  style: AircraftIconStyle
+): AircraftIconKey => {
+  const cacheKey = typecode ?? "";
+  let symbol = resolvedAircraftSymbols.get(cacheKey);
+
+  if (!symbol) {
+    symbol = DEFAULT_AIRCRAFT_SYMBOL;
+    if (typecode) {
+      for (const [prefix, candidate] of aircraftIconAliases) {
+        if (!typecode.startsWith(prefix)) continue;
+        symbol = candidate;
+        break;
+      }
+    }
+    resolvedAircraftSymbols.set(cacheKey, symbol);
+  }
+
+  return `${symbol}:${style}`;
+};
 const tangramApi = inject<TangramApi>("tangramApi");
 if (!tangramApi) {
   throw new Error("assert: tangram api not provided");
@@ -77,70 +129,9 @@ const tooltip = reactive<{
   object: AircraftTooltipItem | null;
 }>({ x: 0, y: 0, object: null });
 
-const iconCache = new Map<string, string>();
-const bboxCache = new Map<string, DOMRect>();
-
-const getPathBBox = (d: string): DOMRect => {
-  if (bboxCache.has(d)) return bboxCache.get(d)!;
-  const svgNS = "http://www.w3.org/2000/svg";
-  const svgEl = document.createElementNS(svgNS, "svg");
-  svgEl.style.cssText = "position:absolute;visibility:hidden;width:0;height:0";
-  const pathEl = document.createElementNS(svgNS, "path");
-  pathEl.setAttribute("d", d);
-  svgEl.appendChild(pathEl);
-  document.body.appendChild(svgEl);
-  const bbox = pathEl.getBBox();
-  document.body.removeChild(svgEl);
-  bboxCache.set(d, bbox);
-  return bbox;
-};
-
-const createAircraftSvgDataURL = (typecode: string, isSelected: boolean): string => {
-  const cacheKey = `${typecode}-${isSelected}`;
-  if (iconCache.has(cacheKey)) {
-    return iconCache.get(cacheKey)!;
-  }
-
-  const iconProps = get_image_object(typecode) as IconProps;
-  const bbox = getPathBBox(iconProps.path);
-  const centerX = bbox.x + bbox.width / 2.0;
-  const centerY = bbox.y + bbox.height / 2.0;
-  const offsetX = iconProps.ofX || 0;
-  const offsetY = iconProps.ofY || 0;
-  const scale = iconProps.scale * 0.7;
-
-  const tx = -centerX + offsetX;
-  const ty = -centerY + offsetY;
-  const strokeWidth = 0.65 / scale;
-
-  const fillColor = isSelected ? "#ff6464" : "#f9fd15";
-  const transform = `scale(${scale}) translate(${tx}, ${ty})`;
-
-  const path = svg`<path stroke="#0014aa" fill="${fillColor}" stroke-width="${strokeWidth}" d="${iconProps.path}" transform="${transform}"/>`;
-  const template = html`<svg
-    version="1.1"
-    shape-rendering="geometricPrecision"
-    width="64px"
-    height="64px"
-    viewBox="-16 -16 32 32"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    ${path}
-  </svg>`;
-  const container = document.createElement("div");
-  render(template, container);
-
-  const svgString = container.innerHTML;
-  const dataUrl = `data:image/svg+xml;base64,${btoa(svgString)}`;
-  iconCache.set(cacheKey, dataUrl);
-  return dataUrl;
-};
-
 const getAircraftAngle = (state: Jet1090Aircraft): number => {
-  const iconProps = get_image_object(state.typecode || null) as IconProps;
   const direction = resolveBearing(state.track, state.heading) ?? 0;
-
-  return -direction + iconProps.rotcorr;
+  return -direction;
 };
 
 const onLiveClick = (info: PickingInfo<Entity<Jet1090Aircraft>>, event: unknown) => {
@@ -250,17 +241,9 @@ const renderImportedLayer = (enable3d: boolean) => {
     // regressed icon rendering in the `setLayer()` flow
     // Keep the sparse imported icon layer for now and revisit later
     getSize: d => (d.visible ? 32 : 0),
-    getIcon: d => {
-      const typecode = d.state.typecode || "A320";
-      return {
-        url: createAircraftSvgDataURL(typecode, false),
-        id: typecode,
-        width: 64,
-        height: 64,
-        anchorY: 32,
-        mask: false
-      };
-    },
+    iconAtlas: props.aircraftAtlasUrl,
+    iconMapping: aircraftIconMapping,
+    getIcon: d => aircraftIconKey(d.state.typecode, "normal"),
     getPosition: d => [
       d.state.longitude!,
       d.state.latitude!,
@@ -315,19 +298,13 @@ watch(
       billboard: false,
       sizeScale: 1,
       getSize: 32,
-      getIcon: d => {
-        const typecode = d.state.typecode || "A320";
-        const isSelected = currentSelectedIds.has(d.id);
-        const iconId = `${typecode}-${isSelected}`;
-        return {
-          url: createAircraftSvgDataURL(typecode, isSelected),
-          id: iconId,
-          width: 64,
-          height: 64,
-          anchorY: 32,
-          mask: false
-        };
-      },
+      iconAtlas: props.aircraftAtlasUrl,
+      iconMapping: aircraftIconMapping,
+      getIcon: d =>
+        aircraftIconKey(
+          d.state.typecode,
+          currentSelectedIds.has(d.id) ? "selected" : "normal"
+        ),
       getPosition: d => [
         d.state.longitude!,
         d.state.latitude!,
