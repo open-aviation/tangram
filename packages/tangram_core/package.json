@@ -70,6 +70,6 @@
     "@types/phoenix": "^1.6.7",
     "vite": "^8.3.0",
     "vite-plugin-static-copy": "^4.1.1",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   }
 }
