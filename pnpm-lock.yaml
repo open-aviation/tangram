@@ -117,8 +117,8 @@ importers:
         specifier: ^0.7.2
         version: 0.7.2
       phoenix:
-        specifier: ^1.8.9
-        version: 1.8.9
+        specifier: ^1.8.14
+        version: 1.8.14
       pmtiles:
         specifier: ^4.5.0
         version: 4.5.0
@@ -2354,8 +2354,8 @@ packages:
     resolution: {integrity: sha512-mnvGdvOrIvJOBGUEdGkrVXjN8E/VkIJCkf2eS1DH2yv82ORUlLttmDt0rWY38yYZmVwciZwBUvHM20qxBZf40w==}
     hasBin: true
 
-  phoenix@1.8.9:
-    resolution: {integrity: sha512-/2qzAZB3P2s08fFAYaG65lqaNFmVXUSlXdY4/JDdDKIC81y2cFWkPwI8gycy4VLpv197JwZ5PpBf3VhoG32yGA==}
+  phoenix@1.8.14:
+    resolution: {integrity: sha512-erAGbssrbK7xe4l/tWXZTdsstCY+ufGTt/Kdin4uwceaP2TVqSL6v4s3flQOvIxShpwQx2/8NcOcBXOqgQ+ltw==}
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -5801,7 +5801,7 @@ snapshots:
     dependencies:
       resolve-protobuf-schema: 2.1.0
 
-  phoenix@1.8.9: {}
+  phoenix@1.8.14: {}
 
   picocolors@1.1.1: {}
 

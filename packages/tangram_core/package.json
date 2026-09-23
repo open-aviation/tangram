@@ -62,7 +62,7 @@
     "lit-html": "^3.3.3",
     "maplibre-gl": "^6.10.0",
     "parquet-wasm": "^0.7.2",
-    "phoenix": "^1.8.9",
+    "phoenix": "^1.8.14",
     "pmtiles": "^4.5.0",
     "vue": "^3.5.42"
   },
