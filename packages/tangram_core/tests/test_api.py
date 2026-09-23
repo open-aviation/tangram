@@ -112,7 +112,7 @@ async def client() -> AsyncGenerator[httpx.AsyncClient, None]:
 async def test_static(client: httpx.AsyncClient, server_url: str) -> None:
     response = await client.get(f"{server_url}")
     response.raise_for_status()
-    assert response.content.startswith(b"<!DOCTYPE html>")
+    assert response.content.lower().startswith(b"<!doctype html>")
 
 
 @pytest.mark.anyio
