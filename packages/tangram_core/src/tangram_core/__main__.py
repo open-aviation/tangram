@@ -14,7 +14,7 @@ import subprocess
 import sys
 from collections.abc import Generator
 from pathlib import Path
-from typing import Annotated, Any, TypeAlias
+from typing import TYPE_CHECKING, Annotated, Any, TypeAlias
 
 if sys.version_info >= (3, 11):
     from importlib.resources.abc import Traversable
@@ -25,6 +25,9 @@ import typer
 from rich.console import Console
 
 from .config import default_config_file
+
+if TYPE_CHECKING:
+    from .plugin import DistributionName, PluginId
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 logger = logging.getLogger(__name__)
@@ -95,17 +98,16 @@ def list_plugins(
     table.add_column("services")
     table.add_column("commands")
 
-    enabled_plugins: list[str] | None = None
+    enabled_plugins: list[PluginId] | None = None
     if config_path and config_path.is_file():
-        config = Config.from_file(config_path)
-        enabled_plugins = config.core.plugins
+        enabled_plugins = Config.from_file(config_path).core.plugins
 
     for entry_point in scan_plugins():
-        plugin_name = entry_point.name
+        plugin_id: PluginId = entry_point.name
         version = dist.version if (dist := entry_point.dist) is not None else "?"
-        plugin_str = f"{plugin_name}=={version}"
+        plugin_str = f"{plugin_id}=={version}"
         load_this_plugin = load_all or (
-            enabled_plugins is not None and plugin_name in enabled_plugins
+            enabled_plugins is not None and plugin_id in enabled_plugins
         )
 
         if not load_this_plugin:
@@ -113,13 +115,10 @@ def list_plugins(
             continue
 
         if (plugin := load_plugin(entry_point)) is None:
-            status_str = "[red]load failed[/red]"
-            table.add_row(plugin_str, status_str, "!", "!", "!", "!")
+            table.add_row(plugin_str, "[red]load failed[/red]", "!", "!", "!", "!")
             continue
         status = (
-            "enabled"
-            if enabled_plugins and plugin_name in enabled_plugins
-            else "loaded"
+            "enabled" if enabled_plugins and plugin_id in enabled_plugins else "loaded"
         )
         if plugin.frontend_path is None:
             frontend_str = ""
@@ -169,11 +168,14 @@ def get_package_paths(
         from .backend import get_distribution_path
         from .plugin import scan_plugins
 
-        yield "core", get_distribution_path("tangram_core")
+        yield (
+            "core",
+            get_distribution_path("tangram_core", "tangram_core"),
+        )
 
         for ep in scan_plugins():
-            name = ep.dist.name if ep.dist else ep.name
-            yield name, get_distribution_path(name)
+            name: DistributionName = ep.dist.name if ep.dist else ep.name
+            yield name, get_distribution_path(name, ep.module)
     if extra_paths:
         for path in extra_paths:
             yield "(unknown name)", path
@@ -195,7 +197,7 @@ def check_plugin(
     if extra_paths is None and not all:
         all = True
 
-    core_path = get_distribution_path("tangram_core")
+    core_path = get_distribution_path("tangram_core", "tangram_core")
 
     core_pkg_json = core_path / "package.json"
     core_package_json = json.loads(core_pkg_json.read_text())
@@ -343,7 +345,7 @@ def load_plugin_commands() -> None:
             )
         app.add_typer(
             plugin_typer,
-            help=f"Commands for the '{plugin.dist_name}' plugin.",
+            help=f"Commands for the '{plugin.id}' plugin.",
             name=name,
         )
 

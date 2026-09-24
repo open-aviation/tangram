@@ -12,6 +12,10 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 
 from fastapi import APIRouter
 
+PluginId: TypeAlias = str
+ModuleName: TypeAlias = str
+DistributionName: TypeAlias = str
+
 if TYPE_CHECKING:
     from pydantic import TypeAdapter
     from typer import Typer
@@ -67,10 +71,16 @@ class Plugin:
     )
     get_typer: Callable[[], Typer] | None = None
     """A function that returns the subcommands which will later be registered."""
-    dist_name: str = field(init=False)
-    """Name of the distribution (package) that provided this plugin, populated
-    automatically during loading.
-    """  # we do this so plugins can know their own package name if needed
+    id: PluginId = field(init=False)
+    """Runtime plugin ID, populated from the entry-point name during loading."""
+    dist_name: DistributionName = field(init=False)
+    """Python distribution name that provided this plugin, populated during loading.
+
+    This is package metadata only. Runtime registration, configuration,
+    frontend URLs, and ownership use `id`.
+    """
+    module_name: ModuleName = field(init=False, repr=False)
+    """Python import module referenced by the plugin entry point."""
 
     def register_service(
         self, priority: Priority = 0
@@ -135,8 +145,7 @@ def scan_plugins() -> importlib.metadata.EntryPoints:
 def load_plugin(
     entry_point: importlib.metadata.EntryPoint,
 ) -> Plugin | None:
-    """Instantiates the plugin object defined in the entry point
-    and injects the name of the distribution into it."""
+    """Load a plugin and attach its runtime ID and Python distribution name."""
     try:
         plugin_instance = entry_point.load()
     except Exception as e:  # ruff: ignore[BLE001] plugin imports may raise arbitrary exceptions
@@ -152,8 +161,7 @@ def load_plugin(
     if entry_point.dist is None:
         logger.error(f"could not determine distribution for plugin {entry_point.name}")
         return None
-    # NOTE: we ignore `entry_point.name` for now and simply use the distribution's name
-    # should we raise an error if they differ? not for now
-
+    plugin_instance.id = entry_point.name
     plugin_instance.dist_name = entry_point.dist.name
+    plugin_instance.module_name = entry_point.module
     return plugin_instance

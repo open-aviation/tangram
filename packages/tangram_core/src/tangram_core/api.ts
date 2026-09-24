@@ -2167,12 +2167,14 @@ export class TangramApi {
     watch(
       () => this.settings,
       () => {
-        for (const [pName, pSettings] of Object.entries(this.settings)) {
-          const tOrder = pSettings.values.topbar_order;
-          const sOrder = pSettings.values.sidebar_order;
+        for (const [pluginId, pluginSettings] of Object.entries(this.settings)) {
+          const tOrder = pluginSettings.values.topbar_order;
+          const sOrder = pluginSettings.values.sidebar_order;
 
           if (tOrder !== undefined || sOrder !== undefined) {
-            const pluginSuffix = pName.startsWith("tangram_") ? pName.slice(8) : pName;
+            const pluginSuffix = pluginId.startsWith("tangram_")
+              ? pluginId.slice(8)
+              : pluginId;
 
             const applyOrder = (
               location: "TopBar" | "SideBar",
@@ -2181,7 +2183,7 @@ export class TangramApi {
               if (order === undefined) return;
               const widgets = this.ui.widgets[location];
               for (const w of widgets) {
-                if (w.pluginId === pName || w.id.includes(pluginSuffix)) {
+                if (w.pluginId === pluginId || w.id.includes(pluginSuffix)) {
                   w.priority = order;
                 }
               }

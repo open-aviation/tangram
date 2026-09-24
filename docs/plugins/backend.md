@@ -67,6 +67,10 @@ dependencies = ["tangram_core>=0.5"]
 my_plugin = "my_plugin:plugin"
 ```
 
+The left-hand side, `my_plugin`, is the **plugin ID**, a stable identifier used across tangram. It is used to customise the [configuration](../configuration.md) in the TOML under `[plugins.my_plugin]`.
+
+The right-hand side, `my_plugin:plugin`, should point to the Python object defined below.
+
 ### 2. The `Plugin` Object
 
 The entry point must point to an instance of the `tangram_core.Plugin` class. This object is the central hub for registering your plugin's components.

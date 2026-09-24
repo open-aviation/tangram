@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import importlib.resources
 import json
 import logging
 import os
@@ -49,7 +48,7 @@ from .plugin import load_plugin, scan_plugins
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-    from .plugin import Plugin
+    from .plugin import DistributionName, ModuleName, Plugin, PluginId
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +59,8 @@ class BackendState:
     redis_client: redis.Redis
     http_client: httpx.AsyncClient
     config: Config
-    loaded_plugins: dict[str, Plugin] = field(default_factory=dict)
+    loaded_plugins: dict[PluginId, Plugin] = field(default_factory=dict)
+    """Activated plugins keyed by runtime plugin ID."""
 
     @property
     def base_url(self) -> str:
@@ -78,15 +78,24 @@ async def get_state(request: Request) -> BackendState:
 InjectBackendState: TypeAlias = Annotated[BackendState, Depends(get_state)]
 
 
-def get_distribution_path(dist_name: str) -> Path:
-    """Get the local path of a distribution, handling both editable installs
-    (`direct_url.json`) and standard wheel installs.
+def get_distribution_path(dist_name: DistributionName, module_name: ModuleName) -> Path:
+    """Get a distribution's source root or installed import-package root.
+
+    Editable installs resolve to the project directory from `direct_url.json`.
+    Installed distributions resolve from their metadata, optionally using an
+    entry-point module to disambiguate distributions.
 
     See: https://packaging.python.org/en/latest/specifications/direct-url-data-structure/
     """
     # always try direct_url.json first (e.g. for the case of `uv sync --all-packages`)
     try:
         dist = Distribution.from_name(dist_name)
+    except PackageNotFoundError as exc:
+        raise FileNotFoundError(
+            f"could not find distribution path for {dist_name}"
+        ) from exc
+
+    try:
         if direct_url_content := dist.read_text("direct_url.json"):
             direct_url_data = json.loads(direct_url_content)
             if (
@@ -100,25 +109,35 @@ def get_distribution_path(dist_name: str) -> Path:
                     path_str = urllib.request.url2pathname(parsed.path)
                     if parsed.netloc and parsed.netloc not in ("", "localhost"):
                         path_str = f"//{parsed.netloc}{path_str}"
-                    path1 = Path(path_str)
+                    project_path = Path(path_str)
                 else:
-                    path1 = Path(urllib.parse.unquote(parsed.path))
-                if path1.is_dir():
-                    return path1
-    except (PackageNotFoundError, json.JSONDecodeError, FileNotFoundError):
+                    project_path = Path(urllib.parse.unquote(parsed.path))
+                if project_path.is_dir():
+                    return project_path
+    except (json.JSONDecodeError, FileNotFoundError):
         pass
 
-    # fallback in case it was installed via a wheel
-    if (trav := importlib.resources.files(dist_name)).is_dir():
-        with importlib.resources.as_file(trav) as path2:
-            return path2
-    raise FileNotFoundError(f"could not find distribution path for {dist_name}")
+    package_name = module_name.partition(".")[0]
+    package_path = Path(str(dist.locate_file(package_name)))
+    if package_path.is_dir():
+        return package_path
+
+    module_path = package_path.with_suffix(".py")
+    if module_path.is_file():
+        return module_path.parent
+
+    raise FileNotFoundError(
+        f"could not find module {module_name} in distribution {dist_name}"
+    )
 
 
 def resolve_frontend(plugin: Plugin) -> Path | None:
     if not plugin.frontend_path:
         return None
-    return get_distribution_path(plugin.dist_name) / plugin.frontend_path
+    return (
+        get_distribution_path(plugin.dist_name, plugin.module_name)
+        / plugin.frontend_path
+    )
 
 
 def load_enabled_plugins(
@@ -128,8 +147,8 @@ def load_enabled_plugins(
     enabled_plugin_names = set(config.core.plugins)
 
     for entry_point in scan_plugins():
-        # TODO: should we check entry_point.dist.name instead?
-        if entry_point.name not in enabled_plugin_names:
+        plugin_id: PluginId = entry_point.name
+        if plugin_id not in enabled_plugin_names:
             continue
         if (plugin := load_plugin(entry_point)) is not None:
             loaded_plugins.append(plugin)
@@ -144,7 +163,7 @@ async def lifespan(
     async with AsyncExitStack() as stack:
         for plugin in loaded_plugins:
             if plugin.lifespan:
-                logger.info(f"initializing lifespan for {plugin.dist_name}")
+                logger.info(f"initializing lifespan for {plugin.id}")
                 await stack.enter_async_context(plugin.lifespan(backend_state))
 
         app.state.backend_state = backend_state
@@ -300,27 +319,27 @@ def create_app(
 
     manifest_plugins = {}
     for plugin in loaded_plugins:
-        backend_state.loaded_plugins[plugin.dist_name] = plugin
+        backend_state.loaded_plugins[plugin.id] = plugin
         for router in plugin.routers:
             app.include_router(router)
 
         if (frontend_path_resolved := resolve_frontend(plugin)) is None:
             continue
         app.mount(
-            f"/plugins/{plugin.dist_name}",
+            f"/plugins/{plugin.id}",
             StaticFiles(directory=str(frontend_path_resolved)),
-            name=plugin.dist_name,
+            name=plugin.id,
         )
         if not (plugin_json_path := frontend_path_resolved / "plugin.json").exists():
             continue
         with plugin_json_path.open("rb") as f:
             plugin_meta = json.load(f)
 
-        manifest_plugins[plugin.dist_name] = plugin_meta
+        manifest_plugins[plugin.id] = plugin_meta
 
         # NOTE: on the js side the `config` and `config_json_schema` keys
         # may be missing if the plugin does not configure them properly
-        conf_dict = backend_state.config.plugins.get(plugin.dist_name, {})
+        conf_dict = backend_state.config.plugins.get(plugin.id, {})
         if (backend_adapter := plugin.adapter()) is None:
             continue
         conf_instance = backend_adapter.validate_python(conf_dict)
@@ -329,7 +348,7 @@ def create_app(
         if plugin.into_frontend_config_function is None:
             logger.warning(
                 f"expected `into_frontend_config_function` for"
-                f" plugin {plugin.dist_name} but it is None. "
+                f" plugin {plugin.id} but it is None. "
                 "Frontend config will be empty!"
             )
             continue
@@ -337,24 +356,24 @@ def create_app(
         frontend_adapter_ = plugin.frontend_adapter()
         assert frontend_adapter_ is not None
         frontend_manifest = to_frontend_manifest(frontend_adapter_, frontend_instance)
-        manifest_plugins[plugin.dist_name] = {
+        manifest_plugins[plugin.id] = {
             **plugin_meta,
             **frontend_manifest,
         }
 
-    @app.post("/settings/validate/{plugin_name}")
+    @app.post("/settings/validate/{plugin_id}")
     async def validate_settings(
-        plugin_name: str,
-        data: dict,
+        plugin_id: str,
+        data: dict[str, Any],
         state: Annotated[BackendState, Depends(get_state)],
-    ) -> dict:
+    ) -> dict[str, Any]:
         SUCCESS = {"success": True, "errors": {}}
         try:
-            if plugin_name == "tangram_core":
+            if plugin_id == "tangram_core":
                 _ = parse_frontend_config(frontend_adapter, data)
                 return SUCCESS
-            plugin = state.loaded_plugins.get(plugin_name)
-            assert plugin is not None, f"plugin {plugin_name} not found"
+            plugin = state.loaded_plugins.get(plugin_id)
+            assert plugin is not None, f"plugin {plugin_id} not found"
 
             if plugin.frontend_config_class:
                 if (frontend_adapter_ := plugin.frontend_adapter()) is not None:
@@ -396,7 +415,8 @@ def create_app(
         )
 
     if not (
-        frontend_path := get_distribution_path("tangram_core") / "dist-frontend"
+        frontend_path := get_distribution_path("tangram_core", "tangram_core")
+        / "dist-frontend"
     ).is_dir():
         raise ValueError(
             f"error: frontend {frontend_path} was not found, "

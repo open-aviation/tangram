@@ -20,20 +20,20 @@
       </div>
       <div class="settings-content">
         <div
-          v-for="pluginName in visiblePluginNames"
-          :key="pluginName"
+          v-for="pluginId in visiblePluginIds"
+          :key="pluginId"
           class="settings-section"
         >
-          <div class="section-title">{{ formatPluginName(pluginName) }}</div>
+          <div class="section-title">{{ formatPluginId(pluginId) }}</div>
 
-          <template v-for="item in getRenderList(pluginName)" :key="item.key">
+          <template v-for="item in getRenderList(pluginId)" :key="item.key">
             <div v-if="item.type === 'widget'" class="widget-group">
               <component
                 :is="getWidgetComponent(item.widget!)"
-                :model-value="getPluginValue(pluginName, item.key)"
+                :model-value="getPluginValue(pluginId, item.key)"
                 :schema="item.schema"
                 @update:model-value="
-                  (v: unknown) => setPluginValue(pluginName, item.key, v)
+                  (v: unknown) => setPluginValue(pluginId, item.key, v)
                 "
               />
             </div>
@@ -42,12 +42,12 @@
               v-else
               :field-key="item.key"
               :schema="item.schema"
-              :model-value="getPluginValue(pluginName, item.key)"
-              :errors="getPluginErrors(pluginName)"
-              :definitions="getPluginDefinitions(pluginName)"
+              :model-value="getPluginValue(pluginId, item.key)"
+              :errors="getPluginErrors(pluginId)"
+              :definitions="getPluginDefinitions(pluginId)"
               parent-path=""
-              @update:model-value="v => setPluginValue(pluginName, item.key, v)"
-              @change="triggerValidation(pluginName)"
+              @update:model-value="v => setPluginValue(pluginId, item.key, v)"
+              @change="triggerValidation(pluginId)"
             />
           </template>
         </div>
@@ -108,7 +108,7 @@ const isSchemaVisible = (
   return false;
 };
 
-const visiblePluginNames = computed(() => {
+const visiblePluginIds = computed(() => {
   return Object.keys(api.settings).filter(name => {
     const plugin = api.settings[name];
     if (!plugin.schema || !plugin.schema.properties) return false;
@@ -126,8 +126,8 @@ interface RenderItem {
   schema: JsonSchema;
 }
 
-const getRenderList = (pluginName: string): RenderItem[] => {
-  const plugin = api.settings[pluginName];
+const getRenderList = (pluginId: string): RenderItem[] => {
+  const plugin = api.settings[pluginId];
   const props = (plugin.schema.properties as Record<string, JsonSchema>) || {};
   const defs = plugin.schema.$defs as Record<string, JsonSchema>;
   const list: RenderItem[] = [];
@@ -157,31 +157,30 @@ const getWidgetComponent = (name: string) => {
   return api.ui.getSettingsWidget(name) || "div";
 };
 
-const getPluginValue = (pluginName: string, key: string) => {
-  return api.settings[pluginName].values[key];
+const getPluginValue = (pluginId: string, key: string) => {
+  return api.settings[pluginId].values[key];
 };
 
-const setPluginValue = (pluginName: string, key: string, val: unknown) => {
-  api.settings[pluginName].values[key] = val;
-  triggerValidation(pluginName);
+const setPluginValue = (pluginId: string, key: string, val: unknown) => {
+  api.settings[pluginId].values[key] = val;
+  triggerValidation(pluginId);
 };
 
-const getPluginErrors = (pluginName: string) => api.settings[pluginName].errors;
-const getPluginDefinitions = (pluginName: string) =>
-  api.settings[pluginName].schema.$defs;
+const getPluginErrors = (pluginId: string) => api.settings[pluginId].errors;
+const getPluginDefinitions = (pluginId: string) => api.settings[pluginId].schema.$defs;
 
-const formatPluginName = (name: string) => {
+const formatPluginId = (name: string) => {
   return name.replace(/^tangram_/, "").replace(/^@.*\//, "");
 };
 
 let validationTimeout: ReturnType<typeof setTimeout> | null = null;
-const triggerValidation = (pluginName: string) => {
+const triggerValidation = (pluginId: string) => {
   if (validationTimeout) clearTimeout(validationTimeout);
   validationTimeout = setTimeout(async () => {
-    const plugin = api.settings[pluginName];
+    const plugin = api.settings[pluginId];
     const body = JSON.stringify(plugin.values);
     try {
-      const resp = await fetch(`/settings/validate/${pluginName}`, {
+      const resp = await fetch(`/settings/validate/${pluginId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body
