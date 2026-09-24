@@ -4,7 +4,7 @@ import type { Disposable, JsonSchema, PluginContext, TangramApi } from "./api";
 type PluginProgressStage = "manifest" | "plugin" | "done";
 type PluginProgress = {
   stage: PluginProgressStage;
-  pluginName?: string;
+  pluginId?: string;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,7 +99,7 @@ export async function loadPlugins(
 
   // we want deterministic lifecycle and map ordering but we dont have a good
   // parallel loading solution yet so we use sequential
-  for (const [pluginName, meta] of Object.entries(tangramApi.manifest.plugins)) {
+  for (const [pluginId, meta] of Object.entries(tangramApi.manifest.plugins)) {
     const pluginMeta = meta as {
       main?: string;
       style?: string;
@@ -107,11 +107,11 @@ export async function loadPlugins(
       config_json_schema?: JsonSchema;
     };
 
-    onProgress?.({ stage: "plugin", pluginName });
+    onProgress?.({ stage: "plugin", pluginId });
 
-    loadedPlugins.get(pluginName)?.dispose();
-    loadedPlugins.delete(pluginName);
-    const pluginHandle = createPluginHandle(tangramApi, pluginName);
+    loadedPlugins.get(pluginId)?.dispose();
+    loadedPlugins.delete(pluginId);
+    const pluginHandle = createPluginHandle(tangramApi, pluginId);
 
     try {
       let installConfig = pluginMeta.config;
@@ -124,24 +124,24 @@ export async function loadPlugins(
           schema: pluginMeta.config_json_schema || {},
           errors: reactive({})
         };
-        tangramApi.settings[pluginName] = settings;
+        tangramApi.settings[pluginId] = settings;
         installConfig = settings.values;
         pluginHandle.context.onDispose({
-          dispose: () => delete tangramApi.settings[pluginName]
+          dispose: () => delete tangramApi.settings[pluginId]
         });
       }
 
       if (pluginMeta.style) {
         const link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = `/plugins/${pluginName}/${pluginMeta.style}`;
+        link.href = `/plugins/${pluginId}/${pluginMeta.style}`;
         document.head.appendChild(link);
         // style loading itself is not awaited; ownership only guarantees cleanup
         pluginHandle.context.onDispose({ dispose: () => link.remove() });
       }
 
       if (pluginMeta.main) {
-        const entryPointUrl = `/plugins/${pluginName}/${pluginMeta.main}`;
+        const entryPointUrl = `/plugins/${pluginId}/${pluginMeta.main}`;
         const pluginModule = (await import(
           /* @vite-ignore */ entryPointUrl
         )) as PluginModule;
@@ -151,10 +151,10 @@ export async function loadPlugins(
         }
       }
 
-      loadedPlugins.set(pluginName, pluginHandle);
+      loadedPlugins.set(pluginId, pluginHandle);
     } catch (e) {
       pluginHandle.dispose();
-      console.error(`failed to load plugin "${pluginName}":`, e);
+      console.error(`failed to load plugin "${pluginId}":`, e);
     }
   }
 

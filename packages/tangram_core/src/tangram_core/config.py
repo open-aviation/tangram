@@ -22,6 +22,8 @@ from typing import (
 
 from annotated_types import Ge, Le
 
+from .plugin import PluginId
+
 # while tangram bundles pydantic and supports pydantic.BaseModel for defining configs,
 # we still want to support alternative ways of defining configs, such as stdlib
 # dataclasses and typeddict. so we avoid direct pydantic imports in this file.
@@ -187,7 +189,7 @@ class AdaptiveTheme:
 @dataclass
 class CoreConfig:
     redis_url: str = "redis://127.0.0.1:6379"
-    plugins: list[str] = field(default_factory=list)
+    plugins: list[PluginId] = field(default_factory=list)
     log_level: str = "INFO"
     theme: Annotated[str | AdaptiveTheme, FrontendMutable(widget="theme-settings")] = (
         field(default_factory=AdaptiveTheme)
@@ -226,8 +228,8 @@ class Config:
     server: ServerConfig = field(default_factory=ServerConfig)
     channel: ChannelConfig = field(default_factory=ChannelConfig)
     map: MapConfig = field(default_factory=MapConfig)
-    plugins: dict[str, Any] = field(default_factory=dict)
-    """Mapping of plugin name to plugin-specific config."""
+    plugins: dict[PluginId, Any] = field(default_factory=dict)
+    """Mapping of runtime plugin ID to plugin-specific config."""
     cache: CacheConfig = field(default_factory=CacheConfig)
 
     @classmethod
@@ -332,13 +334,13 @@ class FrontendData(TypedDict):
     config_json_schema: dict[str, Any]
 
 
-def to_frontend_manifest(adapter: TypeAdapter, frontend_cfg: Any) -> FrontendData:
+def to_frontend_manifest(adapter: TypeAdapter[Any], frontend_cfg: Any) -> FrontendData:
     """Serialises a frontend configuration."""
     config_dump = adapter.dump_python(frontend_cfg)
     config_json_schema = adapter.json_schema()
     return {"config": config_dump, "config_json_schema": config_json_schema}
 
 
-def parse_frontend_config(adapter: TypeAdapter, frontend_cfg: Any) -> Any:
+def parse_frontend_config(adapter: TypeAdapter[Any], frontend_cfg: Any) -> Any:
     """Deserialises and validates frontend-submitted config data."""
     return adapter.validate_python(frontend_cfg)

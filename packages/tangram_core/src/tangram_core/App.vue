@@ -184,8 +184,8 @@ onMounted(async () => {
     loadPlugins(api, progress => {
       if (progress.stage === "manifest") {
         loadingMessage.value = "fetching plugin manifest";
-      } else if (progress.stage === "plugin" && progress.pluginName) {
-        loadingMessage.value = `loading plugin: ${progress.pluginName}`;
+      } else if (progress.stage === "plugin" && progress.pluginId) {
+        loadingMessage.value = `loading plugin: ${progress.pluginId}`;
       } else if (progress.stage === "done") {
         loadingMessage.value = "starting user interface";
       }

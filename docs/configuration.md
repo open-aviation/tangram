@@ -9,8 +9,8 @@
 # URL for the Redis instance used for pub/sub messaging.
 redis_url = "redis://localhost:6379"
 
-# a list of installed plugin packages to activate.
-# tangram will look for entry points provided by these packages.
+# a list of plugin IDs to activate.
+# this is the left-hand side of each tangram_core.plugins entry point in the `pyproject.toml`.
 plugins = [
     "tangram_system",
     "tangram_jet1090",
@@ -60,7 +60,9 @@ glyphs = "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.
 
 ## Plugin Configuration
 
-Plugin-specific configuration is defined in its own table, following the pattern `[plugins.<plugin_package_name>]`.
+Plugin-specific configuration lives under `[plugins.<plugin_id>]`. The `plugin_id`
+is the same name written on the left-hand side of the plugin's `tangram_core.plugins`
+entry point.
 
 For details on each plugin's available settings, refer to their respective documentation:
 
