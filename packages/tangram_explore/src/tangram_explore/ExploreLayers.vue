@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { watch, inject, onUnmounted, shallowReactive, computed } from "vue";
-import { GeoJsonLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { GeoJsonLayer, IconLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import { PathStyleExtension, type PathStyleExtensionProps } from "@deck.gl/extensions";
 import type { PickingInfo } from "@deck.gl/core";
 import type { Table } from "apache-arrow";
@@ -80,6 +80,9 @@ const FALLBACK_ACCENT_COLOR = "oklch(0.5616 0.0895 251.64)";
 const SELECTED_TRAJECTORY_COLOR: [number, number, number, number] = [
   255, 255, 255, 255
 ];
+const AIRCRAFT_ICON_URL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -16 32 32"><path fill="#f9fd15" stroke="#0014aa" stroke-width="1.5" d="M0-15 4-3 13 1 13 5 3 3 2 14H-2L-3 3-13 5-13 1-4-3Z"/></svg>'
+)}`;
 
 function withAlpha(color: number[], alpha: number): [number, number, number, number] {
   return [color[0] ?? 128, color[1] ?? 128, color[2] ?? 128, alpha];
@@ -422,60 +425,90 @@ watch(
         continue;
       }
 
-      const markerLayer = new ScatterplotLayer<{
+      const markerData = data as {
         trajectory: Trajectory;
         point: Trajectory["points"][number];
-      }>({
-        id: `explore-current-${entry.id}`,
-        data,
-        visible: entry.visible,
-        pickable: opts.pickable,
-        opacity: opts.opacity * opacityMultiplier,
-        stroked: true,
-        filled: true,
-        radiusScale: 1,
-        radiusMinPixels: Math.max(opts.line_width + 3, 4),
-        radiusMaxPixels: Math.max(opts.line_width + 3, 4),
-        lineWidthMinPixels: 1.5,
-        getPosition: ({ point }) => [
-          point.longitude,
-          point.latitude,
-          is3d ? (point.altitude ?? 0) : 0
-        ],
-        getFillColor: ({ trajectory }) => {
-          if (trajectory.id === currentSelectedTrajectoryId) {
-            return SELECTED_TRAJECTORY_COLOR;
-          }
-          return (
-            parseColorSpec(trajectoryColor(trajectory, opts)) ??
-            defaultFeatureFillColor()
-          );
-        },
-        getLineColor: ({ trajectory }) => {
-          if (trajectory.id === currentSelectedTrajectoryId) {
-            return SELECTED_TRAJECTORY_COLOR;
-          }
-          return defaultFeatureLineColor();
-        },
-        onHover: (info: PickingInfo<{ trajectory: Trajectory }>) => {
-          setHoverInfo(
-            entry,
-            info.x,
-            info.y,
-            info.object?.trajectory.properties ?? null
-          );
-        },
-        onClick: (info: PickingInfo<{ trajectory: Trajectory }>) => {
-          if (!info.object) return false;
-          selectExploreTrajectory(entry.id, info.object.trajectory);
-          return true;
-        },
-        updateTriggers: {
-          getPosition: [currentTime, is3d],
-          getFillColor: [opts, currentSelectedTrajectoryId],
-          getLineColor: [currentSelectedTrajectoryId]
-        }
-      });
+      }[];
+      const usesAircraftMarker = entry.payload.trajectories.some(
+        trajectory => trajectory.properties.marker === "aircraft"
+      );
+      const onMarkerHover = (info: PickingInfo<{ trajectory: Trajectory }>) => {
+        setHoverInfo(entry, info.x, info.y, info.object?.trajectory.properties ?? null);
+      };
+      const onMarkerClick = (info: PickingInfo<{ trajectory: Trajectory }>) => {
+        if (!info.object) return false;
+        selectExploreTrajectory(entry.id, info.object.trajectory);
+        return true;
+      };
+      const markerLayer = usesAircraftMarker
+        ? new IconLayer<(typeof markerData)[number]>({
+            id: `explore-current-${entry.id}`,
+            data: markerData,
+            visible: entry.visible,
+            pickable: opts.pickable,
+            opacity: opts.opacity * opacityMultiplier,
+            billboard: false,
+            sizeScale: 1,
+            getIcon: () => ({
+              url: AIRCRAFT_ICON_URL,
+              width: 32,
+              height: 32,
+              anchorY: 16
+            }),
+            getSize: 30,
+            getPosition: ({ point }) => [
+              point.longitude,
+              point.latitude,
+              is3d ? (point.altitude ?? 0) : 0
+            ],
+            getAngle: ({ point }) => -(point.heading ?? 0),
+            onHover: onMarkerHover,
+            onClick: onMarkerClick,
+            updateTriggers: {
+              getPosition: [currentTime, is3d],
+              getAngle: [currentTime]
+            }
+          })
+        : new ScatterplotLayer<(typeof markerData)[number]>({
+            id: `explore-current-${entry.id}`,
+            data: markerData,
+            visible: entry.visible,
+            pickable: opts.pickable,
+            opacity: opts.opacity * opacityMultiplier,
+            stroked: true,
+            filled: true,
+            radiusScale: 1,
+            radiusMinPixels: Math.max(opts.line_width + 3, 4),
+            radiusMaxPixels: Math.max(opts.line_width + 3, 4),
+            lineWidthMinPixels: 1.5,
+            getPosition: ({ point }) => [
+              point.longitude,
+              point.latitude,
+              is3d ? (point.altitude ?? 0) : 0
+            ],
+            getFillColor: ({ trajectory }) => {
+              if (trajectory.id === currentSelectedTrajectoryId) {
+                return SELECTED_TRAJECTORY_COLOR;
+              }
+              return (
+                parseColorSpec(trajectoryColor(trajectory, opts)) ??
+                defaultFeatureFillColor()
+              );
+            },
+            getLineColor: ({ trajectory }) => {
+              if (trajectory.id === currentSelectedTrajectoryId) {
+                return SELECTED_TRAJECTORY_COLOR;
+              }
+              return defaultFeatureLineColor();
+            },
+            onHover: onMarkerHover,
+            onClick: onMarkerClick,
+            updateTriggers: {
+              getPosition: [currentTime, is3d],
+              getFillColor: [opts, currentSelectedTrajectoryId],
+              getLineColor: [currentSelectedTrajectoryId]
+            }
+          });
 
       if (!trajectoryPointDisposables.has(entry.id)) {
         trajectoryPointDisposables.set(
