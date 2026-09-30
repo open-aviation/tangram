@@ -13,7 +13,7 @@
         </span>
       </div>
     </div>
-    <div class="subtitle"><HighlightText :parts="cityParts" />, {{ countryCode }}</div>
+    <div class="subtitle">{{ country }}</div>
   </div>
 </template>
 
@@ -23,8 +23,7 @@ import type { HighlightTextPart } from "@open-aviation/tangram-core/utils";
 
 defineProps<{
   nameParts: readonly HighlightTextPart[];
-  cityParts: readonly HighlightTextPart[];
-  countryCode: string;
+  country: string;
   iataParts: readonly HighlightTextPart[];
   icaoParts: readonly HighlightTextPart[];
 }>();

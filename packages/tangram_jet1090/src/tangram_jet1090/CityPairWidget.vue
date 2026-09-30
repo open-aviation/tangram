@@ -2,11 +2,11 @@
   <div v-if="routeInfo && routeInfo.origin && routeInfo.destination" class="city-pair">
     <div class="airport">
       <span class="icao">{{ routeInfo.origin.icao }}</span>
-      <span class="city">{{ routeInfo.origin.city }}</span>
+      <span class="name">{{ routeInfo.origin.name }}</span>
     </div>
     <div class="airport">
       <span class="icao">{{ routeInfo.destination.icao }}</span>
-      <span class="city">{{ routeInfo.destination.city }}</span>
+      <span class="name">{{ routeInfo.destination.name }}</span>
     </div>
   </div>
   <div v-else-if="loading" class="loading">Loading route information...</div>
@@ -87,7 +87,6 @@ const fetchRouteData = async (icao24: string, callsign: string) => {
     const originResults = props.rs1090.airport_information(originCode);
     const destResults = props.rs1090.airport_information(destinationCode);
 
-    // check existence after async await
     const currentEntry = aircraftStore.selected.get(icao24);
     if (!currentEntry) return;
 
@@ -97,7 +96,6 @@ const fetchRouteData = async (icao24: string, callsign: string) => {
         lat: o.lat,
         lon: o.lon,
         name: o.name,
-        city: o.city,
         icao: o.icao
       };
     } else {
@@ -105,7 +103,6 @@ const fetchRouteData = async (icao24: string, callsign: string) => {
         lat: null,
         lon: null,
         name: originCode,
-        city: originCode,
         icao: originCode
       };
     }
@@ -116,7 +113,6 @@ const fetchRouteData = async (icao24: string, callsign: string) => {
         lat: d.lat,
         lon: d.lon,
         name: d.name,
-        city: d.city,
         icao: d.icao
       };
     } else {
@@ -124,7 +120,6 @@ const fetchRouteData = async (icao24: string, callsign: string) => {
         lat: null,
         lon: null,
         name: destinationCode,
-        city: destinationCode,
         icao: destinationCode
       };
     }
@@ -176,7 +171,7 @@ onUnmounted(() => {
   color: var(--t-fg);
 }
 
-.airport .city {
+.airport .name {
   font-family: "Roboto Condensed", sans-serif;
   color: var(--t-muted);
   font-size: 10pt;

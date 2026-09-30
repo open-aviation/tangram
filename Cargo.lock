@@ -3921,9 +3921,9 @@ dependencies = [
 
 [[package]]
 name = "rs1090"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0eff38461b4078433eb0afb532c6bb1d012d362bf7d82a4b8d94808a1f5f63a1"
+checksum = "35801778f7adf48da05e94d61d0f88eed342eef42b83e73302c9163a50493c99"
 dependencies = [
  "ansi_term",
  "async-stream",
@@ -3938,6 +3938,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "socket2",
  "tokio",
  "tokio-tungstenite 0.28.0",
  "tonic-prost-build",

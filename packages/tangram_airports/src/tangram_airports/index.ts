@@ -4,8 +4,7 @@ import AirportSearchWidget from "./AirportSearchWidget.vue";
 
 interface AirportSearchEntry {
   name: string;
-  city: string;
-  countryCode: string;
+  country: string;
   iata: string;
   icao: string;
   lon: number;
@@ -34,8 +33,7 @@ export async function install(ctx: PluginContext) {
         component: AirportSearchWidget,
         props: {
           nameParts: highlightTextParts(airport.name, query),
-          cityParts: highlightTextParts(airport.city, query),
-          countryCode: airport.countryCode,
+          country: airport.country,
           iataParts: highlightTextParts(airport.iata, query),
           icaoParts: highlightTextParts(airport.icao, query)
         },

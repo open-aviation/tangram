@@ -5,7 +5,6 @@ export interface AirportInfo {
   lat: number | null;
   lon: number | null;
   name: string;
-  city: string;
   icao: string;
 }
 
