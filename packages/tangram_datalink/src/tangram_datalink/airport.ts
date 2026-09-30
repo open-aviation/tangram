@@ -1,7 +1,5 @@
 interface AirportSearchEntry {
   name: string;
-  city?: string;
-  countryCode?: string;
   iata?: string;
   icao: string;
 }
