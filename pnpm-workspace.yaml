@@ -3,6 +3,15 @@ packages:
 
 overrides:
   "@scarf/scarf": link:packages/tangram_weather/vendor/scarf-disabled
+  # weatherlayers-gl 2026.9.0 pulled in luma 9.4.2, which conflicts with core deck.gl 9.4.0
+  # overriding quickly for now - https://github.com/open-aviation/tangram/pull/401
+  "@luma.gl/core": 9.4.2
+  "@luma.gl/engine": 9.4.2
+  "@luma.gl/gltf": 9.4.2
+  "@luma.gl/gpgpu": 9.4.2
+  "@luma.gl/shadertools": 9.4.2
+  "@luma.gl/webgl": 9.4.2
+  "@luma.gl/webgpu": 9.4.2
 
 # workaround for https://github.com/visgl/loaders.gl/pull/3486
 packageExtensions:
