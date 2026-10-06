@@ -1,5 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { isJsonlFile, parseJsonlRows } from "./utils";
+import { finiteNumber, isJsonlFile, parseJsonlRows } from "./utils";
+
+describe("finiteNumber", () => {
+  it.each([
+    null,
+    undefined,
+    "",
+    "  ",
+    false,
+    true,
+    [],
+    [0],
+    {},
+    NaN,
+    Infinity,
+    -Infinity,
+    "invalid"
+  ])("rejects missing or nonnumeric input %j", value => {
+    expect(finiteNumber(value)).toBeNull();
+  });
+
+  it.each([
+    [0, 0],
+    ["0", 0],
+    [48.8625, 48.8625],
+    [" 2.2948 ", 2.2948],
+    [-12.5, -12.5]
+  ])("preserves numeric input %j", (value, expected) => {
+    expect(finiteNumber(value)).toBe(expected);
+  });
+});
 
 const compressedJsonl = Uint8Array.from(
   Buffer.from(

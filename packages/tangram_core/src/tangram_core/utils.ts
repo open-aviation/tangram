@@ -5,7 +5,9 @@ import type { LazyImportFile, MapBounds, TimeRange } from "./api";
 type Vector3 = [number, number, number];
 
 export type ColorSpec =
-  string | [number, number, number] | [number, number, number, number];
+  | string
+  | [number, number, number]
+  | [number, number, number, number];
 
 export type DeckGLColor = [number, number, number, number];
 
@@ -24,6 +26,9 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function finiteNumber(value: unknown): number | null {
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+
   const number = typeof value === "number" ? value : Number(value);
   return Number.isFinite(number) ? number : null;
 }
