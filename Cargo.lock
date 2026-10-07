@@ -1904,9 +1904,9 @@ dependencies = [
 
 [[package]]
 name = "deltalake"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ec75e286ce53b652d00bd4be3076d8dfa5feed3bf109ae7d43b6055c1611cad"
+checksum = "27ef8d070c934154655f69963c9a59247a7b8698e2ce9dfda74adcf386264927"
 dependencies = [
  "buoyant_kernel",
  "ctor",
