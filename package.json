@@ -19,7 +19,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "8.71.2",
     "vite": "^8.3.0",
-    "vue-tsc": "3.3.11"
+    "vue-tsc": "3.3.13"
   },
   "packageManager": "pnpm@11.17.0"
 }
