@@ -17,15 +17,15 @@ install:
 # NOTE: the following `c-` commands are for temporary testing with hardcoded ports.
 # a future version of tangram will use podman networks properly.
 
-# Launch redis in a container.
+# Start Redis, retaining its container/data/logs if it exits unexpectedly.
 c-redis:
   #!/usr/bin/env bash
-  if {{container_runtime}} container exists redis; then
-    echo "container redis exists"
+  if {{container_runtime}} container inspect redis >/dev/null 2>&1; then
+    {{container_runtime}} start redis
     exit 0
   fi
 
-  {{container_runtime}} run -d --rm -p 6379:6379 --name redis docker.io/library/redis:latest
+  {{container_runtime}} run -d -p 6379:6379 --name redis docker.io/library/redis:latest
 
 jet1090_sources := '"ws://feedme.mode-s.org:9876/40128@EHRD"'
 
