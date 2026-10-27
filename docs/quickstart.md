@@ -10,7 +10,7 @@
 
 Ensure you have the following installed:
 
-- redis 5 or above (via [podman](https://podman.io/docs/installation)/[docker](https://docs.docker.com/engine/install/) or system-installed version)
+- redis 8 or above (via [podman](https://podman.io/docs/installation)/[docker](https://docs.docker.com/engine/install/) or system-installed version)
 - Python 3.10 or above
 
 ### 1. Install the `tangram` core
