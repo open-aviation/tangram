@@ -62,6 +62,14 @@
       </div>
 
       <div v-if="isExpanded(item.id)" class="details-body" @click.stop>
+        <div v-if="item.state.position_timestamp != null">
+          Last validated fix:
+          {{ formatZuluTimestamp(item.state.position_timestamp / 1_000_000) }}
+          <span v-if="item.state.position_expires_at != null">
+            (expires
+            {{ formatZuluTimestamp(item.state.position_expires_at / 1_000_000) }})
+          </span>
+        </div>
         <CityPairWidget :icao24="item.id" :rs1090="rs1090" />
 
         <div v-if="getTrajectoryLength(item.id) > 0">

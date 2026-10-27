@@ -1,3 +1,5 @@
+//! Jet1090 consumer service with independently timestamped, bounded live positions.
+
 mod aircraftdb;
 pub mod state;
 
@@ -47,6 +49,7 @@ pub struct PlanesConfig {
     pub history_table_name: String,
     pub history_control_channel: String,
     pub state_vector_expire: u16,
+    pub position_expire: u16,
     pub stream_interval_secs: f64,
     pub aircraft_db_path: String,
     pub history_buffer_size: usize,
@@ -63,6 +66,7 @@ pub struct PlanesConfig {
 #[pymethods]
 impl PlanesConfig {
     #[new]
+    #[pyo3(signature = (redis_url, jet1090_channel, history_table_name, history_control_channel, state_vector_expire, stream_interval_secs, aircraft_db_path, history_buffer_size, history_flush_interval_secs, history_optimize_interval_secs, history_optimize_target_file_size, history_vacuum_interval_secs, history_vacuum_retention_period_secs, history_checkpoint_interval, search_channel, position_expire=20))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         redis_url: String,
@@ -80,6 +84,7 @@ impl PlanesConfig {
         history_vacuum_retention_period_secs: Option<u64>,
         history_checkpoint_interval: u64,
         search_channel: String,
+        position_expire: u16,
     ) -> Self {
         Self {
             redis_url,
@@ -87,6 +92,7 @@ impl PlanesConfig {
             history_table_name,
             history_control_channel,
             state_vector_expire,
+            position_expire,
             stream_interval_secs,
             aircraft_db_path,
             history_buffer_size,
@@ -232,11 +238,10 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
         }
     });
 
-    let state_vectors = Arc::new(Mutex::new(StateVectors::new(
-        config.state_vector_expire,
-        aircraft_db,
-        None,
-    )));
+    let state_vectors = Arc::new(Mutex::new(
+        StateVectors::new(config.state_vector_expire, aircraft_db, None)
+            .with_position_expiry(config.position_expire),
+    ));
 
     let history_setup_state_vectors = Arc::clone(&state_vectors);
     let history_config_clone = config.clone();
