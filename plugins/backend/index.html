@@ -1895,6 +1895,8 @@
 <span class="hll"><span class="k">[project.entry-points.</span><span class="s2">&quot;tangram_core.plugins&quot;</span><span class="k">]</span>
 </span><span class="hll"><span class="n">my_plugin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_plugin:plugin&quot;</span>
 </span></code></pre></div>
+<p>The left-hand side, <code>my_plugin</code>, is the <strong>plugin ID</strong>, a stable identifier used across tangram. It is used to customise the <a href="../../configuration/">configuration</a> in the TOML under <code>[plugins.my_plugin]</code>.</p>
+<p>The right-hand side, <code>my_plugin:plugin</code>, should point to the Python object defined below.</p>
 <h3 id="2-the-plugin-object">2. The <code>Plugin</code> Object<a class="headerlink" href="#2-the-plugin-object" title="Permanent link">&para;</a></h3>
 <p>The entry point must point to an instance of the <code>tangram_core.Plugin</code> class. This object is the central hub for registering your plugin's components.</p>
 <div class="language-py highlight"><span class="filename">src/my_plugin/__init__.py</span><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">tangram_core</span>

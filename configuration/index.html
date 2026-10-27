@@ -1579,8 +1579,8 @@
 <span class="c1"># URL for the Redis instance used for pub/sub messaging.</span>
 <span class="n">redis_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;redis://localhost:6379&quot;</span>
 
-<span class="c1"># a list of installed plugin packages to activate.</span>
-<span class="c1"># tangram will look for entry points provided by these packages.</span>
+<span class="c1"># a list of plugin IDs to activate.</span>
+<span class="c1"># this is the left-hand side of each tangram_core.plugins entry point in the `pyproject.toml`.</span>
 <span class="n">plugins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="s2">&quot;tangram_system&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="s2">&quot;tangram_jet1090&quot;</span><span class="p">,</span>
@@ -1649,7 +1649,9 @@
   &lt;/span&gt;" href="../api/core/#tangram_core.config.MapConfig"><code>tangram_core.config.MapConfig</code></a>.</li>
 </ol>
 <h2 id="plugin-configuration">Plugin Configuration<a class="headerlink" href="#plugin-configuration" title="Permanent link">&para;</a></h2>
-<p>Plugin-specific configuration is defined in its own table, following the pattern <code>[plugins.&lt;plugin_package_name&gt;]</code>.</p>
+<p>Plugin-specific configuration lives under <code>[plugins.&lt;plugin_id&gt;]</code>. The <code>plugin_id</code>
+is the same name written on the left-hand side of the plugin's <code>tangram_core.plugins</code>
+entry point.</p>
 <p>For details on each plugin's available settings, refer to their respective documentation:</p>
 <ul>
 <li><a href="../plugins/jet1090/#configuration"><code>tangram_jet1090</code></a></li>
