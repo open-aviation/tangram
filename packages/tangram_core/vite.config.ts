@@ -39,18 +39,6 @@ export default defineConfig({
             normalizePath(
               path.resolve(
                 import.meta.dirname,
-                "node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs"
-              )
-            ),
-            normalizePath(
-              path.resolve(
-                import.meta.dirname,
-                "node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs.map"
-              )
-            ),
-            normalizePath(
-              path.resolve(
-                import.meta.dirname,
                 "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs"
               )
             ),
