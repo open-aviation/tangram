@@ -12,6 +12,14 @@
       <div v-if="(tooltip.object.state.altitude ?? 0) > 0" class="altitude">
         FL{{ Math.round(((tooltip.object.state.altitude ?? 0) / 1000) * 10) }}
       </div>
+      <div v-if="tooltip.object.state.position_timestamp != null">
+        Last fix
+        {{
+          new Date(tooltip.object.state.position_timestamp / 1_000)
+            .toISOString()
+            .slice(11, 23)
+        }}Z
+      </div>
     </div>
   </div>
 </template>
@@ -26,6 +34,7 @@ import { getModifierKeys, resolveBearing } from "@open-aviation/tangram-core/uti
 import aircraftIconMetadata from "./aircraft-icons.json";
 import type { Jet1090Aircraft } from ".";
 import { pluginConfig } from "./store";
+import { hasFreshPosition } from "./live_position";
 import {
   importedAircraftTimestamp,
   isJet1090ImportedHistoryDataset
@@ -120,6 +129,8 @@ const selectionDisposable = tangramApi.selection.onChanged(map => {
   selectedIds.value = map.get("jet1090_aircraft") || new Set();
 });
 
+const expiryVersion = ref(0);
+let expiryTimer: ReturnType<typeof setTimeout> | undefined;
 const liveLayerDisposable: Ref<Disposable | null> = ref(null);
 const importedLayerDisposable: Ref<Disposable | null> = ref(null);
 
@@ -273,15 +284,29 @@ watch(
     selectedIds,
     () => tangramApi.map.isReady.value,
     () => pluginConfig.enable3d,
-    () => tangramApi.time.isLive.value
+    () => tangramApi.time.isLive.value,
+    expiryVersion
   ],
   ([entities, currentSelectedIds, isMapReady, enable3d, isLive]) => {
+    clearTimeout(expiryTimer);
     if (!isMapReady) return;
+    const now = Date.now();
+    let nextExpiry = Infinity;
+    if (
+      tooltip.object &&
+      "type" in tooltip.object &&
+      tooltip.object.state.position_timestamp != null &&
+      !hasFreshPosition(tooltip.object.state, now)
+    ) {
+      tooltip.object = null;
+    }
 
     const baseData: Entity<Jet1090Aircraft>[] = [];
     const selectedData: Entity<Jet1090Aircraft>[] = [];
 
     for (const d of entities.values()) {
+      if (!hasFreshPosition(d.state, now)) continue;
+      nextExpiry = Math.min(nextExpiry, d.state.position_expires_at! / 1_000);
       if (currentSelectedIds.has(d.id)) {
         selectedData.push(d);
       } else {
@@ -290,6 +315,15 @@ watch(
     }
 
     const data = isLive ? baseData.concat(selectedData) : [];
+    // One deadline timer also expires geometry if snapshots/connection stop.
+    if (isLive && Number.isFinite(nextExpiry)) {
+      expiryTimer = setTimeout(
+        () => {
+          expiryVersion.value++;
+        },
+        Math.max(1, nextExpiry - Date.now())
+      );
+    }
 
     const layer = new IconLayer<Entity<Jet1090Aircraft>>({
       id: "live-aircraft-layer",
@@ -365,6 +399,7 @@ watch(
 );
 
 onUnmounted(() => {
+  clearTimeout(expiryTimer);
   liveLayerDisposable.value?.dispose();
   importedLayerDisposable.value?.dispose();
   selectionDisposable.dispose();

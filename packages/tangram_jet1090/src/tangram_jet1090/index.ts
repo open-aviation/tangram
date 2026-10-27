@@ -38,6 +38,8 @@ import {
   parseRs1090Jsonl
 } from "./imported_trajectory";
 
+import { livePositionPoint } from "./live_position";
+
 const ENTITY_TYPE = "jet1090_aircraft";
 
 // deduplicate trajectory backfill fetches across multiple consumers (widgets, landing, etc.).
@@ -63,6 +65,9 @@ export interface Jet1090Aircraft {
   squawk?: number;
   latitude?: number;
   longitude?: number;
+  /** Original validated fix time and exclusive expiry, Unix microseconds. */
+  position_timestamp?: number;
+  position_expires_at?: number;
   altitude?: number;
   selected_altitude?: number;
   groundspeed?: number;
@@ -77,7 +82,7 @@ export interface Jet1090Aircraft {
   heading?: number;
   nacp?: number;
   count: number;
-  timestamp?: number; // synthetic, added by frontend
+  timestamp?: number; // seconds from the original validated position time
 }
 
 interface BackendSearchResult {
@@ -523,13 +528,9 @@ async function subscribeToAircraftData(
         if (entity.state.latitude != null && entity.state.longitude != null) {
           const updated = entity.state;
           const last = data.trajectory[data.trajectory.length - 1];
-          const timestamp = updated.lastseen / 1_000_000;
+          const point = livePositionPoint(updated, last?.timestamp);
 
-          if (!last || Math.abs((last.timestamp || 0) - timestamp) > 0.5) {
-            const point = {
-              ...updated,
-              timestamp: timestamp
-            };
+          if (point) {
             data.trajectory.push(point);
             api.bus.publish(TrajectoryApi.TOPIC_APPEND, {
               key: { id, type: ENTITY_TYPE },

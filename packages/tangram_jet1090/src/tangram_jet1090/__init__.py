@@ -249,6 +249,7 @@ class PlanesConfig:
     trail_color: str | TrailColorOptions = "#600000"
     trail_alpha: float = 0.6
     enable_3d: bool = False
+    position_expire: Annotated[int, Ge(1), Le(65535)] = 20
 
 
 @dataclass(frozen=True)
@@ -370,6 +371,7 @@ async def run_planes(backend_state: tangram_core.BackendState) -> None:
         jet1090_channel=config_planes.jet1090_channel,
         history_table_name=config_planes.history_table_name,
         state_vector_expire=config_planes.state_vector_expire,
+        position_expire=config_planes.position_expire,
         stream_interval_secs=config_planes.stream_interval_secs,
         aircraft_db_path=str(aircraft_db_path),
         history_buffer_size=config_planes.history_buffer_size,
