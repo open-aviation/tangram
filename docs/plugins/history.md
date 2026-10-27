@@ -19,11 +19,12 @@ sequenceDiagram
     H-->>P: PUBLISH history:control:response:..., {type: "table_registered", ...}
 
     loop real-time data
-        P->>R: XADD history:ingest:<table>, *, "data", "base64(arrow_ipc)"
+        P->>R: XADD history:ingest:<table>, *, "data", binary Arrow IPC
     end
 
     H-->>H: buffer batches in memory
-    H->>D: periodically flush buffer to delta table
+    H->>D: commit batches to Delta table
+    H->>R: acknowledge and remove persisted staging copies
 
     note over C,D: on-demand query
     C->>D: read delta table directly
@@ -37,20 +38,62 @@ Used for managing tables. Producers must register a table and its schema before 
 
 - message: `register_table`
 - payload fields:
-    - `sender_id`: a unique id for the producer instance.
-    - `table_name`: a unique name for the table (e.g., `"aircraft_states"`).
-    - `schema`: base64-encoded arrow ipc **schema** bytes.
-    - `partition_columns`: list of column names to partition by.
-    - `optimize_interval_secs`: how often to run `optimize`.
-    - `vacuum_interval_secs`: how often to run `vacuum`.
-    - `vacuum_retention_period_secs`: retention for `vacuum`.
+  - `sender_id`: a unique id for the producer instance.
+  - `table_name`: a unique name for the table (e.g., `"aircraft_states"`).
+  - `schema`: base64-encoded arrow ipc **schema** bytes.
+  - `partition_columns`: list of column names to partition by.
+  - `optimize_interval_secs`: how often to run `optimize`.
+  - `vacuum_interval_secs`: how often to run `vacuum`.
+  - `vacuum_retention_period_secs`: retention for `vacuum`.
 
 ### Ingest stream (`history:ingest:<table_name>`)
 
-A fire-and-forget redis stream for producers to send data.
+A Redis stream where producers stage batches until they are committed to the
+Delta table. It is a buffer, **not the persistent history archive**: the
+archive is the Delta/Parquet data on disk, read directly by the trajectory,
+history and search APIs and by trail backfill. Live position tracking never
+reads it.
 
 - command: `XADD`
-- payload: a key-value pair `data` and a base64-encoded arrow ipc **recordbatch** in stream format.
+- payload: a key-value pair `data` containing binary Arrow IPC record batches in stream format.
+
+#### Cleanup after a durable commit
+
+Once a batch is committed to Delta, the consumer acknowledges it and removes
+its copy from the stream. On Redis 8.2 or newer this is one atomic
+`XACKDEL ACKED` call, which never deletes an entry another consumer group
+still needs. On older servers, an atomic Lua fallback deletes only the IDs
+that were actually acknowledged, and only when the history group is the sole
+group on the stream; with additional groups it keeps the payloads and logs a
+warning rather than risk another consumer's data.
+
+Acknowledgement alone frees nothing: `XACK` clears bookkeeping, not payloads.
+Before this cleanup existed, acknowledged batches stayed in Redis forever,
+which is what eventually exhausted its memory.
+
+#### Failure and delivery semantics
+
+Malformed payloads and failed disk writes are never acknowledged or deleted.
+Failed commits are retried with bounded backoff, and so is the cleanup after a
+successful commit; a retry never rewrites a batch that is already on disk.
+Delivery is **at least once**, not exactly once: an uncertain commit, or the
+reclaim of entries belonging to a slow or stopped worker, can write the same
+rows twice. Consumers should tolerate duplicates.
+
+Entries idle for more than 60 seconds are reclaimed with `XAUTOCLAIM` after a
+consumer stops, which requires Redis 6.2 or later. This cleanup only concerns
+the staging stream: it deletes no saved history, and no `MAXLEN` or age-based
+eviction is ever applied.
+
+#### Monitoring
+
+A persistently slow or unavailable sink still lets unprocessed batches pile
+up. Watch consumer lag, the pending entry count, stream length and Redis
+memory: zero lag on a growing stream means processed data is not being
+removed. Whether unprocessed staging survives a Redis crash depends on
+Redis's own durability settings. Producers publish with a separate
+bounded-retry policy; nothing here guarantees lossless recording before Redis
+accepts a batch.
 
 ## Configuration
 

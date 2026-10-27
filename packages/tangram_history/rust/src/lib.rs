@@ -1,8 +1,12 @@
+//! Durable Delta history with Redis staging reclaimed only after committed writes.
+
 #[cfg(feature = "client")]
 pub mod client;
 pub mod protocol;
 #[cfg(feature = "server")]
 mod service;
+#[cfg(any(feature = "server", test))]
+mod staging;
 
 #[cfg(feature = "server")]
 use service::{perform_actual_delete, perform_dry_run_delete, start_ingest_service, IngestConfig};

@@ -63,6 +63,25 @@ The core WebSocket logic is written in Rust. To run these tests, you need a loca
 cargo test --features channel
 ```
 
+### Testing the History Service
+
+The history service ships integration tests that need a dedicated Redis instance,
+isolated from any live Redis you may already have on port 6379. They are marked
+`#[ignore]` and refuse to run against `127.0.0.1:6379`, so they cannot touch real
+data:
+
+```bash
+# start a disposable Redis on another port
+podman run --rm -d -p 6380:6379 --name redis-test docker.io/library/redis:latest
+
+export TANGRAM_HISTORY_TEST_REDIS_URL=redis://127.0.0.1:6380
+# in packages/tangram_history/rust (the --features server part also compiles
+# the tests that write to a real Delta table)
+cargo test --features server -- --ignored
+
+podman stop redis-test
+```
+
 ### Continuous Integration
 
 The CI pipeline, defined in GitHub Actions, automates quality checks and builds. The primary steps are:
