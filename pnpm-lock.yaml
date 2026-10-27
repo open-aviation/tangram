@@ -121,8 +121,8 @@ importers:
         specifier: ^6.15.0
         version: 6.15.0
       parquet-wasm:
-        specifier: ^0.7.2
-        version: 0.7.2
+        specifier: ^0.9.0
+        version: 0.9.0
       phoenix:
         specifier: ^1.8.14
         version: 1.8.14
@@ -215,8 +215,8 @@ importers:
         specifier: ^1.0.5
         version: 1.0.5
       parquet-wasm:
-        specifier: ^0.7.2
-        version: 0.7.2
+        specifier: ^0.9.0
+        version: 0.9.0
       vue:
         specifier: ^3.5.43
         version: 3.5.43(typescript@6.0.3)
@@ -2357,8 +2357,8 @@ packages:
   pako@1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
 
-  parquet-wasm@0.7.2:
-    resolution: {integrity: sha512-XfzVFW7REEYzt/MF5pG2fVjF0lyArXkk4x7m4wuE7R5OEoUfXq5wdI5DQi/UsB8wWW3ncx2z6xMjq5dM9qTYgg==}
+  parquet-wasm@0.9.0:
+    resolution: {integrity: sha512-3txonYEwEymakuL1WBsljZDvlke103pHzsp/xZzyRuyYeE9pGVLqYMe4L8/a2H+n+d7XEnmcIFBUJ5BYbyEhtg==}
 
   path-browserify@1.0.1:
     resolution: {integrity: sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g==}
@@ -5855,7 +5855,7 @@ snapshots:
 
   pako@1.0.11: {}
 
-  parquet-wasm@0.7.2: {}
+  parquet-wasm@0.9.0: {}
 
   path-browserify@1.0.1: {}
 
