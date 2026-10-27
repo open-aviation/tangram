@@ -56,8 +56,7 @@ async function loadAndAdd(def: LayerDefinition) {
   const arrayBuffer = await resp.arrayBuffer();
   const data = new Uint8Array(arrayBuffer);
 
-  const wasmTable = readParquet(data);
-  const ffiTable = wasmTable.intoFFI();
+  const ffiTable = readParquet(data).intoFFI();
   const memory = wasmMemory().buffer;
 
   const arrowTable = parseTable(
@@ -69,7 +68,7 @@ async function loadAndAdd(def: LayerDefinition) {
   serverLayerIds.add(def.id);
   return createTableDatasetInput(
     def.label,
-    createTableSource(arrowTable, () => wasmTable.free()),
+    createTableSource(arrowTable, () => ffiTable.free()),
     {
       id: def.id,
       style: def.style
