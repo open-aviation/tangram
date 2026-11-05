@@ -63,6 +63,9 @@ export interface Jet1090Aircraft {
   squawk?: number;
   latitude?: number;
   longitude?: number;
+  /** Original validated fix time and exclusive expiry, Unix microseconds. */
+  position_timestamp?: number;
+  position_expires_at?: number;
   altitude?: number;
   selected_altitude?: number;
   groundspeed?: number;
@@ -77,7 +80,7 @@ export interface Jet1090Aircraft {
   heading?: number;
   nacp?: number;
   count: number;
-  timestamp?: number; // synthetic, added by frontend
+  timestamp?: number; // seconds from the original validated position time
 }
 
 interface BackendSearchResult {
@@ -520,25 +523,26 @@ async function subscribeToAircraftData(
           continue;
         }
 
-        if (entity.state.latitude != null && entity.state.longitude != null) {
-          const updated = entity.state;
-          const last = data.trajectory[data.trajectory.length - 1];
-          const timestamp = updated.lastseen / 1_000_000;
+        const state = entity.state;
+        const fixTime = state.position_timestamp;
+        // some aircraft updates has no location, and the backend doesn't clear
+        // the position until the user specified position expire
+        // so skip repeats, and only add actual position reports
+        if (state.latitude == null || state.longitude == null || fixTime == null)
+          continue;
 
-          if (!last || Math.abs((last.timestamp || 0) - timestamp) > 0.5) {
-            const point = {
-              ...updated,
-              timestamp: timestamp
-            };
-            data.trajectory.push(point);
-            api.bus.publish(TrajectoryApi.TOPIC_APPEND, {
-              key: { id, type: ENTITY_TYPE },
-              points: [point],
-              source: "tangram_jet1090"
-            });
-            hasUpdates = true;
-          }
-        }
+        const timestamp = fixTime / 1_000_000;
+        const last = data.trajectory[data.trajectory.length - 1];
+        if (last?.timestamp != null && timestamp - last.timestamp <= 0.5) continue;
+
+        const point = { ...state, timestamp };
+        data.trajectory.push(point);
+        api.bus.publish(TrajectoryApi.TOPIC_APPEND, {
+          key: { id, type: ENTITY_TYPE },
+          points: [point],
+          source: "tangram_jet1090"
+        });
+        hasUpdates = true;
       }
       if (hasUpdates) {
         aircraftStore.version++;

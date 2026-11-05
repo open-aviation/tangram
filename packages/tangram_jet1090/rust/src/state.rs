@@ -14,7 +14,11 @@ use rs1090::decode::bds::bds65::{
 };
 use rs1090::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 use tangram_core::stream::{Identifiable, Positioned, StateCollection, Tracked};
 
 use crate::aircraftdb::{AircraftDatabase, Icao24, InvalidIcao24};
@@ -65,6 +69,12 @@ pub struct StateVector {
     /// WGS84 longitude angle in degrees
     #[serde(skip_serializing_if = "Option::is_none")]
     pub longitude: Option<f64>,
+    /// Original validated position time, Unix microseconds; activity does not refresh it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_timestamp: Option<u64>,
+    /// Exclusive position-geometry expiry, Unix microseconds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_expires_at: Option<u64>,
     /// Barometric altitude in feet, expressed in ISA
     #[serde(skip_serializing_if = "Option::is_none")]
     pub altitude: Option<i32>,
@@ -455,6 +465,60 @@ impl Jet1090HistoryFrame {
     }
 }
 
+fn now_micros() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_micros() as u64
+}
+
+impl StateVector {
+    fn update_position(
+        &mut self,
+        latitude: Option<f64>,
+        longitude: Option<f64>,
+        timestamp: u64,
+        now: u64,
+        expire_secs: u16,
+    ) {
+        let (Some(latitude), Some(longitude)) = (latitude, longitude) else {
+            return;
+        };
+        let expire = u64::from(expire_secs) * 1_000_000;
+        // NOTE: rs1090 resolves CPR and checks plausible movement
+        // (https://github.com/xoolive/jet1090/commit/46157875b553)
+        // and also replay decoding in https://github.com/xoolive/jet1090/commit/668b2e517605
+        if !latitude.is_finite()
+            || !longitude.is_finite()
+            || !(-90.0..=90.0).contains(&latitude)
+            || !(-180.0..=180.0).contains(&longitude)
+            || now.checked_sub(timestamp).is_none_or(|age| age >= expire)
+            || self.position_timestamp.is_some_and(|last| timestamp < last)
+        {
+            return;
+        }
+        let Some(deadline) = timestamp.checked_add(expire) else {
+            return;
+        };
+        self.latitude = Some(latitude);
+        self.longitude = Some(longitude);
+        self.position_timestamp = Some(timestamp);
+        self.position_expires_at = Some(deadline);
+    }
+
+    fn position_view(mut self, now: u64) -> Self {
+        let fresh = self
+            .position_timestamp
+            .zip(self.position_expires_at)
+            .is_some_and(|(timestamp, expires)| timestamp <= now && now < expires);
+        if !fresh {
+            self.latitude = None;
+            self.longitude = None;
+        }
+        self
+    }
+}
+
 impl Positioned for StateVector {
     fn latitude(&self) -> Option<f64> {
         self.latitude
@@ -479,7 +543,12 @@ impl Tracked for StateVector {
 impl StateCollection for StateVectors {
     type Item = StateVector;
     fn get_all(&self) -> Vec<Self::Item> {
-        self.aircraft.values().cloned().collect()
+        let now = now_micros();
+        self.aircraft
+            .values()
+            .cloned()
+            .map(|sv| sv.position_view(now))
+            .collect()
     }
     fn state_vector_expire_secs(&self) -> u64 {
         self.state_vector_expire as u64
@@ -491,6 +560,7 @@ pub struct StateVectors {
     pub aircraft: HashMap<String, StateVector>,
     aircraft_db: AircraftDatabase,
     pub state_vector_expire: u16,
+    position_expire: u16,
     history_buffer: Option<HistoryBuffer<Jet1090HistoryFrame>>,
 }
 
@@ -529,6 +599,7 @@ impl TryFrom<&Message> for Icao24 {
 impl StateVectors {
     pub(crate) fn new(
         expire: u16,
+        position_expire: u16,
         aircraft_db: AircraftDatabase,
         history_buffer: Option<HistoryBuffer<Jet1090HistoryFrame>>,
     ) -> Self {
@@ -536,6 +607,7 @@ impl StateVectors {
             aircraft: HashMap::new(),
             aircraft_db,
             state_vector_expire: expire,
+            position_expire,
             history_buffer,
         }
     }
@@ -545,6 +617,7 @@ impl StateVectors {
     }
 
     pub fn search(&self, query: &str) -> Vec<SearchResult> {
+        let now = now_micros();
         let candidates: Vec<&StateVector> = self.aircraft.values().collect();
 
         let haystacks: Vec<String> = candidates
@@ -586,7 +659,7 @@ impl StateVectors {
             .map(|(score, idx)| {
                 let sv = candidates[idx];
                 SearchResult {
-                    state: sv.clone(),
+                    state: sv.clone().position_view(now),
                     score,
                 }
             })
@@ -594,6 +667,7 @@ impl StateVectors {
     }
 
     pub async fn add(&mut self, msg: &TimedMessage) -> Result<()> {
+        let now = now_micros();
         let message = if let Some(m) = &msg.message {
             m
         } else {
@@ -602,6 +676,8 @@ impl StateVectors {
 
         if let Ok(address) = Icao24::try_from(message) {
             let icao24 = address.to_string();
+            let timestamp = (msg.timestamp * 1_000_000.0) as u64;
+            let expire = self.position_expire;
             let sv = self.aircraft.entry(icao24.clone()).or_insert_with(|| {
                 let mut registration = match aircraft_information(&icao24, None) {
                     Ok(aircraft_info) => aircraft_info.registration.clone(),
@@ -624,6 +700,8 @@ impl StateVectors {
                     squawk: None,
                     latitude: None,
                     longitude: None,
+                    position_timestamp: None,
+                    position_expires_at: None,
                     altitude: None,
                     selected_altitude: None,
                     groundspeed: None,
@@ -643,7 +721,7 @@ impl StateVectors {
             if sv.firstseen == 0 {
                 sv.firstseen = (msg.timestamp * 1_000_000.0) as u64;
             }
-            sv.lastseen = (msg.timestamp * 1_000_000.0) as u64;
+            sv.lastseen = sv.lastseen.max(timestamp);
 
             match &message.df {
                 SurveillanceIdentityReply { id, .. } => {
@@ -654,13 +732,11 @@ impl StateVectors {
                 }
                 ExtendedSquitterADSB(adsb) => match &adsb.message {
                     ME::BDS05 { inner: bds05, .. } => {
-                        sv.latitude = bds05.latitude;
-                        sv.longitude = bds05.longitude;
+                        sv.update_position(bds05.latitude, bds05.longitude, timestamp, now, expire);
                         sv.altitude = bds05.alt;
                     }
                     ME::BDS06 { inner: bds06, .. } => {
-                        sv.latitude = bds06.latitude;
-                        sv.longitude = bds06.longitude;
+                        sv.update_position(bds06.latitude, bds06.longitude, timestamp, now, expire);
                         sv.track = bds06.track;
                         sv.groundspeed = bds06.groundspeed;
                         sv.altitude = None;
@@ -713,13 +789,23 @@ impl StateVectors {
                     sv.typecode = Some("GRND".to_string());
                     match &cf.me {
                         ME::BDS05 { inner: bds05, .. } => {
-                            sv.latitude = bds05.latitude;
-                            sv.longitude = bds05.longitude;
+                            sv.update_position(
+                                bds05.latitude,
+                                bds05.longitude,
+                                timestamp,
+                                now,
+                                expire,
+                            );
                             sv.altitude = bds05.alt;
                         }
                         ME::BDS06 { inner: bds06, .. } => {
-                            sv.latitude = bds06.latitude;
-                            sv.longitude = bds06.longitude;
+                            sv.update_position(
+                                bds06.latitude,
+                                bds06.longitude,
+                                timestamp,
+                                now,
+                                expire,
+                            );
                             sv.track = bds06.track;
                             sv.groundspeed = bds06.groundspeed;
                             sv.altitude = None;

@@ -273,24 +273,36 @@ watch(
     selectedIds,
     () => tangramApi.map.isReady.value,
     () => pluginConfig.enable3d,
-    () => tangramApi.time.isLive.value
+    () => tangramApi.time.isLive.value,
+    // Refresh once per second to expire icons even if the backend stops sending data.
+    () => Math.floor(tangramApi.time.currentTime.value)
   ],
   ([entities, currentSelectedIds, isMapReady, enable3d, isLive]) => {
     if (!isMapReady) return;
+    const now = Date.now() * 1_000;
 
     const baseData: Entity<Jet1090Aircraft>[] = [];
     const selectedData: Entity<Jet1090Aircraft>[] = [];
+    if (isLive) {
+      for (const d of entities.values()) {
+        const expiresAt = d.state.position_expires_at;
+        if (
+          d.state.latitude == null ||
+          d.state.longitude == null ||
+          expiresAt == null ||
+          expiresAt <= now
+        )
+          continue;
 
-    for (const d of entities.values()) {
-      if (currentSelectedIds.has(d.id)) {
-        selectedData.push(d);
-      } else {
-        baseData.push(d);
+        if (currentSelectedIds.has(d.id)) {
+          selectedData.push(d);
+        } else {
+          baseData.push(d);
+        }
       }
     }
 
-    const data = isLive ? baseData.concat(selectedData) : [];
-
+    const data = baseData.concat(selectedData);
     const layer = new IconLayer<Entity<Jet1090Aircraft>>({
       id: "live-aircraft-layer",
       data,

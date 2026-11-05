@@ -1,3 +1,5 @@
+//! Jet1090 consumer service with independently timestamped, bounded live positions.
+
 mod aircraftdb;
 pub mod state;
 
@@ -47,6 +49,7 @@ pub struct PlanesConfig {
     pub history_table_name: String,
     pub history_control_channel: String,
     pub state_vector_expire: u16,
+    pub position_expire: u16,
     pub stream_interval_secs: f64,
     pub aircraft_db_path: String,
     pub history_buffer_size: usize,
@@ -80,6 +83,7 @@ impl PlanesConfig {
         history_vacuum_retention_period_secs: Option<u64>,
         history_checkpoint_interval: u64,
         search_channel: String,
+        position_expire: u16,
     ) -> Self {
         Self {
             redis_url,
@@ -87,6 +91,7 @@ impl PlanesConfig {
             history_table_name,
             history_control_channel,
             state_vector_expire,
+            position_expire,
             stream_interval_secs,
             aircraft_db_path,
             history_buffer_size,
@@ -234,6 +239,7 @@ async fn _run_service(config: PlanesConfig) -> Result<()> {
 
     let state_vectors = Arc::new(Mutex::new(StateVectors::new(
         config.state_vector_expire,
+        config.position_expire,
         aircraft_db,
         None,
     )));
