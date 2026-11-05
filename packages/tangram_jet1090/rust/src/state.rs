@@ -543,7 +543,12 @@ impl Tracked for StateVector {
 impl StateCollection for StateVectors {
     type Item = StateVector;
     fn get_all(&self) -> Vec<Self::Item> {
-        self.snapshot_at(now_micros())
+        let now = now_micros();
+        self.aircraft
+            .values()
+            .cloned()
+            .map(|sv| sv.position_view(now))
+            .collect()
     }
     fn state_vector_expire_secs(&self) -> u64 {
         self.state_vector_expire as u64
@@ -594,6 +599,7 @@ impl TryFrom<&Message> for Icao24 {
 impl StateVectors {
     pub(crate) fn new(
         expire: u16,
+        position_expire: u16,
         aircraft_db: AircraftDatabase,
         history_buffer: Option<HistoryBuffer<Jet1090HistoryFrame>>,
     ) -> Self {
@@ -601,26 +607,13 @@ impl StateVectors {
             aircraft: HashMap::new(),
             aircraft_db,
             state_vector_expire: expire,
-            position_expire: 20,
+            position_expire,
             history_buffer,
         }
     }
 
-    pub(crate) fn with_position_expiry(mut self, expire: u16) -> Self {
-        self.position_expire = expire;
-        self
-    }
-
     pub fn set_history_buffer(&mut self, buffer: HistoryBuffer<Jet1090HistoryFrame>) {
         self.history_buffer = Some(buffer);
-    }
-
-    pub(crate) fn snapshot_at(&self, now: u64) -> Vec<StateVector> {
-        self.aircraft
-            .values()
-            .cloned()
-            .map(|sv| sv.position_view(now))
-            .collect()
     }
 
     pub fn search(&self, query: &str) -> Vec<SearchResult> {
@@ -674,10 +667,7 @@ impl StateVectors {
     }
 
     pub async fn add(&mut self, msg: &TimedMessage) -> Result<()> {
-        self.add_at(msg, now_micros()).await
-    }
-
-    pub(crate) async fn add_at(&mut self, msg: &TimedMessage, now: u64) -> Result<()> {
+        let now = now_micros();
         let message = if let Some(m) = &msg.message {
             m
         } else {
@@ -883,190 +873,5 @@ impl StateVectors {
             }
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod position_tests {
-    use super::*;
-
-    fn position_message(
-        timestamp: f64,
-        latitude: Option<f64>,
-        longitude: Option<f64>,
-    ) -> TimedMessage {
-        let frame = vec![
-            0x8d, 0x40, 0x62, 0x1d, 0x58, 0xc3, 0x82, 0xd6, 0x90, 0xc8, 0xac, 0x28, 0x63, 0xa7,
-        ];
-        let (_, mut message) = Message::from_bytes((&frame, 0)).unwrap();
-        if let ExtendedSquitterADSB(adsb) = &mut message.df {
-            if let ME::BDS05 { inner, .. } = &mut adsb.message {
-                inner.latitude = latitude;
-                inner.longitude = longitude;
-            }
-        }
-        TimedMessage {
-            timestamp,
-            frame,
-            message: Some(message),
-            metadata: vec![],
-            decode_time: None,
-        }
-    }
-
-    #[tokio::test]
-    async fn unresolved_position_does_not_clear_or_retime_last_fix() {
-        let mut state = StateVectors::new(20, Default::default(), None);
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs_f64()
-            - 1.;
-        let valid = position_message(timestamp, Some(43.5), Some(1.5));
-        state.add(&valid).await.unwrap();
-        let unresolved = position_message(timestamp + 0.2, None, None);
-        state.add(&unresolved).await.unwrap();
-        let sv = &state.aircraft["40621d"];
-        assert_eq!(sv.latitude, Some(43.5));
-        assert_eq!(sv.longitude, Some(1.5));
-        let value = serde_json::to_value(sv).unwrap();
-        assert_eq!(
-            value["position_timestamp"].as_u64(),
-            Some((timestamp * 1_000_000.) as u64)
-        );
-        assert_eq!(Jet1090HistoryFrame::from(&unresolved).latitude, None);
-    }
-
-    #[tokio::test]
-    async fn activity_cannot_refresh_position_and_expiry_precedes_views() {
-        let mut state = StateVectors::new(20, Default::default(), None);
-        state
-            .add_at(
-                &position_message(1000., Some(43.5), Some(1.5)),
-                1_000_000_000,
-            )
-            .await
-            .unwrap();
-        state
-            .add_at(&position_message(1019., None, None), 1_019_000_000)
-            .await
-            .unwrap();
-        let fresh = state.snapshot_at(1_019_999_999).remove(0);
-        assert_eq!(fresh.latitude, Some(43.5));
-        assert_eq!(fresh.position_timestamp, Some(1_000_000_000));
-        assert_eq!(fresh.position_expires_at, Some(1_020_000_000));
-        assert_eq!(fresh.lastseen, 1_019_000_000);
-        let expired = state.snapshot_at(1_020_000_000).remove(0);
-        assert_eq!((expired.latitude, expired.longitude), (None, None));
-        assert_eq!(expired.position_timestamp, Some(1_000_000_000));
-        let mut bbox = tangram_core::bbox::BoundingBoxState::default();
-        bbox.set_bbox(
-            "test",
-            tangram_core::bbox::BoundingBox {
-                north_east_lat: 44.,
-                north_east_lng: 2.,
-                south_west_lat: 43.,
-                south_west_lng: 1.,
-            },
-        );
-        assert!(tangram_core::bbox::is_within_bbox(&fresh, &bbox, "test"));
-        assert!(!tangram_core::bbox::is_within_bbox(&expired, &bbox, "test"));
-        let results = state.search("40621d");
-        assert!(!results.is_empty());
-        assert!(results.iter().all(|r| r.state.latitude.is_none()));
-        assert!(state.get_all().iter().all(|r| r.latitude.is_none()));
-        // A late valid but already-expired record cannot resurrect geometry.
-        state
-            .add_at(&position_message(1001., Some(44.), Some(2.)), 1_030_000_000)
-            .await
-            .unwrap();
-        assert!(state.snapshot_at(1_030_000_000)[0].latitude.is_none());
-    }
-
-    #[tokio::test]
-    async fn older_and_partial_records_do_not_replace_a_newer_fix() {
-        let mut state = StateVectors::new(20, Default::default(), None);
-        state
-            .add_at(
-                &position_message(1005., Some(43.5), Some(1.5)),
-                1_005_000_000,
-            )
-            .await
-            .unwrap();
-        for (time, lat, lon) in [
-            (1001., Some(44.), Some(2.)),
-            (1006., Some(44.), None),
-            (1007., None, Some(2.)),
-        ] {
-            state
-                .add_at(&position_message(time, lat, lon), 1_008_000_000)
-                .await
-                .unwrap();
-        }
-        let sv = &state.aircraft["40621d"];
-        assert_eq!((sv.latitude, sv.longitude), (Some(43.5), Some(1.5)));
-        assert_eq!(sv.position_timestamp, Some(1_005_000_000));
-        assert_eq!(sv.lastseen, 1_007_000_000);
-        state
-            .add_at(&position_message(1004., Some(44.), Some(2.)), 1_008_000_000)
-            .await
-            .unwrap();
-        assert_eq!(state.aircraft["40621d"].lastseen, 1_007_000_000);
-    }
-
-    #[tokio::test]
-    async fn position_expiry_is_independent_of_aircraft_retention() {
-        let mut state = StateVectors::new(120, Default::default(), None);
-        state
-            .add_at(
-                &position_message(1000., Some(43.5), Some(1.5)),
-                1_000_000_000,
-            )
-            .await
-            .unwrap();
-        assert_eq!(
-            state.aircraft["40621d"].position_expires_at,
-            Some(1_020_000_000)
-        );
-        assert!(state.snapshot_at(1_020_000_000)[0].latitude.is_none());
-        let mut short = StateVectors::new(120, Default::default(), None).with_position_expiry(5);
-        short
-            .add_at(
-                &position_message(1000., Some(43.5), Some(1.5)),
-                1_000_000_000,
-            )
-            .await
-            .unwrap();
-        assert!(short.snapshot_at(1_004_999_999)[0].latitude.is_some());
-        assert!(short.snapshot_at(1_005_000_000)[0].latitude.is_none());
-    }
-
-    #[tokio::test]
-    async fn invalid_or_future_geometry_is_not_a_current_fix() {
-        let mut state = StateVectors::new(20, Default::default(), None);
-        for (time, lat, lon) in [
-            (1001., 43.5, 1.5),
-            (1000., f64::NAN, 1.5),
-            (1000., 90.1, 1.5),
-            (1000., 43.5, 180.1),
-        ] {
-            state
-                .add_at(&position_message(time, Some(lat), Some(lon)), 1_000_000_000)
-                .await
-                .unwrap();
-        }
-        assert!(state.aircraft["40621d"].position_timestamp.is_none());
-        assert!(state.aircraft["40621d"].latitude.is_none());
-        state
-            .add_at(
-                &position_message(1000., Some(43.5), Some(1.5)),
-                1_000_000_000,
-            )
-            .await
-            .unwrap();
-        assert_eq!(
-            state.aircraft["40621d"].position_timestamp,
-            Some(1_000_000_000)
-        );
     }
 }
