@@ -58,7 +58,3 @@ jobs:
 
       - name: check plugin dependencies
         run: uv run tangram check-plugin --all
-
-  build-wheels:
-    needs: build-frontend
-    uses: ./.github/workflows/build-wheels.yml
