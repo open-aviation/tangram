@@ -6,6 +6,9 @@ on:
     - cron: "42 7 * * 0"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-frontend:
     uses: ./.github/workflows/build-frontend.yml
