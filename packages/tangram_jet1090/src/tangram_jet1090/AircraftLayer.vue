@@ -12,14 +12,6 @@
       <div v-if="(tooltip.object.state.altitude ?? 0) > 0" class="altitude">
         FL{{ Math.round(((tooltip.object.state.altitude ?? 0) / 1000) * 10) }}
       </div>
-      <div v-if="tooltip.object.state.position_timestamp != null">
-        Last fix
-        {{
-          new Date(tooltip.object.state.position_timestamp / 1_000)
-            .toISOString()
-            .slice(11, 23)
-        }}Z
-      </div>
     </div>
   </div>
 </template>
