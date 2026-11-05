@@ -18,7 +18,7 @@ jobs:
     steps:
       # despite best efforts the rust cache is huge so we try freeing up some space
       - name: Maximize build space
-        uses: AdityaGarg8/remove-unwanted-software@v5
+        uses: AdityaGarg8/remove-unwanted-software@v5.1
         with:
           remove-android: 'true'
           remove-dotnet: 'true'
