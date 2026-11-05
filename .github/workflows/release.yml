@@ -27,14 +27,14 @@ jobs:
       name: pypi
       url: https://pypi.org/p/tangram-core  # purely cosmetic for github, does not affect publishing multiple packages
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: wheels-*
           merge-multiple: true
           path: dist
       
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
         with:
           packages-dir: dist
 
@@ -45,8 +45,10 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: rust-lang/crates-io-auth-action@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1
         id: auth
       - name: Publish tangram_core_rs
         working-directory: packages/tangram_core/rust
@@ -61,17 +63,18 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: repo-with-frontend
           path: .
       
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
       
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
 
       - name: Publish tangram-core
         working-directory: packages/tangram_core
@@ -93,13 +96,13 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: wheels-*
           merge-multiple: true
           path: dist
       - name: Sign the dists with Sigstore
-        uses: sigstore/gh-action-sigstore-python@v3.5.0
+        uses: sigstore/gh-action-sigstore-python@790bc6befb9d733738f18d8f895854b453640ec9 # v3.5.0
         with:
           inputs: >-
             ./dist/*.tar.gz
@@ -107,15 +110,19 @@ jobs:
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
         run: >-
           gh release create
-          '${{ github.ref_name }}'
-          --repo '${{ github.repository }}'
+          "$RELEASE_TAG"
+          --repo "$REPOSITORY"
           --notes ""
       - name: Upload artifact signatures to GitHub Release
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
         run: >-
           gh release upload
-          '${{ github.ref_name }}' dist/**
-          --repo '${{ github.repository }}'
+          "$RELEASE_TAG" dist/**
+          --repo "$REPOSITORY"

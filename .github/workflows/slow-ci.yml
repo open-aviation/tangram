@@ -1,0 +1,21 @@
+name: slow ci
+# wheel building for all platforms and arches are slow.
+# we don't want to run it on every push. 
+on:
+  schedule:
+    - cron: "42 7 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-frontend:
+    uses: ./.github/workflows/build-frontend.yml
+
+  build-wheels:
+    needs: build-frontend
+    uses: ./.github/workflows/build-wheels.yml
+
+  build-podman:
+    uses: ./.github/workflows/podman.yml

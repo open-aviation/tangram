@@ -1,5 +1,5 @@
-# this containerfile only builds the core along with hardcoded list of in-tree plugins
-# TODO: in the future, support parsing `tangram.toml`
+# NOTE: this Containerfile is for demo-only, hardcoded with a bunch of in-tree plugins.
+# it is not intended for typical use -- see the documentation for proper ways to add your own plugins!
 
 ARG PYTHON_VERSION=3.13
 # tangram_weather > cfgrib > eccodes is problematic:
