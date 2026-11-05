@@ -1758,6 +1758,7 @@ uv<span class="w"> </span>build<span class="w"> </span>--all-packages
 <div class="language-bash highlight"><pre><span></span><code><span class="c1"># in packages/tangram_core/rust</span>
 cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--features<span class="w"> </span>channel
 </code></pre></div>
+<p>Note that integration tests are limited to the <code>channel</code> component for now. We intentionally keep tests (unit, integration, E2E) very limited.</p>
 <h3 id="continuous-integration">Continuous Integration<a class="headerlink" href="#continuous-integration" title="Permanent link">&para;</a></h3>
 <p>The CI pipeline, defined in GitHub Actions, automates quality checks and builds. The primary steps are:</p>
 <ol>
