@@ -1,5 +1,4 @@
 use crate::protocol::{ControlMessage, ControlResponse, RegisterTable, TableInfo};
-use crate::staging::{recover_pending, Acknowledger};
 use anyhow::{anyhow, Context, Result};
 use arrow_json::writer::ArrayWriter;
 use base64::{engine::general_purpose, Engine as _};
@@ -25,7 +24,6 @@ use tangram_core::shutdown::{abort_and_await, Shutdown};
 use tokio::sync::{watch, Mutex, RwLock, Semaphore};
 use tokio::time::{self, Instant};
 use tracing::{error, info, warn};
-use uuid::Uuid;
 
 fn decode_schema(base64_schema: &str) -> Result<Arc<ArrowSchema>> {
     let schema_bytes = general_purpose::STANDARD.decode(base64_schema)?;
@@ -355,16 +353,24 @@ async fn handle_register_table(
                     });
 
                     info!("spawning new consumer task for table '{}'", reg.table_name);
-                    tokio::spawn(consume_stream_for_table(
-                        redis_url,
-                        reg.table_name.clone(),
-                        table,
-                        reg.checkpoint_interval,
-                        redis_read_count,
-                        redis_read_block_ms,
-                        shutdown,
-                        ingest_lock,
-                    ));
+                    let table_name = reg.table_name.clone();
+                    let checkpoint_interval = reg.checkpoint_interval;
+                    tokio::spawn(async move {
+                        if let Err(e) = consume_stream_for_table(
+                            redis_url,
+                            table_name.clone(),
+                            table,
+                            checkpoint_interval,
+                            redis_read_count,
+                            redis_read_block_ms,
+                            shutdown,
+                            ingest_lock,
+                        )
+                        .await
+                        {
+                            error!(table = table_name, %e, "History consumer stopped");
+                        }
+                    });
 
                     let redis_key = format!("tangram:history:table_uri:{}", reg.table_name);
                     let _: Result<(), _> = conn.set(&redis_key, &table_url_str).await;
@@ -485,64 +491,10 @@ async fn control_subscriber(
     Ok(())
 }
 
-async fn history_connection(
-    client: &redis::Client,
-    config: &redis::AsyncConnectionConfig,
-    stream: &str,
-    group: &str,
-    consumer: &str,
-    shutdown: &mut watch::Receiver<bool>,
-) -> Option<redis::aio::MultiplexedConnection> {
-    let mut delay = Duration::from_secs(1);
-    loop {
-        if *shutdown.borrow() {
-            return None;
-        }
-        let connect = async {
-            let mut conn = client
-                .get_multiplexed_async_connection_with_config(config)
-                .await?;
-            let created: redis::RedisResult<()> = redis::cmd("XGROUP")
-                .arg("CREATE")
-                .arg(stream)
-                .arg(group)
-                .arg("0-0")
-                .arg("MKSTREAM")
-                .query_async(&mut conn)
-                .await;
-            if let Err(error) = created {
-                if !error.to_string().contains("BUSYGROUP") {
-                    return Err(error);
-                }
-            }
-            let _: usize = redis::cmd("XGROUP")
-                .arg("CREATECONSUMER")
-                .arg(stream)
-                .arg(group)
-                .arg(consumer)
-                .query_async(&mut conn)
-                .await?;
-            Ok::<_, redis::RedisError>(conn)
-        };
-        let outcome = tokio::select! {
-            result = time::timeout(Duration::from_secs(10), connect) => result,
-            _ = shutdown.changed() => return None,
-        };
-        match outcome {
-            Ok(Ok(conn)) => return Some(conn),
-            error => warn!(
-                ?error,
-                ?delay,
-                "History Redis connection unavailable; pending batches retained"
-            ),
-        }
-        tokio::select! {
-            _ = time::sleep(delay) => {},
-            _ = shutdown.changed() => return None,
-        }
-        delay = (delay * 2).min(Duration::from_secs(30));
-    }
-}
+// history is best-effort: if the service is down or a write fails,
+// it's fine to miss some observations. there is only one reader per table,
+// so we don't need to track or recover unfinished batches.
+const HISTORY_RECONNECT_DELAY: Duration = Duration::from_secs(1);
 
 #[allow(clippy::too_many_arguments)]
 async fn consume_stream_for_table(
@@ -555,196 +507,129 @@ async fn consume_stream_for_table(
     mut shutdown: watch::Receiver<bool>,
     ingest_lock: Arc<RwLock<()>>,
 ) -> Result<()> {
-    let stream_key = format!("history:ingest:{}", table_name);
-    let group_name = "history_group";
-    let consumer_name = format!("consumer-{}", Uuid::new_v4());
-
+    let stream = format!("history:ingest:{}", table_name);
     let client = redis::Client::open(redis_url)?;
     // NOTE: redis 0.32..1.0 introduced a default response timeout of 500ms, we disable it because XREAD blocks for 5s
     let redis_config = redis::AsyncConnectionConfig::new().set_response_timeout(None);
-    let Some(mut conn) = history_connection(
-        &client,
-        &redis_config,
-        &stream_key,
-        group_name,
-        &consumer_name,
-        &mut shutdown,
-    )
-    .await
-    else {
-        return Ok(());
-    };
-    let mut acknowledger = Acknowledger::default();
-    let mut claim_cursor = "0-0".to_string();
-
-    info!(
-        "consumer for table '{}' on stream '{}' started",
-        table_name, stream_key
-    );
+    let mut conn = None;
+    // start with new messages (we don't guarantee the replay of messages sent while offline)
+    let mut cursor = "$".to_string();
 
     loop {
         if *shutdown.borrow() {
             break;
         }
-
-        let read = async {
-            let recovered = recover_pending(
-                &mut conn,
-                &stream_key,
-                group_name,
-                &consumer_name,
-                &claim_cursor,
-                redis_read_count,
-            )
-            .await?;
-            claim_cursor = recovered.next_stream_id;
-            if !recovered.claimed.is_empty() {
-                warn!(
-                    table = table_name,
-                    entries = recovered.claimed.len(),
-                    "Recovering idle pending history; uncertain prior commits may repeat rows"
-                );
-                return Ok(recovered.claimed);
+        if conn.is_none() {
+            match tokio::select! {
+                result = client.get_multiplexed_async_connection_with_config(&redis_config) => result,
+                _ = shutdown.changed() => break,
+            } {
+                Ok(connected) => conn = Some(connected),
+                Err(e) => {
+                    warn!(table = table_name, %e, "History Redis unavailable; dropping history while disconnected");
+                    tokio::select! {
+                        _ = time::sleep(HISTORY_RECONNECT_DELAY) => {},
+                        _ = shutdown.changed() => break,
+                    }
+                    continue;
+                }
             }
-            let opts = redis::streams::StreamReadOptions::default()
-                .group(group_name, &consumer_name)
-                .count(redis_read_count)
-                .block(redis_read_block_ms);
-            let reply: Option<redis::streams::StreamReadReply> =
-                conn.xread_options(&[&stream_key], &[">"], &opts).await?;
-            Ok::<_, redis::RedisError>(
-                reply
-                    .into_iter()
-                    .flat_map(|r| r.keys)
-                    .flat_map(|k| k.ids)
-                    .collect(),
-            )
-        };
-        let stream_ids = match tokio::select! {
-            result = read => result,
+        }
+
+        let options = redis::streams::StreamReadOptions::default()
+            .count(redis_read_count)
+            .block(redis_read_block_ms);
+        let stream_keys = [&stream];
+        let cursors = [cursor.as_str()];
+        let read: redis::RedisResult<Option<redis::streams::StreamReadReply>> = tokio::select! {
+            result = conn.as_mut().expect("connected above")
+                .xread_options(&stream_keys, &cursors, &options) => result,
             _ = shutdown.changed() => break,
-        } {
-            Ok(ids) => ids,
-            Err(error) => {
-                warn!(table = table_name, %error, "History read failed; reconnecting without acknowledging data");
-                tokio::select! { _ = time::sleep(Duration::from_secs(1)) => {}, _ = shutdown.changed() => break, }
-                let Some(new_conn) = history_connection(
-                    &client,
-                    &redis_config,
-                    &stream_key,
-                    group_name,
-                    &consumer_name,
-                    &mut shutdown,
-                )
-                .await
-                else {
-                    break;
-                };
-                conn = new_conn;
+        };
+        let entries = match read {
+            Ok(Some(reply)) => reply
+                .keys
+                .into_iter()
+                .flat_map(|key| key.ids)
+                .collect::<Vec<_>>(),
+            Ok(None) => continue,
+            Err(e) => {
+                warn!(table = table_name, %e, "History Redis read failed; reconnecting");
+                conn = None;
+                tokio::select! {
+                    _ = time::sleep(HISTORY_RECONNECT_DELAY) => {},
+                    _ = shutdown.changed() => break,
+                }
                 continue;
             }
         };
 
         let mut batches = Vec::new();
-        let mut msg_ids_to_ack = Vec::new();
-        let mut total_rows = 0;
-
-        for stream_id in stream_ids {
+        let mut ids = Vec::new();
+        for entry in entries {
+            cursor = entry.id.clone();
+            ids.push(entry.id.clone());
             let decoded = (|| {
-                let value = stream_id
+                let value = entry
                     .map
                     .get("data")
-                    .ok_or_else(|| anyhow!("missing Arrow data field"))?;
-                let payload: Vec<u8> = redis::from_redis_value_ref(value)?;
-                let reader = StreamReader::try_new(Cursor::new(payload), None)?;
-                let decoded = reader.collect::<std::result::Result<Vec<_>, _>>()?;
-                if decoded.is_empty() {
+                    .ok_or_else(|| anyhow!("missing Arrow data"))?;
+                let bytes: Vec<u8> = redis::from_redis_value_ref(value)?;
+                let reader = StreamReader::try_new(Cursor::new(bytes), None)?;
+                let batches = reader.collect::<std::result::Result<Vec<_>, _>>()?;
+                if batches.is_empty() {
                     return Err(anyhow!("empty Arrow stream"));
                 }
-                Ok(decoded)
+                Ok::<_, anyhow::Error>(batches)
             })();
             match decoded {
-                Ok(decoded) => {
-                    total_rows += decoded.iter().map(|b| b.num_rows()).sum::<usize>();
-                    batches.extend(decoded);
-                    msg_ids_to_ack.push(stream_id.id);
-                }
-                Err(error) => {
-                    error!(table = table_name, id = stream_id.id, %error, "Invalid history batch retained pending, not acknowledged")
+                Ok(decoded) => batches.extend(decoded),
+                Err(e) => {
+                    warn!(table = table_name, id = entry.id, %e, "Discarding malformed history")
                 }
             }
         }
 
-        if batches.is_empty() {
-            continue;
-        }
-        info!(
-            rows = total_rows,
-            batches = batches.len(),
-            table = table_name,
-            "Decoded history batches"
-        );
-        let mut retry = Duration::from_secs(1);
-        loop {
-            let persist = async {
+        let mut committed_version = None;
+        if !batches.is_empty() {
+            let rows: usize = batches.iter().map(|batch| batch.num_rows()).sum();
+            // failed delta write: lose the batch, don't use a backlog
+            let result = async {
                 let _lock = ingest_lock.read().await;
                 table.update_state().await?;
-                table.clone().write(batches.clone()).await
-            };
-            let outcome = tokio::select! {
-                result = persist => result,
-                _ = shutdown.changed() => return Ok(()),
-            };
-            match outcome {
+                table.clone().write(batches).await
+            }
+            .await;
+            match result {
                 Ok(committed) => {
                     table = committed;
-                    break;
+                    committed_version = table.version();
+                    info!(table = table_name, rows, "History committed to Delta");
                 }
-                Err(error) => {
-                    warn!(table = table_name, %error, ?retry, "History commit failed; retaining pending batch and retrying; uncertain commits may repeat rows")
+                Err(e) => {
+                    warn!(table = table_name, rows, %e, "Dropping history after failed Delta write")
                 }
             }
-            tokio::select! {
-                _ = time::sleep(retry) => {},
-                _ = shutdown.changed() => return Ok(()),
-            }
-            retry = (retry * 2).min(Duration::from_secs(30));
         }
-        drop(batches); // Committed data lives on disk; ACK retries need only IDs.
-                       // This is reached only after the durable Delta commit. Retry cleanup
-                       // without rewriting a committed batch if an ACK response is uncertain.
-        loop {
-            let outcome = tokio::select! {
-                result = time::timeout(Duration::from_secs(10), acknowledger.persisted(&mut conn, &stream_key, group_name, &msg_ids_to_ack)) => result,
-                _ = shutdown.changed() => return Ok(()),
-            };
-            if matches!(outcome, Ok(Ok(()))) {
-                break;
-            }
-            warn!(
-                table = table_name,
-                ?outcome,
-                "Committed history awaiting staging cleanup; retrying without rewriting rows"
-            );
-            tokio::select! { _ = time::sleep(Duration::from_secs(1)) => {}, _ = shutdown.changed() => return Ok(()), }
-            let Some(new_conn) = history_connection(
-                &client,
-                &redis_config,
-                &stream_key,
-                group_name,
-                &consumer_name,
-                &mut shutdown,
-            )
-            .await
-            else {
-                return Ok(());
-            };
-            conn = new_conn;
+
+        // once we've tried saving a batch to Delta, we no longer need
+        // its copy in Redis, even if the write failed.
+        // delete it so old batches don't keep accumulating in memory.
+        let deleted: redis::RedisResult<usize> = conn
+            .as_mut()
+            .expect("connected above")
+            .xdel(&stream, &ids)
+            .await;
+        if let Err(e) = deleted {
+            warn!(table = table_name, %e, "History stream cleanup failed");
+            conn = None;
         }
-        if let Some(version) = table.version() {
-            if version.is_multiple_of(checkpoint_interval) {
-                if let Err(error) = checkpoints::create_checkpoint(&table, None).await {
-                    error!(table = table_name, %error, "History checkpoint failed after durable commit");
+
+        if let Some(version) = committed_version {
+            // for maintenance only
+            if checkpoint_interval != 0 && version.is_multiple_of(checkpoint_interval) {
+                if let Err(e) = checkpoints::create_checkpoint(&table, None).await {
+                    warn!(table = table_name, %e, "History checkpoint failed");
                 }
             }
         }
@@ -976,16 +861,26 @@ pub async fn start_ingest_service(config: IngestConfig) -> Result<()> {
             },
         );
 
-        ingest_handles.push(tokio::spawn(consume_stream_for_table(
-            config.redis_url.clone(),
-            table_name,
-            table,
-            checkpoint_interval,
-            config.redis_read_count,
-            config.redis_read_block_ms,
-            shutdown_rx.clone(),
-            ingest_lock,
-        )));
+        let redis_url = config.redis_url.clone();
+        let redis_read_count = config.redis_read_count;
+        let redis_read_block_ms = config.redis_read_block_ms;
+        let consumer_shutdown = shutdown_rx.clone();
+        ingest_handles.push(tokio::spawn(async move {
+            if let Err(e) = consume_stream_for_table(
+                redis_url,
+                table_name.clone(),
+                table,
+                checkpoint_interval,
+                redis_read_count,
+                redis_read_block_ms,
+                consumer_shutdown,
+                ingest_lock,
+            )
+            .await
+            {
+                error!(table = table_name, %e, "History consumer stopped");
+            }
+        }));
     }
 
     let mut control_handle = tokio::spawn(control_subscriber(

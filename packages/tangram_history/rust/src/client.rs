@@ -6,6 +6,7 @@ use arrow_schema::{ArrowError, Schema as ArrowSchema};
 use base64::{engine::general_purpose, Engine as _};
 use futures::StreamExt;
 use redis::AsyncCommands;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, Notify};
@@ -31,16 +32,14 @@ pub struct HistoryClientConfig {
     pub checkpoint_interval: u64,
 }
 
-/// Core of the "smart batcher" client, buffers history frames in-memory before
-/// they are sent to redis.
+/// Holds a limited number of observations before they are sent to history.
 ///
-/// An in-memory buffer with backpressure (`add` blocks when full) prevents
-/// unbounded memory growth if the downstream writer task or redis is slow.
+/// If the buffer is full, drop new observations. Missing some history is acceptable.
 #[derive(Debug)]
 pub struct HistoryBuffer<T: Send> {
     buffer: Arc<Mutex<Vec<T>>>,
-    notify_buffer_drained: Arc<Notify>,
     notify_buffer_full: Arc<Notify>,
+    dropped: Arc<AtomicU64>,
     max_buffered_rows: usize,
 }
 
@@ -48,8 +47,8 @@ impl<T: Send> Clone for HistoryBuffer<T> {
     fn clone(&self) -> Self {
         Self {
             buffer: self.buffer.clone(),
-            notify_buffer_drained: self.notify_buffer_drained.clone(),
             notify_buffer_full: self.notify_buffer_full.clone(),
+            dropped: self.dropped.clone(),
             max_buffered_rows: self.max_buffered_rows,
         }
     }
@@ -59,32 +58,33 @@ impl<T: Send> HistoryBuffer<T> {
     pub fn new(max_buffered_rows: usize) -> Self {
         Self {
             buffer: Arc::new(Mutex::new(Vec::new())),
-            notify_buffer_drained: Arc::new(Notify::new()),
             notify_buffer_full: Arc::new(Notify::new()),
+            dropped: Arc::new(AtomicU64::new(0)),
             max_buffered_rows,
         }
     }
 
     pub async fn add(&self, item: T) {
-        loop {
-            let mut buffer = self.buffer.lock().await;
-            if buffer.len() < self.max_buffered_rows {
-                buffer.push(item);
-                return;
+        let mut buffer = self.buffer.lock().await;
+        if buffer.len() >= self.max_buffered_rows {
+            let dropped = self.dropped.fetch_add(1, Ordering::Relaxed) + 1;
+            if dropped.is_power_of_two() {
+                warn!(
+                    dropped,
+                    "History buffer full; dropping observations to protect live data"
+                );
             }
-
             self.notify_buffer_full.notify_one();
-            drop(buffer);
-            self.notify_buffer_drained.notified().await;
+            return;
+        }
+        buffer.push(item);
+        if buffer.len() == self.max_buffered_rows {
+            self.notify_buffer_full.notify_one();
         }
     }
 
-    pub(crate) fn into_parts(self) -> (Arc<Mutex<Vec<T>>>, Arc<Notify>, Arc<Notify>) {
-        (
-            self.buffer,
-            self.notify_buffer_drained,
-            self.notify_buffer_full,
-        )
+    pub(crate) fn into_parts(self) -> (Arc<Mutex<Vec<T>>>, Arc<Notify>) {
+        (self.buffer, self.notify_buffer_full)
     }
 }
 
@@ -153,16 +153,21 @@ pub async fn register_history_table<T: HistoryFrame>(
     }
 }
 
+// if the history service stops or falls behind, discard older batches
+// instead of letting them accumulate in memory.
+const HISTORY_STREAM_MAX_BATCHES: usize = 16;
+const HISTORY_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
+const HISTORY_REGISTER_RETRY_DELAY: Duration = Duration::from_secs(5);
+
 pub async fn writer_task<T: HistoryFrame>(
     redis_url: String,
     table_name: String,
     buffer: Arc<Mutex<Vec<T>>>,
-    notify_buffer_drained: Arc<Notify>,
     notify_buffer_full: Arc<Notify>,
     flush_interval: Duration,
 ) -> Result<()> {
     let client = redis::Client::open(redis_url)?;
-    let mut conn = client.get_multiplexed_async_connection().await?;
+    let mut conn = None;
     let stream_key = format!("history:ingest:{}", table_name);
     let mut interval = time::interval(flush_interval);
 
@@ -172,53 +177,71 @@ pub async fn writer_task<T: HistoryFrame>(
             _ = notify_buffer_full.notified() => {},
         }
 
-        let frames_to_flush = {
-            let mut buffer_lock = buffer.lock().await;
-            if buffer_lock.is_empty() {
+        let frames = {
+            let mut buffered = buffer.lock().await;
+            if buffered.is_empty() {
                 continue;
             }
-            std::mem::take(&mut *buffer_lock)
+            std::mem::take(&mut *buffered)
         };
-        notify_buffer_drained.notify_waiters();
-
-        debug!(
-            "writer task flushing {} history frames to redis stream '{}'",
-            frames_to_flush.len(),
-            stream_key
-        );
-
-        let batch = T::to_record_batch(&frames_to_flush.iter().collect::<Vec<_>>())?;
-
-        let mut stream_buffer = Vec::new();
-        let options = IpcWriteOptions::default();
-        let mut writer =
-            StreamWriter::try_new_with_options(&mut stream_buffer, &batch.schema(), options)?;
-        writer.write(&batch)?;
-        writer.finish()?;
-
-        for attempt in 1..=3 {
-            match redis::cmd("XADD")
-                .arg(&stream_key)
-                .arg("*")
-                .arg("data")
-                .arg(stream_buffer.as_slice())
-                .query_async::<()>(&mut conn)
-                .await
+        let encoded = (|| {
+            let batch = T::to_record_batch(&frames.iter().collect::<Vec<_>>())?;
+            let mut bytes = Vec::new();
             {
-                Ok(_) => {
-                    debug!(
-                        "successfully wrote {} frames to redis",
-                        frames_to_flush.len()
+                let mut writer = StreamWriter::try_new_with_options(
+                    &mut bytes,
+                    &batch.schema(),
+                    IpcWriteOptions::default(),
+                )?;
+                writer.write(&batch)?;
+                writer.finish()?;
+            }
+            Ok::<_, anyhow::Error>(bytes)
+        })();
+        let bytes = match encoded {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                warn!(%e, rows = frames.len(), "Dropping history: failed to encode batch");
+                continue;
+            }
+        };
+
+        // NOTE: intentionally *not* a reliable producer.
+        // if redis is down, discard the batch and try again at the next flush.
+        // don't retry indefinitely (as it would fill the receiver buffer)
+        if conn.is_none() {
+            match time::timeout(
+                HISTORY_CONNECT_TIMEOUT,
+                client.get_multiplexed_async_connection(),
+            )
+            .await
+            {
+                Ok(Ok(connected)) => conn = Some(connected),
+                outcome => {
+                    warn!(
+                        ?outcome,
+                        rows = frames.len(),
+                        "Dropping history: Redis unavailable"
                     );
-                    break;
+                    continue;
                 }
-                Err(e) => {
-                    error!("failed to write to redis (attempt {}): {}", attempt, e);
-                    if attempt == 3 {
-                        error!("giving up on writing to redis, data lost.");
-                    }
-                    time::sleep(Duration::from_secs(1)).await;
-                }
+            }
+        }
+        let result: redis::RedisResult<String> = redis::cmd("XADD")
+            .arg(&stream_key)
+            .arg("MAXLEN")
+            .arg("=")
+            .arg(HISTORY_STREAM_MAX_BATCHES)
+            .arg("*")
+            .arg("data")
+            .arg(bytes.as_slice())
+            .query_async(conn.as_mut().expect("connected above"))
+            .await;
+        match result {
+            Ok(id) => debug!(rows = frames.len(), %id, "History batch staged"),
+            Err(e) => {
+                warn!(%e, rows = frames.len(), "Dropping history: Redis write failed");
+                conn = None;
             }
         }
     }
@@ -244,35 +267,34 @@ pub async fn start_producer_service_components<T: HistoryFrame>(
         checkpoint_interval: history_config.checkpoint_interval,
     };
 
-    for attempt in 1..=3 {
+    // history service may start after the receiver, keep trying to register
+    // in the background, so when it returns, resume recording
+    loop {
         match register_history_table::<T>(&history_client_config, &client).await {
-            Ok(_) => {
+            Ok(()) => {
                 let buffer = HistoryBuffer::<T>::new(history_config.buffer_size);
-                let (buffer_arc, notify_drained, notify_full) = buffer.clone().into_parts();
+                let (buffer_arc, notify_full) = buffer.clone().into_parts();
 
-                tokio::spawn(writer_task::<T>(
-                    history_client_config.redis_url,
-                    history_client_config.table_name,
-                    buffer_arc,
-                    notify_drained,
-                    notify_full,
-                    Duration::from_secs(history_config.flush_interval_secs),
-                ));
+                tokio::spawn(async move {
+                    if let Err(e) = writer_task::<T>(
+                        history_client_config.redis_url,
+                        history_client_config.table_name,
+                        buffer_arc,
+                        notify_full,
+                        Duration::from_secs(history_config.flush_interval_secs),
+                    )
+                    .await
+                    {
+                        error!(%e, "History producer stopped");
+                    }
+                });
 
                 return Ok(Some(buffer));
             }
             Err(e) => {
-                warn!(
-                    "failed to register history table (attempt {}/3): {}. retrying in 5s...",
-                    attempt, e
-                );
-                if attempt < 3 {
-                    time::sleep(Duration::from_secs(5)).await;
-                }
+                warn!(%e, "History service unavailable; retrying registration");
+                time::sleep(HISTORY_REGISTER_RETRY_DELAY).await;
             }
         }
     }
-
-    warn!("failed to register with history service after multiple attempts. history will be disabled for this session.");
-    Ok(None)
 }
