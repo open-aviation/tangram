@@ -250,6 +250,13 @@ class PlanesConfig:
     trail_alpha: float = 0.6
     enable_3d: bool = False
     position_expire: Annotated[int, Ge(1), Le(65535)] = 20
+    """How long to show an aircraft at its last known location (seconds).
+
+    Note that not all updates from an aircraft contains a position packet.
+    Some only report its speed altitude or identity. If no new location arrives
+    within the specified amount of seconds, the icon will disappear from the
+    live map.
+    """
 
 
 @dataclass(frozen=True)

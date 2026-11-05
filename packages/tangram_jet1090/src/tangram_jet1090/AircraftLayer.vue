@@ -26,7 +26,6 @@ import { getModifierKeys, resolveBearing } from "@open-aviation/tangram-core/uti
 import aircraftIconMetadata from "./aircraft-icons.json";
 import type { Jet1090Aircraft } from ".";
 import { pluginConfig } from "./store";
-import { hasFreshPosition } from "./live_position";
 import {
   importedAircraftTimestamp,
   isJet1090ImportedHistoryDataset
@@ -269,6 +268,13 @@ const renderImportedLayer = (enable3d: boolean) => {
     slot: "entities"
   });
 };
+
+// rust already validates geometry
+const hasFreshPosition = (state: Jet1090Aircraft, now: number): boolean =>
+  state.latitude != null &&
+  state.longitude != null &&
+  state.position_expires_at != null &&
+  now * 1_000 < state.position_expires_at;
 
 watch(
   [

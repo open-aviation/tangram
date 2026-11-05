@@ -485,6 +485,9 @@ impl StateVector {
             return;
         };
         let expire = u64::from(expire_secs) * 1_000_000;
+        // NOTE: rs1090 resolves CPR and checks plausible movement
+        // (https://github.com/xoolive/jet1090/commit/46157875b553)
+        // and also replay decoding in https://github.com/xoolive/jet1090/commit/668b2e517605
         if !latitude.is_finite()
             || !longitude.is_finite()
             || !(-90.0..=90.0).contains(&latitude)

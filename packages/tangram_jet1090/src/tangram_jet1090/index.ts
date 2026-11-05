@@ -38,8 +38,6 @@ import {
   parseRs1090Jsonl
 } from "./imported_trajectory";
 
-import { livePositionPoint } from "./live_position";
-
 const ENTITY_TYPE = "jet1090_aircraft";
 
 // deduplicate trajectory backfill fetches across multiple consumers (widgets, landing, etc.).
@@ -525,21 +523,26 @@ async function subscribeToAircraftData(
           continue;
         }
 
-        if (entity.state.latitude != null && entity.state.longitude != null) {
-          const updated = entity.state;
-          const last = data.trajectory[data.trajectory.length - 1];
-          const point = livePositionPoint(updated, last?.timestamp);
+        const state = entity.state;
+        const fixTime = state.position_timestamp;
+        // some aircraft updates has no location, and the backend doesn't clear
+        // the position until the user specified position expire
+        // so skip repeats, and only add actual position reports
+        if (state.latitude == null || state.longitude == null || fixTime == null)
+          continue;
 
-          if (point) {
-            data.trajectory.push(point);
-            api.bus.publish(TrajectoryApi.TOPIC_APPEND, {
-              key: { id, type: ENTITY_TYPE },
-              points: [point],
-              source: "tangram_jet1090"
-            });
-            hasUpdates = true;
-          }
-        }
+        const timestamp = fixTime / 1_000_000;
+        const last = data.trajectory[data.trajectory.length - 1];
+        if (last?.timestamp != null && timestamp - last.timestamp <= 0.5) continue;
+
+        const point = { ...state, timestamp };
+        data.trajectory.push(point);
+        api.bus.publish(TrajectoryApi.TOPIC_APPEND, {
+          key: { id, type: ENTITY_TYPE },
+          points: [point],
+          source: "tangram_jet1090"
+        });
+        hasUpdates = true;
       }
       if (hasUpdates) {
         aircraftStore.version++;
