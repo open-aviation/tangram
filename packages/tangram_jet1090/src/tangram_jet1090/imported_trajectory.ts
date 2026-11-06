@@ -237,6 +237,120 @@ export function isJet1090ImportedHistoryDataset(
   );
 }
 
+function flightRadar24Flight(value: unknown): Record<string, unknown> | null {
+  if (!isRecord(value) || !isRecord(value.result) || !isRecord(value.result.response)) {
+    return null;
+  }
+
+  const data = value.result.response.data;
+  if (!isRecord(data) || !isRecord(data.flight) || !Array.isArray(data.flight.track)) {
+    return null;
+  }
+
+  return data.flight;
+}
+
+function normalizeFlightRadar24Flight(
+  flight: Record<string, unknown>,
+  fallbackId: string
+): Jet1090Aircraft[] {
+  const identification = isRecord(flight.identification) ? flight.identification : {};
+  const aircraft = isRecord(flight.aircraft) ? flight.aircraft : {};
+  const aircraftIdentification = isRecord(aircraft.identification)
+    ? aircraft.identification
+    : {};
+  const model = isRecord(aircraft.model) ? aircraft.model : {};
+  const flightNumber = isRecord(identification.number)
+    ? identification.number.default
+    : undefined;
+  const callsign =
+    String(identification.callsign ?? flightNumber ?? "").trim() || undefined;
+  const icao24 =
+    String(aircraftIdentification.modes ?? identification.id ?? fallbackId)
+      .trim()
+      .toLowerCase() || fallbackId;
+
+  return flight.track.filter(isRecord).flatMap(row => {
+    const latitude = finiteNumber(row.latitude);
+    const longitude = finiteNumber(row.longitude);
+    const timestamp = parseTimestamp(row.timestamp);
+    if (latitude === null || longitude === null || timestamp === null) return [];
+
+    const altitude = isRecord(row.altitude) ? row.altitude.feet : row.altitude;
+    const speed = isRecord(row.speed) ? row.speed.kts : row.speed;
+    const verticalSpeed = isRecord(row.verticalSpeed)
+      ? row.verticalSpeed.fpm
+      : row.verticalSpeed;
+    const heading = finiteNumber(row.heading) ?? undefined;
+
+    return [
+      {
+        icao24,
+        lastseen: Math.round(timestamp * 1_000_000),
+        callsign,
+        registration:
+          String(aircraftIdentification.registration ?? "").trim() || undefined,
+        typecode: String(model.code ?? "").trim() || undefined,
+        latitude,
+        longitude,
+        altitude: finiteNumber(altitude) ?? undefined,
+        groundspeed: finiteNumber(speed) ?? undefined,
+        vertical_rate: finiteNumber(verticalSpeed) ?? undefined,
+        track: heading,
+        heading,
+        count: 1,
+        timestamp
+      }
+    ];
+  });
+}
+
+export async function acceptsFlightRadar24Json(file: LazyImportFile): Promise<boolean> {
+  if (file.metadata.extension !== ".json") return false;
+
+  try {
+    const flight = flightRadar24Flight(await file.getJson());
+    return (
+      flight !== null &&
+      normalizeFlightRadar24Flight(flight, file.metadata.name).length >= 2
+    );
+  } catch {
+    return false;
+  }
+}
+
+export async function parseFlightRadar24Json(
+  file: LazyImportFile
+): Promise<WorkspaceDatasetInput[]> {
+  const flight = flightRadar24Flight(await file.getJson());
+  if (!flight) {
+    throw new Error(
+      `${file.metadata.name} does not look like a FlightRadar24 flight JSON file.`
+    );
+  }
+
+  const records = normalizeFlightRadar24Flight(flight, file.metadata.name);
+  if (records.length < 2) {
+    throw new Error(
+      `${file.metadata.name} does not contain a valid FlightRadar24 track.`
+    );
+  }
+
+  return [
+    {
+      kind: JET1090_IMPORTED_HISTORY_KIND,
+      label: file.metadata.name,
+      payload: buildImportedPayload(records),
+      timeRange: importedAircraftTimeRange(records),
+      bounds: computeBoundsFromRecords(
+        records,
+        record => record.longitude,
+        record => record.latitude
+      )
+    }
+  ];
+}
+
 export async function acceptsRs1090Jsonl(file: LazyImportFile): Promise<boolean> {
   if (!isJsonlFile(file)) return false;
   const sample = await parseJsonlRows(file, 20, true);
