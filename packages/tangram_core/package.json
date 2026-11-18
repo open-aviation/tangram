@@ -64,7 +64,7 @@
     "parquet-wasm": "^0.9.0",
     "phoenix": "^1.8.16",
     "pmtiles": "^4.5.0",
-    "vue": "^3.5.44"
+    "vue": "^3.5.45"
   },
   "devDependencies": {
     "@types/phoenix": "^1.6.8",
